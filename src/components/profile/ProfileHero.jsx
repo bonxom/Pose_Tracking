@@ -116,14 +116,7 @@ export default function ProfileHero({
       <View style={profileStyles.fbHeroInfo}>
         <View style={profileStyles.fbAvatarRow}>
           <View>
-            <UserAvatar
-              uri={profile.avatar}
-              version={
-                profile.avatarVersion || profile.profileSyncRequestedAt || ""
-              }
-              size={120}
-              bordered={true}
-            />
+            <UserAvatar uri={profile.avatar} size={120} bordered={true} />
             {isOwnProfile ? (
               <Pressable
                 style={profileStyles.fbAvatarCamera}

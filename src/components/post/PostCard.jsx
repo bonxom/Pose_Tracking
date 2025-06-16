@@ -187,11 +187,7 @@ export default function PostCard({
             hitSlop={8}
             style={localStyles.avatarPressable}
           >
-            <UserAvatar
-              uri={avatarInfo.uri}
-              version={avatarInfo.version}
-              size={44}
-            />
+            <UserAvatar uri={avatarInfo.uri} size={44} />
           </Pressable>
 
           <View style={postStyles.authorMetaGroup}>

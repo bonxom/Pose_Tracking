@@ -1,5 +1,6 @@
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
+import UserAvatar from "@/components/common/UserAvatar";
 import BackIcon from "@/components/icons/BackIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
@@ -18,7 +19,7 @@ import {
   readCache,
   writeCache,
 } from "@/utils/cacheStore";
-import { resolveAvatarUri, resolveCoverUri } from "@/utils/profile";
+import { resolveCoverUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { Image } from "expo-image";
@@ -55,18 +56,10 @@ function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
 }
 
 function AvatarPreview({ uri, version, name, onPick }) {
-  const resolvedAvatarUri = resolveAvatarUri(uri, version);
-
   return (
     <View style={styles.avatarPreviewWrap}>
       <View style={styles.avatarPreview}>
-        <Image
-          source={{ uri: resolvedAvatarUri }}
-          style={styles.previewImage}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-        />
+        <UserAvatar uri={uri} size={148} />
       </View>
       <Pressable style={styles.cameraFab} onPress={onPick}>
         <ProfileIcon name="camera" size={20} color={colors.ink} />
@@ -414,8 +407,14 @@ export default function ProfileEditScreen() {
         avatar,
         coverImage,
         description: description.trim().slice(0, 150),
-        avatarVersion: avatar !== (session?.avatar || "") ? new Date().toISOString() : session?.avatarVersion || "",
-        coverVersion: coverImage !== (session?.coverImage || "") ? new Date().toISOString() : session?.coverVersion || "",
+        avatarVersion:
+          avatar !== (session?.avatar || "")
+            ? new Date().toISOString()
+            : session?.avatarVersion || "",
+        coverVersion:
+          coverImage !== (session?.coverImage || "")
+            ? new Date().toISOString()
+            : session?.coverVersion || "",
         profileSyncStatus: "pending",
         profileSyncRequestedAt: new Date().toISOString(),
       };
@@ -682,10 +681,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     borderWidth: 4,
     borderColor: colors.white,
-  },
-  previewImage: {
-    width: "100%",
-    height: "100%",
   },
   avatarFallback: {
     flex: 1,

@@ -1,4 +1,5 @@
 import AppButton from "@/components/common/AppButton";
+import UserAvatar from "@/components/common/UserAvatar";
 import BackIcon from "@/components/icons/BackIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
@@ -14,12 +15,8 @@ import {
   isProfileCacheValidForSession,
   readCache,
 } from "@/utils/cacheStore";
-import {
-  getAuthSession,
-  subscribeAuthSession,
-} from "@/utils/session";
+import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
-import { resolveAvatarUri } from "@/utils/profile";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -34,23 +31,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 
 function HeaderAvatar({ profile }) {
-  const avatarUri = resolveAvatarUri(
-    profile?.avatar || "",
-    profile?.avatarVersion || profile?.profileSyncRequestedAt || "",
-  );
-
   return (
     <View style={styles.headerAvatarWrap}>
-      <Image
-        source={{ uri: avatarUri }}
-        style={styles.headerAvatar}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        transition={150}
-      />
+      <UserAvatar uri={profile.avatar} size={38} />
       <View style={styles.headerAvatarBadge}>
         <ProfileIcon name="chevron-down" size={10} color={colors.ink} />
       </View>
@@ -70,7 +55,9 @@ function SettingsRow({ icon, label, onPress }) {
 }
 
 export default function ProfileSettingsScreen() {
-  const [profile, setProfile] = useState(() => profileCacheState[""]?.profile ?? null);
+  const [profile, setProfile] = useState(
+    () => profileCacheState[""]?.profile ?? null,
+  );
   const [loading, setLoading] = useState(() => !profileCacheState[""]?.profile);
   const diskCacheLoadedRef = useRef(false);
 
@@ -84,7 +71,9 @@ export default function ProfileSettingsScreen() {
       memoryCache?.ownerKey &&
       memoryCache.ownerKey === ownerKey
     ) {
-      setProfile(mergeOwnProfileWithSession(memoryCache.profile, session || {}));
+      setProfile(
+        mergeOwnProfileWithSession(memoryCache.profile, session || {}),
+      );
       return true;
     }
 
@@ -110,10 +99,10 @@ export default function ProfileSettingsScreen() {
     const merged = mergeOwnProfileWithSession(profile || {}, session);
     const hasSnapshot = Boolean(
       merged.displayName ||
-        merged.username ||
-        merged.avatar ||
-        merged.coverImage ||
-        merged.description,
+      merged.username ||
+      merged.avatar ||
+      merged.coverImage ||
+      merged.description,
     );
 
     if (hasSnapshot) {
@@ -194,7 +183,10 @@ export default function ProfileSettingsScreen() {
 
   const profileLink = useMemo(() => {
     const id = profile?.id || "";
-    return profile?.profileLink || Linking.createURL(id ? `/profile/${id}` : "/(tabs)/profile");
+    return (
+      profile?.profileLink ||
+      Linking.createURL(id ? `/profile/${id}` : "/(tabs)/profile")
+    );
   }, [profile?.id, profile?.profileLink]);
 
   const copyProfileLink = async () => {
@@ -221,7 +213,11 @@ export default function ProfileSettingsScreen() {
           params: { userId: profile?.id || "" },
         }),
     },
-    { icon: "link-outline", label: "Sao chép liên kết trang cá nhân", onPress: copyProfileLink },
+    {
+      icon: "link-outline",
+      label: "Sao chép liên kết trang cá nhân",
+      onPress: copyProfileLink,
+    },
   ];
 
   return (
@@ -248,13 +244,21 @@ export default function ProfileSettingsScreen() {
           </View>
 
           <View style={styles.linkSection}>
-            <Text style={styles.linkTitle}>Liên kết đến trang cá nhân của bạn</Text>
-            <Text style={styles.linkSubtitle}>Đường dẫn hiện có trong trường link của hồ sơ.</Text>
+            <Text style={styles.linkTitle}>
+              Liên kết đến trang cá nhân của bạn
+            </Text>
+            <Text style={styles.linkSubtitle}>
+              Đường dẫn hiện có trong trường link của hồ sơ.
+            </Text>
             <View style={styles.divider} />
             <Text style={styles.linkValue} numberOfLines={2}>
               {profileLink}
             </Text>
-            <AppButton title="Sao chép liên kết" onPress={copyProfileLink} style={styles.shareButton} />
+            <AppButton
+              title="Sao chép liên kết"
+              onPress={copyProfileLink}
+              style={styles.shareButton}
+            />
           </View>
         </ScrollView>
       )}

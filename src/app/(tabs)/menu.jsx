@@ -100,13 +100,15 @@ export default function MenuScreen() {
 
     try {
       await clearCurrentUserSession();
+    } catch (error) {
+      console.info("CLEAR_SESSION_ERROR", error?.message);
     } finally {
+      logoutSession(currentSession).catch((error) => {
+        console.info("LOGOUT_BACKEND_BEST_EFFORT_FAILED", error?.message);
+      });
+
       router.replace("/(auth)/login");
     }
-
-    logoutSession(currentSession).catch((error) => {
-      console.info("LOGOUT_BACKEND_BEST_EFFORT_FAILED", error?.message);
-    });
   };
 
   const confirmLogout = () => {

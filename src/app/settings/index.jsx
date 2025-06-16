@@ -3,10 +3,8 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { logoutSession } from "@/repositories/authRepository";
-import { clearNotificationState } from "@/services/notificationStore";
-import { CACHE_KEY_PROFILE } from "@/utils/cacheStore";
-import { clearAuthSession, getAuthSession } from "@/utils/session";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getAuthSession } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { router } from "expo-router";
 import {
   Alert,
@@ -46,14 +44,18 @@ export default function SettingsScreen() {
 
   const runLogout = async () => {
     const currentSession = await getAuthSession().catch(() => null);
-    await clearAuthSession();
-    clearNotificationState();
-    await AsyncStorage.removeItem(CACHE_KEY_PROFILE);
-    router.replace("/(auth)/login");
-
-    logoutSession(currentSession).catch((error) => {
-      console.info("LOGOUT_BACKEND_BEST_EFFORT_FAILED", error?.message);
-    });
+    
+    try {
+      await clearCurrentUserSession();
+    } catch (error) {
+      console.info("CLEAR_SESSION_ERROR", error?.message);
+    } finally {
+      logoutSession(currentSession).catch((error) => {
+        console.info("LOGOUT_BACKEND_BEST_EFFORT_FAILED", error?.message);
+      });
+      
+      router.replace("/(auth)/login");
+    }
   };
 
   const confirmLogout = () => {

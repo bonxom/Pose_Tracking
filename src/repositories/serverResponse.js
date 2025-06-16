@@ -13,7 +13,9 @@ export class SessionExpiredError extends Error {
 
 export function isInvalidSessionResponse(response) {
   const code = String(response?.code || response?.status || "");
-  const message = String(response?.message || response?.msg || response?.error || "").toLowerCase();
+  const message = String(
+    response?.message || response?.msg || response?.error || "",
+  ).toLowerCase();
 
   return (
     ["9998", "1009", "401", "403"].includes(code) ||
@@ -30,7 +32,7 @@ export async function assertBackendOk(response, options = {}) {
     await clearCurrentUserSession();
     Alert.alert("Lỗi", "Vui lòng đăng nhập lại");
     router.replace("/(auth)/login");
-    
+
     throw new SessionExpiredError(response?.message || undefined);
   }
 
@@ -42,5 +44,7 @@ export async function assertBackendOk(response, options = {}) {
     return response;
   }
 
-  throw new Error(response?.message || options.message || "Backend request failed");
+  throw new Error(
+    response?.message || options.message || "Backend request failed",
+  );
 }
