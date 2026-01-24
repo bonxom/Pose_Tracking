@@ -42,11 +42,13 @@ export default function LoginScreen() {
         displayName: data.displayName || data.username || data.name || "",
         role: data.role,
         avatar: data.avatar,
+        coverImage: data.coverImage || data.cover_image || "",
         height: data.height,
         handle: data.handle,
         source: data.source,
         demoMode: Boolean(data.demoMode),
         avatarVersion: new Date().toISOString(),
+        coverVersion: new Date().toISOString(),
         loggedInAt: new Date().toISOString(),
       });
 

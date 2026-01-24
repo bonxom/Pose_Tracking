@@ -20,7 +20,7 @@ import {
   writeCache,
 } from "@/utils/cacheStore";
 import { resolveCoverUri } from "@/utils/profile";
-import { getAuthSession, subscribeAuthSession } from "@/utils/session";
+import { getAuthSession, saveAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -271,6 +271,20 @@ export default function ProfileEditScreen() {
         const user = await getUserInfo();
         applyProfileSnapshot(user);
         await persistProfileSnapshot(user);
+
+        // Sync auth session if outdated or missing coverImage/avatar
+        const session = await getAuthSession();
+        if (
+          session &&
+          (session.coverImage !== user.coverImage ||
+            session.avatar !== user.avatar)
+        ) {
+          await saveAuthSession({
+            ...session,
+            avatar: user.avatar,
+            coverImage: user.coverImage,
+          });
+        }
       } catch (error) {
         if (error.sessionExpired) {
           await clearCurrentUserSession();

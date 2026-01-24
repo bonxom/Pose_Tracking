@@ -24,7 +24,7 @@ import {
 } from "@/utils/cacheStore";
 import { profileCacheState } from "@/state/profileCacheState";
 import { feedCacheState } from "@/state/feedCacheState";
-import { getAuthSession, subscribeAuthSession } from "@/utils/session";
+import { getAuthSession, saveAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
@@ -167,6 +167,18 @@ export default function ProfileScreenContent({ userId = "" }) {
 
             if (cacheKey) {
               writeCache(cacheKey, profileCacheState[userId]);
+            }
+
+            if (
+              session &&
+              (session.coverImage !== nextProfile.coverImage ||
+                session.avatar !== nextProfile.avatar)
+            ) {
+              await saveAuthSession({
+                ...session,
+                avatar: nextProfile.avatar,
+                coverImage: nextProfile.coverImage,
+              });
             }
           }
 
