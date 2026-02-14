@@ -1,7 +1,7 @@
 import NoInternetView from "@/components/common/NoInternetView";
+import FeedLoadingCard from "@/components/post/FeedLoadingCard";
 import PostCard from "@/components/post/PostCard";
 import PostUploadingCard from "@/components/post/PostUploadingCard";
-import FeedLoadingCard from "@/components/post/FeedLoadingCard";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   // checkNewItems,
@@ -16,7 +16,7 @@ import { feedCacheState } from "@/state/feedCacheState";
 import { profileCacheState } from "@/state/profileCacheState";
 import homeStyles from "@/styles/home.styles";
 import { CACHE_KEY_HOME_FEED, readCache, writeCache } from "@/utils/cacheStore";
-import { mergeUniquePosts, mergeRefreshedFeed } from "@/utils/post";
+import { mergeRefreshedFeed, mergeUniquePosts } from "@/utils/post";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -38,8 +38,6 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-
-
 export default function HomeScreen() {
   const uploadSuccessAlertLock = useRef(false);
   const diskCacheLoadedRef = useRef(false);
@@ -47,7 +45,9 @@ export default function HomeScreen() {
   const lastContentHeightRef = useRef(0);
   const lastTriggeredContentHeightRef = useRef(0);
   const [posts, setPosts] = useState(feedCacheState.homeFeedCache);
-  const [isLoading, setIsLoading] = useState(feedCacheState.homeFeedCache.length === 0);
+  const [isLoading, setIsLoading] = useState(
+    feedCacheState.homeFeedCache.length === 0,
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -56,8 +56,6 @@ export default function HomeScreen() {
   const [newItemsCount, setNewItemsCount] = useState(0);
   const [uploadingCards, setUploadingCards] = useState([]);
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
-
-
 
   // Load persistent cache from disk once per app session, then replace
   // useEffect-based fetch with useFocusEffect so the feed silently
@@ -188,13 +186,7 @@ export default function HomeScreen() {
       loadMoreTriggerLock.current = false;
       setIsLoadingMore(false);
     }
-  }, [
-    currentPage,
-    hasLoadedAllPosts,
-    isLoadingMore,
-    lastId,
-    posts.length,
-  ]);
+  }, [currentPage, hasLoadedAllPosts, isLoadingMore, lastId, posts.length]);
 
   const queueLoadMore = useCallback(
     (contentHeight = 0) => {
@@ -323,7 +315,9 @@ export default function HomeScreen() {
       Object.keys(profileCacheState).forEach((uId) => {
         const cache = profileCacheState[uId];
         if (cache?.posts) {
-          cache.posts = cache.posts.map((p) => (p.id === post.id ? updatedPost : p));
+          cache.posts = cache.posts.map((p) =>
+            p.id === post.id ? updatedPost : p,
+          );
         }
       });
     } catch (error) {

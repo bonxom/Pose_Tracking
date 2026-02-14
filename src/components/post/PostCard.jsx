@@ -80,12 +80,7 @@ export default function PostCard({
     : likeCount > 0
       ? formatCount(likeCount)
       : "";
-  const hashtags = useMemo(() => {
-    const values = new Set(post.hashtags || []);
-    if (post.courseId) values.add(`#${post.courseId}`);
-    if (post.exerciseId) values.add(`#${post.exerciseId}`);
-    return Array.from(values);
-  }, [post.courseId, post.exerciseId, post.hashtags]);
+  const hashtags = post.hashtags || [];
   const avatarInfo = useMemo(() => {
     const authorId = String(post.author?.id || "").trim();
     const isOwn = Boolean(
@@ -94,7 +89,10 @@ export default function PostCard({
     if (isOwn) {
       return {
         uri: currentUser?.avatar || post.author?.avatar || "",
-        version: currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || "",
+        version:
+          currentUser?.avatarVersion ||
+          currentUser?.profileSyncRequestedAt ||
+          "",
       };
     }
     return {
@@ -189,7 +187,11 @@ export default function PostCard({
             hitSlop={8}
             style={localStyles.avatarPressable}
           >
-            <UserAvatar uri={avatarInfo.uri} version={avatarInfo.version} size={44} />
+            <UserAvatar
+              uri={avatarInfo.uri}
+              version={avatarInfo.version}
+              size={44}
+            />
           </Pressable>
 
           <View style={postStyles.authorMetaGroup}>

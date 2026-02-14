@@ -3,7 +3,6 @@ import sizes from "@/constants/sizes";
 import { StyleSheet } from "react-native";
 
 const postStyles = StyleSheet.create({
-
   screen: {
     paddingHorizontal: 0,
     paddingVertical: sizes.lg,

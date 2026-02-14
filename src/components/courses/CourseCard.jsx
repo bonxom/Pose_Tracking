@@ -2,7 +2,9 @@ import UserAvatar from "@/components/common/UserAvatar";
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { splitContentAndHashtags } from "@/utils/hashtags";
 import { router } from "expo-router";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 // ─── Join Button ────────────────────────────────────────────────────────────
@@ -26,6 +28,16 @@ export default function CourseCard({ item, onJoin, flat = false }) {
     authorId && currentUser?.id && String(currentUser.id) === authorId,
   );
 
+  const { content, hashtags } = useMemo(() => {
+    const rawContent = item.description || "";
+    const rawHashtags = Array.isArray(item.hashtags) ? item.hashtags : [];
+    const hashtagPayload = splitContentAndHashtags(rawContent, rawHashtags);
+    return {
+      content: hashtagPayload.content,
+      hashtags: hashtagPayload.hashtags || [],
+    };
+  }, [item.description, item.hashtags]);
+
   const handleOpenAuthorProfile = () => {
     if (!authorId) return;
 
@@ -37,6 +49,21 @@ export default function CourseCard({ item, onJoin, flat = false }) {
     router.push({
       pathname: "/profile/[userId]",
       params: { userId: authorId },
+    });
+  };
+
+  const handlePressHashtag = (tag) => {
+    const normalizedTag = String(tag || "").trim();
+    if (!normalizedTag) return;
+
+    router.push({
+      pathname: "/search",
+      params: {
+        keyword: normalizedTag,
+        autoSearch: "1",
+        tab: "posts",
+        requestId: String(Date.now()),
+      },
     });
   };
 
@@ -79,8 +106,25 @@ export default function CourseCard({ item, onJoin, flat = false }) {
       </View>
 
       {/* ── Description ── */}
-      {item.description ? (
-        <Text style={localStyles.description}>{item.description}</Text>
+      {content ? (
+        <Text style={localStyles.description}>{content}</Text>
+      ) : null}
+
+      {/* ── Hashtags ── */}
+      {hashtags.length > 0 ? (
+        <View style={localStyles.hashtagRow}>
+          {hashtags.map((tag) => (
+            <Pressable
+              key={tag}
+              onPress={(event) => {
+                event.stopPropagation?.();
+                handlePressHashtag(tag);
+              }}
+            >
+              <Text style={localStyles.hashtagText}>{tag}</Text>
+            </Pressable>
+          ))}
+        </View>
       ) : null}
 
       {/* ── Videos ── */}
@@ -230,5 +274,16 @@ const localStyles = StyleSheet.create({
   },
   joinButtonTextDisabled: {
     color: colors.white,
+  },
+  hashtagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  hashtagText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "700",
   },
 });
