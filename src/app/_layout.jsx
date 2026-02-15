@@ -194,7 +194,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="post" />
         <Stack.Screen name="conversation" />
-        <Stack.Screen name="search" />
+        <Stack.Screen name="search/index" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="profile" />
       </Stack>

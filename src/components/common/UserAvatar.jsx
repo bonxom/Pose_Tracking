@@ -9,6 +9,7 @@ export default function UserAvatar({
   size = 44,
   version = "",
   bordered = false,
+  borderColor = colors.background,
 }) {
   const avatarUri = resolveAvatarUri(uri || "", version);
 
@@ -26,7 +27,7 @@ export default function UserAvatar({
         height: shellSize,
         borderRadius: shellSize / 2,
         padding: ring,
-        backgroundColor: colors.background,
+        backgroundColor: borderColor,
         overflow: "hidden",
       }
     : "";

@@ -1,5 +1,6 @@
 import NoInternetView from "@/components/common/NoInternetView";
 import SearchButton from "@/components/common/SearchButton";
+import UserAvatar from "@/components/common/UserAvatar";
 import { API_TYPE, API_TYPES } from "@/config/env";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
@@ -14,9 +15,7 @@ import {
 } from "@/repositories/notificationRepository";
 import globalStyles from "@/styles/global.styles";
 import styles from "@/styles/notifications.styles";
-import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
-import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -110,10 +109,6 @@ function NotificationTypeBadge({ type = "" }) {
 
 function NotificationItem({ item, onPress, nowTick }) {
   const unread = isUnread(item);
-  const avatarUri = resolveAvatarUri(
-    item.avatar || "",
-    item.avatarVersion || item.profileSyncRequestedAt || "",
-  );
 
   return (
     <Pressable
@@ -125,19 +120,7 @@ function NotificationItem({ item, onPress, nowTick }) {
       ]}
     >
       <View style={styles.avatarWrap}>
-        {avatarUri ? (
-          <Image
-            source={{ uri: avatarUri }}
-            style={styles.avatar}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={150}
-          />
-        ) : (
-          <Text style={styles.avatarFallback}>{getInitial(item.title)}</Text>
-        )}
-
-        <NotificationTypeBadge type={item.type} />
+        <UserAvatar uri={item.avatar} version={item.avatarVersion} size={58} />
       </View>
 
       <View style={styles.notificationBody}>
@@ -431,10 +414,7 @@ export default function NotificationsScreen() {
 
       const type = String(item.type || item.raw?.type || "").toLowerCase();
       const targetType = String(
-        item.targetType ||
-          item.raw?.target_type ||
-          item.raw?.targetType ||
-          "",
+        item.targetType || item.raw?.target_type || item.raw?.targetType || "",
       ).toLowerCase();
       const title = String(item.title || item.raw?.title || "").toLowerCase();
 

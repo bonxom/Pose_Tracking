@@ -1,5 +1,6 @@
 import IconWithBadge from "@/components/common/IconWithBadge";
 import SearchButton from "@/components/common/SearchButton";
+import UserAvatar from "@/components/common/UserAvatar";
 import BellIcon from "@/components/icons/BellIcon";
 import ChatTwoBubbleIcon from "@/components/icons/ChatTwoBubbleIcon";
 import CoursesIcon from "@/components/icons/CoursesIcon";
@@ -16,10 +17,8 @@ import {
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
 import globalStyles from "@/styles/global.styles";
-import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { router, Tabs, usePathname } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -67,23 +66,14 @@ function TabButton({ onPress, accessibilityState, children }) {
   );
 }
 
-function ProfileTabAvatar({ focused, avatar, userId }) {
+function ProfileTabAvatar({ focused, avatar }) {
   return (
-    <View
-      style={[
-        styles.profileAvatarWrap,
-        focused && styles.profileAvatarWrapActive,
-      ]}
-    >
-      <Image
-        key={userId || "guest"}
-        source={{ uri: avatar }}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        transition={150}
-        style={styles.profileAvatarImage}
-      />
-    </View>
+    <UserAvatar
+      uri={avatar}
+      size={30}
+      bordered={focused}
+      borderColor={colors.primary}
+    />
   );
 }
 
@@ -128,13 +118,6 @@ export default function TabsLayout() {
     const unsubscribe = subscribeAuthSession(setSession);
     return unsubscribe;
   }, []);
-  const avatar = resolveAvatarUri(
-    session?.avatar || session?.user?.avatar || "",
-    session?.avatarVersion ||
-      session?.profileSyncRequestedAt ||
-      session?.loggedInAt ||
-      "",
-  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -209,11 +192,7 @@ export default function TabsLayout() {
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => (
-              <ProfileTabAvatar
-                focused={focused}
-                avatar={avatar}
-                userId={session?.id}
-              />
+              <ProfileTabAvatar focused={focused} avatar={session?.avatar} />
             ),
           }}
         />
@@ -306,16 +285,6 @@ const styles = StyleSheet.create({
     borderRadius: 14.5,
     padding: 1,
     backgroundColor: "#DCE8FF",
-  },
-  profileAvatarImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
-    borderRadius: 12.5,
   },
   profileAvatarFallback: {
     width: "100%",

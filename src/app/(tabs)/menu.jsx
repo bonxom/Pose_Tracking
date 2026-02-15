@@ -1,13 +1,12 @@
 import SearchButton from "@/components/common/SearchButton";
+import UserAvatar from "@/components/common/UserAvatar";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { logoutSession } from "@/repositories/authRepository";
 import globalStyles from "@/styles/global.styles";
-import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -117,13 +116,6 @@ export default function MenuScreen() {
     ]);
   };
 
-  const avatarUri = resolveAvatarUri(
-    session?.avatar || "",
-    session?.avatarVersion ||
-      session?.profileSyncRequestedAt ||
-      session?.loggedInAt ||
-      "",
-  );
   const displayName = session?.displayName || session?.username || "Người dùng";
 
   return (
@@ -138,16 +130,7 @@ export default function MenuScreen() {
           style={styles.profileRow}
           onPress={() => router.push("/(tabs)/profile")}
         >
-          <View style={styles.avatar}>
-            <Image
-              key={session?.id || "guest"}
-              source={{ uri: avatarUri }}
-              style={styles.avatarImage}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              transition={150}
-            />
-          </View>
+          <UserAvatar uri={session?.avatar || ""} size={48} />
           <View style={styles.profileTextBlock}>
             <Text style={styles.profileName}>{displayName}</Text>
             <Text style={styles.profileSubtext}>Xem trang cá nhân của bạn</Text>
@@ -237,15 +220,6 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#DDE7F8",
   },
   avatarImage: {
     width: "100%",
