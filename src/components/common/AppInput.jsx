@@ -1,72 +1,51 @@
-import {
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from 'react-native';
-import colors from '../../constants/colors';
-import sizes from '../../constants/sizes';
+import React, { forwardRef, useState } from 'react';
+import { View, Text, TextInput } from 'react-native';
+import COLORS from '../../constants/colors';
+import styles from '../../styles/common/input.styles';
 
-export default function AppInput({
+const AppInput = forwardRef(function AppInput({
   label,
-  placeholder,
-  value,
-  onChangeText,
-  secureTextEntry = false,
-  keyboardType = 'default',
-  autoCapitalize = 'none',
   error,
+  containerStyle,
+  hideErrorText = false,
   style,
-  inputStyle,
+  onFocus,
+  onBlur,
   ...props
-}) {
+}, ref) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  const handleFocus = (e) => {
+    setIsFocused(true);
+    if (onFocus) onFocus(e);
+  };
+
+  const handleBlur = (e) => {
+    setIsFocused(false);
+    if (onBlur) onBlur(e);
+  };
+
   return (
-    <View style={[styles.wrapper, style]}>
+    <View style={[styles.inputWrap, containerStyle]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
 
       <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.placeholder}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        style={[styles.input, error ? styles.inputError : null, inputStyle]}
+        ref={ref}
         {...props}
+        style={[
+          styles.input,
+          isFocused && styles.inputFocused,
+          !!error && styles.inputError,
+          style,
+        ]}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        placeholderTextColor={COLORS.placeholder}
       />
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {!!error && !hideErrorText && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  wrapper: {
-    marginBottom: sizes.lg,
-  },
-  label: {
-    marginBottom: sizes.sm,
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  input: {
-    height: sizes.inputHeight,
-    borderWidth: sizes.borderWidth,
-    borderColor: colors.border,
-    borderRadius: sizes.radiusMd,
-    paddingHorizontal: sizes.lg,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.white,
-  },
-  inputError: {
-    borderColor: colors.error,
-  },
-  errorText: {
-    marginTop: sizes.xs,
-    fontSize: 12,
-    color: colors.error,
-  },
 });
+
+export default AppInput;
