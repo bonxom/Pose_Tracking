@@ -1,5 +1,3 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
 
@@ -8,32 +6,22 @@ node_modules/
 dist/
 web-build/
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# local env
+.env
+.env.*
 
-# Metro
-.metro-health-check*
-
-# debug
+# logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
+# IDE / OS
+.idea/
 .DS_Store
-*.pem
+Thumbs.db
 
-# local env files
-.env*.local
+.vscode/
 
-app-example
 
-# generated native folders
-/ios
-/android
+android/
+ios/
