@@ -1,16 +1,16 @@
-import { StyleSheet } from 'react-native';
-import COLORS from '../../constants/colors';
+import { StyleSheet } from "react-native";
+import COLORS from "../../constants/colors";
 
 const styles = StyleSheet.create({
   headerImage: {
-    width: '100%',
+    width: "100%",
     height: 140,
-    resizeMode: 'cover',
+    resizeMode: "cover",
     marginBottom: 10,
   },
   languageRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: 8,
     marginBottom: 10,
   },
@@ -21,42 +21,54 @@ const styles = StyleSheet.create({
   languageLink: {
     fontSize: 12,
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   inputRow: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
   },
   input: {
     fontSize: 15,
     color: COLORS.text,
+  },
+  eyeIcon: {
+    padding: 4,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "left",
+    fontWeight: "500",
   },
   loginButton: {
     marginTop: 18,
     height: 44,
     borderRadius: 8,
     backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   loginText: {
     color: COLORS.white,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 15,
   },
   forgotRow: {
     marginTop: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
   forgotText: {
     color: COLORS.primary,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 14,
     marginBottom: 10,
   },
@@ -69,18 +81,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     fontSize: 12,
     color: COLORS.subtext,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   createButton: {
     height: 44,
     borderRadius: 8,
     backgroundColor: COLORS.success,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   createText: {
     color: COLORS.white,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 15,
   },
 });
