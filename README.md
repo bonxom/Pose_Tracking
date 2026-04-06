@@ -1,57 +1,118 @@
-# Welcome to your Expo app 👋
+# Pose_Tracking
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Ứng dụng React Native dùng Expo Router (file-based routing), tập trung vào flow Authentication và màn hình chính dạng Tabs.
 
-## Get started
+## Công nghệ chính
 
-1. Install dependencies
+- Expo SDK 55
+- React Native 0.83
+- Expo Router
+- React Navigation (tabs)
+- react-native-webview
 
-   ```bash
-   npm install
-   ```
+## Cách chạy dự án
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+1. Cài dependencies:
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Chạy app:
 
-### Other setup steps
+```bash
+npm run start
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+3. Mở theo nền tảng:
 
-## Learn more
+```bash
+npm run android
+npm run ios
+npm run web
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Cấu trúc thư mục
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```text
+Pose_Tracking/
+├── assets/                        # ảnh, icon, splash
+├── src/
+│   ├── api/
+│   │   └── auth.js                # mock auth API
+│   ├── app/                       # routes (Expo Router)
+│   │   ├── _layout.jsx            # root stack
+│   │   ├── index.jsx              # redirect -> /(auth)/login
+│   │   ├── (auth)/                # flow đăng ký/đăng nhập
+│   │   ├── (tabs)/                # tab chính sau khi vào app
+│   │   ├── post/                  # stack bài viết
+│   │   └── comment/               # stack bình luận
+│   ├── components/common/
+│   │   ├── AppButton.jsx
+│   │   ├── AppInput.jsx
+│   │   └── Screen.jsx
+│   ├── constants/
+│   │   ├── colors.js              # design tokens màu
+│   │   ├── sizes.js               # spacing/radius/size tokens
+│   │   └── mocks/users.js         # dữ liệu user giả lập
+│   ├── styles/
+│   │   ├── auth/                  # style cho từng màn auth
+│   │   ├── common/
+│   │   └── home.styles.js
+│   └── utils/
+│       └── validation.js          # validate phone/password
+├── example/                       # code mẫu từ template Expo
+├── app.json
+├── jsconfig.json                  # alias @/* -> src/*
+└── package.json
+```
 
-## Join the community
+## Routing và điều hướng
 
-Join our community of developers creating universal apps.
+### Root stack
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-# Pose_Tracking
+- `src/app/_layout.jsx` khai báo 4 nhánh:
+  - `(auth)`
+  - `(tabs)`
+  - `post`
+  - `comment`
+
+### Route mặc định
+
+- `src/app/index.jsx` redirect thẳng tới `/(auth)/login`.
+
+### Auth flow hiện tại
+
+1. `/(auth)/login`
+2. `/(auth)/signup`
+3. `/(auth)/name`
+4. `/(auth)/birthday`
+5. `/(auth)/terms`
+6. `/(auth)/email`
+7. `/(auth)/verify`
+8. `/(auth)/password`
+9. `/(auth)/save-login`
+10. `/(tabs)/home`
+
+Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ pathname, params })`.
+
+### Tabs sau đăng nhập
+
+- `/(tabs)/home`
+- `/(tabs)/profile`
+
+## Kiến trúc code
+
+- `app/`: màn hình + điều hướng.
+- `components/common/`: component tái sử dụng.
+- `styles/`: style tách theo module màn hình.
+- `constants/`: token UI + mock data.
+- `api/`: lớp gọi API (hiện là mock).
+- `utils/`: tiện ích dùng chung (validation).
+
+## Ghi chú
+
+- Import alias:
+  - `@/*` -> `src/*`
+  - `@/assets/*` -> `assets/*`
+- `example/` chỉ là code mẫu, không phải luồng chính của ứng dụng hiện tại.

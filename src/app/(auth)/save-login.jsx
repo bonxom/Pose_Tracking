@@ -1,6 +1,7 @@
 import baseStyles from '@/styles/auth/base.styles';
 import miscStyles from '@/styles/auth/misc.styles';
 import saveLoginStyles from '@/styles/auth/save-login.styles';
+import { saveAuthSession } from '@/utils/session';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Image, Pressable, StatusBar, Text, View } from 'react-native';
@@ -38,8 +39,18 @@ export default function SaveLoginScreen() {
     ]).start();
   }, [opacity, translateY]);
 
-  const handleFinish = () => {
-    router.replace('/(tabs)/home');
+  const handleFinish = async () => {
+    try {
+      await saveAuthSession({
+        identifier,
+        fullName,
+        loggedInAt: new Date().toISOString(),
+      });
+    } catch (storageError) {
+      console.warn('Cannot persist login session:', storageError);
+    } finally {
+      router.replace('/(tabs)/home');
+    }
   };
 
   return (

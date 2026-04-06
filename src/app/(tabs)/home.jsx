@@ -1,8 +1,8 @@
-import AppButton from '@/components/common/AppButton';
-import Screen from '@/components/common/Screen';
-import homeStyles from '@/styles/home.styles';
-import { router } from 'expo-router';
-import { Text, View } from 'react-native';
+import AppButton from "@/components/common/AppButton";
+import Screen from "@/components/common/Screen";
+import homeStyles from "@/styles/home.styles";
+import { router } from "expo-router";
+import { Text, View } from "react-native";
 
 export default function HomeScreen() {
   return (
@@ -12,21 +12,21 @@ export default function HomeScreen() {
 
       <AppButton
         title="Xem chi tiết bài viết"
-        onPress={() => router.push('/post/1')}
+        onPress={() => router.push("/post/1")}
       />
 
       <View style={homeStyles.buttonSpacing} />
 
       <AppButton
         title="Mở bình luận"
-        onPress={() => router.push('/comment/1')}
+        onPress={() => router.push("/comment/1")}
       />
 
       <View style={homeStyles.buttonSpacing} />
 
       <AppButton
         title="Đăng xuất"
-        onPress={() => router.replace('/(auth)/login')}
+        onPress={() => router.replace("/(auth)/login")}
       />
     </Screen>
   );

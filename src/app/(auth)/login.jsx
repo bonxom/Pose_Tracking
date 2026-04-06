@@ -5,8 +5,17 @@ import loginStyles from "@/styles/auth/login.styles";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Image, Pressable, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { validatePassword, validatePhone } from "@/utils/validation";
+import { saveAuthSession } from "@/utils/session";
 
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
@@ -26,8 +35,10 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    const phoneErr = validatePhone(identifier);
-    const passErr = validatePassword(password);
+    const normalizedIdentifier = identifier.trim();
+    const normalizedPassword = password.trim();
+    const phoneErr = validatePhone(normalizedIdentifier);
+    const passErr = validatePassword(normalizedPassword);
 
     if (phoneErr || passErr) {
       setIdentifierError(phoneErr);
@@ -41,14 +52,35 @@ export default function LoginScreen() {
     // Gọi Mock API
     setIsLoading(true);
     try {
-      const response = await authApi.login(identifier, password);
+      const response = await authApi.login(
+        normalizedIdentifier,
+        normalizedPassword,
+      );
 
       switch (response.code) {
-        case "1000":
+        case "1000": {
+          try {
+            await saveAuthSession({
+              identifier: normalizedIdentifier,
+              loggedInAt: new Date().toISOString(),
+            });
+          } catch (storageError) {
+            console.warn("Cannot persist login session:", storageError);
+          }
+
+          const navigateToHome = () => router.replace("/(tabs)/home");
+
+          // react-native-web Alert.alert là no-op, nên cần điều hướng trực tiếp.
+          if (Platform.OS === "web") {
+            navigateToHome();
+            break;
+          }
+
           Alert.alert("Thành công", "Đăng nhập thành công", [
-            { text: "OK", onPress: () => router.replace("/(tabs)/home") },
+            { text: "OK", onPress: navigateToHome },
           ]);
           break;
+        }
         case "9995":
           // Chưa được đăng ký
           setIdentifierError("Tài khoản chưa được đăng ký trên hệ thống.");
@@ -64,7 +96,7 @@ export default function LoginScreen() {
         default:
           Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert("Lỗi", "Không thể kết nối đến máy chủ.");
     } finally {
       setIsLoading(false);
