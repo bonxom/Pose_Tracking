@@ -1,58 +1,75 @@
-import AppButton from '@/components/common/AppButton';
-import AppInput from '@/components/common/AppInput';
-import Screen from '@/components/common/Screen';
-import authStyles from '@/styles/auth.styles';
+import AppButton from '../../components/common/AppButton';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import { Image, Pressable,  StatusBar, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import baseStyles from '../../styles/auth/base.styles';
+import signupStyles from '../../styles/auth/signup.styles';
+
+const styles = { ...baseStyles, ...signupStyles };
 
 export default function SignupScreen() {
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/(auth)/login');
+  };
+
+  const handleNext = () => {
+    router.push('/(auth)/name');
+  };
 
   return (
-    <Screen style={authStyles.container}>
-      <Text style={authStyles.title}>Đăng ký</Text>
-      <Text style={authStyles.subtitle}>Tạo tài khoản mới để tiếp tục.</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <AppInput
-        label="Họ và tên"
-        placeholder="Nhập họ và tên"
-        value={fullName}
-        onChangeText={setFullName}
-        autoCapitalize="words"
-      />
+      <View style={styles.container}>
+        <View style={styles.welcomeTopBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Quay lại"
+            onPress={handleBack}
+            style={styles.welcomeBackButton}
+          >
+            <Text style={styles.welcomeBackText}>←</Text>
+          </Pressable>
 
-      <AppInput
-        label="Email"
-        placeholder="Nhập email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-      />
+          <Text style={styles.welcomeTopTitle}>Tạo tài khoản</Text>
+        </View>
+        <View style={styles.welcomeDivider} />
 
-      <AppInput
-        label="Mật khẩu"
-        placeholder="Nhập mật khẩu"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+        <View style={styles.welcomeBody}>
+          <Image
+            source={require('../../../assets/images/anhstart.png')}
+            style={styles.welcomeImage}
+            resizeMode="contain"
+          />
 
-      <AppButton
-        title="Tiếp tục"
-        onPress={() => router.push('/(auth)/verify')}
-      />
+          <Text style={styles.welcomeTitle}>Tham gia Facebook</Text>
+          <Text style={styles.welcomeDesc}>
+            Chúng tôi sẽ giúp bạn tạo tài khoản mới sau vài bước dễ dàng.
+          </Text>
 
-      <Pressable
-        style={authStyles.footer}
-        onPress={() => router.back()}
-      >
-        <Text style={authStyles.footerText}>
-          Đã có tài khoản? <Text style={authStyles.footerLink}>Đăng nhập</Text>
-        </Text>
-      </Pressable>
-    </Screen>
+          <View style={styles.welcomeButtonWrap}>
+            <AppButton
+              title="Tiếp"
+              onPress={handleNext}
+              style={styles.ctaButton}
+              textStyle={styles.ctaText}
+            />
+          </View>
+        </View>
+
+        <View style={styles.welcomeBottomHint}>
+          <Pressable onPress={() => router.push('/(auth)/login')}>
+            <Text style={styles.footerText}>
+              Bạn đã có tài khoản? <Text style={styles.footerLink}>Đăng nhập</Text>
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
