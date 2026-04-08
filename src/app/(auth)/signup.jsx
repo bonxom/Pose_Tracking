@@ -74,34 +74,33 @@ export default function SignupScreen() {
 
       switch (response.code) {
         case "1000": {
+          if (!response.data || !response.data.signupRequestId || !response.data.phonenumber) {
+            Alert.alert("Lỗi", "Phản hồi từ máy chủ không hợp lệ.");
+            return;
+          }
+
           const mockCode = response.data.mock_verify_code || "123456";
           const message = `Đăng ký thành công.\n\nMã xác minh: ${mockCode}`;
 
-          if (Platform.OS === "web") {
+          const navigateToVerify = () => {
             router.push({
               pathname: "/(auth)/verify",
               params: {
                 phonenumber: response.data.phonenumber,
-                role: response.data.role,
                 signupRequestId: response.data.signupRequestId,
               },
             });
+          };
+
+          if (Platform.OS === "web") {
+            navigateToVerify();
             break;
           }
 
           Alert.alert("Thành công", message, [
             {
               text: "OK",
-              onPress: () => {
-                router.push({
-                  pathname: "/(auth)/verify",
-                  params: {
-                    phonenumber: response.data.phonenumber,
-                    role: response.data.role,
-                    signupRequestId: response.data.signupRequestId,
-                  },
-                });
-              },
+              onPress: navigateToVerify,
             },
           ]);
           break;

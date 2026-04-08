@@ -68,6 +68,86 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 6,
   },
+
+  // Form styles
+  formBody: {
+    flex: 1,
+    marginTop: 24,
+  },
+  formLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    backgroundColor: COLORS.background,
+  },
+  input: {
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    color: COLORS.text,
+    paddingVertical: 0,
+  },
+  eyeIcon: {
+    padding: 8,
+    marginRight: -8,
+  },
+  roleContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  roleButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+  },
+  roleButtonActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary,
+  },
+  roleButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.subtext,
+  },
+  roleButtonTextActive: {
+    color: '#FFFFFF',
+  },
+
+  ctaButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    marginTop: 24,
+  },
+  ctaText: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  errorText: {
+    marginTop: 6,
+    marginBottom: 10,
+    fontSize: 13,
+    color: COLORS.error,
+  },
 });
 
 export default styles;
