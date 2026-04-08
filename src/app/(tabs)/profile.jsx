@@ -2,13 +2,36 @@ import Screen from "@/components/common/Screen";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileOptionsSheet from "@/components/profile/ProfileOptionsSheet";
 import profileStyles from "@/styles/profile.styles";
+import { getAuthSession } from "@/utils/session";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
 export default function ProfileScreen() {
   const [avatarUri, setAvatarUri] = useState(null);
   const [isOptionSheetVisible, setIsOptionSheetVisible] = useState(false);
+  const [displayName, setDisplayName] = useState("Người dùng");
+
+  // Load user data from session
+  useFocusEffect(
+    useCallback(() => {
+      const loadUserData = async () => {
+        try {
+          const session = await getAuthSession();
+          if (session && session.username) {
+            setDisplayName(session.username);
+            if (session.avatar) {
+              setAvatarUri(session.avatar);
+            }
+          }
+        } catch (error) {
+          console.warn("Cannot load user session:", error);
+        }
+      };
+      loadUserData();
+    }, []),
+  );
 
   const requestLibraryPermissionAsync = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -87,7 +110,7 @@ export default function ProfileScreen() {
     <Screen style={profileStyles.screen}>
       <ProfileHeader
         avatarUri={avatarUri}
-        displayName="Chú Nghinh"
+        displayName={displayName}
         onPressCamera={() => setIsOptionSheetVisible(true)}
       />
 
