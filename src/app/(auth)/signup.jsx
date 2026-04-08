@@ -8,7 +8,7 @@ import {
     validateRole,
 } from "@/utils/validation";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
     Alert,
@@ -25,14 +25,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const styles = { ...baseStyles, ...signupStyles };
 
 export default function SignupScreen() {
+  const params = useLocalSearchParams();
+  const roleParam = typeof params.role === "string" ? params.role : "";
+  const usernameParam =
+    typeof params.username === "string" ? params.username : "";
+  const heightParam = typeof params.height === "string" ? params.height : "";
+  const birthdayParam =
+    typeof params.birthday === "string" ? params.birthday : "";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState(""); // "GV" hoặc "HV"
+  const [role, setRole] = useState(roleParam); // "GV" hoặc "HV"
   const [phoneNumberError, setPhoneNumberError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [roleError, setRoleError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const showRolePicker = !roleParam;
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -71,7 +79,6 @@ export default function SignupScreen() {
         uuid: `uuid_${Date.now()}`,
         role: normalizedRole,
       });
-
       switch (response.code) {
         case "1000": {
           if (!response.data || !response.data.signupRequestId || !response.data.phonenumber) {
@@ -79,30 +86,26 @@ export default function SignupScreen() {
             return;
           }
 
-          const mockCode = response.data.mock_verify_code || "123456";
-          const message = `Đăng ký thành công.\n\nMã xác minh: ${mockCode}`;
-
-          const navigateToVerify = () => {
+          const navigateToTerms = () => {
             router.push({
-              pathname: "/(auth)/verify",
+              pathname: "/(auth)/signup-terms",
               params: {
                 phonenumber: response.data.phonenumber,
                 signupRequestId: response.data.signupRequestId,
+                username: usernameParam,
+                height: heightParam,
+                role: normalizedRole,
+                birthday: birthdayParam,
               },
             });
           };
 
           if (Platform.OS === "web") {
-            navigateToVerify();
+            navigateToTerms();
             break;
           }
 
-          Alert.alert("Thành công", message, [
-            {
-              text: "OK",
-              onPress: navigateToVerify,
-            },
-          ]);
+          navigateToTerms();
           break;
         }
         case "1004":
@@ -193,8 +196,13 @@ export default function SignupScreen() {
             <Text style={styles.errorText}>{passwordError}</Text>
           )}
 
-          <Text style={styles.formLabel}>Vai trò</Text>
-          <View style={styles.roleContainer}>
+          <Text style={[styles.formLabel, !showRolePicker && { display: "none" }]}>
+            Vai tr�
+          </Text>
+          <View style={[
+            styles.roleContainer,
+            !showRolePicker && { display: "none" },
+          ]}>
             <Pressable
               style={[
                 styles.roleButton,
@@ -237,7 +245,7 @@ export default function SignupScreen() {
               </Text>
             </Pressable>
           </View>
-          {!!roleError && (
+          {showRolePicker && !!roleError && (
             <Text style={styles.errorText}>{roleError}</Text>
           )}
 
@@ -262,3 +270,10 @@ export default function SignupScreen() {
     </SafeAreaView>
   );
 }
+
+
+
+
+
+
+

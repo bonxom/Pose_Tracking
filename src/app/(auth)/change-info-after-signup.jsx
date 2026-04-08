@@ -98,9 +98,13 @@ export default function ChangeInfoAfterSignupScreen() {
     typeof params.phonenumber === "string" ? params.phonenumber : "";
   const signupRequestId =
     typeof params.signupRequestId === "string" ? params.signupRequestId : "";
+  const usernameParam =
+    typeof params.username === "string" ? params.username : "";
+  const heightParam =
+    typeof params.height === "string" ? params.height : "";
 
-  const [username, setUsername] = useState("");
-  const [height, setHeight] = useState("");
+  const [username, setUsername] = useState(usernameParam);
+  const [height, setHeight] = useState(heightParam);
   const [avatar, setAvatar] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [heightError, setHeightError] = useState("");

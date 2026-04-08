@@ -3,6 +3,7 @@ import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import authStyles from "@/styles/auth/base.styles";
+import { saveAuthSession } from "@/utils/session";
 import { validateVerifyCode } from "@/utils/validation";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -20,6 +21,9 @@ export default function VerifyScreen() {
     typeof params.phonenumber === "string" ? params.phonenumber : "";
   const signupRequestId =
     typeof params.signupRequestId === "string" ? params.signupRequestId : "";
+  const username =
+    typeof params.username === "string" ? params.username : "";
+  const height = typeof params.height === "string" ? params.height : "";
 
   // Countdown timer
   useEffect(() => {
@@ -78,28 +82,51 @@ export default function VerifyScreen() {
         code: normalizedCode,
         signupRequestId,
       });
-
       switch (response.code) {
         case "1000": {
-          const navigateToChangeInfo = () => {
-            router.push({
-              pathname: "/(auth)/change-info-after-signup",
-              params: {
-                token: response.data.token,
-                phonenumber: response.data.phonenumber,
-                signupRequestId: response.data.signupRequestId,
-              },
-            });
-          };
+          const completeResponse = await authApi.changeInfoAfterSignup({
+            token: response.data.token,
+            phonenumber: response.data.phonenumber,
+            username,
+            height,
+            avatar: "",
+            signupRequestId: response.data.signupRequestId,
+          });
 
-          if (Platform.OS === "web") {
-            navigateToChangeInfo();
+          if (completeResponse.code !== "1000") {
+            Alert.alert("Lỗi", completeResponse.message || "Đã có lỗi xảy ra.");
             break;
           }
 
-          Alert.alert("Thành công", "Xác thực thành công", [
-            { text: "OK", onPress: navigateToChangeInfo },
-          ]);
+          try {
+            await saveAuthSession({
+              id: completeResponse.data.id,
+              token: completeResponse.data.token,
+              phonenumber: completeResponse.data.phonenumber,
+              username: completeResponse.data.username,
+              role: completeResponse.data.role,
+              avatar: completeResponse.data.avatar,
+              height: completeResponse.data.height,
+              loggedInAt: new Date().toISOString(),
+            });
+          } catch (storageError) {
+            console.warn("Cannot persist session:", storageError);
+          }
+
+          const navigateToSuccess = () =>
+            router.replace({
+              pathname: "/(auth)/signup-success",
+              params: {
+                username: completeResponse.data.username || username,
+              },
+            });
+
+          if (Platform.OS === "web") {
+            navigateToSuccess();
+            break;
+          }
+
+          navigateToSuccess();
           break;
         }
         case "1004":
@@ -123,6 +150,7 @@ export default function VerifyScreen() {
       <Text style={authStyles.title}>Xác minh</Text>
       <Text style={authStyles.subtitle}>
         Nhập mã xác thực gửi tới số điện thoại {phonenumber}.
+        Mã xác minh mặc định: 123456.
       </Text>
 
       <AppInput
@@ -160,3 +188,4 @@ export default function VerifyScreen() {
     </Screen>
   );
 }
+
