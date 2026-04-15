@@ -2,66 +2,63 @@ import authApi from "@/api/auth";
 import Screen from "@/components/common/Screen";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
-import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
-import {
-  Alert,
-  Image,
-  Platform,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { validatePassword, validatePhone } from "@/utils/validation";
 import { saveAuthSession } from "@/utils/session";
+import { validatePassword, validatePhoneNumber } from "@/utils/validation";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useState } from "react";
+import {
+    Alert,
+    Image,
+    Platform,
+    Pressable,
+    Text,
+    TextInput,
+    View,
+} from "react-native";
 
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
 
 export default function LoginScreen() {
-  const params = useLocalSearchParams();
-  const signupIdentifier = useMemo(
-    () => (typeof params.identifier === "string" ? params.identifier : ""),
-    [params.identifier],
-  );
-
-  const [identifier, setIdentifier] = useState(signupIdentifier);
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [identifierError, setIdentifierError] = useState("");
+  const [phoneNumberError, setPhoneNumberError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    const normalizedIdentifier = identifier.trim();
+    const normalizedPhone = phoneNumber.trim();
     const normalizedPassword = password.trim();
-    const phoneErr = validatePhone(normalizedIdentifier);
+    const phoneErr = validatePhoneNumber(normalizedPhone);
     const passErr = validatePassword(normalizedPassword);
 
     if (phoneErr || passErr) {
-      setIdentifierError(phoneErr);
+      setPhoneNumberError(phoneErr);
       setPasswordError(passErr);
       return;
     }
 
-    setIdentifierError("");
+    setPhoneNumberError("");
     setPasswordError("");
 
     // Gọi Mock API
     setIsLoading(true);
     try {
-      const response = await authApi.login(
-        normalizedIdentifier,
-        normalizedPassword,
-      );
+      const response = await authApi.login(normalizedPhone, normalizedPassword);
 
       switch (response.code) {
         case "1000": {
           try {
             await saveAuthSession({
-              identifier: normalizedIdentifier,
+              id: response.data.id,
+              token: response.data.token,
+              phonenumber: response.data.phonenumber,
+              username: response.data.username,
+              role: response.data.role,
+              avatar: response.data.avatar,
+              height: response.data.height,
               loggedInAt: new Date().toISOString(),
             });
           } catch (storageError) {
@@ -83,15 +80,15 @@ export default function LoginScreen() {
         }
         case "9995":
           // Chưa được đăng ký
-          setIdentifierError("Tài khoản chưa được đăng ký trên hệ thống.");
+          setPhoneNumberError("Tài khoản chưa được đăng ký trên hệ thống.");
           break;
         case "1004":
-          // Format sai (Lỗi từ phía server fallback)
-          setIdentifierError("Thông tin đăng nhập sai định dạng.");
+          // Format sai hoặc mật khẩu sai
+          setPhoneNumberError("Số điện thoại hoặc mật khẩu không chính xác.");
           break;
         case "1002":
           // Không đủ dữ liệu
-          setIdentifierError("Vui lòng nhập đầy đủ thông tin.");
+          setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
           break;
         default:
           Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
@@ -114,22 +111,22 @@ export default function LoginScreen() {
 
       <View style={styles.inputRow}>
         <TextInput
-          placeholder="Số điện thoại hoặc email"
+          placeholder="Số điện thoại"
           placeholderTextColor="#94A3B8"
-          value={identifier}
+          value={phoneNumber}
           onChangeText={(text) => {
-            setIdentifier(text);
-            if (identifierError) setIdentifierError("");
+            setPhoneNumber(text);
+            if (phoneNumberError) setPhoneNumberError("");
           }}
-          keyboardType="default"
+          keyboardType="phone-pad"
           autoCapitalize="none"
           autoCorrect={false}
           style={styles.input}
           editable={!isLoading}
         />
       </View>
-      {!!identifierError && (
-        <Text style={styles.errorText}>{identifierError}</Text>
+      {!!phoneNumberError && (
+        <Text style={styles.errorText}>{phoneNumberError}</Text>
       )}
 
       <View style={styles.inputRow}>
@@ -182,9 +179,9 @@ export default function LoginScreen() {
 
       <Pressable
         style={styles.createButton}
-        onPress={() => router.push("/(auth)/signup")}
+        onPress={() => router.push("/(auth)/signup-start")}
       >
-        <Text style={styles.createText}>Tạo tài khoản Facebook mới</Text>
+        <Text style={styles.createText}>Tạo tài khoản mới</Text>
       </Pressable>
     </Screen>
   );
