@@ -4,9 +4,11 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "web:docker": "WEB_HOST=0.0.0.0 expo start --web --lan --port 8081",
     "lint": "expo lint"
   },
   "dependencies": {
@@ -42,6 +44,7 @@
   "private": true,
   "devDependencies": {
     "eslint": "^9.39.4",
-    "eslint-config-expo": "~55.0.0"
+    "eslint-config-expo": "~55.0.0",
+    "eslint-import-resolver-typescript": "^3.10.1"
   }
 }
