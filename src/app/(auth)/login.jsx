@@ -1,5 +1,6 @@
 import authApi from "@/api/auth";
 import Screen from "@/components/common/Screen";
+import { DEMO_STUDENT, DEMO_TEACHER } from "@/constants/demo";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -28,6 +29,49 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const persistAndNavigate = async (data) => {
+    try {
+      await saveAuthSession({
+        id: data.id,
+        token: data.token,
+        phonenumber: data.phonenumber,
+        identifier: data.identifier || data.phonenumber,
+        username: data.username || data.displayName,
+        displayName: data.displayName || data.username,
+        role: data.role,
+        avatar: data.avatar,
+        height: data.height,
+        handle: data.handle,
+        demoMode: Boolean(data.demoMode),
+        loggedInAt: new Date().toISOString(),
+      });
+    } catch (storageError) {
+      console.warn("Cannot persist login session:", storageError);
+    }
+
+    router.replace("/(tabs)/home");
+  };
+
+  const handleDemoLogin = async (demoUser) => {
+    setPhoneNumber(demoUser.phonenumber);
+    setPassword(demoUser.password);
+    setPhoneNumberError("");
+    setPasswordError("");
+    await persistAndNavigate({
+      id: demoUser.id,
+      token: `${demoUser.role.toLowerCase()}_demo_token`,
+      phonenumber: demoUser.phonenumber,
+      identifier: demoUser.phonenumber,
+      username: demoUser.displayName || demoUser.username,
+      displayName: demoUser.displayName || demoUser.username,
+      role: demoUser.role,
+      avatar: demoUser.avatar,
+      height: demoUser.height,
+      handle: demoUser.handle,
+      demoMode: true,
+    });
+  };
+
   const handleLogin = async () => {
     const normalizedPhone = phoneNumber.trim();
     const normalizedPassword = password.trim();
@@ -50,32 +94,13 @@ export default function LoginScreen() {
 
       switch (response.code) {
         case "1000": {
-          try {
-            await saveAuthSession({
-              id: response.data.id,
-              token: response.data.token,
-              phonenumber: response.data.phonenumber,
-              username: response.data.username,
-              role: response.data.role,
-              avatar: response.data.avatar,
-              height: response.data.height,
-              loggedInAt: new Date().toISOString(),
-            });
-          } catch (storageError) {
-            console.warn("Cannot persist login session:", storageError);
-          }
+          await persistAndNavigate(response.data);
 
-          const navigateToHome = () => router.replace("/(tabs)/home");
-
-          // react-native-web Alert.alert là no-op, nên cần điều hướng trực tiếp.
           if (Platform.OS === "web") {
-            navigateToHome();
             break;
           }
 
-          Alert.alert("Thành công", "Đăng nhập thành công", [
-            { text: "OK", onPress: navigateToHome },
-          ]);
+          Alert.alert("Thành công", "Đăng nhập thành công");
           break;
         }
         case "9995":
@@ -166,6 +191,27 @@ export default function LoginScreen() {
           {isLoading ? "Đang xử lý..." : "Đăng nhập"}
         </Text>
       </Pressable>
+
+      <View style={{ gap: 10, marginTop: 12 }}>
+        <Pressable
+          style={[styles.createButton, { borderColor: "#2563EB" }]}
+          onPress={() => handleDemoLogin(DEMO_STUDENT)}
+          disabled={isLoading}
+        >
+          <Text style={styles.createText}>
+            Use demo student account · 0900000001 / 123456
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.createButton, { borderColor: "#94A3B8" }]}
+          onPress={() => handleDemoLogin(DEMO_TEACHER)}
+          disabled={isLoading}
+        >
+          <Text style={styles.createText}>
+            Use demo teacher account · 0900000002 / 123456
+          </Text>
+        </Pressable>
+      </View>
 
       <Pressable style={styles.forgotRow}>
         <Text style={styles.forgotText}>Quên mật khẩu?</Text>

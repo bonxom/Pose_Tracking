@@ -4,18 +4,28 @@ import sizes from '../constants/sizes';
 
 const homeStyles = StyleSheet.create({
   container: {
-    justifyContent: 'center',
+    paddingHorizontal: sizes.md,
+    backgroundColor: "#F0F2F5",
+  },
+  headerCard: {
+    backgroundColor: colors.white,
+    borderBottomWidth: sizes.borderWidth,
+    borderBottomColor: colors.border,
+    paddingHorizontal: sizes.sm,
+    paddingTop: sizes.sm,
+    paddingBottom: sizes.md,
+    marginBottom: sizes.md,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.text,
-    marginBottom: sizes.sm,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.subtext,
-    marginBottom: sizes.xl,
+    marginTop: sizes.xs,
   },
   buttonSpacing: {
     height: sizes.md,

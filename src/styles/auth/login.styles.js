@@ -84,16 +84,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   createButton: {
-    height: 44,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: COLORS.success,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   createText: {
     color: COLORS.white,
     fontWeight: "700",
-    fontSize: 15,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
   },
 });
 

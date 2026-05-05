@@ -1,4 +1,46 @@
+import { DEMO_STUDENT, DEMO_TEACHER } from "@/constants/demo";
+
 export const MOCK_USERS = [
+  {
+    phonenumber: DEMO_STUDENT.phonenumber,
+    password: DEMO_STUDENT.password,
+    role: DEMO_STUDENT.role,
+    verified: true,
+    data: {
+      id: DEMO_STUDENT.id,
+      username: DEMO_STUDENT.username,
+      displayName: DEMO_STUDENT.displayName,
+      token: "demo_student_token",
+      avatar: DEMO_STUDENT.avatar,
+      active: 1,
+      role: DEMO_STUDENT.role,
+      phonenumber: DEMO_STUDENT.phonenumber,
+      identifier: DEMO_STUDENT.phonenumber,
+      handle: DEMO_STUDENT.handle,
+      height: DEMO_STUDENT.height,
+      demoMode: true,
+    },
+  },
+  {
+    phonenumber: DEMO_TEACHER.phonenumber,
+    password: DEMO_TEACHER.password,
+    role: DEMO_TEACHER.role,
+    verified: true,
+    data: {
+      id: DEMO_TEACHER.id,
+      username: DEMO_TEACHER.displayName,
+      displayName: DEMO_TEACHER.displayName,
+      token: "demo_teacher_token",
+      avatar: DEMO_TEACHER.avatar,
+      active: 1,
+      role: DEMO_TEACHER.role,
+      phonenumber: DEMO_TEACHER.phonenumber,
+      identifier: DEMO_TEACHER.phonenumber,
+      handle: DEMO_TEACHER.handle,
+      height: DEMO_TEACHER.height,
+      demoMode: true,
+    },
+  },
   {
     phonenumber: "0123456789",
     password: "Password123",

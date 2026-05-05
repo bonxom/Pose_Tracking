@@ -97,21 +97,50 @@ const postStyles = StyleSheet.create({
     lineHeight: 22,
     color: colors.text,
   },
+  exerciseBanner: {
+    borderRadius: sizes.radiusMd,
+    backgroundColor: colors.primaryLight,
+    padding: sizes.md,
+    gap: sizes.xs,
+  },
+  exerciseBannerTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.primary,
+    textTransform: "uppercase",
+  },
+  exerciseBannerText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  exerciseBannerMeta: {
+    fontSize: 12,
+    color: colors.subtext,
+  },
   expandText: {
     fontSize: 14,
     fontWeight: "700",
     color: colors.primary,
   },
   mediaList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: sizes.sm,
   },
   mediaCard: {
+    flexGrow: 1,
+    flexBasis: 150,
     borderWidth: sizes.borderWidth,
     borderColor: colors.border,
     borderRadius: sizes.radiusMd,
     backgroundColor: colors.surface,
     padding: sizes.md,
     gap: sizes.xs,
+  },
+  selectedMediaCard: {
+    borderColor: colors.primary,
+    backgroundColor: "#EFF6FF",
   },
   mediaTitle: {
     fontSize: 14,
@@ -128,6 +157,43 @@ const postStyles = StyleSheet.create({
   },
   statText: {
     fontSize: 13,
+    color: colors.subtext,
+  },
+  hashtagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: sizes.sm,
+  },
+  hashtagText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  scoreSummaryCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: sizes.md,
+    borderWidth: sizes.borderWidth,
+    borderColor: "#BFDBFE",
+    borderRadius: sizes.radiusMd,
+    backgroundColor: "#EFF6FF",
+    padding: sizes.md,
+  },
+  scoreSummaryNumber: {
+    width: 68,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.primary,
+  },
+  scoreSummaryTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  scoreSummaryText: {
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.subtext,
   },
   actionRow: {

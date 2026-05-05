@@ -1,125 +1,98 @@
+import AppButton from "@/components/common/AppButton";
 import Screen from "@/components/common/Screen";
-import ProfileHeader from "@/components/profile/ProfileHeader";
-import ProfileOptionsSheet from "@/components/profile/ProfileOptionsSheet";
-import profileStyles from "@/styles/profile.styles";
-import { getAuthSession } from "@/utils/session";
-import * as ImagePicker from "expo-image-picker";
-import { useFocusEffect } from "expo-router";
+import { DEMO_COURSE } from "@/constants/demo";
+import demoStyles from "@/styles/demo.styles";
+import { clearAuthSession, getAuthSession } from "@/utils/session";
+import { getInitials } from "@/utils/formatters";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 export default function ProfileScreen() {
-  const [avatarUri, setAvatarUri] = useState(null);
-  const [isOptionSheetVisible, setIsOptionSheetVisible] = useState(false);
-  const [displayName, setDisplayName] = useState("Người dùng");
+  const [session, setSession] = useState(null);
 
-  // Load user data from session
   useFocusEffect(
     useCallback(() => {
-      const loadUserData = async () => {
-        try {
-          const session = await getAuthSession();
-          if (session && session.username) {
-            setDisplayName(session.username);
-            if (session.avatar) {
-              setAvatarUri(session.avatar);
-            }
-          }
-        } catch (error) {
-          console.warn("Cannot load user session:", error);
-        }
+      const loadSession = async () => {
+        setSession(await getAuthSession());
       };
-      loadUserData();
+      loadSession();
     }, []),
   );
 
-  const requestLibraryPermissionAsync = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (permission.status !== "granted") {
-      Alert.alert(
-        "Cần quyền truy cập thư viện",
-        "Vui lòng cấp quyền truy cập thư viện ảnh để chọn ảnh đại diện.",
-      );
-      return false;
-    }
-
-    return true;
+  const handleLogout = async () => {
+    await clearAuthSession();
+    router.replace("/(auth)/login");
   };
 
-  const pickAvatarFromLibraryAsync = async () => {
-    const hasPermission = await requestLibraryPermissionAsync();
-    if (!hasPermission) return;
+  const displayName = session?.displayName || session?.username || "Người dùng demo";
+  const role = session?.role || "HV";
 
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        setAvatarUri(result.assets[0].uri);
-        setIsOptionSheetVisible(false);
-      }
-    } catch (error) {
-      Alert.alert("Lỗi", "Không thể mở thư viện ảnh. Vui lòng thử lại.");
-      console.warn("Cannot open image library:", error);
-    }
-  };
-
-  const requestCameraPermissionAsync = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (permission.status !== "granted") {
-      Alert.alert(
-        "Cần quyền truy cập camera",
-        "Vui lòng cấp quyền truy cập camera để chụp ảnh đại diện mới.",
-      );
-      return false;
-    }
-
-    return true;
-  };
-
-  const takeNewAvatarPhotoAsync = async () => {
-    const hasPermission = await requestCameraPermissionAsync();
-    if (!hasPermission) return;
-
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        cameraType: ImagePicker.CameraType.front,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        setAvatarUri(result.assets[0].uri);
-        setIsOptionSheetVisible(false);
-      }
-    } catch (error) {
-      Alert.alert("Lỗi", "Không thể mở camera. Vui lòng thử lại.");
-      console.warn("Cannot open camera:", error);
-    }
-  };
+  const menuItems = [
+    {
+      label: "My profile",
+      detail: `${displayName} · ${role}`,
+      onPress: null,
+    },
+    {
+      label: "My courses",
+      detail: DEMO_COURSE.title,
+      onPress: () => router.push("/(tabs)/courses"),
+    },
+    {
+      label: "Notifications",
+      detail: "Thông báo demo cục bộ",
+      onPress: () => router.push("/(tabs)/notifications"),
+    },
+    {
+      label: "Demo limitations",
+      detail: "Local-first, backend-opportunistic",
+      onPress: null,
+    },
+  ];
 
   return (
-    <Screen style={profileStyles.screen}>
-      <ProfileHeader
-        avatarUri={avatarUri}
-        displayName={displayName}
-        onPressCamera={() => setIsOptionSheetVisible(true)}
-      />
+    <Screen style={demoStyles.screen}>
+      <ScrollView contentContainerStyle={demoStyles.scrollContent}>
+        <View style={demoStyles.header}>
+          <View style={demoStyles.row}>
+            <View style={demoStyles.avatar}>
+              <Text style={demoStyles.avatarText}>{getInitials(displayName)}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={demoStyles.title}>{displayName}</Text>
+              <Text style={demoStyles.subtitle}>
+                {role} · {session?.phonenumber || session?.identifier || "0900000001"}
+              </Text>
+            </View>
+          </View>
+          <View style={demoStyles.badge}>
+            <Text style={demoStyles.badgeText}>Demo mode</Text>
+          </View>
+        </View>
 
-      <ProfileOptionsSheet
-        visible={isOptionSheetVisible}
-        onClose={() => setIsOptionSheetVisible(false)}
-        onPressTakePhoto={takeNewAvatarPhotoAsync}
-        onPressPickImage={pickAvatarFromLibraryAsync}
-      />
+        <View style={demoStyles.card}>
+          {menuItems.map((item) => (
+            <Pressable key={item.label} onPress={item.onPress || undefined}>
+              <View style={demoStyles.menuRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={demoStyles.cardTitle}>{item.label}</Text>
+                  <Text style={demoStyles.cardText}>{item.detail}</Text>
+                </View>
+                <Text style={demoStyles.cardText}>›</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={demoStyles.card}>
+          <Text style={demoStyles.cardTitle}>Demo đang dùng local fallback</Text>
+          <Text style={demoStyles.cardText}>
+            Auth demo, feed, nộp bài, chấm điểm, thông báo và tìm kiếm chạy cục bộ để tránh rủi ro backend/CORS trước buổi demo.
+          </Text>
+          <AppButton title="Đăng xuất" onPress={handleLogout} />
+        </View>
+      </ScrollView>
     </Screen>
   );
 }

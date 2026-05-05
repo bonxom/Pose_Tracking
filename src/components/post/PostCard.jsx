@@ -17,6 +17,7 @@ export default function PostCard({
   onPress,
   onToggleLike,
   onPressComment,
+  onSubmitExercise,
   detail = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(detail);
@@ -32,6 +33,8 @@ export default function PostCard({
   }, [content, detail, isExpanded]);
 
   const metaIsFresh = isFreshPost(post.createdAt, post.author?.online);
+  const isExercisePost = post.type === "exercise" || post.canSubmit;
+  const isSubmissionPost = post.type === "submission";
 
   return (
     <View style={postStyles.card}>
@@ -64,6 +67,18 @@ export default function PostCard({
         </View>
       </View>
 
+      {post.exerciseTitle ? (
+        <View style={postStyles.exerciseBanner}>
+          <Text style={postStyles.exerciseBannerTitle}>
+            {isExercisePost ? "Bài tập GV" : "Bài nộp HV"}
+          </Text>
+          <Text style={postStyles.exerciseBannerText}>{post.exerciseTitle}</Text>
+          {post.courseTitle ? (
+            <Text style={postStyles.exerciseBannerMeta}>{post.courseTitle}</Text>
+          ) : null}
+        </View>
+      ) : null}
+
       <Text style={postStyles.bodyText}>{previewText}</Text>
 
       {shouldShowExpand ? (
@@ -74,6 +89,16 @@ export default function PostCard({
         </Pressable>
       ) : null}
 
+      {post.hashtags?.length ? (
+        <View style={postStyles.hashtagRow}>
+          {post.hashtags.map((tag) => (
+            <Text key={tag} style={postStyles.hashtagText}>
+              {tag}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
       {post.videos?.length ? (
         <View style={postStyles.mediaList}>
           {post.videos.map((video, index) => (
@@ -81,7 +106,9 @@ export default function PostCard({
               key={video.id || `${video.uri}_${index}`}
               style={postStyles.mediaCard}
             >
-              <Text style={postStyles.mediaTitle}>Video {index + 1}</Text>
+              <Text style={postStyles.mediaTitle}>
+                {video.angle || `Video ${index + 1}`}
+              </Text>
               <Text style={postStyles.mediaSubtitle}>{video.name}</Text>
               <Text
                 style={[postStyles.mediaSubtitle, { color: colors.placeholder }]}
@@ -90,6 +117,22 @@ export default function PostCard({
               </Text>
             </View>
           ))}
+        </View>
+      ) : null}
+
+      {isSubmissionPost && post.scoreSummary ? (
+        <View style={postStyles.scoreSummaryCard}>
+          <Text style={postStyles.scoreSummaryNumber}>
+            {post.scoreSummary.score}/100
+          </Text>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={postStyles.scoreSummaryTitle}>
+              {post.scoreSummary.label || "Đã chấm tự động"}
+            </Text>
+            <Text style={postStyles.scoreSummaryText}>
+              {post.scoreSummary.mistakes?.slice(0, 2).join("; ")}
+            </Text>
+          </View>
         </View>
       ) : null}
 
@@ -116,6 +159,14 @@ export default function PostCard({
           style={[postStyles.actionButton, postStyles.secondaryButton]}
           textStyle={postStyles.secondaryButtonText}
         />
+
+        {isExercisePost ? (
+          <AppButton
+            title="Nộp bài"
+            onPress={onSubmitExercise}
+            style={postStyles.actionButton}
+          />
+        ) : null}
 
         {!detail ? (
           <AppButton

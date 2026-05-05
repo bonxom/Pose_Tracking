@@ -3,7 +3,6 @@ import Screen from "@/components/common/Screen";
 import PostCard from "@/components/post/PostCard";
 import { getFeedPage, toggleLike } from "@/services/postStore";
 import homeStyles from "@/styles/home.styles";
-import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
@@ -30,11 +29,6 @@ export default function HomeScreen() {
     }, [loadPosts])
   );
 
-  const handleLogout = async () => {
-    await clearAuthSession();
-    router.replace("/(auth)/login");
-  };
-
   const handleToggleLike = async (postId) => {
     try {
       const updatedPost = await toggleLike(postId);
@@ -54,6 +48,19 @@ export default function HomeScreen() {
     router.push(`/comment/${postId}`);
   };
 
+  const handleSubmitExercise = (post) => {
+    router.push({
+      pathname: "/post/create",
+      params: {
+        mode: "submission",
+        sourcePostId: post.id,
+        courseId: post.courseId,
+        exerciseId: post.exerciseId,
+        teacherId: post.author?.id || "",
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <Screen style={homeStyles.container}>
@@ -65,19 +72,23 @@ export default function HomeScreen() {
   return (
     <Screen style={homeStyles.container}>
       <View style={{ flex: 1, width: "100%" }}>
-        <Text style={homeStyles.title}>Bảng feed</Text>
-        <Text style={homeStyles.subtitle}>Xem các bài viết từ cộng đồng</Text>
+        <View style={homeStyles.headerCard}>
+          <Text style={homeStyles.title}>IT4788 PoseFeed</Text>
+          <Text style={homeStyles.subtitle}>
+            Bài tập diễu binh, bài nộp học viên và kết quả chấm tự động
+          </Text>
+        </View>
 
         <FlatList
           data={posts}
           keyExtractor={(item) => item.id}
-          scrollEnabled={false}
           renderItem={({ item }) => (
             <PostCard
               post={item}
               onPress={() => handlePostPress(item.id)}
               onToggleLike={() => handleToggleLike(item.id)}
               onPressComment={() => handleCommentPress(item.id)}
+              onSubmitExercise={() => handleSubmitExercise(item)}
             />
           )}
           ItemSeparatorComponent={() => (
@@ -94,10 +105,6 @@ export default function HomeScreen() {
           title="Tạo bài viết"
           onPress={() => router.push("/post/create")}
         />
-
-        <View style={homeStyles.buttonSpacing} />
-
-        <AppButton title="Đăng xuất" onPress={handleLogout} />
       </View>
     </Screen>
   );

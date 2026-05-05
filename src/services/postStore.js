@@ -1,9 +1,15 @@
 import { DEFAULT_POSTS } from "@/constants/mocks/posts";
+import {
+  DEMO_COURSE,
+  DEMO_EXERCISES,
+  DEMO_SCORING_TEMPLATES,
+  DEMO_VIDEO_PLACEHOLDERS,
+} from "@/constants/demo";
 import { getAuthSession } from "@/utils/session";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-const POSTS_STORAGE_KEY = "pose_tracking.posts.v1";
+const POSTS_STORAGE_KEY = "pose_tracking.posts.v2";
 const CREATE_DRAFT_STORAGE_KEY = "pose_tracking.post_draft.v1";
 const COMMENT_DRAFT_STORAGE_KEY = "pose_tracking.comment_drafts.v1";
 
@@ -76,6 +82,17 @@ function normalizeComment(comment = {}) {
   };
 }
 
+function normalizeScoreSummary(scoreSummary = null) {
+  if (!scoreSummary) return null;
+
+  return {
+    score: Number.isFinite(scoreSummary.score) ? scoreSummary.score : Number(scoreSummary.score) || 0,
+    label: scoreSummary.label || "",
+    mistakes: Array.isArray(scoreSummary.mistakes) ? scoreSummary.mistakes : [],
+    suggestions: Array.isArray(scoreSummary.suggestions) ? scoreSummary.suggestions : [],
+  };
+}
+
 function normalizePost(post = {}) {
   const comments = Array.isArray(post.comments)
     ? post.comments.map(normalizeComment).sort(
@@ -90,6 +107,7 @@ function normalizePost(post = {}) {
           id: video.id || createId(`video_${index + 1}`),
           name: video.name || `video-${index + 1}.mp4`,
           uri: video.uri || "",
+          angle: video.angle || (index === 0 ? "Góc quay trái" : "Góc quay phải"),
           duration: video.duration ?? 0,
           fileSize: video.fileSize ?? 0,
           mimeType: video.mimeType || "video/mp4",
@@ -98,6 +116,7 @@ function normalizePost(post = {}) {
 
   return {
     id: post.id || createId("post"),
+    type: post.type || "post",
     author: {
       id: post.author?.id || "user_unknown",
       name: post.author?.name || "Người dùng",
@@ -115,8 +134,15 @@ function normalizePost(post = {}) {
     isLiked: Boolean(post.isLiked),
     canComment: post.canComment !== false,
     canEdit: Boolean(post.canEdit),
+    canSubmit: Boolean(post.canSubmit || post.type === "exercise"),
     courseId: post.courseId || "",
     exerciseId: post.exerciseId || "",
+    sourcePostId: post.sourcePostId || "",
+    teacherId: post.teacherId || post.author?.id || "",
+    courseTitle: post.courseTitle || "",
+    exerciseTitle: post.exerciseTitle || "",
+    hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+    scoreSummary: normalizeScoreSummary(post.scoreSummary),
     comments,
   };
 }
@@ -180,6 +206,14 @@ export async function createPost({
   videos = [],
   courseId = "",
   exerciseId = "",
+  sourcePostId = "",
+  type = "post",
+  canSubmit = false,
+  courseTitle = "",
+  exerciseTitle = "",
+  hashtags = [],
+  scoreSummary = null,
+  comments = [],
 }) {
   const posts = await getOrSeedPosts();
   const session = await getAuthSession();
@@ -192,6 +226,7 @@ export async function createPost({
       id: video.id || createId(`video_${index + 1}`),
       name: video.name || `video-${index + 1}.mp4`,
       uri: video.uri || "",
+      angle: video.angle || (index === 0 ? "Góc quay trái" : "Góc quay phải"),
       duration: video.duration ?? 0,
       fileSize: video.fileSize ?? 0,
       mimeType: video.mimeType || "video/mp4",
@@ -219,14 +254,102 @@ export async function createPost({
     isLiked: false,
     canComment: true,
     canEdit: true,
+    canSubmit,
     courseId,
     exerciseId,
-    comments: [],
+    sourcePostId,
+    courseTitle,
+    exerciseTitle,
+    hashtags,
+    scoreSummary,
+    comments,
+    type,
   });
 
   const nextPosts = [newPost, ...posts];
   await persistPosts(nextPosts);
   return newPost;
+}
+
+function buildScoringComment(scoreTemplate = DEMO_SCORING_TEMPLATES[0]) {
+  const mistakes = scoreTemplate.mistakes.join("; ");
+  const suggestions = scoreTemplate.suggestions.join("; ");
+
+  return normalizeComment({
+    id: createId("score_comment"),
+    authorName: "Ứng dụng tự chấm",
+    content: `Kết quả chấm tự động: ${scoreTemplate.score}/100. Lỗi chính: ${mistakes}. Gợi ý: ${suggestions}.`,
+    createdAt: new Date().toISOString(),
+    score: String(scoreTemplate.score),
+    detailMistakes: mistakes,
+    isScoreComment: true,
+  });
+}
+
+export async function createExerciseSubmission({
+  content = "",
+  courseId = DEMO_COURSE.id,
+  exerciseId = DEMO_EXERCISES[0].id,
+  sourcePostId = "",
+  videos = DEMO_VIDEO_PLACEHOLDERS,
+}) {
+  const exercise = DEMO_EXERCISES.find((item) => item.id === exerciseId) || DEMO_EXERCISES[0];
+  const scoreTemplate = DEMO_SCORING_TEMPLATES[0];
+  const scoringComment = buildScoringComment(scoreTemplate);
+  const normalizedVideos = videos.length >= 2 ? videos : DEMO_VIDEO_PLACEHOLDERS;
+  const body = content.trim()
+    ? content.trim()
+    : `${DEMO_COURSE.hashtag} ${exercise.hashtag} Em nộp bài luyện tập với 2 góc quay để hệ thống chấm tự động.`;
+
+  return createPost({
+    content: body,
+    videos: normalizedVideos,
+    courseId,
+    exerciseId,
+    sourcePostId,
+    type: "submission",
+    canSubmit: false,
+    courseTitle: DEMO_COURSE.title,
+    exerciseTitle: exercise.title,
+    hashtags: [DEMO_COURSE.hashtag, exercise.hashtag],
+    scoreSummary: {
+      score: scoreTemplate.score,
+      label: scoreTemplate.label,
+      mistakes: scoreTemplate.mistakes,
+      suggestions: scoreTemplate.suggestions,
+    },
+    comments: [scoringComment],
+  });
+}
+
+export async function getExercisePosts() {
+  const posts = await getPosts();
+  return posts.filter((post) => post.type === "exercise" || post.canSubmit);
+}
+
+export async function searchPosts(query = "") {
+  const posts = await getPosts();
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return posts;
+  }
+
+  return posts.filter((post) => {
+    const haystack = [
+      post.content,
+      post.author?.name,
+      post.author?.handle,
+      post.courseTitle,
+      post.exerciseTitle,
+      ...(post.hashtags || []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(normalizedQuery);
+  });
 }
 
 export async function toggleLike(postId) {

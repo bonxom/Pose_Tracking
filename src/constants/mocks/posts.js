@@ -1,3 +1,11 @@
+import {
+  DEMO_COURSE,
+  DEMO_EXERCISES,
+  DEMO_SCORING_TEMPLATES,
+  DEMO_STUDENT,
+  DEMO_TEACHER,
+} from "@/constants/demo";
+
 const SCORE_HTML = `
 <table>
   <tr>
@@ -8,176 +16,245 @@ const SCORE_HTML = `
   </tr>
   <tr>
     <td>1</td>
-    <td>00:03</td>
-    <td>-1</td>
-    <td>Tay phải đưa lên cao quá</td>
+    <td>00:08</td>
+    <td>-7</td>
+    <td>Tay phải chưa thẳng ở nhịp 3</td>
   </tr>
   <tr>
     <td>2</td>
-    <td>00:08</td>
-    <td>-1</td>
-    <td>Đầu chưa quay đúng hướng</td>
+    <td>00:12</td>
+    <td>-7</td>
+    <td>Bước chân trái lệch nhịp 5</td>
   </tr>
 </table>
 `;
 
+const scoringTemplate = DEMO_SCORING_TEMPLATES[0];
+
+const teacherAuthor = {
+  id: DEMO_TEACHER.id,
+  name: DEMO_TEACHER.displayName,
+  handle: DEMO_TEACHER.handle,
+  role: DEMO_TEACHER.role,
+  online: true,
+  avatar: "",
+};
+
+const studentAuthor = {
+  id: DEMO_STUDENT.id,
+  name: DEMO_STUDENT.displayName,
+  handle: DEMO_STUDENT.handle,
+  role: DEMO_STUDENT.role,
+  online: false,
+  avatar: "",
+};
+
 const FIRST_POST_COMMENTS = [
   {
-    id: "comment_score_client_001",
-    authorName: "Ứng dụng tự chấm",
-    content: "Điểm tạm thời: 8.0/10. Đã phát hiện 2 lỗi chính trong bài nộp.",
-    createdAt: "2026-04-08T07:06:00.000Z",
-    score: "8.0",
-    detailMistakes: SCORE_HTML,
-    isScoreComment: true,
+    id: "comment_teacher_001",
+    authorName: "Đại úy Chính",
+    content: "Các em nộp đủ 2 góc quay để hệ thống chấm tư thế chính xác hơn.",
+    createdAt: "2026-05-06T00:40:00.000Z",
   },
-  ...Array.from({ length: 22 }, (_, index) => ({
-    id: `comment_seed_long_${index + 1}`,
-    authorName: index % 2 === 0 ? "Nguyen Van A" : "Tran Thi B",
-    content:
-      index % 4 === 0
-        ? 'Mình đã xem lại và thấy luồng comment này đủ để test nút "Xem các bình luận trước...".'
-        : "Đây là bình luận mẫu để kiểm tra việc phân trang bình luận và giữ bản nháp khi mất mạng.",
-    createdAt: new Date(Date.UTC(2026, 3, 7, 8, index, 0)).toISOString(),
-  })),
+  {
+    id: "comment_student_001",
+    authorName: "Nguyen Van A",
+    content: "Em đã xem mẫu, sáng mai em sẽ nộp bài demo.",
+    createdAt: "2026-05-06T01:10:00.000Z",
+  },
 ];
 
 export const DEFAULT_POSTS = [
   {
-    id: "post_seed_001",
-    author: {
-      id: "user_teacher_001",
-      name: "Đại úy Chính",
-      handle: "@btt_gv",
-      role: "GV",
-      online: true,
-      avatar: "",
-    },
-    createdAt: "2026-04-08T07:00:00.000Z",
-    content: `Bài tập mẫu của GV cho tuần này. Khi HV nộp bài, hệ thống sẽ đối sánh 2 video, tự chấm điểm và thêm bình luận lỗi sai. Bài viết này được giữ dài hơn để test đúng giao diện "Xem thêm/Thu gọn" ngoài trang chủ.`,
-    described: `Bài tập mẫu của GV cho tuần này. Khi HV nộp bài, hệ thống sẽ đối sánh 2 video, tự chấm điểm và thêm bình luận lỗi sai. Bài viết này được giữ dài hơn để test đúng giao diện "Xem thêm/Thu gọn" ngoài trang chủ.`,
+    id: "post_teacher_exercise_001",
+    type: "exercise",
+    author: teacherAuthor,
+    createdAt: "2026-05-06T00:30:00.000Z",
+    content:
+      "Bài tập tuần này: động tác chào điều lệnh. Học viên xem 2 góc quay mẫu, tập theo khẩu lệnh, sau đó bấm Nộp bài và gửi đủ 2 video để hệ thống chấm tự động.",
+    described:
+      "Bài tập tuần này: động tác chào điều lệnh. Học viên xem 2 góc quay mẫu, tập theo khẩu lệnh, sau đó bấm Nộp bài và gửi đủ 2 video để hệ thống chấm tự động.",
     videos: [
       {
-        id: "video_seed_left_001",
-        name: "left-demo.mp4",
-        uri: "mock://left-demo.mp4",
+        id: "video_standard_left_001",
+        name: "mau-chao-dieu-lenh-goc-trai.mp4",
+        uri: "demo://standard-left-salute",
+        angle: "Góc quay trái",
         duration: 18000,
         fileSize: 18_000_000,
       },
       {
-        id: "video_seed_right_001",
-        name: "right-demo.mp4",
-        uri: "mock://right-demo.mp4",
+        id: "video_standard_right_001",
+        name: "mau-chao-dieu-lenh-goc-phai.mp4",
+        uri: "demo://standard-right-salute",
+        angle: "Góc quay phải",
         duration: 17500,
         fileSize: 19_000_000,
       },
     ],
-    likeCount: 18,
-    commentCount: FIRST_POST_COMMENTS.length,
+    likeCount: 31,
     isLiked: false,
     canComment: true,
     canEdit: false,
-    exerciseId: "",
-    courseId: "",
+    canSubmit: true,
+    courseId: DEMO_COURSE.id,
+    exerciseId: DEMO_EXERCISES[0].id,
+    courseTitle: DEMO_COURSE.title,
+    exerciseTitle: DEMO_EXERCISES[0].title,
+    hashtags: [DEMO_COURSE.hashtag, DEMO_EXERCISES[0].hashtag],
     comments: FIRST_POST_COMMENTS,
   },
   {
     id: "post_seed_002",
-    author: {
-      id: "user_student_001",
-      name: "Nguyen Van A",
-      handle: "@hv_nguyenvana",
-      role: "HV",
-      online: false,
-      avatar: "",
-    },
-    createdAt: "2026-04-06T14:30:00.000Z",
-    content: "#course_12 #exercise_34 Em đã nộp bài với đủ 2 video. Bài này dùng để test luồng HV nộp bài theo exercise_id và course_id.",
-    described: "#course_12 #exercise_34 Em đã nộp bài với đủ 2 video. Bài này dùng để test luồng HV nộp bài theo exercise_id và course_id.",
+    type: "submission",
+    author: studentAuthor,
+    createdAt: "2026-05-05T13:20:00.000Z",
+    content:
+      "#course_marching_101 #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.",
+    described:
+      "#course_marching_101 #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.",
     videos: [
       {
         id: "video_seed_left_002",
-        name: "student-left.mp4",
-        uri: "mock://student-left.mp4",
+        name: "student-left-salute.mp4",
+        uri: "demo://student-left-salute",
+        angle: "Góc quay trái",
         duration: 15000,
         fileSize: 15_400_000,
       },
       {
         id: "video_seed_right_002",
-        name: "student-right.mp4",
-        uri: "mock://student-right.mp4",
+        name: "student-right-salute.mp4",
+        uri: "demo://student-right-salute",
+        angle: "Góc quay phải",
         duration: 15200,
         fileSize: 16_100_000,
       },
     ],
-    likeCount: 7,
-    commentCount: 3,
+    likeCount: 12,
     isLiked: true,
     canComment: true,
     canEdit: true,
-    exerciseId: "exercise_34",
-    courseId: "course_12",
+    canSubmit: false,
+    courseId: DEMO_COURSE.id,
+    exerciseId: DEMO_EXERCISES[0].id,
+    sourcePostId: "post_teacher_exercise_001",
+    courseTitle: DEMO_COURSE.title,
+    exerciseTitle: DEMO_EXERCISES[0].title,
+    hashtags: [DEMO_COURSE.hashtag, DEMO_EXERCISES[0].hashtag],
+    scoreSummary: {
+      score: scoringTemplate.score,
+      label: scoringTemplate.label,
+      mistakes: scoringTemplate.mistakes,
+      suggestions: scoringTemplate.suggestions,
+    },
     comments: [
       {
         id: "comment_seed_201",
         authorName: "Ứng dụng tự chấm",
-        content: "Điểm tạm thời: 7.5/10. Có lỗi ở pha xoay đầu và nhịp chân trái.",
-        createdAt: "2026-04-06T14:35:00.000Z",
-        score: "7.5",
-        detailMistakes: SCORE_HTML,
-        isScoreComment: true,
-      },
-      {
-        id: "comment_seed_202",
-        authorName: "Admin - Easy Mocap",
-        content: "Điểm từ server: 7.8/10. Kết quả đã đồng bộ với hệ thống chấm chính thức.",
-        createdAt: "2026-04-06T14:45:00.000Z",
-        score: "7.8",
+        content:
+          "Kết quả chấm tự động: 86/100. Lỗi chính: tay phải chưa thẳng ở nhịp 3; bước chân trái lệch nhịp 5. Gợi ý: giữ khuỷu tay cố định và tập lại đoạn 00:08-00:12.",
+        createdAt: "2026-05-05T13:22:00.000Z",
+        score: "86",
         detailMistakes: SCORE_HTML,
         isScoreComment: true,
       },
       {
         id: "comment_seed_203",
         authorName: "Đại úy Chính",
-        content: "Động tác đã ổn hơn, nhưng cần giữ thẳng tay phải ở nhịp thứ 3.",
-        createdAt: "2026-04-06T15:00:00.000Z",
+        content: "Bài đã ổn hơn, em chú ý giữ thân thẳng khi đưa tay lên.",
+        createdAt: "2026-05-05T14:00:00.000Z",
       },
     ],
   },
   {
-    id: "post_seed_003",
-    author: {
-      id: "user_teacher_002",
-      name: "Trung đội trưởng Cường",
-      handle: "@gv_cuong",
-      role: "GV",
-      online: true,
-      avatar: "",
-    },
-    createdAt: "2026-04-02T09:10:00.000Z",
-    content: "Bài viết này đang khóa bình luận để test đúng trường can_comment từ API get_list_posts / get_post.",
-    described: "Bài viết này đang khóa bình luận để test đúng trường can_comment từ API get_list_posts / get_post.",
+    id: "post_teacher_exercise_002",
+    type: "exercise",
+    author: teacherAuthor,
+    createdAt: "2026-05-05T08:00:00.000Z",
+    content:
+      "Bài tập số 2: bước đều tại chỗ. Trọng tâm là giữ nhịp chân trái/phải đều, tay đánh cùng biên độ, không lệch vai khi nghe khẩu lệnh.",
+    described:
+      "Bài tập số 2: bước đều tại chỗ. Trọng tâm là giữ nhịp chân trái/phải đều, tay đánh cùng biên độ, không lệch vai khi nghe khẩu lệnh.",
     videos: [
       {
-        id: "video_seed_left_003",
-        name: "locked-left.mp4",
-        uri: "mock://locked-left.mp4",
+        id: "video_standard_left_002",
+        name: "mau-buoc-deu-goc-trai.mp4",
+        uri: "demo://standard-left-march",
+        angle: "Góc quay trái",
+        duration: 21000,
+        fileSize: 20_000_000,
+      },
+      {
+        id: "video_standard_right_002",
+        name: "mau-buoc-deu-goc-phai.mp4",
+        uri: "demo://standard-right-march",
+        angle: "Góc quay phải",
+        duration: 21000,
+        fileSize: 20_500_000,
+      },
+    ],
+    likeCount: 24,
+    isLiked: false,
+    canComment: true,
+    canEdit: false,
+    canSubmit: true,
+    courseId: DEMO_COURSE.id,
+    exerciseId: DEMO_EXERCISES[1].id,
+    courseTitle: DEMO_COURSE.title,
+    exerciseTitle: DEMO_EXERCISES[1].title,
+    hashtags: [DEMO_COURSE.hashtag, DEMO_EXERCISES[1].hashtag],
+    comments: [
+      {
+        id: "comment_seed_301",
+        authorName: "Tran Thi B",
+        content: "Thầy cho em hỏi có cần quay cả thân người không ạ?",
+        createdAt: "2026-05-05T08:20:00.000Z",
+      },
+    ],
+  },
+  {
+    id: "post_teacher_exercise_003",
+    type: "exercise",
+    author: {
+      ...teacherAuthor,
+      id: "demo_teacher_002",
+      name: "Trung đội trưởng Cường",
+      handle: "@gv_cuong",
+    },
+    createdAt: "2026-05-04T09:10:00.000Z",
+    content:
+      "Ôn tập quay phải theo nhịp. Bài này dùng để demo trạng thái khóa bình luận theo API can_comment.",
+    described:
+      "Ôn tập quay phải theo nhịp. Bài này dùng để demo trạng thái khóa bình luận theo API can_comment.",
+    videos: [
+      {
+        id: "video_standard_left_003",
+        name: "mau-quay-phai-goc-trai.mp4",
+        uri: "demo://standard-left-turn",
+        angle: "Góc quay trái",
         duration: 12100,
         fileSize: 10_200_000,
       },
       {
-        id: "video_seed_right_003",
-        name: "locked-right.mp4",
-        uri: "mock://locked-right.mp4",
+        id: "video_standard_right_003",
+        name: "mau-quay-phai-goc-phai.mp4",
+        uri: "demo://standard-right-turn",
+        angle: "Góc quay phải",
         duration: 11800,
         fileSize: 9_900_000,
       },
     ],
-    likeCount: 2,
-    commentCount: 0,
+    likeCount: 9,
     isLiked: false,
     canComment: false,
     canEdit: false,
+    canSubmit: true,
+    courseId: DEMO_COURSE.id,
+    exerciseId: DEMO_EXERCISES[2].id,
+    courseTitle: DEMO_COURSE.title,
+    exerciseTitle: DEMO_EXERCISES[2].title,
+    hashtags: [DEMO_COURSE.hashtag, DEMO_EXERCISES[2].hashtag],
     comments: [],
   },
 ];

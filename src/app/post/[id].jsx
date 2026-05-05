@@ -1,15 +1,18 @@
 import AppButton from "@/components/common/AppButton";
+import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import PostCard from "@/components/post/PostCard";
-import { getPostById, toggleLike } from "@/services/postStore";
+import { addComment, getComments, getPostById, toggleLike } from "@/services/postStore";
 import postStyles from "@/styles/post.styles";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams();
   const [post, setPost] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const loadPost = useCallback(async () => {
@@ -17,6 +20,8 @@ export default function PostDetailScreen() {
       setIsLoading(true);
       const data = await getPostById(id);
       setPost(data);
+      const commentResult = await getComments(id, { index: 0, count: 50 });
+      setComments(commentResult.comments || []);
     } catch (error) {
       console.warn("Failed to load post:", error);
     } finally {
@@ -35,6 +40,35 @@ export default function PostDetailScreen() {
       setPost(updatedPost);
     } catch (error) {
       console.warn("Failed to toggle like:", error);
+    }
+  };
+
+  const handleSubmitExercise = () => {
+    if (!post) return;
+    router.push({
+      pathname: "/post/create",
+      params: {
+        mode: "submission",
+        sourcePostId: post.id,
+        courseId: post.courseId,
+        exerciseId: post.exerciseId,
+        teacherId: post.author?.id || "",
+      },
+    });
+  };
+
+  const handleAddComment = async () => {
+    if (!commentText.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập bình luận");
+      return;
+    }
+
+    const result = await addComment(post.id, commentText);
+    if (result.comment) {
+      setComments((current) => [...current, result.comment]);
+      setCommentText("");
+      const updatedPost = await getPostById(post.id);
+      setPost(updatedPost);
     }
   };
 
@@ -65,15 +99,39 @@ export default function PostDetailScreen() {
           detail={true}
           onToggleLike={handleToggleLike}
           onPressComment={() => router.push(`/comment/${post.id}`)}
+          onSubmitExercise={handleSubmitExercise}
         />
 
         <View style={postStyles.divider} />
 
-        <AppButton
-          title="Xem bình luận"
-          onPress={() => router.push(`/comment/${post.id}`)}
-          style={postStyles.actionButton}
-        />
+        <View style={postStyles.inputCard}>
+          <Text style={postStyles.slotLabel}>Bình luận ({comments.length})</Text>
+          {comments.map((item) => (
+            <View key={item.id} style={postStyles.commentCard}>
+              <Text style={postStyles.commentAuthor}>{item.authorName}</Text>
+              {item.isScoreComment && item.score ? (
+                <Text style={postStyles.scoreSummaryTitle}>Điểm: {item.score}/100</Text>
+              ) : null}
+              <Text style={postStyles.commentText}>{item.content}</Text>
+              <Text style={postStyles.commentMeta}>
+                {new Date(item.createdAt).toLocaleDateString("vi-VN")}
+              </Text>
+            </View>
+          ))}
+          <AppInput
+            placeholder="Viết bình luận demo..."
+            value={commentText}
+            onChangeText={setCommentText}
+            multiline
+            numberOfLines={3}
+            style={postStyles.textArea}
+          />
+          <AppButton
+            title="Gửi bình luận"
+            onPress={handleAddComment}
+            disabled={!commentText.trim()}
+          />
+        </View>
 
         <View style={{ height: 12 }} />
 

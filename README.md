@@ -1,6 +1,6 @@
 # Pose_Tracking
 
-Ứng dụng React Native dùng Expo Router (file-based routing), tập trung vào flow Authentication và màn hình chính dạng Tabs cho demo social app luyện tập tư thế diễu hành.
+Ứng dụng React Native dùng Expo Router (file-based routing) cho demo social app luyện tập tư thế diễu hành trong học phần IT4788.
 
 Backend chính thức cho các bước tích hợp sau:
 
@@ -8,7 +8,7 @@ Backend chính thức cho các bước tích hợp sau:
 http://group1.it4788.sukkaito.id.vn
 ```
 
-Hiện tại frontend vẫn dùng mock/local data để giữ baseline chạy được và demo được.
+Hiện tại frontend dùng chiến lược local-first để giữ demo web chạy ổn định. Lớp API backend đã được chuẩn bị theo hướng opportunistic fallback, nhưng luồng demo chính không phụ thuộc backend.
 
 ## Công nghệ chính
 
@@ -16,7 +16,7 @@ Hiện tại frontend vẫn dùng mock/local data để giữ baseline chạy đ
 - React Native 0.83
 - Expo Router
 - React Navigation (tabs)
-- react-native-webview
+- React Native Web
 
 ## Cách chạy web demo bằng Docker
 
@@ -33,7 +33,14 @@ Mở web demo tại:
 http://localhost:8081
 ```
 
-Xem thêm hướng dẫn và troubleshooting trong [docs/DEVELOPMENT.md](/Users/nqd2005/Projects/Pose_Tracking/docs/DEVELOPMENT.md).
+Tài khoản demo nhanh:
+
+```text
+HV: 0900000001 / 123456
+GV: 0900000002 / 123456
+```
+
+Xem thêm hướng dẫn và troubleshooting trong [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Kịch bản click demo sáng mai nằm ở [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 ## Cách chạy nếu có npm trên host
 
@@ -71,12 +78,14 @@ Pose_Tracking/
 ├── assets/                        # ảnh, icon, splash
 ├── src/
 │   ├── api/
-│   │   └── auth.js                # mock auth API
+│   │   ├── auth.js                # auth local-first, backend-opportunistic
+│   │   ├── client.js              # lightweight backend API client
+│   │   └── backendStatus.js       # backend availability helper
 │   ├── app/                       # routes (Expo Router)
 │   │   ├── _layout.jsx            # root stack
 │   │   ├── index.jsx              # redirect -> /(auth)/login
 │   │   ├── (auth)/                # flow đăng ký/đăng nhập
-│   │   ├── (tabs)/                # tab chính sau khi vào app
+│   │   ├── (tabs)/                # Home, Courses, Search, Notifications, Menu
 │   │   ├── post/                  # stack bài viết
 │   │   └── comment/               # stack bình luận
 │   ├── components/common/
@@ -85,8 +94,11 @@ Pose_Tracking/
 │   │   └── Screen.jsx
 │   ├── constants/
 │   │   ├── colors.js              # design tokens màu
+│   │   ├── demo.js                # demo users/course/exercises/notifications
 │   │   ├── sizes.js               # spacing/radius/size tokens
 │   │   └── mocks/users.js         # dữ liệu user giả lập
+│   ├── config/
+│   │   └── env.js                 # API base URL and timeout config
 │   ├── styles/
 │   │   ├── auth/                  # style cho từng màn auth
 │   │   ├── common/
@@ -133,6 +145,9 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
 ### Tabs sau đăng nhập
 
 - `/(tabs)/home`
+- `/(tabs)/courses`
+- `/(tabs)/search`
+- `/(tabs)/notifications`
 - `/(tabs)/profile`
 
 ### Post/comment routes
@@ -147,13 +162,15 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
 - `components/common/`: component tái sử dụng.
 - `styles/`: style tách theo module màn hình.
 - `constants/`: token UI + mock data.
-- `api/`: lớp gọi API (hiện là mock).
+- `api/`: lớp auth local-first và backend API client an toàn.
 - `utils/`: tiện ích dùng chung (validation).
 
-## Tài liệu baseline
+## Tài liệu demo
 
-- [docs/DEVELOPMENT.md](/Users/nqd2005/Projects/Pose_Tracking/docs/DEVELOPMENT.md): Docker workflow, web demo URL, troubleshooting, known backend gaps, next phases.
-- [docs/FRONTEND_BASELINE_AUDIT.md](/Users/nqd2005/Projects/Pose_Tracking/docs/FRONTEND_BASELINE_AUDIT.md): tech stack, routes, implemented features, mock/local-only parts, risks.
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): Docker workflow, web demo URL, troubleshooting, backend fallback notes.
+- [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md): exact morning demo runbook and click path.
+- [docs/DEMO_STATUS.md](docs/DEMO_STATUS.md): completed features, local/mock features, backend behavior, known gaps.
+- [docs/FRONTEND_BASELINE_AUDIT.md](docs/FRONTEND_BASELINE_AUDIT.md): tech stack, routes, implemented features, mock/local-only parts, risks.
 
 ## Ghi chú
 
@@ -161,4 +178,4 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
   - `@/*` -> `src/*`
   - `@/assets/*` -> `assets/*`
 - `example/` chỉ là code mẫu, không phải luồng chính của ứng dụng hiện tại.
-- Chưa tích hợp backend thật trong bước baseline này.
+- Backend thật đã có client/config chuẩn bị, nhưng demo chính vẫn local-first để tránh CORS, tài khoản test, hoặc API contract mismatch làm hỏng buổi demo.

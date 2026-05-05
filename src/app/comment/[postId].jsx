@@ -84,7 +84,7 @@ export default function CommentScreen() {
                   </Text>
                   {item.score ? (
                     <Text style={{ fontWeight: "700", marginVertical: 4 }}>
-                      Điểm: {item.score}/10
+                      Điểm: {item.score}/100
                     </Text>
                   ) : null}
                 </View>

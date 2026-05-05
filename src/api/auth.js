@@ -1,3 +1,4 @@
+import { backendApi } from "@/api/client";
 import { MOCK_USERS } from "@/constants/mocks/users";
 import { isPhone } from "@/utils/validation";
 
@@ -38,15 +39,15 @@ const authApi = {
 
     const user = MOCK_USERS.find((u) => u.phonenumber === normalizedPhone);
 
-    if (!user) {
+    if (user && user.password === normalizedPassword) {
       return {
-        code: "9995",
-        message: "User is not validated",
-        data: null,
+        code: "1000",
+        message: "OK",
+        data: user.data,
       };
     }
 
-    if (user.password !== normalizedPassword) {
+    if (user) {
       return {
         code: "1004",
         message: "Parameter value is invalid",
@@ -54,10 +55,27 @@ const authApi = {
       };
     }
 
+    try {
+      const backendResponse = await backendApi.login({
+        phonenumber: normalizedPhone,
+        password: normalizedPassword,
+      });
+
+      if (backendResponse?.code === "1000" && backendResponse.data) {
+        return {
+          code: "1000",
+          message: backendResponse.message || "OK",
+          data: backendResponse.data,
+        };
+      }
+    } catch (error) {
+      console.warn("[DEMO] Backend login unavailable, using local fallback:", error.message);
+    }
+
     return {
-      code: "1000",
-      message: "OK",
-      data: user.data,
+      code: "9995",
+      message: "User is not validated",
+      data: null,
     };
   },
 
