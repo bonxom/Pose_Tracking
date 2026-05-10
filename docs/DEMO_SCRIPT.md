@@ -1,8 +1,8 @@
-# Morning Demo Script
+# Server Demo And Developer Fallback Script
 
-Use this script for the IT4788 marching/parade pose-training social app demo.
+Use this script to run the IT4788 marching/parade pose-training social app through Docker. The normal product path is server-backed; the old demo shortcut is kept only as developer fallback.
 
-## 1. Start The Web Demo
+## 1. Start Expo Web
 
 From the repository root:
 
@@ -17,68 +17,43 @@ Open:
 http://localhost:8081
 ```
 
-## 2. Demo Account
-
-Use the visible `Use demo student account` button on the login screen.
-
-The local demo credentials are:
-
-```text
-Phone: 0900000001
-Password: 123456
-Role: HV
-```
-
-For tomorrow morning, use the visible demo shortcut. The normal login form now attempts backend login first in `auto` and `server` modes, and the deployed backend did not validate these local demo phone numbers during probing.
-
-Optional teacher account:
-
-```text
-Phone: 0900000002
-Password: 123456
-Role: GV
-```
-
-## 3. Click-Through Flow
+## 2. Real Server Path
 
 1. Open `http://localhost:8081`.
-2. On the login screen, click `Use demo student account`.
-3. Confirm the app opens the Home feed.
-4. Point out the Facebook-style feed: avatars, GV/HV role badges, hashtags, video placeholders, likes, comments.
-5. Open the teacher exercise post `Động tác chào điều lệnh`.
-6. Click `Nộp bài`.
-7. On `Nộp bài tập`, click `Use demo video 1`.
-8. Click `Use demo video 2`.
-9. Optionally edit the note text.
-10. Click `Nộp bài`.
-11. Confirm the new student submission post opens.
-12. Point out the score summary and auto-generated scoring comment:
+2. Register a new account through the signup flow or log in with a valid backend account.
+3. Complete verification and profile completion if the backend accepts the account.
+4. Confirm the app opens Home with `Nguồn dữ liệu: Server`.
+5. Open a post, comments, courses, notifications, settings, blocks, and conversations.
+6. Submit an exercise with two real videos; demo placeholders are not valid server uploads.
+7. Verify server errors are shown safely instead of silently converting to local success.
+
+Current blocker: no valid backend token/account was available in this environment, so the real path is frontend-complete but not fully verified end-to-end.
+
+## 3. Developer Local Fallback Path
+
+Use only when backend accounts/contracts are unavailable.
+
+Visible buttons:
 
 ```text
-Kết quả chấm tự động: 86/100. Lỗi chính: tay phải chưa thẳng ở nhịp 3; bước chân trái lệch nhịp 5. Gợi ý: giữ khuỷu tay cố định và tập lại đoạn 00:08-00:12.
+Student HV: 0900000001 / 123456
+Teacher GV: 0900000002 / 123456
 ```
 
-13. Click `Thích` to like/unlike locally.
-14. Add a short comment, for example `Em sẽ tập lại đoạn 00:08-00:12.`
-15. Go back to the Home tab and confirm the new submission is at the top of the feed.
-16. Open the Courses tab.
-17. Show the course card, teacher info, enrollment state, stats, and exercise list.
-18. Open the Search tab.
-19. Search for `chào`, `#exercise_chao_dieu_lenh`, or `Nguyen Van A`.
-20. Open a result to confirm search navigation works.
-21. Open the Notifications tab.
-22. Tap a notification and show it changes from unread to read.
-23. Open the Menu tab.
-24. Show user info, role, phone, demo mode, and menu rows.
-25. Tap `Logout`.
-26. Confirm the app returns to login.
+Fallback flow:
 
-## 4. Known Demo-Only Limitations To Mention
+1. Click `Use demo student account`.
+2. Confirm the Home feed opens.
+3. Open a teacher exercise post.
+4. Click `Nộp bài`.
+5. Use `Use demo video 1` and `Use demo video 2`.
+6. Submit and confirm the local scoring comment appears.
+7. Test local like/comment/search/courses/notifications/profile/logout.
 
-- The app is now server-first hybrid, but the visible demo-account buttons intentionally use local demo mode.
-- The deployed backend was reachable, but the local demo credentials returned `9995 User is not validated`, so a real server login was not verified.
-- Video attachments are web-safe placeholders, not real uploaded files.
-- The score is a realistic simulation, not a real pose-estimation result.
-- Likes, comments, notifications, enrollment, and submissions are stored locally in the browser/native storage.
-- Backend repositories are wired for auth/feed/post/comment/like/add_post, but server flows need a valid backend token to exercise fully.
-- Real upload, scoring pipeline, push notifications, and chat should be integrated after the demo.
+## 4. Limitations To State Clearly
+
+- Demo buttons are local-only and do not prove backend login.
+- Local scoring comments are not authoritative backend scoring.
+- `/it4788/like` and `/it4788/delete_post` returned 404 in deployed probing.
+- Most authenticated APIs require a valid backend token and remain unverified for success payload shape.
+- Chat compose remains local-only because no send-message API appears in the 40-API list.

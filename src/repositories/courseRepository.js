@@ -1,5 +1,5 @@
 import { backendApi } from "@/api/client";
-import { DEMO_COURSE } from "@/constants/demo";
+import { DEMO_COURSE, DEMO_STUDENT } from "@/constants/demo";
 import { getExercisePosts } from "@/repositories/postRepository";
 import { extractList, isBackendOk } from "@/repositories/normalizers";
 import {
@@ -57,4 +57,123 @@ export async function getCurrentCourse() {
 
 export async function getCourseExercises() {
   return getExercisePosts();
+}
+
+export async function getStudentCourses(params = {}) {
+  const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return [normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL)];
+  }
+
+  try {
+    const response = await backendApi.getListCoursesOfStudent({
+      token: session.token,
+      index: String(params.index || 0),
+      count: String(params.count || 20),
+    });
+
+    if (!isBackendOk(response) && response?.code !== "9994") {
+      throw new Error(response?.message || "Backend get_list_courses_of_student failed");
+    }
+
+    const courses = extractList(response).map((item) => normalizeCourse(item, ACTIVE_SOURCES.SERVER));
+    return courses.length ? courses : [];
+  } catch (error) {
+    console.info("[DATA] Server student courses fallback", error.message);
+
+    if (canFallbackToLocal()) {
+      return [normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL_FALLBACK)];
+    }
+
+    throw error;
+  }
+}
+
+export async function getCourseStudents() {
+  const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return [{
+      id: DEMO_STUDENT.id,
+      username: DEMO_STUDENT.displayName,
+      role: "HV",
+      phonenumber: DEMO_STUDENT.phonenumber,
+      source: ACTIVE_SOURCES.LOCAL,
+    }];
+  }
+
+  const response = await backendApi.getListStudents({
+    token: session.token,
+    index: "0",
+    count: "50",
+  });
+
+  if (!isBackendOk(response) && response?.code !== "9994") {
+    throw new Error(response?.message || "Backend get_list_students failed");
+  }
+
+  return extractList(response).map((item) => ({
+    id: String(item.id || item.user_id || item.student_id || ""),
+    username: item.username || item.name || item.fullname || "Học viên",
+    role: item.role || "HV",
+    phonenumber: item.phonenumber || item.phone || "",
+    source: ACTIVE_SOURCES.SERVER,
+    raw: item,
+  }));
+}
+
+export async function getRequestedEnrollments() {
+  const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return [];
+  }
+
+  const response = await backendApi.getRequestedEnrollment({
+    token: session.token,
+    index: "0",
+    count: "50",
+  });
+
+  if (!isBackendOk(response) && response?.code !== "9994") {
+    throw new Error(response?.message || "Backend get_requested_enrollment failed");
+  }
+
+  return extractList(response);
+}
+
+export async function requestCourse(courseId = DEMO_COURSE.id) {
+  const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return { requested: true, source: ACTIVE_SOURCES.LOCAL };
+  }
+
+  const response = await backendApi.setRequestCourse({
+    token: session.token,
+    course_id: courseId,
+    user_id: courseId,
+  });
+
+  if (!isBackendOk(response)) {
+    throw new Error(response?.message || "Backend set_request_course failed");
+  }
+
+  return { requested: true, source: ACTIVE_SOURCES.SERVER };
+}
+
+export async function approveEnrollment(requestId, isApproved = true) {
+  const session = await getCurrentSession();
+  const response = await backendApi.setApproveEnrollment({
+    token: session.token,
+    user_id: requestId,
+    is_accept: isApproved ? "1" : "0",
+  });
+
+  if (!isBackendOk(response)) {
+    throw new Error(response?.message || "Backend set_approve_enrollment failed");
+  }
+
+  return { approved: isApproved, source: ACTIVE_SOURCES.SERVER };
 }

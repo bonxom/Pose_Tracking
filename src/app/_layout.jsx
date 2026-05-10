@@ -69,6 +69,8 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="post" />
         <Stack.Screen name="comment" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="chat" />
       </Stack>
     </SafeAreaProvider>
   );

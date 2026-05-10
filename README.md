@@ -1,6 +1,6 @@
 # Pose_Tracking
 
-Ứng dụng React Native dùng Expo Router (file-based routing) cho demo social app luyện tập tư thế diễu hành trong học phần IT4788.
+Ứng dụng React Native dùng Expo Router (file-based routing) cho social app luyện tập tư thế diễu hành trong học phần IT4788.
 
 Backend chính thức cho các bước tích hợp sau:
 
@@ -8,7 +8,7 @@ Backend chính thức cho các bước tích hợp sau:
 http://group1.it4788.sukkaito.id.vn
 ```
 
-Hiện tại frontend dùng chiến lược server-first hybrid: ưu tiên backend khi có session server thật, nhưng vẫn giữ local demo fallback để buổi demo không phụ thuộc tài khoản test/CORS/contract backend.
+Định hướng hiện tại là server-authoritative: luồng sản phẩm mặc định dùng backend IT4788. Local/demo mode chỉ còn là đường dự phòng phát triển và phải được đánh dấu rõ.
 
 ## Công nghệ chính
 
@@ -33,7 +33,7 @@ Mở web demo tại:
 http://localhost:8081
 ```
 
-Tài khoản demo nhanh:
+Tài khoản demo nhanh chỉ dành cho developer/local fallback:
 
 ```text
 HV: 0900000001 / 123456
@@ -45,9 +45,9 @@ Xem thêm hướng dẫn và troubleshooting trong [docs/DEVELOPMENT.md](docs/DE
 ## Data source modes
 
 ```bash
-EXPO_PUBLIC_DATA_SOURCE=auto   # mặc định: server nếu có token thật, fallback local
-EXPO_PUBLIC_DATA_SOURCE=server # chỉ backend, lỗi rõ ràng nếu backend/token không hợp lệ
-EXPO_PUBLIC_DATA_SOURCE=local  # demo local như MVP trước
+EXPO_PUBLIC_DATA_SOURCE=server # mặc định: dùng backend, lỗi rõ ràng nếu backend/token không hợp lệ
+EXPO_PUBLIC_DATA_SOURCE=auto   # dev fallback: server khi có token thật, fallback local nếu backend lỗi
+EXPO_PUBLIC_DATA_SOURCE=local  # developer-only local fallback
 ```
 
 Backend probe:
@@ -92,8 +92,8 @@ Pose_Tracking/
 ├── assets/                        # ảnh, icon, splash
 ├── src/
 │   ├── api/
-│   │   ├── auth.js                # auth local-first, backend-opportunistic
-│   │   ├── client.js              # lightweight backend API client
+│   │   ├── auth.js                # server-backed signup/login helpers with local fallback mode
+│   │   ├── client.js              # 40-API backend client
 │   │   └── backendStatus.js       # backend availability helper
 │   ├── app/                       # routes (Expo Router)
 │   │   ├── _layout.jsx            # root stack
@@ -101,7 +101,9 @@ Pose_Tracking/
 │   │   ├── (auth)/                # flow đăng ký/đăng nhập
 │   │   ├── (tabs)/                # Home, Courses, Search, Notifications, Menu
 │   │   ├── post/                  # stack bài viết
-│   │   └── comment/               # stack bình luận
+│   │   ├── comment/               # stack bình luận
+│   │   ├── settings/              # profile/push/password/blocks/device/version
+│   │   └── chat/                  # conversation list/detail
 │   ├── components/common/
 │   │   ├── AppButton.jsx
 │   │   ├── AppInput.jsx
@@ -113,7 +115,7 @@ Pose_Tracking/
 │   │   └── mocks/users.js         # dữ liệu user giả lập
 │   ├── config/
 │   │   └── env.js                 # API base URL and timeout config
-│   ├── repositories/              # server/local adapters for app flows
+│   ├── repositories/              # server-authoritative adapters plus local dev fallback
 │   ├── styles/
 │   │   ├── auth/                  # style cho từng màn auth
 │   │   ├── common/
@@ -132,11 +134,13 @@ Pose_Tracking/
 
 ### Root stack
 
-- `src/app/_layout.jsx` khai báo 4 nhánh:
+- `src/app/_layout.jsx` khai báo 6 nhánh:
   - `(auth)`
   - `(tabs)`
   - `post`
   - `comment`
+  - `settings`
+  - `chat`
 
 ### Route mặc định
 
@@ -171,18 +175,32 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
 - `/post/[id]`
 - `/comment/[postId]`
 
+### Settings/chat routes
+
+- `/settings`
+- `/settings/profile-edit`
+- `/settings/push`
+- `/settings/change-password`
+- `/settings/blocks`
+- `/chat`
+- `/chat/[id]`
+
 ## Kiến trúc code
 
 - `app/`: màn hình + điều hướng.
 - `components/common/`: component tái sử dụng.
 - `styles/`: style tách theo module màn hình.
 - `constants/`: token UI + mock data.
-- `api/`: lớp auth local-first và backend API client an toàn.
+- `api/`: lớp auth server-backed và backend API client an toàn.
+- `repositories/`: adapter server-authoritative cho các module chính, giữ local fallback cho phát triển.
 - `utils/`: tiện ích dùng chung (validation).
 
-## Tài liệu demo
+## Tài liệu
 
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): Docker workflow, web demo URL, troubleshooting, backend fallback notes.
+- [docs/IT4788_SOURCE_OF_TRUTH.md](docs/IT4788_SOURCE_OF_TRUTH.md): source-of-truth summary for product rules and 40 APIs.
+- [docs/API_IMPLEMENTATION_MATRIX.md](docs/API_IMPLEMENTATION_MATRIX.md): 40-API wrapper/repository/screen/probe matrix.
+- [docs/SCREEN_FLOW_MATRIX.md](docs/SCREEN_FLOW_MATRIX.md): routes and server API usage by flow.
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): Docker workflow, web URL, data-source modes, troubleshooting.
 - [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md): exact morning demo runbook and click path.
 - [docs/DEMO_STATUS.md](docs/DEMO_STATUS.md): completed features, local/mock features, backend behavior, known gaps.
 - [docs/FRONTEND_BASELINE_AUDIT.md](docs/FRONTEND_BASELINE_AUDIT.md): tech stack, routes, implemented features, mock/local-only parts, risks.
@@ -196,4 +214,4 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
   - `@/*` -> `src/*`
   - `@/assets/*` -> `assets/*`
 - `example/` chỉ là code mẫu, không phải luồng chính của ứng dụng hiện tại.
-- Backend thật đã có repository integration cho auth/feed/post/comment/like/add_post best-effort. Không có token server hợp lệ trong lần probe, nên demo mặc định vẫn an toàn qua `auto` + local fallback.
+- Backend thật đã có wrapper cho toàn bộ 40 API và repository integration cho các module chính. Không có token server hợp lệ trong lần probe, nên phần lớn API xác thực chưa được verified end-to-end.

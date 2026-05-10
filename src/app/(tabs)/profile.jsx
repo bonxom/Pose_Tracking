@@ -1,10 +1,12 @@
 import AppButton from "@/components/common/AppButton";
 import Screen from "@/components/common/Screen";
 import { DEMO_COURSE } from "@/constants/demo";
+import { logoutSession } from "@/repositories/authRepository";
+import { getSourceLabel } from "@/repositories/source";
+import { getUserInfo } from "@/repositories/userRepository";
 import demoStyles from "@/styles/demo.styles";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import { getInitials } from "@/utils/formatters";
-import { getSourceLabel } from "@/repositories/source";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -15,13 +17,19 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       const loadSession = async () => {
-        setSession(await getAuthSession());
+        const currentSession = await getAuthSession();
+        try {
+          setSession(await getUserInfo());
+        } catch {
+          setSession(currentSession);
+        }
       };
       loadSession();
     }, []),
   );
 
   const handleLogout = async () => {
+    await logoutSession(session);
     await clearAuthSession();
     router.replace("/(auth)/login");
   };
@@ -33,7 +41,7 @@ export default function ProfileScreen() {
     {
       label: "My profile",
       detail: `${displayName} · ${role}`,
-      onPress: null,
+      onPress: () => router.push("/settings/profile-edit"),
     },
     {
       label: "My courses",
@@ -41,14 +49,19 @@ export default function ProfileScreen() {
       onPress: () => router.push("/(tabs)/courses"),
     },
     {
+      label: "Messages",
+      detail: "Cuộc trò chuyện GV/HV",
+      onPress: () => router.push("/chat"),
+    },
+    {
       label: "Notifications",
-      detail: "Thông báo demo cục bộ",
+      detail: "Thông báo và trạng thái đọc",
       onPress: () => router.push("/(tabs)/notifications"),
     },
     {
-      label: "Demo limitations",
-      detail: "Local-first, backend-opportunistic",
-      onPress: null,
+      label: "Settings",
+      detail: "Push, mật khẩu, chặn người dùng",
+      onPress: () => router.push("/settings"),
     },
   ];
 
@@ -89,9 +102,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={demoStyles.card}>
-          <Text style={demoStyles.cardTitle}>Demo đang dùng local fallback</Text>
+          <Text style={demoStyles.cardTitle}>Trạng thái dữ liệu</Text>
           <Text style={demoStyles.cardText}>
-            Auth demo, feed, nộp bài, chấm điểm, thông báo và tìm kiếm chạy cục bộ để tránh rủi ro backend/CORS trước buổi demo.
+            Mặc định sản phẩm dùng server. Nút demo trên màn hình đăng nhập chỉ dành cho phát triển và chạy local riêng biệt.
           </Text>
           <AppButton title="Đăng xuất" onPress={handleLogout} />
         </View>

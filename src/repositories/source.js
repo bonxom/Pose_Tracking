@@ -27,6 +27,7 @@ export async function getCurrentSession() {
 
 export function shouldUseServer(session) {
   if (DATA_SOURCE_MODE === DATA_SOURCES.LOCAL) return false;
+  if (session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL) return false;
   if (DATA_SOURCE_MODE === DATA_SOURCES.SERVER) return true;
   return hasServerSession(session);
 }
@@ -37,6 +38,10 @@ export function canFallbackToLocal() {
 
 export function getSourceLabel(source) {
   if (DATA_SOURCE_MODE === DATA_SOURCES.SERVER && source !== ACTIVE_SOURCES.SERVER) {
+    if (source === ACTIVE_SOURCES.LOCAL) {
+      return "Nguồn dữ liệu: Demo local";
+    }
+
     return "Nguồn dữ liệu: Server lỗi";
   }
 

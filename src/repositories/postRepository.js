@@ -182,6 +182,150 @@ export async function searchPosts(query = "") {
   }
 }
 
+export async function getSavedSearches() {
+  const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return [];
+  }
+
+  try {
+    assertServerSession(session);
+    const response = await backendApi.getSavedSearch({
+      token: session.token,
+      index: "0",
+      count: "20",
+    });
+
+    if (!isBackendOk(response) && response?.code !== "9994") {
+      throw new Error(response?.message || "Backend saved search failed");
+    }
+
+    return extractList(response).map((item) => ({
+      id: String(item.id || item.search_id || item.keyword || Date.now()),
+      keyword: item.keyword || item.value || item.text || "",
+      createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.info("[DATA] Server saved search unavailable", error.message);
+
+    if (canFallbackToLocal()) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+export async function deleteSavedSearch(searchId) {
+  const session = await getCurrentSession();
+  assertServerSession(session);
+
+  const response = await backendApi.delSavedSearch({
+    token: session.token,
+    id: searchId,
+  });
+
+  if (!isBackendOk(response)) {
+    throw new Error(response?.message || "Backend del_saved_search failed");
+  }
+
+  return true;
+}
+
+export async function editPost(post, params = {}) {
+  if (!isServerPost(post)) {
+    return localPosts.createPost({
+      ...post,
+      ...params,
+      id: post.id,
+    });
+  }
+
+  const session = await getCurrentSession();
+  assertServerSession(session);
+  const response = await backendApi.editPost({
+    token: session.token,
+    id: post.id,
+    described: params.content || params.described || post.described || post.content || "",
+  });
+
+  if (!isBackendOk(response)) {
+    throw new Error(response?.message || "Backend edit_post failed");
+  }
+
+  return normalizeServerPostObject(response) || {
+    ...post,
+    content: params.content || post.content,
+    described: params.described || params.content || post.described,
+  };
+}
+
+export async function deletePost(post) {
+  if (!isServerPost(post)) {
+    return { deleted: true, source: ACTIVE_SOURCES.LOCAL };
+  }
+
+  const session = await getCurrentSession();
+  assertServerSession(session);
+  const response = await backendApi.deletePost({
+    token: session.token,
+    id: post.id,
+  });
+
+  if (!isBackendOk(response)) {
+    throw new Error(response?.message || "Backend delete_post failed");
+  }
+
+  return { deleted: true, source: ACTIVE_SOURCES.SERVER };
+}
+
+export async function reportPost(post, reason = "") {
+  if (!isServerPost(post)) {
+    return { reported: true, source: ACTIVE_SOURCES.LOCAL };
+  }
+
+  const session = await getCurrentSession();
+  assertServerSession(session);
+  const response = await backendApi.reportPost({
+    token: session.token,
+    id: post.id,
+    subject: reason || "Báo cáo bài viết",
+    details: reason || "Nội dung không phù hợp",
+  });
+
+  if (!isBackendOk(response)) {
+    throw new Error(response?.message || "Backend report_post failed");
+  }
+
+  return { reported: true, source: ACTIVE_SOURCES.SERVER };
+}
+
+export async function checkNewItems(lastId = "") {
+  const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return { hasNew: false, source: ACTIVE_SOURCES.LOCAL };
+  }
+
+  assertServerSession(session);
+  const response = await backendApi.checkNewItem({
+    last_id: lastId,
+    category_id: "",
+  });
+
+  if (!isBackendOk(response)) {
+    throw new Error(response?.message || "Backend check_new_item failed");
+  }
+
+  return {
+    hasNew: Boolean(response.data?.new_items || response.data?.has_new || response.has_new),
+    count: Number(response.data?.count || response.count || 0),
+    source: ACTIVE_SOURCES.SERVER,
+    raw: response,
+  };
+}
+
 export async function getExercisePosts() {
   const result = await getFeedPage({ index: 0, count: 20 });
   return result.items.filter((post) => post.type === "exercise" || post.canSubmit);

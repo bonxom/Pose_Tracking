@@ -194,6 +194,8 @@ export default function ChangeInfoAfterSignupScreen() {
               role: response.data.role,
               avatar: response.data.avatar,
               height: response.data.height,
+              source: response.data.source || "server",
+              demoMode: Boolean(response.data.demoMode),
               loggedInAt: new Date().toISOString(),
             });
           } catch (storageError) {

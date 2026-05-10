@@ -1,6 +1,6 @@
 # Development Workflow
 
-This repository is a React Native / Expo Router frontend for the IT4788 marching/parade pose-training social app. The current strategy is server-first hybrid: use the deployed backend when a real server session exists, but keep the local demo fallback so the app remains demo-safe if backend auth, routes, CORS, or contracts fail.
+This repository is a React Native / Expo Router frontend for the IT4788 marching/parade pose-training social app. The current product strategy is server-authoritative: normal app usage should call the deployed IT4788 backend. Local mode remains available only for development, emergency demos, and isolated fallback testing.
 
 Backend source of truth for future integration:
 
@@ -27,23 +27,23 @@ Student HV: 0900000001 / 123456
 Teacher GV: 0900000002 / 123456
 ```
 
-The login screen also has visible demo-account buttons, so the morning demo can start without typing credentials.
+The login screen also has visible demo-account buttons for developer fallback.
 
-Important: these demo shortcuts are explicitly local. The normal login form attempts backend login first in `auto` and `server` modes.
+Important: these demo shortcuts are explicitly local and do not prove backend integration. The normal login form attempts backend login in the normal `server` mode.
 
 ## Data Source Modes
 
 Default:
 
 ```bash
-EXPO_PUBLIC_DATA_SOURCE=auto
+EXPO_PUBLIC_DATA_SOURCE=server
 ```
 
 Modes:
 
-- `auto`: use server repositories only when a real server session/token exists; fall back to local demo data if a backend call fails.
-- `server`: use backend repositories and show safe errors if backend/token/contracts fail.
-- `local`: preserve the local demo behavior exactly.
+- `server`: default product mode. Use backend repositories and show safe errors if backend/token/contracts fail.
+- `auto`: development fallback. Use server repositories when a real server session/token exists and fall back to local data if compatible backend calls fail.
+- `local`: developer-only local fallback.
 
 Optional config:
 
@@ -131,38 +131,41 @@ docker compose build
 docker compose up
 ```
 
-## Current Implemented Demo Features
+## Current Implemented Product Features
 
-- Demo login for HV and GV accounts, with web session persistence.
-- Normal login attempts backend first in `auto`/`server` modes.
-- Repository layer for auth, posts, comments, courses, notifications, and server/local fallback.
+- Normal login attempts backend in default `server` mode.
+- Demo login for HV and GV accounts remains available as explicit local fallback.
+- Repository layer for auth, posts, comments, courses, notifications, user/profile, settings, blocks, and conversations.
 - Five-tab app shell: Home, Courses, Search, Notifications, Menu/Profile.
 - Facebook-like local home feed with teacher exercise posts and student submission posts.
 - Teacher exercise cards with course/exercise metadata, hashtags, two video placeholders, and a clear `Nộp bài` action.
 - Exercise submission flow on `/post/create` with two web-safe demo video placeholders.
-- Local submission creation at the top of the feed, including a simulated auto-scoring comment.
+- Server-backed exercise submission uses multipart with two real videos when a server session exists; local demo placeholders are developer-only.
 - Post detail with comments, local comment creation, like/unlike, and submission navigation.
 - Courses tab with course card, teacher info, enrollment state, stats, and exercise list.
 - Search tab over posts, authors, hashtags, and course/exercise text.
-- Notifications tab with local unread/read behavior and simple navigation targets.
-- Menu/Profile tab with logged-in user info, demo-mode label, navigation rows, and logout.
+- Notifications tab with server read-state API integration.
+- Menu/Profile tab with server user info, settings/chat navigation rows, and logout.
+- Settings screens for profile edit, push settings, password change, device token/version check, and block list.
+- Conversation list/detail screens with read/delete HTTP flows where the backend supports them.
 
 ## Server-Integrated Or Server-Ready Parts
 
 - Backend probe script: `scripts/probe-backend.mjs`.
+- Probe script covers all 40 APIs from the IT4788 spec.
 - API client supports JSON, form-urlencoded, and multipart requests.
-- Server-first repositories are wired into actual UI paths: login, feed, post detail, likes, comments, search, courses, notifications, and exercise submission.
+- API client has wrappers for all 40 IT4788 APIs.
+- Server-first repositories are wired into actual UI paths: login/signup, feed, post detail, likes, comments, search, courses/enrollment, notifications, profile, settings, blocks, conversations, and exercise submission.
 - `add_post` uses multipart in server-backed sessions with real selected videos.
 - `backendStatus` no longer treats unauthenticated `get_list_posts` as a generic reachability probe.
 
-## Mock And Local-Only Parts
+## Local Fallback And Development-Only Parts
 
-- Demo users, course, exercises, notifications, conversations, video placeholders, and scoring templates come from `src/constants/demo.js`.
-- Feed/posts/comments use `src/services/postStore.js` with browser/native local storage.
-- Likes, comments, post creation, submissions, notification read state, enrollment state, and auth session are local-only for the demo.
-- Video attachments are placeholders, not uploaded media.
-- Pose scoring is a realistic fixed simulation, not a real pose-estimation algorithm.
-- Chat data is prepared as demo constants, but no real socket chat is implemented.
+- Demo users, course, exercises, notifications, conversations, video placeholders, and scoring templates come from `src/constants/demo.js` only in local/dev flows.
+- `src/services/postStore.js` is retained for local mode and explicit demo shortcuts.
+- Demo video placeholders are not sent to backend; server mode requires real files.
+- Pose scoring simulation is local-only. Server-authoritative scoring/result fields are preserved when returned.
+- There is no `send_message` API in the 40-API list, so composing a new chat message remains local-only.
 
 ## Backend Contract Findings
 
@@ -172,6 +175,7 @@ docker compose up
 - `/it4788/like` returned 404 during the probe.
 - `get_list_posts` worked best with form-urlencoded string values.
 - `add_post` requires multipart and `device_slave`.
+- All 40 APIs are now represented in the probe script, but most authenticated success paths remain unverified without a valid token.
 
 See [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md) and [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md).
 
@@ -186,16 +190,16 @@ See [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md) and [BACKEND_MISMAT
 
 ## Known Gaps Versus Backend/API Source Of Truth
 
-- No full backend auth token lifecycle is wired yet.
-- No authoritative backend feed pagination, media upload, course enrollment, notifications, or scoring processing.
-- No real two-video upload pipeline or backend pose-comparison status screen.
-- Role-based permissions are demo-friendly but not enforced by the backend.
-- Backend contract mismatches should be documented during the next integration phase instead of blocking this demo.
+- No valid backend test account/token was available in this environment, so most authenticated API success payloads are unverified.
+- Invalid/stale token handling is not yet centralized across all repositories/screens.
+- Feed load-more/cache reconciliation still needs final spec-level polish.
+- Teacher approval dashboard and post edit/delete/report action menus are still minimal.
+- Full client-side scoring remains a separate gap unless backend scoring is accepted as authoritative by the course rubric.
 
 ## Recommended Next Phases
 
-1. Verify backend API contracts against the deployed source of truth.
-2. Integrate backend login/session tokens while keeping demo fallback accounts.
-3. Map feed, post detail, comment, and like endpoints into `postStore`.
-4. Add media upload and scoring-status integration behind local fallback.
-5. Replace local notifications/chat with backend or socket-backed implementations when contracts are stable.
+1. Obtain or create valid backend GV/HV accounts and rerun `PROBE_MUTATION=1` only for the intended signup/enrollment/upload test path.
+2. Verify successful response shapes for all authenticated APIs and update normalizers.
+3. Finish teacher enrollment approval UI and post action menus.
+4. Centralize invalid-token handling and server error presentation.
+5. Decide whether client-side scoring is required beyond displaying backend scoring fields.

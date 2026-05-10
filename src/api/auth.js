@@ -1,4 +1,5 @@
 import { backendApi } from "@/api/client";
+import { DATA_SOURCE_MODE, DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { MOCK_USERS } from "@/constants/mocks/users";
 import { isPhone } from "@/utils/validation";
 
@@ -7,6 +8,22 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Mock verification code storage (in-memory)
 const MOCK_VERIFY_CODES = new Map();
+
+function isServerAuthMode() {
+  return DATA_SOURCE_MODE !== "local";
+}
+
+function isOk(response) {
+  return response?.code === "1000" || response?.code === 1000 || response?.success === true;
+}
+
+function backendError(response, fallbackMessage = "Backend request failed") {
+  return {
+    code: String(response?.code || "BACKEND_ERROR"),
+    message: response?.message || response?.msg || response?.error || fallbackMessage,
+    data: null,
+  };
+}
 
 const authApi = {
   /**
@@ -37,6 +54,32 @@ const authApi = {
       };
     }
 
+    if (isServerAuthMode()) {
+      try {
+        const backendResponse = await backendApi.login({
+          phonenumber: normalizedPhone,
+          password: normalizedPassword,
+          devtoken: DEFAULT_DEVICE_TOKEN,
+        });
+
+        if (isOk(backendResponse) && backendResponse.data) {
+          return {
+            code: "1000",
+            message: backendResponse.message || "OK",
+            data: backendResponse.data,
+          };
+        }
+
+        return backendError(backendResponse, "Backend login failed");
+      } catch (error) {
+        return {
+          code: "NETWORK_ERROR",
+          message: error.message || "Backend unavailable",
+          data: null,
+        };
+      }
+    }
+
     const user = MOCK_USERS.find((u) => u.phonenumber === normalizedPhone);
 
     if (user && user.password === normalizedPassword) {
@@ -53,23 +96,6 @@ const authApi = {
         message: "Parameter value is invalid",
         data: null,
       };
-    }
-
-    try {
-      const backendResponse = await backendApi.login({
-        phonenumber: normalizedPhone,
-        password: normalizedPassword,
-      });
-
-      if (backendResponse?.code === "1000" && backendResponse.data) {
-        return {
-          code: "1000",
-          message: backendResponse.message || "OK",
-          data: backendResponse.data,
-        };
-      }
-    } catch (error) {
-      console.warn("[DEMO] Backend login unavailable, using local fallback:", error.message);
     }
 
     return {
@@ -113,6 +139,39 @@ const authApi = {
         message: "Invalid role",
         data: null,
       };
+    }
+
+    if (isServerAuthMode()) {
+      try {
+        const response = await backendApi.signup({
+          phonenumber,
+          password,
+          uuid,
+          role,
+        });
+
+        if (!isOk(response)) {
+          return backendError(response, "Backend signup failed");
+        }
+
+        const data = response.data || {};
+        return {
+          code: "1000",
+          message: response.message || "OK",
+          data: {
+            ...data,
+            signupRequestId: data.signupRequestId || data.signup_request_id || data.id || phonenumber,
+            phonenumber: data.phonenumber || phonenumber,
+            role: data.role || role,
+          },
+        };
+      } catch (error) {
+        return {
+          code: "NETWORK_ERROR",
+          message: error.message || "Backend signup unavailable",
+          data: null,
+        };
+      }
     }
 
     // Chặn duplicate phone number
@@ -160,7 +219,7 @@ const authApi = {
   getVerifyCode: async ({ phonenumber, signupRequestId }) => {
     await delay(500);
 
-    if (!phonenumber || !signupRequestId) {
+    if (!phonenumber || (!signupRequestId && !isServerAuthMode())) {
       return {
         code: "1002",
         message: "Parameter is not enough",
@@ -174,6 +233,23 @@ const authApi = {
         message: "Invalid phone number",
         data: null,
       };
+    }
+
+    if (isServerAuthMode()) {
+      try {
+        const response = await backendApi.getVerifyCode({ phonenumber });
+        return isOk(response) ? {
+          code: "1000",
+          message: response.message || "Mã xác thực đã được gửi.",
+          data: response.data || {},
+        } : backendError(response, "Backend get_verify_code failed");
+      } catch (error) {
+        return {
+          code: "NETWORK_ERROR",
+          message: error.message || "Backend get_verify_code unavailable",
+          data: null,
+        };
+      }
     }
 
     // Verify request tồn tại
@@ -210,12 +286,43 @@ const authApi = {
   checkVerifyCode: async ({ phonenumber, code, signupRequestId }) => {
     await delay(800);
 
-    if (!phonenumber || !code || !signupRequestId) {
+    if (!phonenumber || !code || (!signupRequestId && !isServerAuthMode())) {
       return {
         code: "1002",
         message: "Parameter is not enough",
         data: null,
       };
+    }
+
+    if (isServerAuthMode()) {
+      try {
+        const response = await backendApi.checkVerifyCode({
+          phonenumber,
+          code_verify: code,
+        });
+
+        if (!isOk(response)) {
+          return backendError(response, "Backend check_verify_code failed");
+        }
+
+        const data = response.data || {};
+        return {
+          code: "1000",
+          message: response.message || "OK",
+          data: {
+            ...data,
+            token: data.token || response.token || "",
+            phonenumber: data.phonenumber || phonenumber,
+            signupRequestId: data.signupRequestId || data.signup_request_id || signupRequestId || phonenumber,
+          },
+        };
+      } catch (error) {
+        return {
+          code: "NETWORK_ERROR",
+          message: error.message || "Backend check_verify_code unavailable",
+          data: null,
+        };
+      }
     }
 
     const stored = MOCK_VERIFY_CODES.get(signupRequestId);
@@ -274,12 +381,35 @@ const authApi = {
   changeInfoAfterSignup: async ({ token, phonenumber, username, height, avatar = "", signupRequestId }) => {
     await delay(800);
 
-    if (!token || !phonenumber || !username || !height || !signupRequestId) {
+    if (!token || !phonenumber || !username || !height || (!signupRequestId && !isServerAuthMode())) {
       return {
         code: "1002",
         message: "Parameter is not enough",
         data: null,
       };
+    }
+
+    if (isServerAuthMode()) {
+      try {
+        const response = await backendApi.changeInfoAfterSignup({
+          token,
+          username,
+          height,
+          avatar,
+        });
+
+        return isOk(response) ? {
+          code: "1000",
+          message: response.message || "OK",
+          data: response.data || { token, phonenumber, username, height, avatar },
+        } : backendError(response, "Backend change_info_after_signup failed");
+      } catch (error) {
+        return {
+          code: "NETWORK_ERROR",
+          message: error.message || "Backend change_info_after_signup unavailable",
+          data: null,
+        };
+      }
     }
 
     // Lấy password từ signup request
@@ -310,6 +440,8 @@ const authApi = {
         role,
         phonenumber,
         height,
+        source: "local",
+        demoMode: true,
       },
     };
 

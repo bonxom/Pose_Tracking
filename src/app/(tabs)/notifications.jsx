@@ -1,5 +1,5 @@
 import Screen from "@/components/common/Screen";
-import { getNotifications } from "@/repositories/notificationRepository";
+import { getNotifications, markNotificationRead } from "@/repositories/notificationRepository";
 import demoStyles from "@/styles/demo.styles";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -22,12 +22,18 @@ export default function NotificationsScreen() {
     }, []),
   );
 
-  const openNotification = (item) => {
+  const openNotification = async (item) => {
     setItems((current) =>
       current.map((notification) =>
         notification.id === item.id ? { ...notification, unread: false } : notification,
       ),
     );
+
+    try {
+      await markNotificationRead(item.id);
+    } catch (error) {
+      console.warn("Failed to mark notification as read:", error);
+    }
 
     if (item.targetType === "post") {
       router.push(`/post/${item.targetId}`);

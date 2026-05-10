@@ -4,7 +4,7 @@ export const API_BASE_URL =
 
 export const API_TIMEOUT_MS = Number(process.env.EXPO_PUBLIC_API_TIMEOUT_MS || 4500);
 
-const requestedSource = process.env.EXPO_PUBLIC_DATA_SOURCE || "auto";
+const requestedSource = process.env.EXPO_PUBLIC_DATA_SOURCE || "server";
 export const DATA_SOURCE_MODE = ["auto", "server", "local"].includes(requestedSource)
   ? requestedSource
   : "auto";

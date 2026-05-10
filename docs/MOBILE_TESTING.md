@@ -1,6 +1,6 @@
 # Mobile Testing
 
-The reliable physical-phone path for tomorrow's demo is the Expo Web build opened in the phone browser over the same Wi-Fi network. Native Expo Go is best-effort because the project is on Expo SDK 55, and current Expo Go compatibility may be sensitive during the SDK transition.
+The reliable physical-phone path is the Expo Web build opened in the phone browser over the same Wi-Fi network. Native Expo Go is best-effort because the project is on Expo SDK 55, and current Expo Go compatibility may be sensitive during the SDK transition.
 
 ## Reliable Phone Browser Path
 
@@ -38,7 +38,7 @@ Example:
 http://192.168.1.25:8081
 ```
 
-5. Use the same demo account buttons as desktop web.
+5. Use a real backend account for server-mode testing. Developer demo buttons remain local-only fallback.
 
 ## Troubleshooting Phone Browser Access
 

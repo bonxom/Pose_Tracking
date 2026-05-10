@@ -1,6 +1,6 @@
 # Frontend Baseline Audit
 
-Audit date: 2026-05-06
+Audit date: 2026-05-10
 
 ## Tech Stack Detected
 
@@ -17,8 +17,8 @@ Audit date: 2026-05-06
 ## Repository Shape
 
 - `src/app`: Expo Router route files and layouts.
-- `src/api`: local-first auth plus lightweight backend client helpers.
-- `src/repositories`: server/local adapter layer for UI business flows.
+- `src/api`: server-backed auth helpers plus 40-API backend client helpers.
+- `src/repositories`: server-authoritative adapter layer with developer local fallback.
 - `src/services`: local post/comment/feed storage.
 - `src/components`: common UI, post, and profile components.
 - `src/config`: environment config for backend base URL and timeout.
@@ -48,20 +48,28 @@ Audit date: 2026-05-06
 - `/post/create`: local post creation and exercise submission screen.
 - `/post/[id]`: post detail screen with comments and scoring result.
 - `/comment/[postId]`: local comment thread screen.
+- `/settings`: profile/push/password/device/version settings hub.
+- `/settings/profile-edit`: profile edit screen.
+- `/settings/push`: push settings screen.
+- `/settings/change-password`: change password screen.
+- `/settings/blocks`: block list screen.
+- `/chat`: conversation list.
+- `/chat/[id]`: conversation detail.
 
 ## Implemented Features
 
 - Auth route guarding based on stored session.
-- Demo login, mock signup/verification/profile completion flow.
+- Server login plus server-backed signup/verification/profile completion helpers.
+- Explicit developer-local demo login shortcuts.
 - Web-compatible session storage fallback using `localStorage`.
 - Seeded Facebook-style feed for marching pose-training posts.
-- Like toggling, post detail, local post creation, and local comments.
-- Teacher exercise submission flow with two demo video placeholders.
+- Repository-backed like toggling, post detail, post creation, and comments.
+- Teacher exercise submission flow with server multipart upload for real videos and local placeholders only in dev fallback.
 - Automatic local scoring comment for student submissions.
-- Course tab, search tab, notification tab, and menu/profile tab.
-- Lightweight backend API client/config layer with safe fallback behavior.
+- Course tab, search tab, notification tab, menu/profile tab, settings screens, blocks, and conversations.
+- Backend API client wrappers for all 40 IT4788 APIs.
 - Backend probe script and documented deployed-contract findings.
-- Data-source modes: `auto`, `server`, and `local`.
+- Data-source modes: default `server`, plus `auto` and `local` for development fallback.
 - Local persistence for feed data, post drafts, comment drafts, and session.
 - Docker-based Expo Web workflow for host machines without npm.
 
@@ -72,18 +80,18 @@ Audit date: 2026-05-06
 - Feed/posts/comments use `src/services/postStore.js` and `src/constants/mocks/posts.js`.
 - Post videos are `mock://` placeholders and are not playable uploaded assets.
 - Likes, comments, post creation, and avatar changes are not synced to a server.
-- Course, exercise, notification, enrollment, and search behavior is local-first.
+- Course, exercise, notification, enrollment, search, settings, and chat behavior still has local fallback for developer/demo sessions.
 - Demo-account shortcut auth is explicitly local.
 - Pose scoring comments are simulated demo results, not backend scoring results.
 
 ## Missing Major Product Features
 
-- Verified real backend auth token lifecycle with a valid test account.
+- Verified successful backend auth token lifecycle with a valid test account.
 - Fully verified backend-connected teacher/student course enrollment and course detail flows.
 - Fully verified backend-connected exercise assignment/submission flow.
-- Video upload, validation, preview, and backend processing status.
+- Successful two-video upload and backend processing/scoring status.
 - Pose comparison/scoring result screens connected to authoritative scoring data.
-- Friends/groups, moderation, full account settings, and real chat.
+- Full teacher approval dashboard, post action menus, and send-message flow if backend adds an API.
 - Robust offline/error states around network behavior.
 - Automated tests or smoke tests.
 
@@ -91,7 +99,7 @@ Audit date: 2026-05-06
 
 - Server repository behavior is defensive, but successful backend payload mapping is not verified without a valid token.
 - `/it4788/like` returned 404 during probing, so server likes are wired but likely blocked by deployed route mismatch.
-- Signup flow route names in the existing README were stale compared with actual files; audit docs now list current routes.
+- `/it4788/delete_post` also returned 404 during the 40-API probe.
 - `expo-secure-store` needs web fallbacks, which are already present in session and post storage helpers.
 - Expo Web can expose native/browser behavior differences for image picker and camera.
 - The named Docker `node_modules` volume can become stale after dependency changes unless rebuilt/reset.
@@ -99,10 +107,10 @@ Audit date: 2026-05-06
 
 ## Recommended Next Phase
 
-Integrate the prepared backend client without risking the local demo:
+Complete server verification with real accounts:
 
-1. Verify backend API contracts and document mismatches.
-2. Add token storage and authenticated request headers.
-3. Map backend auth, feed, post detail, comment, and like endpoints into the local store adapter.
-4. Keep local demo data available as fallback until all contracts are stable.
-5. Add media upload and scoring-status integration after backend behavior is confirmed.
+1. Obtain/create valid backend HV and GV accounts.
+2. Verify all 40 APIs with a real token and update normalizers.
+3. Finish teacher approval UI and post edit/delete/report menus.
+4. Add centralized invalid-token handling.
+5. Decide whether client-side scoring must be implemented beyond backend scoring display.

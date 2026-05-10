@@ -51,3 +51,22 @@ export async function getNotifications() {
     throw error;
   }
 }
+
+export async function markNotificationRead(notificationId) {
+  const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return { read: true, source: ACTIVE_SOURCES.LOCAL };
+  }
+
+  const response = await backendApi.setReadNotification({
+    token: session.token,
+    id: notificationId,
+  });
+
+  if (!isBackendOk(response)) {
+    throw new Error(response?.message || "Backend set_read_notification failed");
+  }
+
+  return { read: true, source: ACTIVE_SOURCES.SERVER };
+}

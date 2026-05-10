@@ -114,3 +114,31 @@ export async function loginDemoStudent() {
 export async function loginDemoTeacher() {
   return localLogin(DEMO_TEACHER.phonenumber, DEMO_TEACHER.password);
 }
+
+export async function logoutSession(session) {
+  if (!shouldUseServer(session)) {
+    return {
+      code: "1000",
+      message: "Local session cleared",
+      source: ACTIVE_SOURCES.LOCAL,
+    };
+  }
+
+  try {
+    const response = await backendApi.logout({
+      token: session.token,
+    });
+
+    return {
+      code: String(response?.code || "1000"),
+      message: response?.message || "Logged out",
+      source: ACTIVE_SOURCES.SERVER,
+    };
+  } catch (error) {
+    return {
+      code: "NETWORK_ERROR",
+      message: error.message || "Backend logout unavailable; local session cleared",
+      source: ACTIVE_SOURCES.SERVER,
+    };
+  }
+}
