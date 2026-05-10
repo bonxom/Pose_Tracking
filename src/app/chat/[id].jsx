@@ -7,7 +7,10 @@ import {
   sendLocalMessage,
 } from "@/repositories/conversationRepository";
 import demoStyles from "@/styles/demo.styles";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { ACTIVE_SOURCES } from "@/repositories/source";
+import { getAuthSession } from "@/utils/session";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
@@ -17,11 +20,19 @@ export default function ConversationDetailScreen() {
   const [conversation, setConversation] = useState(null);
   const [text, setText] = useState("");
   const [status, setStatus] = useState("");
+  const [session, setSession] = useState(null);
 
   const load = useCallback(() => {
-    getConversation(conversationId)
-      .then(setConversation)
-      .catch((error) => setStatus(error.message));
+    const loadConversation = async () => {
+      try {
+        setSession(await getAuthSession());
+        setConversation(await getConversation(conversationId));
+      } catch (error) {
+        if (await redirectIfSessionExpired(error, router)) return;
+        setStatus(error.message);
+      }
+    };
+    loadConversation();
   }, [conversationId]);
 
   useFocusEffect(load);
@@ -45,16 +56,19 @@ export default function ConversationDetailScreen() {
         messages: (current?.messages || []).filter((message) => message.id !== messageId),
       }));
     } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
       setStatus(error.message || "Không thể xóa tin nhắn.");
     }
   };
+
+  const isLocalSession = session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL;
 
   return (
     <Screen style={demoStyles.screen}>
       <ScrollView contentContainerStyle={demoStyles.scrollContent}>
         <View style={demoStyles.header}>
           <Text style={demoStyles.title}>{conversation?.title || "Tin nhắn"}</Text>
-          <Text style={demoStyles.subtitle}>HTTP chat flow; gửi mới tạm thời local cho đến khi API gửi tin nhắn được xác nhận.</Text>
+          <Text style={demoStyles.subtitle}>Danh sách, đọc và xóa tin nhắn dùng API server khi có session thật.</Text>
         </View>
 
         {status ? <Text style={demoStyles.cardText}>{status}</Text> : null}
@@ -67,10 +81,19 @@ export default function ConversationDetailScreen() {
           </View>
         ))}
 
-        <View style={demoStyles.card}>
-          <AppInput placeholder="Nhập tin nhắn..." value={text} onChangeText={setText} />
-          <AppButton title="Gửi local" onPress={send} />
-        </View>
+        {isLocalSession ? (
+          <View style={demoStyles.card}>
+            <Text style={demoStyles.cardTitle}>Local-only composer</Text>
+            <Text style={demoStyles.cardText}>Spec 40 API không có send_message, nên ô gửi này chỉ hiện trong local/dev mode.</Text>
+            <AppInput placeholder="Nhập tin nhắn local..." value={text} onChangeText={setText} />
+            <AppButton title="Gửi local" onPress={send} />
+          </View>
+        ) : (
+          <View style={demoStyles.card}>
+            <Text style={demoStyles.cardTitle}>Không có API gửi tin nhắn</Text>
+            <Text style={demoStyles.cardText}>Server mode chỉ hỗ trợ danh sách, chi tiết, đọc và xóa theo 40 API.</Text>
+          </View>
+        )}
       </ScrollView>
     </Screen>
   );

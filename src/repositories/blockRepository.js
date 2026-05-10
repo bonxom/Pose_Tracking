@@ -1,5 +1,6 @@
 import { backendApi } from "@/api/client";
-import { extractList, isBackendOk } from "@/repositories/normalizers";
+import { extractList } from "@/repositories/normalizers";
+import { assertBackendOk } from "@/repositories/serverResponse";
 import {
   ACTIVE_SOURCES,
   canFallbackToLocal,
@@ -19,23 +20,30 @@ export async function getBlocks() {
       token: session.token,
       index: "0",
       count: "50",
+      user_id: session.id || session.user_id || session.identifier || "",
     });
 
-    if (!isBackendOk(response) && response?.code !== "9994") {
-      throw new Error(response?.message || "Backend get_list_blocks failed");
-    }
+    await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_blocks failed" });
 
-    return extractList(response).map((item) => ({
-      id: String(item.id || item.user_id || item.block_id || ""),
-      username: item.username || item.name || "Người dùng bị chặn",
-      role: item.role || "",
-      source: ACTIVE_SOURCES.SERVER,
-      raw: item,
-    }));
+    const deduped = new Map();
+    extractList(response).forEach((item) => {
+      const id = String(item.id || item.user_id || item.blocked_user_id || item.block_id || "");
+      if (!id || deduped.has(id)) return;
+      deduped.set(id, {
+        id,
+        username: item.username || item.name || item.user_name || "Người dùng bị chặn",
+        avatar: item.avatar || "",
+        role: item.role || "",
+        source: ACTIVE_SOURCES.SERVER,
+        raw: item,
+      });
+    });
+
+    return Array.from(deduped.values());
   } catch (error) {
     console.info("[DATA] Server blocks fallback", error.message);
 
-    if (canFallbackToLocal()) {
+    if (!error.sessionExpired && canFallbackToLocal()) {
       return [];
     }
 
@@ -56,9 +64,7 @@ export async function setBlock(userId, type = "block") {
     type,
   });
 
-  if (!isBackendOk(response)) {
-    throw new Error(response?.message || "Backend set_block failed");
-  }
+  await assertBackendOk(response, { message: "Backend set_block failed" });
 
   return { blocked: type !== "unblock", source: ACTIVE_SOURCES.SERVER };
 }

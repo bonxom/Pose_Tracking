@@ -1,57 +1,62 @@
 # API Implementation Matrix
 
+Status date: 2026-05-10
+
 Legend:
 
-- `Done`: implemented in the named layer and expected to be used in normal flow.
-- `Partial`: implemented but incomplete, minimally surfaced, or blocked by unknown backend shape.
+- `Yes`: implemented in that layer and wired where applicable.
+- `Partial`: implemented but not full UI depth, not fully normalized, or not successful-server verified.
 - `No`: not implemented in that layer.
-- `Token verified`: whether a successful response with a valid backend token has been verified in this repo session.
+- `Blocked`: frontend is present but the deployed backend or missing token/OTP prevents success verification.
 
-| API | Spec status | Frontend wrapper | Repository status | Screen/flow usage | Deployed probe status | Token verified | Mismatch notes |
-|---|---|---:|---:|---:|---|---:|---|
-| `login` | Required | Done | Done | Done | `/it4788/login` exists; `/login` 404 | No | Deployed login requires `devtoken`; demo accounts return `9995` |
-| `logout` | Required | Done | Done | Done | Probe-covered | No | Not verified with valid token |
-| `signup` | Required | Done | Partial | Done | Probe-covered, mutation-safe by default | No | Exact deployed field contract unverified |
-| `get_verify_code` | Required | Done | Partial | Done | Probe-covered, mutation-safe by default | No | May trigger SMS only with mutation probe |
-| `check_verify_code` | Required | Done | Partial | Done | Probe-covered | No | Real verification code not available |
-| `change_info_after_signup` | Required | Done | Partial | Done | Probe-covered | No | Token-bearing signup path unverified |
-| `get_list_posts` | Required | Done | Done | Done | Existing probe found form-urlencoded best | No | Requires token per spec; empty token response varies |
-| `get_post` | Required | Done | Done | Done | Probe-covered | No | Needs real post id/token |
-| `add_post` | Required | Done | Done | Done | Existing probe found multipart + `device_slave` | No | Real upload not verified without token and real files |
-| `edit_post` | Required | Done | Partial | Partial | Probe-covered | No | Repository exists; no prominent edit UI yet |
-| `delete_post` | Required | Done | Partial | Partial | Probe-covered | No | Repository exists; no prominent delete UI yet |
-| `get_comment` | Required | Done | Done | Done | Probe-covered | No | Needs valid post/token |
-| `set_comment` | Required | Done | Done | Done | Probe-covered | No | Needs valid post/token |
-| `report_post` | Required | Done | Partial | Partial | Probe-covered | No | Repository exists; no prominent report UI yet |
-| `like` | Required | Done | Done | Done | Existing probe found `/it4788/like` 404 | No | Deployed backend route mismatch |
-| `search` | Required | Done | Done | Done | Probe-covered | No | Saved-search behavior not fully verified |
-| `get_saved_search` | Required | Done | Partial | Partial | Probe-covered | No | Repository exists; minimal UI only |
-| `del_saved_search` | Required | Done | Partial | Partial | Probe-covered | No | Repository exists; minimal UI only |
-| `get_list_students` | Required | Done | Done | Done | Probe-covered | No | Course id shape unverified |
-| `get_user_info` | Required | Done | Done | Done | Probe-covered | No | Profile screen uses repository |
-| `set_user_info` | Required | Done | Done | Done | Probe-covered | No | Edit profile screen added |
-| `get_list_courses_of_student` | Required | Done | Done | Done | Probe-covered | No | Student course list shape unverified |
-| `get_list_blocks` | Required | Done | Done | Done | Probe-covered | No | Blocks screen added |
-| `set_block` | Required | Done | Done | Done | Probe-covered | No | Course relation side effect unverified |
-| `set_approve_enrollment` | Required | Done | Partial | Partial | Probe-covered | No | Repository exists; teacher approval UI still minimal |
-| `get_requested_enrollment` | Required | Done | Done | Done | Probe-covered | No | Courses screen displays count |
-| `set_request_course` | Required | Done | Done | Done | Probe-covered | No | Courses screen sends request |
-| `get_push_settings` | Required | Done | Done | Done | Probe-covered | No | Settings screen added |
-| `set_push_settings` | Required | Done | Done | Done | Probe-covered | No | Settings screen added |
-| `change_password` | Required | Done | Done | Done | Probe-covered | No | Change password screen added |
-| `check_new_version` | Required | Done | Done | Done | Probe-covered | No | Settings screen can call it |
-| `set_devtoken` | Required | Done | Done | Done | Probe-covered | No | Settings screen can call it |
-| `get_conversation` | Required | Done | Done | Done | Probe-covered | No | Conversation detail added |
-| `delete_message` | Required | Done | Done | Done | Probe-covered | No | Conversation detail delete action added |
-| `get_list_conversation` | Required | Done | Done | Done | Probe-covered | No | Conversation list added |
-| `delete_conversation` | Required | Done | Done | Done | Probe-covered | No | Conversation list delete action added |
-| `check_new_item` | Required | Done | Partial | Partial | Probe-covered | No | Repository exists; refresh UI not fully wired |
-| `get_notification` | Required | Done | Done | Done | Probe-covered | No | Notifications tab uses repository |
-| `set_read_message` | Required | Done | Done | Done | Probe-covered | No | Conversation open marks read |
-| `set_read_notification` | Required | Done | Done | Done | Probe-covered | No | Notification tap marks read |
+The matrix intentionally distinguishes wrappers, repositories, UI usage, and successful real-server verification. A wrapper alone is not considered completion.
 
-## Current Interpretation
+| API | Key spec params / behavior | Wrapper | Repository | UI / flow usage | Real success verified | Deployed status / notes |
+|---|---|---:|---:|---:|---:|---|
+| `login` | `phonenumber`, `password`; deployed also needs `devtoken` | Yes | Yes | Yes | No | Route exists; demo accounts return `9995` |
+| `logout` | `token` | Yes | Yes | Yes | No | Token-blocked |
+| `signup` | `phonenumber`, `password`, `uuid`, `role` | Yes | Yes | Yes | No | Mutation/OTP requires real phone |
+| `get_verify_code` | `phonenumber` | Yes | Yes | Yes | No | Mutation/OTP requires real phone |
+| `check_verify_code` | verify code field from slides/runtime | Yes | Yes | Yes | No | Field contract still needs valid signup probe |
+| `change_info_after_signup` | token-bearing profile completion | Yes | Yes | Yes | No | Deployed rejects `user_name`; frontend tries spec-style fields then legacy auth-completion fields |
+| `get_list_posts` | `token`, `index`, `count`, `last_id`, `category_id`, `new_items` | Yes | Yes | Yes | No | Uses form-urlencoded strings; token success not verified |
+| `get_post` | `token`, post id; preserve `time_series_poses` | Yes | Yes | Yes | No | Token/post-id blocked |
+| `add_post` | multipart, exactly 2 videos, `course_id`, `exercise_id`, `device_slave` workaround | Yes | Yes | Yes | No | Multipart reaches token validation |
+| `edit_post` | owner HV edit with valid replacement-video rules | Yes | Yes | Yes | No | Detail edit UI added; token/post blocked |
+| `delete_post` | owner HV delete | Yes | Yes | Yes | No | Deployed `/delete_post` returns 404 |
+| `get_comment` | `token`, post id, pagination | Yes | Yes | Yes | No | Token/post blocked |
+| `set_comment` | text/link/emoticon only, length-limited | Yes | Yes | Yes | No | Form payload reaches token validation |
+| `report_post` | non-owner report | Yes | Yes | Yes | No | Detail report UI added; token/post blocked |
+| `like` | like/unlike server post | Yes | Yes | Yes | No | Deployed `/like` returns 404 |
+| `search` | keyword, optional `user_id`, pagination | Yes | Yes | Yes | No | Search UI uses server repository |
+| `get_saved_search` | saved search list | Yes | Yes | Yes | No | Minimal saved-search UI |
+| `del_saved_search` | delete saved-search item | Yes | Yes | Yes | No | Field name unclear without token |
+| `get_list_students` | teacher course student list | Yes | Yes | Yes | No | Courses screen displays students; token blocked |
+| `get_user_info` | `token`, `user_id` | Yes | Yes | Yes | No | Profile/edit screen uses repository |
+| `set_user_info` | `token`, `user_name`, `avatar`, `cover_image` | Yes | Yes | Yes | No | Incorrect height contract removed from edit profile |
+| `get_list_courses_of_student` | `token`, `user_id` | Yes | Yes | Yes | No | Repository now sends `user_id`, not index/count |
+| `get_list_blocks` | `token`, `index`, `count`, `user_id` | Yes | Yes | Yes | No | Repository now sends `user_id` |
+| `set_block` | block/unblock user | Yes | Yes | Yes | No | Block/unblock UI added |
+| `set_approve_enrollment` | `token`, `user_id`, `is_accept` | Yes | Yes | Yes | No | Teacher approval controls added in Courses |
+| `get_requested_enrollment` | pending enrollment requests | Yes | Yes | Yes | No | Courses screen surfaces requests |
+| `set_request_course` | course enrollment request | Yes | Yes | Yes | No | Repository sends `course_id` plus actual session `user_id` for deployed compatibility |
+| `get_push_settings` | settings groups from slides | Yes | Yes | Yes | No | Settings screen uses repository |
+| `set_push_settings` | update settings groups | Yes | Yes | Yes | No | Settings screen uses repository |
+| `change_password` | old/new password | Yes | Yes | Yes | No | Change-password screen uses repository |
+| `check_new_version` | lifecycle/settings version check | Yes | Yes | Yes | No | Settings screen integrated |
+| `set_devtoken` | register device token on auth lifecycle | Yes | Yes | Yes | No | Called after server login/profile completion; manual setting remains |
+| `get_conversation` | list messages by conversation id | Yes | Yes | Yes | No | Detail screen uses server; token blocked |
+| `delete_message` | delete message | Yes | Yes | Yes | No | Detail delete action |
+| `get_list_conversation` | conversation list | Yes | Yes | Yes | No | Chat list uses server |
+| `delete_conversation` | delete conversation | Yes | Yes | Yes | No | Chat list delete action |
+| `check_new_item` | `token`, `last_id`, `category_id`; new-items UX | Yes | Yes | Yes | No | Home polls and shows reload affordance |
+| `get_notification` | `notification_id`, `type`, `object_id`, `title`, `created`, `avatar`, `group`, `read`, `badge`, `last_update` | Yes | Yes | Yes | No | Notifications normalize fields and paginate |
+| `set_read_message` | mark conversation read | Yes | Yes | Yes | No | Conversation open marks read |
+| `set_read_notification` | `notification_id` read state | Yes | Yes | Yes | No | Notification tap marks read |
 
-All 40 API wrappers now exist and the probe script covers all 40 endpoints. Core screens use repository paths instead of directly calling local stores for feed, post detail, comments, likes, courses, notifications, profile, settings, blocks, and conversations.
+## Current Completion Summary
 
-The largest remaining blocker is the absence of a verified backend token/test account in this environment. That means most authenticated APIs are frontend-complete or probe-covered but not end-to-end verified against successful server responses.
+- Wrappers: all 40 APIs are represented in `src/api/client.js`.
+- Repositories: all 40 APIs are reachable through repository or auth adapters, with local adapters retained only for development modes.
+- UI: all required modules have a user-facing path, though teacher enrollment management, saved-search management, notifications, and conversations remain intentionally compact.
+- Real success verification: blocked by missing valid backend HV/GV token and manual OTP. The E2E harness is ready to resume with env-provided phones/codes.

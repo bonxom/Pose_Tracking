@@ -109,9 +109,26 @@ export async function postMultipart(path, fields = {}, files = [], options = {})
 
   files.filter(Boolean).forEach((file, index) => {
     const fieldName = file.fieldName || `video${index + 1}`;
+    const fileName = file.name || file.fileName || `video-${index + 1}.mp4`;
+
+    if (file.file && typeof File !== "undefined" && file.file instanceof File) {
+      formData.append(fieldName, file.file, fileName);
+      return;
+    }
+
+    if (file.blob && typeof Blob !== "undefined" && file.blob instanceof Blob) {
+      formData.append(fieldName, file.blob, fileName);
+      return;
+    }
+
+    if (typeof File !== "undefined" && file instanceof File) {
+      formData.append(fieldName, file, fileName);
+      return;
+    }
+
     formData.append(fieldName, {
       uri: file.uri,
-      name: file.name || file.fileName || `video-${index + 1}.mp4`,
+      name: fileName,
       type: file.mimeType || file.type || "video/mp4",
     });
   });
@@ -130,11 +147,12 @@ export const backendApi = {
   getPost: (params) => post("/get_post", params),
   addPost: (fields, files) => postMultipart("/add_post", fields, files),
   editPost: (params) => post("/edit_post", params),
+  editPostMultipart: (fields, files) => postMultipart("/edit_post", fields, files),
   deletePost: (params) => post("/delete_post", params),
   reportPost: (params) => post("/report_post", params),
   like: (params) => post("/like", params),
   getComment: (params) => post("/get_comment", params),
-  setComment: (params) => post("/set_comment", params),
+  setComment: (params) => postForm("/set_comment", params),
   search: (params) => post("/search", params),
   getSavedSearch: (params) => post("/get_saved_search", params),
   delSavedSearch: (params) => post("/del_saved_search", params),

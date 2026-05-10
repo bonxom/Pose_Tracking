@@ -16,7 +16,7 @@ http://group1.it4788.sukkaito.id.vn
 
 The probe intentionally ran with `PROBE_MUTATION` disabled. Mutating endpoints were called with invalid tokens or validation-safe payloads to identify routes, transports, and auth behavior without changing production data.
 
-Latest compact summary generated at `2026-05-10T08:37:05.661Z`.
+Latest compact summary generated at `2026-05-10T09:46:26.014Z`.
 
 ## Summary
 
@@ -24,9 +24,10 @@ Latest compact summary generated at `2026-05-10T08:37:05.661Z`.
 - `/it4788/login` is reachable and requires `devtoken`; the local demo account returns `9995 User is not validated`.
 - No valid backend token was discovered, so authenticated success payloads remain unverified.
 - CORS preflight returned `204` with `Access-Control-Allow-Origin: *` on selected endpoints.
-- The probe now covers all 40 IT4788 APIs.
-- `check_new_item` returned `1000 OK` with no token when called with `last_id` and `category_id`.
+- The probe covers all 40 IT4788 APIs.
 - `/it4788/like` and `/it4788/delete_post` returned 404 on the deployed server.
+- `check_new_item` rejects a `token` field in deployed runtime even though the app keeps the spec-shaped call first.
+- `set_request_course` reaches token validation only after both `course_id` and `user_id` are present.
 
 ## 40-API Probe Results
 
@@ -36,8 +37,8 @@ Latest compact summary generated at `2026-05-10T08:37:05.661Z`.
 | `logout` | JSON | 200 | `9998` | `Token is invalid` | Token required |
 | `signup` | JSON | 400 | `1004` | `Số điện thoại phải đủ 10 số và bắt đầu bằng 0` | Route validates phone; mutation-safe invalid phone used |
 | `get_verify_code` | JSON | 400 | `1004` | `Số điện thoại phải đủ 10 số và bắt đầu bằng 0` | Route validates phone; mutation-safe invalid phone used |
-| `check_verify_code` | JSON | 400 | `1004` | `property code_verify should not exist` | Runtime field contract unclear |
-| `change_info_after_signup` | JSON | 400 | `1004` | `Token không đúng định dạng (quá ngắn)` | Token required |
+| `check_verify_code` | JSON | 400 | `1004` | `property code_verify should not exist` | Runtime field contract unclear without valid OTP |
+| `change_info_after_signup` | JSON | 400 | `1004` | `property user_name should not exist` | Deployed auth-completion shape differs from `set_user_info` spec |
 | `get_list_posts` | form-urlencoded | 200 | `9994` | `No data` | Empty-token behavior is not a clean auth error |
 | `get_post` | JSON | 400 | `1004` | `token should not be empty` | Token required |
 | `add_post` | multipart | 200 | `9998` | `Token is invalid` | Multipart route exists; token required |
@@ -58,7 +59,7 @@ Latest compact summary generated at `2026-05-10T08:37:05.661Z`.
 | `set_block` | JSON | 401 | `9998` | `Token is invalid` | Token required |
 | `set_approve_enrollment` | JSON | 200 | `9998` | `Token is invalid` | Token required |
 | `get_requested_enrollment` | JSON | 400 | `1004` | `token should not be empty` | Token required |
-| `set_request_course` | JSON | 400 | `1004` | `course_id should not be empty` | Requires course id; valid format unknown |
+| `set_request_course` | JSON | 200 | `9998` | `Token is invalid` | Requires `course_id` and deployed also asks for `user_id` |
 | `get_push_settings` | JSON | 401 | `9998` | `Token is invalid` | Token required |
 | `set_push_settings` | JSON | 401 | `9998` | `Token is invalid` | Token required |
 | `change_password` | JSON | 401 | `9998` | `Token is invalid` | Token required |
@@ -68,7 +69,7 @@ Latest compact summary generated at `2026-05-10T08:37:05.661Z`.
 | `delete_message` | JSON | 401 | `9998` | `Token is invalid` | Token required |
 | `get_list_conversation` | JSON | 401 | `9998` | `Token is invalid` | Token required |
 | `delete_conversation` | JSON | 401 | `9998` | `Token is invalid` | Token required |
-| `check_new_item` | JSON | 200 | `1000` | `OK` | Works without token in deployed probe |
+| `check_new_item` | JSON | 400 | `1004` | `property token should not exist` | Deployed runtime rejects token despite spec-authenticated usage |
 | `get_notification` | JSON | 401 | `9998` | `Token is invalid` | Token required |
 | `set_read_message` | JSON | 401 | `9998` | `Token is invalid` | Token required |
 | `set_read_notification` | JSON | 401 | `9998` | `Token is invalid` | Token required |
@@ -79,8 +80,9 @@ Latest compact summary generated at `2026-05-10T08:37:05.661Z`.
 - `get_list_posts`: form-urlencoded string params are most tolerant.
 - `add_post` and `edit_post`: multipart reaches token validation; JSON/form return backend exceptions for `add_post`.
 - `set_comment`: form-urlencoded with `index`/`count` reaches token validation.
+- `check_new_item`: spec-shaped token payload is rejected by deployed runtime; repository contains a documented compatibility retry without token.
 - Most authenticated reads accept JSON but were not success-verified without a valid token.
 
 ## Integration Decision
 
-The frontend default is now `EXPO_PUBLIC_DATA_SOURCE=server`. Local/demo mode is still available but is no longer the product default. Runtime deviations are isolated in repository payload choices and tracked in [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md).
+The frontend default is `EXPO_PUBLIC_DATA_SOURCE=server`. Local/demo mode is still available but is no longer the product default. Runtime deviations are isolated in repository payload choices and tracked in [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md).

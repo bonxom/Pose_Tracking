@@ -34,7 +34,7 @@ export default function ProfileScreen() {
     router.replace("/(auth)/login");
   };
 
-  const displayName = session?.displayName || session?.username || "Người dùng demo";
+  const displayName = session?.displayName || session?.username || "Người dùng";
   const role = session?.role || "HV";
 
   const menuItems = [
@@ -42,6 +42,11 @@ export default function ProfileScreen() {
       label: "My profile",
       detail: `${displayName} · ${role}`,
       onPress: () => router.push("/settings/profile-edit"),
+    },
+    {
+      label: "My posts",
+      detail: "Tìm kiếm trong hồ sơ",
+      onPress: () => router.push({ pathname: "/(tabs)/search", params: { userId: session?.id || "" } }),
     },
     {
       label: "My courses",

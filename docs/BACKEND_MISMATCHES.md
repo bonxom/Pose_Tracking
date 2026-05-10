@@ -18,9 +18,10 @@ These notes come from the deployed backend probe against `http://group1.it4788.s
 | add_post payload | Course/exercise/video fields only | `device_slave` is required before token validation | Frontend sends `device_slave` |
 | set_comment payload | `token`, `id`, `comment` likely enough | Deployed route also asks for `index` | Frontend includes `index` and `count` in best-effort calls |
 | API availability | All 40 APIs are expected by the spec | Only a subset has been route-observed so far without a valid token | Probe script now covers all 40 and records route/status/transport |
-| Verification code field | Spec names `check_verify_code` | Deployed probe rejected `code`, `verify_code`, and `code_verify` as extra properties with invalid phone payloads | Frontend currently uses `code_verify` as a documented compatibility guess; needs valid signup probe |
-| check_new_item auth | Authenticated freshness check expected | Deployed route returned `1000 OK` without token when sent `last_id` and `category_id` | Repository omits token for this endpoint as an isolated deployed compatibility workaround |
-| set_request_course payload | Course request expected with course metadata | Deployed probe alternated between requiring `user_id` and `course_id` depending payload | Repository sends both fields; needs valid token/account verification |
+| Verification code field | Spec names `check_verify_code` | Deployed probe rejected common code fields with invalid phone payloads | Frontend and E2E harness try common field names; needs valid signup/OTP probe |
+| check_new_item auth | Authenticated freshness check expected with session token | Deployed runtime rejects `token` with `property token should not exist`; earlier no-token probe returned `1000 OK` | Repository sends `token` first per spec, then retries without token as an isolated compatibility workaround |
+| change_info_after_signup payload | Profile completion should be reconciled with auth slides; `set_user_info` uses `user_name/avatar/cover_image` | Deployed `change_info_after_signup` rejects `user_name` before token validation | Auth adapter tries spec-style fields first, then deployed legacy `username/height/avatar` shape |
+| set_request_course payload | Course request expected with course metadata | Deployed probe reaches token validation only with both `course_id` and `user_id` | Repository sends `course_id` and actual session `user_id`; no longer sends course id as user id |
 
 ## Unverified Due To Missing Valid Token
 

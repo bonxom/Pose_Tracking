@@ -66,9 +66,9 @@ const endpointSpecs = [
     paths: ["/it4788/change_info_after_signup"],
     body: ({ token }) => ({
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
-      username: "Probe HV",
-      height: "170",
+      user_name: "Probe HV",
       avatar: "",
+      cover_image: "",
     }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,
@@ -202,7 +202,7 @@ const endpointSpecs = [
   {
     name: "get_list_courses_of_student",
     paths: ["/it4788/get_list_courses_of_student"],
-    body: ({ token }) => ({ token, index: 0, count: 5 }),
+    body: ({ token }) => ({ token, user_id: process.env.PROBE_USER_ID || "" }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,
   },
@@ -216,7 +216,7 @@ const endpointSpecs = [
   {
     name: "get_user_info",
     paths: ["/it4788/get_user_info"],
-    body: ({ token }) => ({ token, user_id: "" }),
+    body: ({ token }) => ({ token, user_id: process.env.PROBE_USER_ID || "" }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,
   },
@@ -225,9 +225,9 @@ const endpointSpecs = [
     paths: ["/it4788/set_user_info"],
     body: ({ token }) => ({
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
-      username: "Probe User",
-      height: "170",
+      user_name: "Probe User",
       avatar: "",
+      cover_image: "",
     }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,
@@ -236,7 +236,7 @@ const endpointSpecs = [
   {
     name: "get_list_blocks",
     paths: ["/it4788/get_list_blocks"],
-    body: ({ token }) => ({ token, index: 0, count: 5 }),
+    body: ({ token }) => ({ token, user_id: process.env.PROBE_USER_ID || "", index: 0, count: 5 }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,
   },
@@ -245,7 +245,6 @@ const endpointSpecs = [
     paths: ["/it4788/set_block"],
     body: ({ token }) => ({
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
-      course_id: "course_marching_101",
       user_id: "1",
       type: "block",
     }),
@@ -277,7 +276,8 @@ const endpointSpecs = [
     paths: ["/it4788/set_request_course"],
     body: ({ token }) => ({
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
-      user_id: "1",
+      course_id: process.env.PROBE_COURSE_ID || "course_marching_101",
+      user_id: process.env.PROBE_USER_ID || "1",
     }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,
@@ -372,7 +372,7 @@ const endpointSpecs = [
   {
     name: "check_new_item",
     paths: ["/it4788/check_new_item"],
-    body: () => ({ last_id: "", category_id: "" }),
+    body: ({ token }) => ({ token, last_id: "", category_id: "" }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,
   },
@@ -392,7 +392,7 @@ const endpointSpecs = [
     paths: ["/it4788/set_read_notification"],
     body: ({ token }) => ({
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
-      id: "1",
+      notification_id: "1",
     }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,

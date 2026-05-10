@@ -1,5 +1,6 @@
 import authApi from "@/api/auth";
 import AppButton from "@/components/common/AppButton";
+import { setDeviceToken } from "@/repositories/settingsRepository";
 import { saveAuthSession } from "@/utils/session";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
@@ -186,18 +187,24 @@ export default function ChangeInfoAfterSignupScreen() {
       switch (response.code) {
         case "1000": {
           try {
+            const completedUser = response.data || {};
             await saveAuthSession({
-              id: response.data.id,
-              token: response.data.token,
-              phonenumber: response.data.phonenumber,
-              username: response.data.username,
-              role: response.data.role,
-              avatar: response.data.avatar,
-              height: response.data.height,
-              source: response.data.source || "server",
-              demoMode: Boolean(response.data.demoMode),
+              id: completedUser.id || completedUser.user_id || phonenumber,
+              token: completedUser.token || token,
+              phonenumber: completedUser.phonenumber || phonenumber,
+              username: completedUser.user_name || completedUser.username || normalizedUsername,
+              displayName: completedUser.user_name || completedUser.username || normalizedUsername,
+              role: completedUser.role || params.role || "HV",
+              avatar: completedUser.avatar || avatar || "",
+              coverImage: completedUser.cover_image || completedUser.coverImage || "",
+              height: completedUser.height || normalizedHeight,
+              source: completedUser.source || "server",
+              demoMode: Boolean(completedUser.demoMode),
               loggedInAt: new Date().toISOString(),
             });
+            if (!completedUser.demoMode) {
+              setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
+            }
           } catch (storageError) {
             console.warn("Cannot persist session:", storageError);
           }

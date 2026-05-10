@@ -12,6 +12,7 @@
     "mobile:lan": "expo start --lan --port 8081",
     "mobile:tunnel": "expo start --tunnel",
     "backend:probe": "node scripts/probe-backend.mjs",
+    "e2e:server": "node scripts/e2e-server.mjs",
     "lint": "expo lint"
   },
   "dependencies": {

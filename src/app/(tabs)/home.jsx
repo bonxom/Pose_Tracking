@@ -1,39 +1,91 @@
 import AppButton from "@/components/common/AppButton";
 import Screen from "@/components/common/Screen";
 import PostCard from "@/components/post/PostCard";
-import { getFeedPage, toggleLike } from "@/repositories/postRepository";
+import { checkNewItems, getFeedPage, toggleLike } from "@/repositories/postRepository";
 import homeStyles from "@/styles/home.styles";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 
 export default function HomeScreen() {
   const [posts, setPosts] = useState([]);
   const [sourceLabel, setSourceLabel] = useState("Nguồn dữ liệu: Demo local");
   const [errorText, setErrorText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [lastId, setLastId] = useState("");
+  const [newItemsCount, setNewItemsCount] = useState(0);
 
-  const loadPosts = useCallback(async () => {
+  const loadPosts = useCallback(async ({ refresh = false } = {}) => {
     try {
-      setIsLoading(true);
+      if (refresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
       setErrorText("");
-      const result = await getFeedPage({ index: 0, count: 10 });
+      const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
       setPosts(result.items || []);
       setSourceLabel(result.sourceLabel || "Nguồn dữ liệu: Demo local");
+      setHasMore(Boolean(result.hasMore));
+      setLastId(result.lastId || "");
+      setNewItemsCount(Number(result.newItems || 0));
     } catch (error) {
       console.warn("Failed to load posts:", error);
+      if (await redirectIfSessionExpired(error, router)) return;
       setSourceLabel("Nguồn dữ liệu: Server lỗi");
       setErrorText(error.message || "Không thể tải dữ liệu backend.");
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore || !lastId) return;
+
+    try {
+      setIsLoadingMore(true);
+      const result = await getFeedPage({
+        index: posts.length,
+        count: 20,
+        lastId,
+      });
+      setPosts((current) => [...current, ...(result.items || [])]);
+      setHasMore(Boolean(result.hasMore));
+      setLastId(result.lastId || lastId);
+    } catch (error) {
+      console.warn("Failed to load more posts:", error);
+      if (await redirectIfSessionExpired(error, router)) return;
+      setErrorText(error.message || "Không thể tải thêm bài viết.");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoadingMore, lastId, posts.length]);
+
+  const checkForNewItems = useCallback(async () => {
+    try {
+      const result = await checkNewItems(lastId);
+      setNewItemsCount(Number(result.count || 0));
+    } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
+      console.warn("Failed to check new items:", error);
+    }
+  }, [lastId]);
 
   useFocusEffect(
     useCallback(() => {
       loadPosts();
     }, [loadPosts])
   );
+
+  useEffect(() => {
+    const timer = setInterval(checkForNewItems, 60_000);
+    return () => clearInterval(timer);
+  }, [checkForNewItems]);
 
   const handleToggleLike = async (post) => {
     try {
@@ -43,6 +95,8 @@ export default function HomeScreen() {
       );
     } catch (error) {
       console.warn("Failed to toggle like:", error);
+      if (await redirectIfSessionExpired(error, router)) return;
+      setErrorText(error.message || "Không thể cập nhật lượt thích.");
     }
   };
 
@@ -92,6 +146,24 @@ export default function HomeScreen() {
         <FlatList
           data={posts}
           keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => loadPosts({ refresh: true })}
+            />
+          }
+          ListHeaderComponent={
+            newItemsCount > 0 ? (
+              <Pressable
+                style={homeStyles.newItemsButton}
+                onPress={() => loadPosts({ refresh: true })}
+              >
+                <Text style={homeStyles.newItemsText}>
+                  {newItemsCount} bài mới - tải lại
+                </Text>
+              </Pressable>
+            ) : null
+          }
           renderItem={({ item }) => (
             <PostCard
               post={item}
@@ -107,6 +179,15 @@ export default function HomeScreen() {
           ListEmptyComponent={
             <Text style={homeStyles.subtitle}>Không có bài viết nào</Text>
           }
+          ListFooterComponent={
+            isLoadingMore ? (
+              <ActivityIndicator style={{ paddingVertical: 16 }} />
+            ) : hasMore ? (
+              <Text style={homeStyles.subtitle}>Kéo xuống để tải thêm</Text>
+            ) : null
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.35}
         />
 
         <View style={homeStyles.buttonSpacing} />

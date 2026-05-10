@@ -296,10 +296,17 @@ const authApi = {
 
     if (isServerAuthMode()) {
       try {
-        const response = await backendApi.checkVerifyCode({
-          phonenumber,
-          code_verify: code,
-        });
+        const candidateBodies = [
+          { phonenumber, code_verify: code },
+          { phonenumber, verify_code: code },
+          { phonenumber, code },
+        ];
+        let response = null;
+
+        for (const body of candidateBodies) {
+          response = await backendApi.checkVerifyCode(body);
+          if (isOk(response)) break;
+        }
 
         if (!isOk(response)) {
           return backendError(response, "Backend check_verify_code failed");
@@ -391,12 +398,26 @@ const authApi = {
 
     if (isServerAuthMode()) {
       try {
-        const response = await backendApi.changeInfoAfterSignup({
-          token,
-          username,
-          height,
-          avatar,
-        });
+        const candidateBodies = [
+          {
+            token,
+            user_name: username,
+            avatar,
+            cover_image: "",
+          },
+          {
+            token,
+            username,
+            height,
+            avatar,
+          },
+        ];
+        let response = null;
+
+        for (const body of candidateBodies) {
+          response = await backendApi.changeInfoAfterSignup(body);
+          if (isOk(response)) break;
+        }
 
         return isOk(response) ? {
           code: "1000",

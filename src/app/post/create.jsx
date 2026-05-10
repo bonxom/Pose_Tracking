@@ -3,7 +3,10 @@ import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import { DEMO_COURSE, DEMO_EXERCISES, DEMO_VIDEO_PLACEHOLDERS } from "@/constants/demo";
 import { createExerciseSubmission, createPost, getPostById } from "@/repositories/postRepository";
+import { ACTIVE_SOURCES } from "@/repositories/source";
 import postStyles from "@/styles/post.styles";
+import { getAuthSession } from "@/utils/session";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -15,7 +18,10 @@ export default function CreatePostScreen() {
   const [content, setContent] = useState("");
   const [sourcePost, setSourcePost] = useState(null);
   const [selectedVideos, setSelectedVideos] = useState([]);
+  const [session, setSession] = useState(null);
+  const [statusText, setStatusText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedVideoCount = selectedVideos.filter(Boolean).length;
 
   const exercise = useMemo(() => {
     return (
@@ -26,6 +32,7 @@ export default function CreatePostScreen() {
 
   useEffect(() => {
     const loadSourcePost = async () => {
+      setSession(await getAuthSession());
       if (!params.sourcePostId) return;
       const post = await getPostById(params.sourcePostId);
       setSourcePost(post);
@@ -36,7 +43,7 @@ export default function CreatePostScreen() {
 
   const addDemoVideo = (video) => {
     setSelectedVideos((current) => {
-      if (current.some((item) => item.id === video.id)) {
+      if (current.some((item) => item?.id === video.id)) {
         return current;
       }
       return [...current, video].slice(0, 2);
@@ -45,6 +52,21 @@ export default function CreatePostScreen() {
 
   const useBothDemoVideos = () => {
     setSelectedVideos(DEMO_VIDEO_PLACEHOLDERS);
+  };
+
+  const isLocalSession = session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL;
+
+  const readVideoDuration = async (asset) => {
+    if (asset.duration) return asset.duration;
+    if (typeof document === "undefined" || !asset.uri) return 0;
+
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => resolve(Math.round(video.duration * 1000));
+      video.onerror = () => resolve(0);
+      video.src = asset.uri;
+    });
   };
 
   const pickRealVideo = async (slotIndex) => {
@@ -59,26 +81,29 @@ export default function CreatePostScreen() {
     }
 
     const asset = result.assets[0];
+    const duration = await readVideoDuration(asset);
     const video = {
       id: `real_video_${slotIndex}_${Date.now()}`,
       uri: asset.uri,
+      file: asset.file,
       name: asset.fileName || `real-video-${slotIndex + 1}.mp4`,
       mimeType: asset.mimeType || "video/mp4",
       angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
-      duration: asset.duration || 0,
+      duration,
       fileSize: asset.fileSize || 0,
     };
 
     setSelectedVideos((current) => {
       const next = [...current];
       next[slotIndex] = video;
-      return next.filter(Boolean).slice(0, 2);
+      return next.slice(0, 2);
     });
   };
 
   const handleCreatePost = async () => {
-    if (isSubmissionMode && selectedVideos.length < 2) {
-      Alert.alert("Thiếu video", "Vui lòng dùng đủ 2 video demo trước khi nộp bài.");
+    const completeVideos = selectedVideos.filter(Boolean);
+    if (completeVideos.length !== 2) {
+      Alert.alert("Thiếu video", "Bài viết cần đúng 2 video.");
       return;
     }
 
@@ -92,26 +117,29 @@ export default function CreatePostScreen() {
       const newPost = isSubmissionMode
         ? await createExerciseSubmission({
             content,
-            videos: selectedVideos,
+            videos: completeVideos,
             courseId: params.courseId || DEMO_COURSE.id,
             exerciseId: params.exerciseId || exercise.id,
             sourcePostId: params.sourcePostId || sourcePost?.id || "",
           })
         : await createPost({
             content: content.trim(),
-            videos: [],
+            videos: completeVideos,
           });
 
       if (newPost) {
         Alert.alert(
           "Thành công",
-          isSubmissionMode ? "Bài nộp đã được chấm tự động." : "Bài viết đã được tạo",
+          isSubmissionMode
+            ? isLocalSession ? "Bài nộp local đã được chấm demo." : "Bài nộp đã được gửi lên server."
+            : "Bài viết đã được tạo",
         );
         router.replace(`/post/${newPost.id}`);
       }
     } catch (error) {
       console.warn("Failed to create post:", error);
-      Alert.alert("Lỗi", "Không thể tạo bài viết. Vui lòng thử lại.");
+      if (await redirectIfSessionExpired(error, router)) return;
+      setStatusText(error.message || "Không thể tạo bài viết. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }
@@ -128,9 +156,12 @@ export default function CreatePostScreen() {
         </Text>
         <Text style={postStyles.subtitle}>
           {isSubmissionMode
-            ? "Dùng 2 video demo để mô phỏng bài nộp và nhận kết quả chấm tự động."
-            : "Chia sẻ suy nghĩ của bạn với cộng đồng"}
+            ? isLocalSession
+              ? "Local fallback có thể dùng placeholder demo. Server mode cần 2 video thật."
+              : "Nộp 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương nhau."
+            : "Bài viết server cần đúng 2 video thật theo yêu cầu IT4788."}
         </Text>
+        {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
 
         {isSubmissionMode ? (
           <View style={postStyles.infoCard}>
@@ -161,12 +192,45 @@ export default function CreatePostScreen() {
           <Text style={postStyles.slotHint}>{content.length} ký tự</Text>
         </View>
 
-        {isSubmissionMode ? (
+        <View style={postStyles.inputCard}>
+          <Text style={postStyles.slotLabel}>Video bài viết</Text>
+          <View style={postStyles.actionRow}>
+            <AppButton
+              title="Chọn video trái"
+              onPress={() => pickRealVideo(0)}
+              style={[postStyles.actionButton, postStyles.secondaryButton]}
+              textStyle={postStyles.secondaryButtonText}
+            />
+            <AppButton
+              title="Chọn video phải"
+              onPress={() => pickRealVideo(1)}
+              style={[postStyles.actionButton, postStyles.secondaryButton]}
+              textStyle={postStyles.secondaryButtonText}
+            />
+          </View>
+          <View style={postStyles.mediaList}>
+            {[0, 1].map((slotIndex) => {
+              const video = selectedVideos[slotIndex];
+              return (
+                <View key={slotIndex} style={postStyles.mediaCard}>
+                  <Text style={postStyles.mediaTitle}>{slotIndex === 0 ? "Góc quay trái" : "Góc quay phải"}</Text>
+                  <Text style={postStyles.mediaSubtitle}>{video?.name || "Chưa chọn video thật"}</Text>
+                  <Text style={postStyles.mediaSubtitle}>
+                    {video?.duration ? `${Math.round(video.duration / 1000)} giây` : "Cần video >= 10 giây"}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          <Text style={postStyles.slotHint}>Đã chọn {selectedVideoCount}/2 video.</Text>
+        </View>
+
+        {isSubmissionMode && isLocalSession ? (
           <View style={postStyles.inputCard}>
-            <Text style={postStyles.slotLabel}>Video bài nộp</Text>
+            <Text style={postStyles.slotLabel}>Placeholder local-only</Text>
             <View style={postStyles.mediaList}>
               {DEMO_VIDEO_PLACEHOLDERS.map((video) => {
-                const selected = selectedVideos.some((item) => item.id === video.id);
+                const selected = selectedVideos.some((item) => item?.id === video.id);
                 return (
                   <View
                     key={video.id}
@@ -193,22 +257,8 @@ export default function CreatePostScreen() {
             </View>
             <AppButton title="Dùng đủ 2 video demo" onPress={useBothDemoVideos} />
             <Text style={postStyles.slotHint}>
-              Đã chọn {selectedVideos.length}/2 video. Web demo không cần mở file picker.
+              Placeholder không bao giờ được gửi lên backend server.
             </Text>
-            <View style={postStyles.actionRow}>
-              <AppButton
-                title="Chọn video thật 1"
-                onPress={() => pickRealVideo(0)}
-                style={[postStyles.actionButton, postStyles.secondaryButton]}
-                textStyle={postStyles.secondaryButtonText}
-              />
-              <AppButton
-                title="Chọn video thật 2"
-                onPress={() => pickRealVideo(1)}
-                style={[postStyles.actionButton, postStyles.secondaryButton]}
-                textStyle={postStyles.secondaryButtonText}
-              />
-            </View>
           </View>
         ) : null}
 
@@ -217,11 +267,11 @@ export default function CreatePostScreen() {
             isSubmitting
               ? "Đang xử lý..."
               : isSubmissionMode
-                ? "Nộp bài và chấm demo"
+                ? isLocalSession ? "Nộp bài local" : "Nộp bài lên server"
                 : "Đăng bài"
           }
           onPress={handleCreatePost}
-          disabled={isSubmitting || (isSubmissionMode ? selectedVideos.length < 2 : !content.trim())}
+          disabled={isSubmitting || selectedVideoCount !== 2 || (!isSubmissionMode && !content.trim())}
         />
 
         <AppButton

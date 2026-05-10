@@ -1,6 +1,7 @@
 import { backendApi } from "@/api/client";
 import { DEMO_CONVERSATIONS } from "@/constants/demo";
-import { extractList, isBackendOk } from "@/repositories/normalizers";
+import { extractList } from "@/repositories/normalizers";
+import { assertBackendOk } from "@/repositories/serverResponse";
 import {
   ACTIVE_SOURCES,
   canFallbackToLocal,
@@ -49,15 +50,13 @@ export async function getConversationList() {
       count: "30",
     });
 
-    if (!isBackendOk(response) && response?.code !== "9994") {
-      throw new Error(response?.message || "Backend get_list_conversation failed");
-    }
+    await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_conversation failed" });
 
     return extractList(response).map((item) => normalizeConversation(item, ACTIVE_SOURCES.SERVER));
   } catch (error) {
     console.info("[DATA] Server conversation list fallback", error.message);
 
-    if (canFallbackToLocal()) {
+    if (!error.sessionExpired && canFallbackToLocal()) {
       return localConversations.map((item) => ({ ...item, source: ACTIVE_SOURCES.LOCAL_FALLBACK }));
     }
 
@@ -79,9 +78,7 @@ export async function getConversation(conversationId) {
     count: "50",
   });
 
-  if (!isBackendOk(response) && response?.code !== "9994") {
-    throw new Error(response?.message || "Backend get_conversation failed");
-  }
+  await assertBackendOk(response, { allowNoData: true, message: "Backend get_conversation failed" });
 
   const messages = extractList(response).map((item) => normalizeMessage(item, ACTIVE_SOURCES.SERVER));
   return {
@@ -126,9 +123,7 @@ export async function deleteMessage(messageId) {
     id: messageId,
   });
 
-  if (!isBackendOk(response)) {
-    throw new Error(response?.message || "Backend delete_message failed");
-  }
+  await assertBackendOk(response, { message: "Backend delete_message failed" });
 
   return { deleted: true, source: ACTIVE_SOURCES.SERVER };
 }
@@ -146,9 +141,7 @@ export async function deleteConversation(conversationId) {
     id: conversationId,
   });
 
-  if (!isBackendOk(response)) {
-    throw new Error(response?.message || "Backend delete_conversation failed");
-  }
+  await assertBackendOk(response, { message: "Backend delete_conversation failed" });
 
   return { deleted: true, source: ACTIVE_SOURCES.SERVER };
 }
@@ -165,9 +158,7 @@ export async function markConversationRead(conversationId) {
     id: conversationId,
   });
 
-  if (!isBackendOk(response)) {
-    throw new Error(response?.message || "Backend set_read_message failed");
-  }
+  await assertBackendOk(response, { message: "Backend set_read_message failed" });
 
   return { read: true, source: ACTIVE_SOURCES.SERVER };
 }

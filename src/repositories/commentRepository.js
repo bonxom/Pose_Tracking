@@ -1,6 +1,7 @@
 import { backendApi } from "@/api/client";
 import * as localPosts from "@/services/postStore";
-import { extractList, isBackendOk, normalizeComment } from "@/repositories/normalizers";
+import { extractList, normalizeComment } from "@/repositories/normalizers";
+import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession, isServerPost } from "@/repositories/source";
 
 function assertServerSession(session) {
@@ -26,9 +27,7 @@ export async function getComments(postOrId, options = {}) {
     count: String(options.count || 20),
   });
 
-  if (!isBackendOk(response) && response?.code !== "9994") {
-    throw new Error(response?.message || "Backend comments failed");
-  }
+  await assertBackendOk(response, { allowNoData: true, message: "Backend comments failed" });
 
   const comments = extractList(response).map((item) => normalizeComment(item, ACTIVE_SOURCES.SERVER));
 
@@ -57,9 +56,7 @@ export async function addComment(postOrId, commentText, extra = {}) {
     count: "20",
   });
 
-  if (!isBackendOk(response)) {
-    throw new Error(response?.message || "Backend set_comment failed");
-  }
+  await assertBackendOk(response, { message: "Backend set_comment failed" });
 
   return {
     post: null,

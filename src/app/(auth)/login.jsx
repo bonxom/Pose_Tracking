@@ -1,5 +1,7 @@
 import Screen from "@/components/common/Screen";
 import { loginDemoStudent, loginDemoTeacher, loginWithPassword } from "@/repositories/authRepository";
+import { getDataSourceMode } from "@/repositories/source";
+import { setDeviceToken } from "@/repositories/settingsRepository";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -27,6 +29,7 @@ export default function LoginScreen() {
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showDevFallback, setShowDevFallback] = useState(getDataSourceMode() !== "server");
 
   const persistAndNavigate = async (data) => {
     try {
@@ -45,6 +48,9 @@ export default function LoginScreen() {
         demoMode: Boolean(data.demoMode),
         loggedInAt: new Date().toISOString(),
       });
+      if (!data.demoMode) {
+        setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
+      }
     } catch (storageError) {
       console.warn("Cannot persist login session:", storageError);
     }
@@ -185,24 +191,39 @@ export default function LoginScreen() {
       </Pressable>
 
       <View style={{ gap: 10, marginTop: 12 }}>
-        <Pressable
-          style={[styles.createButton, { borderColor: "#2563EB" }]}
-          onPress={() => handleDemoLogin(loginDemoStudent, "0900000001", "123456")}
-          disabled={isLoading}
-        >
-          <Text style={styles.createText}>
-            Use demo student account · 0900000001 / 123456
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.createButton, { borderColor: "#94A3B8" }]}
-          onPress={() => handleDemoLogin(loginDemoTeacher, "0900000002", "123456")}
-          disabled={isLoading}
-        >
-          <Text style={styles.createText}>
-            Use demo teacher account · 0900000002 / 123456
-          </Text>
-        </Pressable>
+        {!showDevFallback ? (
+          <Pressable
+            style={[styles.createButton, { borderColor: "#CBD5E1" }]}
+            onPress={() => setShowDevFallback(true)}
+            disabled={isLoading}
+          >
+            <Text style={styles.createText}>Developer local fallback</Text>
+          </Pressable>
+        ) : (
+          <>
+            <Text style={styles.errorText}>
+              Local fallback chỉ dùng khi backend/OTP chưa sẵn sàng.
+            </Text>
+            <Pressable
+              style={[styles.createButton, { borderColor: "#2563EB" }]}
+              onPress={() => handleDemoLogin(loginDemoStudent, "0900000001", "123456")}
+              disabled={isLoading}
+            >
+              <Text style={styles.createText}>
+                Use demo student account · 0900000001 / 123456
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.createButton, { borderColor: "#94A3B8" }]}
+              onPress={() => handleDemoLogin(loginDemoTeacher, "0900000002", "123456")}
+              disabled={isLoading}
+            >
+              <Text style={styles.createText}>
+                Use demo teacher account · 0900000002 / 123456
+              </Text>
+            </Pressable>
+          </>
+        )}
       </View>
 
       <Pressable style={styles.forgotRow}>

@@ -2,6 +2,7 @@ import AppButton from "@/components/common/AppButton";
 import Screen from "@/components/common/Screen";
 import { DEMO_COURSE, DEMO_EXERCISES } from "@/constants/demo";
 import {
+  approveEnrollment,
   getCourseExercises,
   getCourseStudents,
   getCurrentCourse,
@@ -9,6 +10,7 @@ import {
   requestCourse,
 } from "@/repositories/courseRepository";
 import demoStyles from "@/styles/demo.styles";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -24,15 +26,20 @@ export default function CoursesScreen() {
   useFocusEffect(
     useCallback(() => {
       const loadExercises = async () => {
-        const currentCourse = await getCurrentCourse();
-        const posts = await getCourseExercises();
-        const studentItems = await getCourseStudents(currentCourse.id);
-        const requestItems = await getRequestedEnrollments(currentCourse.id).catch(() => []);
-        setCourse(currentCourse);
-        setIsEnrolled(Boolean(currentCourse.enrolled));
-        setExercisePosts(posts);
-        setStudents(studentItems);
-        setRequests(requestItems);
+        try {
+          const currentCourse = await getCurrentCourse();
+          const posts = await getCourseExercises();
+          const studentItems = await getCourseStudents(currentCourse.id);
+          const requestItems = await getRequestedEnrollments(currentCourse.id).catch(() => []);
+          setCourse(currentCourse);
+          setIsEnrolled(Boolean(currentCourse.enrolled));
+          setExercisePosts(posts);
+          setStudents(studentItems);
+          setRequests(requestItems);
+        } catch (error) {
+          if (await redirectIfSessionExpired(error, router)) return;
+          setStatusText(error.message || "Không thể tải dữ liệu khóa học.");
+        }
       };
       loadExercises();
     }, []),
@@ -44,7 +51,19 @@ export default function CoursesScreen() {
       setIsEnrolled(true);
       setStatusText("Đã gửi yêu cầu/tham gia khóa học.");
     } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
       setStatusText(error.message || "Không thể gửi yêu cầu tham gia khóa học.");
+    }
+  };
+
+  const handleApprove = async (request, isAccepted) => {
+    try {
+      await approveEnrollment(request.user_id || request.id, isAccepted);
+      setRequests((current) => current.filter((item) => item !== request));
+      setStatusText(isAccepted ? "Đã duyệt yêu cầu." : "Đã từ chối yêu cầu.");
+    } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
+      setStatusText(error.message || "Không thể xử lý yêu cầu.");
     }
   };
 
@@ -70,12 +89,12 @@ export default function CoursesScreen() {
               <Text style={demoStyles.statLabel}>học viên</Text>
             </View>
             <View style={demoStyles.statBox}>
-              <Text style={demoStyles.statValue}>{course.exerciseCount || DEMO_EXERCISES.length}</Text>
+              <Text style={demoStyles.statValue}>{course.exerciseCount ?? DEMO_EXERCISES.length}</Text>
               <Text style={demoStyles.statLabel}>bài tập</Text>
             </View>
             <View style={demoStyles.statBox}>
-              <Text style={demoStyles.statValue}>86</Text>
-              <Text style={demoStyles.statLabel}>điểm demo</Text>
+              <Text style={demoStyles.statValue}>{course.latestExerciseId ? "Có" : "-"}</Text>
+              <Text style={demoStyles.statLabel}>bài mới</Text>
             </View>
           </View>
           <AppButton
@@ -104,6 +123,18 @@ export default function CoursesScreen() {
           <Text style={demoStyles.cardTitle}>Học viên và yêu cầu</Text>
           <Text style={demoStyles.cardText}>{students.length} học viên hiện có.</Text>
           <Text style={demoStyles.cardText}>{requests.length} yêu cầu chờ duyệt.</Text>
+          {requests.map((request, index) => (
+            <View key={request.id || request.user_id || index} style={demoStyles.resultRow}>
+              <Text style={demoStyles.cardTitle}>
+                {request.username || request.user_name || request.name || "Học viên chờ duyệt"}
+              </Text>
+              <Text style={demoStyles.cardText}>user_id: {request.user_id || request.id || "unknown"}</Text>
+              <View style={demoStyles.row}>
+                <AppButton title="Duyệt" onPress={() => handleApprove(request, true)} />
+                <AppButton title="Từ chối" onPress={() => handleApprove(request, false)} />
+              </View>
+            </View>
+          ))}
           {students.slice(0, 5).map((student) => (
             <View key={student.id || student.phonenumber} style={demoStyles.resultRow}>
               <Text style={demoStyles.cardTitle}>{student.username}</Text>

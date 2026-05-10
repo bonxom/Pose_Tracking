@@ -3,12 +3,14 @@ import { backendApi } from "@/api/client";
 import { getDataSourceMode, hasServerSession } from "@/repositories/source";
 
 export async function checkBackendStatus(session = null) {
-  if (getDataSourceMode() === "local") {
+  const mode = getDataSourceMode();
+
+  if (mode === "local") {
     return {
       ok: true,
       baseUrl: API_BASE_URL,
       state: "local-fallback",
-      mode: "local",
+      mode,
       message: "Configured for local demo data",
     };
   }
@@ -36,7 +38,7 @@ export async function checkBackendStatus(session = null) {
           ok: true,
           baseUrl: API_BASE_URL,
           state: "authenticated",
-          mode: "server",
+          mode,
           message: "Backend reachable with current session",
         };
       } catch (authError) {
@@ -54,7 +56,7 @@ export async function checkBackendStatus(session = null) {
       ok: reachable,
       baseUrl: API_BASE_URL,
       state: reachable ? "reachable" : "contract-error",
-      mode: "auto",
+      mode,
       message: reachable ? "Backend login route reachable" : "Backend returned unexpected response",
     };
   } catch (error) {

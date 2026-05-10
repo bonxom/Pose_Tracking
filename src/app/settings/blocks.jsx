@@ -3,7 +3,8 @@ import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import demoStyles from "@/styles/demo.styles";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
@@ -15,7 +16,10 @@ export default function BlocksScreen() {
   const loadBlocks = useCallback(() => {
     getBlocks()
       .then(setBlocks)
-      .catch((error) => setStatus(error.message));
+      .catch(async (error) => {
+        if (await redirectIfSessionExpired(error, router)) return;
+        setStatus(error.message);
+      });
   }, []);
 
   useFocusEffect(loadBlocks);
@@ -32,7 +36,19 @@ export default function BlocksScreen() {
       setUserId("");
       loadBlocks();
     } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
       setStatus(error.message || "Không thể chặn người dùng.");
+    }
+  };
+
+  const unblockUser = async (item) => {
+    try {
+      await setBlock(item.id, "unblock");
+      setBlocks((current) => current.filter((block) => block.id !== item.id));
+      setStatus("Đã bỏ chặn người dùng.");
+    } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
+      setStatus(error.message || "Không thể bỏ chặn.");
     }
   };
 
@@ -54,8 +70,16 @@ export default function BlocksScreen() {
           <Text style={demoStyles.cardTitle}>{blocks.length} người dùng bị chặn</Text>
           {blocks.map((item) => (
             <View key={item.id} style={demoStyles.resultRow}>
-              <Text style={demoStyles.cardTitle}>{item.username}</Text>
-              <Text style={demoStyles.cardText}>{item.role || "Không rõ vai trò"} · {item.id}</Text>
+              <View style={demoStyles.row}>
+                <View style={[demoStyles.avatar, { opacity: 0.35 }]}>
+                  <Text style={demoStyles.avatarText}>?</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={demoStyles.cardTitle}>{item.username}</Text>
+                  <Text style={demoStyles.cardText}>{item.role || "Không rõ vai trò"} · {item.id}</Text>
+                </View>
+              </View>
+              <AppButton title="Bỏ chặn" onPress={() => unblockUser(item)} />
             </View>
           ))}
         </View>

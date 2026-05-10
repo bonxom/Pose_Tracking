@@ -9,7 +9,8 @@ import { ScrollView, Text, View } from "react-native";
 
 export default function ProfileEditScreen() {
   const [username, setUsername] = useState("");
-  const [height, setHeight] = useState("");
+  const [avatar, setAvatar] = useState("");
+  const [coverImage, setCoverImage] = useState("");
   const [status, setStatus] = useState("");
 
   useFocusEffect(
@@ -17,7 +18,8 @@ export default function ProfileEditScreen() {
       const loadProfile = async () => {
         const user = await getUserInfo();
         setUsername(user.displayName || user.username || "");
-        setHeight(user.height || "");
+        setAvatar(user.avatar || "");
+        setCoverImage(user.coverImage || "");
       };
       loadProfile().catch((error) => setStatus(error.message));
     }, []),
@@ -25,7 +27,7 @@ export default function ProfileEditScreen() {
 
   const saveProfile = async () => {
     try {
-      await updateUserInfo({ username, height });
+      await updateUserInfo({ userName: username, avatar, coverImage });
       setStatus("Đã cập nhật hồ sơ.");
       router.back();
     } catch (error) {
@@ -42,8 +44,9 @@ export default function ProfileEditScreen() {
         </View>
 
         <View style={demoStyles.card}>
-          <AppInput label="Tên hiển thị" value={username} onChangeText={setUsername} />
-          <AppInput label="Chiều cao" value={height} onChangeText={setHeight} keyboardType="numeric" />
+          <AppInput label="user_name" value={username} onChangeText={setUsername} />
+          <AppInput label="avatar URL" value={avatar} onChangeText={setAvatar} />
+          <AppInput label="cover_image URL" value={coverImage} onChangeText={setCoverImage} />
           <AppButton title="Lưu hồ sơ" onPress={saveProfile} />
           {status ? <Text style={demoStyles.cardText}>{status}</Text> : null}
         </View>

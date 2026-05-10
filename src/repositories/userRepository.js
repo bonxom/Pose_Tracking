@@ -1,6 +1,7 @@
 import { backendApi } from "@/api/client";
 import { DEMO_STUDENT } from "@/constants/demo";
-import { extractObject, isBackendOk, normalizeSession } from "@/repositories/normalizers";
+import { extractObject, normalizeSession } from "@/repositories/normalizers";
+import { assertBackendOk } from "@/repositories/serverResponse";
 import {
   ACTIVE_SOURCES,
   canFallbackToLocal,
@@ -18,6 +19,7 @@ function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     username: raw.username || raw.name || sessionLike.username,
     displayName: raw.displayName || raw.fullname || raw.username || sessionLike.displayName,
     height: raw.height || "",
+    coverImage: raw.cover_image || raw.coverImage || "",
     raw,
   };
 }
@@ -39,15 +41,13 @@ export async function getUserInfo(userId = "") {
       user_id: userId,
     });
 
-    if (!isBackendOk(response)) {
-      throw new Error(response?.message || "Backend get_user_info failed");
-    }
+    await assertBackendOk(response, { message: "Backend get_user_info failed" });
 
     return normalizeUser(extractObject(response), ACTIVE_SOURCES.SERVER);
   } catch (error) {
     console.info("[DATA] Server get_user_info fallback", error.message);
 
-    if (canFallbackToLocal()) {
+    if (!error.sessionExpired && canFallbackToLocal()) {
       return normalizeUser(session, ACTIVE_SOURCES.LOCAL_FALLBACK);
     }
 
@@ -72,14 +72,12 @@ export async function updateUserInfo(params = {}) {
 
   const response = await backendApi.setUserInfo({
     token: session.token,
-    username: params.username || "",
+    user_name: params.userName || params.user_name || params.username || "",
     avatar: params.avatar || "",
-    height: params.height || "",
+    cover_image: params.coverImage || params.cover_image || "",
   });
 
-  if (!isBackendOk(response)) {
-    throw new Error(response?.message || "Backend set_user_info failed");
-  }
+  await assertBackendOk(response, { message: "Backend set_user_info failed" });
 
   const updated = {
     ...session,

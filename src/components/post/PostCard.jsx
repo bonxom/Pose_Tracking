@@ -12,6 +12,13 @@ import { Pressable, Text, View } from "react-native";
 
 const EXPAND_THRESHOLD = 180;
 
+function formatCount(value = 0) {
+  const count = Number(value) || 0;
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
+  return String(count);
+}
+
 export default function PostCard({
   post,
   onPress,
@@ -35,6 +42,12 @@ export default function PostCard({
   const metaIsFresh = isFreshPost(post.createdAt, post.author?.online);
   const isExercisePost = post.type === "exercise" || post.canSubmit;
   const isSubmissionPost = post.type === "submission";
+  const hashtags = useMemo(() => {
+    const values = new Set(post.hashtags || []);
+    if (post.courseId) values.add(`#${post.courseId}`);
+    if (post.exerciseId) values.add(`#${post.exerciseId}`);
+    return Array.from(values);
+  }, [post.courseId, post.exerciseId, post.hashtags]);
 
   return (
     <View style={postStyles.card}>
@@ -89,9 +102,9 @@ export default function PostCard({
         </Pressable>
       ) : null}
 
-      {post.hashtags?.length ? (
+      {hashtags.length ? (
         <View style={postStyles.hashtagRow}>
-          {post.hashtags.map((tag) => (
+          {hashtags.map((tag) => (
             <Text key={tag} style={postStyles.hashtagText}>
               {tag}
             </Text>
@@ -146,8 +159,8 @@ export default function PostCard({
       ) : null}
 
       <View style={postStyles.statsRow}>
-        <Text style={postStyles.statText}>{post.likeCount} lượt thích</Text>
-        <Text style={postStyles.statText}>{post.commentCount} bình luận</Text>
+        <Text style={postStyles.statText}>{formatCount(post.likeCount)} lượt thích</Text>
+        <Text style={postStyles.statText}>{formatCount(post.commentCount)} bình luận</Text>
       </View>
 
       {post.canComment === false ? (

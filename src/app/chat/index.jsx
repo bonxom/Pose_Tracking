@@ -5,6 +5,7 @@ import {
   markConversationRead,
 } from "@/repositories/conversationRepository";
 import demoStyles from "@/styles/demo.styles";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -16,7 +17,10 @@ export default function ConversationListScreen() {
   const load = useCallback(() => {
     getConversationList()
       .then(setItems)
-      .catch((error) => setStatus(error.message));
+      .catch(async (error) => {
+        if (await redirectIfSessionExpired(error, router)) return;
+        setStatus(error.message);
+      });
   }, []);
 
   useFocusEffect(load);
@@ -24,7 +28,8 @@ export default function ConversationListScreen() {
   const open = async (item) => {
     try {
       await markConversationRead(item.id);
-    } catch {
+    } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
       // Opening the thread is still useful if read-state is blocked by backend.
     }
     router.push(`/chat/${item.id}`);
@@ -35,6 +40,7 @@ export default function ConversationListScreen() {
       await deleteConversation(item.id);
       load();
     } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
       setStatus(error.message || "Không thể xóa cuộc trò chuyện.");
     }
   };

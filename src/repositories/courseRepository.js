@@ -1,7 +1,8 @@
 import { backendApi } from "@/api/client";
 import { DEMO_COURSE, DEMO_STUDENT } from "@/constants/demo";
 import { getExercisePosts } from "@/repositories/postRepository";
-import { extractList, isBackendOk } from "@/repositories/normalizers";
+import { extractList } from "@/repositories/normalizers";
+import { assertBackendOk } from "@/repositories/serverResponse";
 import {
   ACTIVE_SOURCES,
   canFallbackToLocal,
@@ -24,6 +25,21 @@ function normalizeCourse(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   };
 }
 
+function emptyServerCourse() {
+  return {
+    id: "",
+    source: ACTIVE_SOURCES.SERVER,
+    title: "Chưa có khóa học",
+    teacherName: "Chưa có giảng viên",
+    description: "Server chưa trả về khóa học cho tài khoản hiện tại.",
+    enrolled: false,
+    studentCount: 0,
+    exerciseCount: 0,
+    latestExerciseId: "",
+    hashtag: "",
+  };
+}
+
 export async function getCurrentCourse() {
   const session = await getCurrentSession();
 
@@ -34,20 +50,17 @@ export async function getCurrentCourse() {
   try {
     const response = await backendApi.getListCoursesOfStudent({
       token: session.token,
-      index: "0",
-      count: "5",
+      user_id: session.id || session.user_id || session.identifier || "",
     });
 
-    if (!isBackendOk(response) && response?.code !== "9994") {
-      throw new Error(response?.message || "Backend course list failed");
-    }
+    await assertBackendOk(response, { allowNoData: true, message: "Backend course list failed" });
 
     const course = extractList(response)[0];
-    return normalizeCourse(course || DEMO_COURSE, ACTIVE_SOURCES.SERVER);
+    return course ? normalizeCourse(course, ACTIVE_SOURCES.SERVER) : emptyServerCourse();
   } catch (error) {
     console.info("[DATA] Server course fallback", error.message);
 
-    if (canFallbackToLocal()) {
+    if (!error.sessionExpired && canFallbackToLocal()) {
       return normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL_FALLBACK);
     }
 
@@ -69,20 +82,17 @@ export async function getStudentCourses(params = {}) {
   try {
     const response = await backendApi.getListCoursesOfStudent({
       token: session.token,
-      index: String(params.index || 0),
-      count: String(params.count || 20),
+      user_id: params.userId || params.user_id || session.id || session.user_id || session.identifier || "",
     });
 
-    if (!isBackendOk(response) && response?.code !== "9994") {
-      throw new Error(response?.message || "Backend get_list_courses_of_student failed");
-    }
+    await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_courses_of_student failed" });
 
     const courses = extractList(response).map((item) => normalizeCourse(item, ACTIVE_SOURCES.SERVER));
     return courses.length ? courses : [];
   } catch (error) {
     console.info("[DATA] Server student courses fallback", error.message);
 
-    if (canFallbackToLocal()) {
+    if (!error.sessionExpired && canFallbackToLocal()) {
       return [normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL_FALLBACK)];
     }
 
@@ -109,9 +119,7 @@ export async function getCourseStudents() {
     count: "50",
   });
 
-  if (!isBackendOk(response) && response?.code !== "9994") {
-    throw new Error(response?.message || "Backend get_list_students failed");
-  }
+  await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_students failed" });
 
   return extractList(response).map((item) => ({
     id: String(item.id || item.user_id || item.student_id || ""),
@@ -136,9 +144,7 @@ export async function getRequestedEnrollments() {
     count: "50",
   });
 
-  if (!isBackendOk(response) && response?.code !== "9994") {
-    throw new Error(response?.message || "Backend get_requested_enrollment failed");
-  }
+  await assertBackendOk(response, { allowNoData: true, message: "Backend get_requested_enrollment failed" });
 
   return extractList(response);
 }
@@ -153,12 +159,10 @@ export async function requestCourse(courseId = DEMO_COURSE.id) {
   const response = await backendApi.setRequestCourse({
     token: session.token,
     course_id: courseId,
-    user_id: courseId,
+    user_id: session.id || session.user_id || session.identifier || "",
   });
 
-  if (!isBackendOk(response)) {
-    throw new Error(response?.message || "Backend set_request_course failed");
-  }
+  await assertBackendOk(response, { message: "Backend set_request_course failed" });
 
   return { requested: true, source: ACTIVE_SOURCES.SERVER };
 }
@@ -171,9 +175,7 @@ export async function approveEnrollment(requestId, isApproved = true) {
     is_accept: isApproved ? "1" : "0",
   });
 
-  if (!isBackendOk(response)) {
-    throw new Error(response?.message || "Backend set_approve_enrollment failed");
-  }
+  await assertBackendOk(response, { message: "Backend set_approve_enrollment failed" });
 
   return { approved: isApproved, source: ACTIVE_SOURCES.SERVER };
 }

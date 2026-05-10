@@ -56,6 +56,12 @@ Backend probe:
 docker compose run --rm expo npm run backend:probe
 ```
 
+Server E2E harness:
+
+```bash
+docker compose run --rm expo npm run e2e:server
+```
+
 ## Cách chạy nếu có npm trên host
 
 1. Cài dependencies:
@@ -206,6 +212,7 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
 - [docs/FRONTEND_BASELINE_AUDIT.md](docs/FRONTEND_BASELINE_AUDIT.md): tech stack, routes, implemented features, mock/local-only parts, risks.
 - [docs/BACKEND_CONTRACT_REPORT.md](docs/BACKEND_CONTRACT_REPORT.md): deployed backend probe results.
 - [docs/BACKEND_MISMATCHES.md](docs/BACKEND_MISMATCHES.md): known deployed/backend-doc mismatches.
+- [docs/SERVER_E2E_RUNBOOK.md](docs/SERVER_E2E_RUNBOOK.md): real-account E2E commands with OTP continuation.
 - [docs/MOBILE_TESTING.md](docs/MOBILE_TESTING.md): physical phone browser and best-effort Expo Go instructions.
 
 ## Ghi chú

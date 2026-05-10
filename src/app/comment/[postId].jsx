@@ -4,6 +4,7 @@ import Screen from "@/components/common/Screen";
 import { addComment, getComments } from "@/repositories/commentRepository";
 import { getPostById } from "@/repositories/postRepository";
 import postStyles from "@/styles/post.styles";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Text, View } from "react-native";
@@ -25,6 +26,7 @@ export default function CommentScreen() {
       setComments(result.comments || []);
     } catch (error) {
       console.warn("Failed to load comments:", error);
+      await redirectIfSessionExpired(error, router);
     } finally {
       setIsLoading(false);
     }
@@ -35,20 +37,28 @@ export default function CommentScreen() {
   }, [loadComments]);
 
   const handleSubmitComment = async () => {
-    if (!commentText.trim()) {
+    const sanitizedComment = commentText.trim().replace(/[\u0000-\u001F\u007F]/g, "");
+
+    if (!sanitizedComment) {
       Alert.alert("Lỗi", "Vui lòng nhập bình luận");
+      return;
+    }
+
+    if (sanitizedComment.length > 500) {
+      Alert.alert("Bình luận quá dài", "Bình luận tối đa 500 ký tự.");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      const result = await addComment(post || postId, commentText);
+      const result = await addComment(post || postId, sanitizedComment);
       if (result.comment) {
         setComments((prevComments) => [...prevComments, result.comment]);
         setCommentText("");
       }
     } catch (error) {
       console.warn("Failed to add comment:", error);
+      if (await redirectIfSessionExpired(error, router)) return;
       Alert.alert("Lỗi", "Không thể đăng bình luận. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
@@ -109,21 +119,28 @@ export default function CommentScreen() {
 
         <View style={{ height: 16 }} />
 
-        <AppInput
-          placeholder="Viết bình luận..."
-          value={commentText}
-          onChangeText={setCommentText}
-          multiline
-          numberOfLines={3}
-          style={postStyles.textArea}
-        />
+        {post?.canComment === false ? (
+          <Text style={postStyles.subtitle}>Bài viết này đang tắt bình luận.</Text>
+        ) : (
+          <AppInput
+            placeholder="Viết bình luận..."
+            value={commentText}
+            onChangeText={setCommentText}
+            multiline
+            numberOfLines={3}
+            style={postStyles.textArea}
+          />
+        )}
+        {post?.canComment === false ? null : (
+          <Text style={postStyles.slotHint}>{commentText.length}/500 ký tự</Text>
+        )}
 
         <View style={{ height: 12 }} />
 
         <AppButton
           title={isSubmitting ? "Đang gửi..." : "Gửi bình luận"}
           onPress={handleSubmitComment}
-          disabled={isSubmitting}
+          disabled={isSubmitting || post?.canComment === false}
         />
 
         <View style={{ height: 12 }} />

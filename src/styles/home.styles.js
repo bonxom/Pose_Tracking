@@ -44,6 +44,19 @@ const homeStyles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  newItemsButton: {
+    alignSelf: "center",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    paddingHorizontal: sizes.lg,
+    paddingVertical: sizes.sm,
+    marginBottom: sizes.md,
+  },
+  newItemsText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "800",
+  },
   buttonSpacing: {
     height: sizes.md,
   },

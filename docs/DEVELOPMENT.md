@@ -141,7 +141,7 @@ docker compose up
 - Teacher exercise cards with course/exercise metadata, hashtags, two video placeholders, and a clear `Nộp bài` action.
 - Exercise submission flow on `/post/create` with two web-safe demo video placeholders.
 - Server-backed exercise submission uses multipart with two real videos when a server session exists; local demo placeholders are developer-only.
-- Post detail with comments, local comment creation, like/unlike, and submission navigation.
+- Post detail with comments, like/unlike, submission navigation, owner edit/delete controls, and non-owner report controls.
 - Courses tab with course card, teacher info, enrollment state, stats, and exercise list.
 - Search tab over posts, authors, hashtags, and course/exercise text.
 - Notifications tab with server read-state API integration.
@@ -191,9 +191,9 @@ See [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md) and [BACKEND_MISMAT
 ## Known Gaps Versus Backend/API Source Of Truth
 
 - No valid backend test account/token was available in this environment, so most authenticated API success payloads are unverified.
-- Invalid/stale token handling is not yet centralized across all repositories/screens.
-- Feed load-more/cache reconciliation still needs final spec-level polish.
-- Teacher approval dashboard and post edit/delete/report action menus are still minimal.
+- Invalid/stale token handling uses shared `SessionExpiredError` and screen redirects, but there is still no global fetch interceptor.
+- Feed load-more/cache reconciliation is implemented at the Home screen level; deeper persistent disk cache can be added if the slides require it.
+- Teacher approval dashboard, saved-search management, notification cache, and conversation UI are compact rather than full administrative surfaces.
 - Full client-side scoring remains a separate gap unless backend scoring is accepted as authoritative by the course rubric.
 
 ## Recommended Next Phases
