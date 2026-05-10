@@ -213,7 +213,7 @@ export async function searchPosts(query = "", options = {}) {
     const response = await backendApi.search({
       token: session.token,
       keyword: query,
-      user_id: options.userId || options.user_id || "",
+      user_id: options.userId || options.user_id || session.id || session.user_id || session.identifier || "",
       index: "0",
       count: "20",
     });

@@ -61,12 +61,21 @@ export async function getNotificationPage(params = {}) {
   }
 
   try {
-    const response = await backendApi.getNotification({
+    let response = await backendApi.getNotification({
       token: session.token,
       index: String(params.index || 0),
       count: String(params.count || 20),
       last_update: params.lastUpdate || params.last_update || "",
     });
+
+    if (String(response?.message || "").includes("property last_update should not exist")) {
+      console.info("[DATA] get_notification deployed compatibility: retrying without last_update");
+      response = await backendApi.getNotification({
+        token: session.token,
+        index: String(params.index || 0),
+        count: String(params.count || 20),
+      });
+    }
 
     await assertBackendOk(response, { allowNoData: true, message: "Backend notification failed" });
 

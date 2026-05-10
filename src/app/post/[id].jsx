@@ -7,6 +7,7 @@ import { deletePost, editPost, getPostById, reportPost, toggleLike } from "@/rep
 import postStyles from "@/styles/post.styles";
 import { getAuthSession } from "@/utils/session";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
@@ -19,6 +20,7 @@ export default function PostDetailScreen() {
   const [session, setSession] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
+  const [editVideos, setEditVideos] = useState([]);
   const [reportReason, setReportReason] = useState("");
   const [statusText, setStatusText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -100,16 +102,69 @@ export default function PostDetailScreen() {
 
   const canOwnerEdit = post?.author?.id && session?.id && post.author.id === session.id && session.role === "HV";
 
+  const readVideoDuration = async (asset) => {
+    if (asset.duration) return asset.duration;
+    if (typeof document === "undefined" || !asset.uri) return 0;
+
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => resolve(Math.round(video.duration * 1000));
+      video.onerror = () => resolve(0);
+      video.src = asset.uri;
+    });
+  };
+
+  const pickReplacementVideo = async (slotIndex) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      quality: 1,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    const duration = await readVideoDuration(asset);
+    const video = {
+      id: `edit_video_${slotIndex}_${Date.now()}`,
+      uri: asset.uri,
+      file: asset.file,
+      name: asset.fileName || `replacement-video-${slotIndex + 1}.mp4`,
+      mimeType: asset.mimeType || "video/mp4",
+      angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
+      duration,
+      fileSize: asset.fileSize || 0,
+    };
+
+    setEditVideos((current) => {
+      const next = [...current];
+      next[slotIndex] = video;
+      return next.slice(0, 2);
+    });
+  };
+
   const handleEditPost = async () => {
+    const replacementVideos = editVideos.filter(Boolean);
+
     if (!editText.trim()) {
       setStatusText("Mô tả bài viết không được bỏ trống.");
       return;
     }
 
+    if (replacementVideos.length === 1) {
+      setStatusText("Nếu thay video, cần chọn đủ cả 2 video theo quy định.");
+      return;
+    }
+
     try {
-      const updated = await editPost(post, { content: editText.trim() });
+      const updated = await editPost(post, {
+        content: editText.trim(),
+        videos: replacementVideos.length === 2 ? replacementVideos : undefined,
+      });
       setPost(updated);
       setIsEditing(false);
+      setEditVideos([]);
       setStatusText("Đã cập nhật bài viết.");
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
@@ -183,11 +238,45 @@ export default function PostDetailScreen() {
                     numberOfLines={4}
                     style={postStyles.textArea}
                   />
+                  <Text style={postStyles.slotHint}>
+                    Thay video là tùy chọn. Nếu thay, phải chọn đủ 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương.
+                  </Text>
+                  <View style={postStyles.actionRow}>
+                    <AppButton
+                      title="Thay video trái"
+                      onPress={() => pickReplacementVideo(0)}
+                      style={[postStyles.actionButton, postStyles.secondaryButton]}
+                      textStyle={postStyles.secondaryButtonText}
+                    />
+                    <AppButton
+                      title="Thay video phải"
+                      onPress={() => pickReplacementVideo(1)}
+                      style={[postStyles.actionButton, postStyles.secondaryButton]}
+                      textStyle={postStyles.secondaryButtonText}
+                    />
+                  </View>
+                  <View style={postStyles.mediaList}>
+                    {[0, 1].map((slotIndex) => {
+                      const video = editVideos[slotIndex];
+                      return (
+                        <View key={slotIndex} style={postStyles.mediaCard}>
+                          <Text style={postStyles.mediaTitle}>{slotIndex === 0 ? "Góc quay trái" : "Góc quay phải"}</Text>
+                          <Text style={postStyles.mediaSubtitle}>{video?.name || "Giữ video hiện tại"}</Text>
+                          <Text style={postStyles.mediaSubtitle}>
+                            {video?.duration ? `${Math.round(video.duration / 1000)} giây` : "Chưa chọn video thay thế"}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
                   <View style={postStyles.actionRow}>
                     <AppButton title="Lưu sửa" onPress={handleEditPost} style={postStyles.actionButton} />
                     <AppButton
                       title="Hủy sửa"
-                      onPress={() => setIsEditing(false)}
+                      onPress={() => {
+                        setIsEditing(false);
+                        setEditVideos([]);
+                      }}
                       style={[postStyles.actionButton, postStyles.secondaryButton]}
                       textStyle={postStyles.secondaryButtonText}
                     />

@@ -16,18 +16,19 @@ http://group1.it4788.sukkaito.id.vn
 
 The probe intentionally ran with `PROBE_MUTATION` disabled. Mutating endpoints were called with invalid tokens or validation-safe payloads to identify routes, transports, and auth behavior without changing production data.
 
-Latest compact summary generated at `2026-05-10T09:46:26.014Z`.
+Latest compact summary generated at `2026-05-10T16:20:27.303Z`.
 
 ## Summary
 
 - The deployed API prefix is `/it4788`; `/login` without the prefix returns 404.
 - `/it4788/login` is reachable and requires `devtoken`; the local demo account returns `9995 User is not validated`.
-- No valid backend token was discovered, so authenticated success payloads remain unverified.
+- The unauthenticated probe does not embed real credentials. Separate existing-account E2E runs verified real HV/GV login and authenticated reads where the server returned data or clean empty states.
 - CORS preflight returned `204` with `Access-Control-Allow-Origin: *` on selected endpoints.
 - The probe covers all 40 IT4788 APIs.
 - `/it4788/like` and `/it4788/delete_post` returned 404 on the deployed server.
 - `check_new_item` rejects a `token` field in deployed runtime even though the app keeps the spec-shaped call first.
 - `set_request_course` reaches token validation only after both `course_id` and `user_id` are present.
+- Existing-account runtime shows several spec/runtime payload splits: `check_new_version` wants `lastUpdate`, `get_user_info` rejects `user_id`, `get_notification` rejects `last_update`, and `check_new_item` rejects `token`.
 
 ## 40-API Probe Results
 
@@ -81,7 +82,17 @@ Latest compact summary generated at `2026-05-10T09:46:26.014Z`.
 - `add_post` and `edit_post`: multipart reaches token validation; JSON/form return backend exceptions for `add_post`.
 - `set_comment`: form-urlencoded with `index`/`count` reaches token validation.
 - `check_new_item`: spec-shaped token payload is rejected by deployed runtime; repository contains a documented compatibility retry without token.
-- Most authenticated reads accept JSON but were not success-verified without a valid token.
+- `set_devtoken`: existing-account mutation verification passes when `devtype` is numeric (`"1"`).
+- Most authenticated reads accept JSON. Existing-account testing verified login, saved search list, blocks, push settings, conversations list, logout, and several deployed-compatibility retries.
+
+## Existing-Account Verification Addendum
+
+Credentials are not stored in this repository. With team-provided HV/GV credentials supplied via environment variables:
+
+- HV and GV login both returned HTTP 200, backend code `1000`, and a token.
+- `get_list_posts`, `search`, `profile search`, and `get_list_courses_of_student` returned `9994 No data`; the frontend treats this as a valid empty state.
+- `get_saved_search`, `get_list_blocks`, `get_push_settings`, `get_list_conversation`, compatibility `get_user_info`, compatibility `get_notification`, compatibility `check_new_version`, compatibility `check_new_item`, and `logout` returned backend code `1000`.
+- No real post, course, exercise, notification, or conversation object id was returned, so object-specific calls remain frontend-complete but not real-object verified.
 
 ## Integration Decision
 

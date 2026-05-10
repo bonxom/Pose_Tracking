@@ -20,10 +20,16 @@ macOS Wi-Fi:
 ipconfig getifaddr en0
 ```
 
-macOS Ethernet or fallback:
+In this environment, `en0` did not report an address, so use the fallback:
 
 ```bash
 ifconfig | grep "inet "
+```
+
+Observed LAN address in the final pass:
+
+```text
+192.168.1.3
 ```
 
 4. On the phone browser, open:
@@ -35,7 +41,7 @@ http://<HOST_LAN_IP>:8081
 Example:
 
 ```text
-http://192.168.1.25:8081
+http://192.168.1.3:8081
 ```
 
 5. Use a real backend account for server-mode testing. Developer demo buttons remain local-only fallback.
@@ -79,5 +85,6 @@ Notes:
 
 - Docker publishes `8081:8081`.
 - Expo Web starts and serves `http://localhost:8081`.
-- Physical phone browser access instructions are documented but were not verified on an actual phone in this environment.
+- Host LAN IP discovery was verified with `ifconfig`; use `http://192.168.1.3:8081` for this machine while it stays on the same network.
+- Actual second-device phone browsing was not verified in this environment because no physical phone/browser session was available to this agent.
 - Native Expo Go was not verified in this environment.

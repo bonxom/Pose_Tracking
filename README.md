@@ -40,7 +40,7 @@ HV: 0900000001 / 123456
 GV: 0900000002 / 123456
 ```
 
-Xem thêm hướng dẫn và troubleshooting trong [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Kịch bản click demo sáng mai nằm ở [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+Xem thêm hướng dẫn và troubleshooting trong [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Báo cáo kiểm thử server nằm ở [docs/FRONTEND_SERVER_TEST_REPORT.md](docs/FRONTEND_SERVER_TEST_REPORT.md).
 
 ## Data source modes
 
@@ -60,6 +60,18 @@ Server E2E harness:
 
 ```bash
 docker compose run --rm expo npm run e2e:server
+```
+
+Existing-account E2E uses credentials only from shell environment variables:
+
+```bash
+docker compose run --rm expo sh -lc '
+  E2E_USE_EXISTING_ACCOUNTS=1 \
+  E2E_HV_PHONE=<provided-hv-phone> \
+  E2E_GV_PHONE=<provided-gv-phone> \
+  E2E_PASSWORD=<provided-password> \
+  npm run e2e:server
+'
 ```
 
 ## Cách chạy nếu có npm trên host
@@ -210,8 +222,10 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
 - [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md): exact morning demo runbook and click path.
 - [docs/DEMO_STATUS.md](docs/DEMO_STATUS.md): completed features, local/mock features, backend behavior, known gaps.
 - [docs/FRONTEND_BASELINE_AUDIT.md](docs/FRONTEND_BASELINE_AUDIT.md): tech stack, routes, implemented features, mock/local-only parts, risks.
+- [docs/FRONTEND_SERVER_TEST_REPORT.md](docs/FRONTEND_SERVER_TEST_REPORT.md): final server-mode frontend test matrix.
 - [docs/BACKEND_CONTRACT_REPORT.md](docs/BACKEND_CONTRACT_REPORT.md): deployed backend probe results.
 - [docs/BACKEND_MISMATCHES.md](docs/BACKEND_MISMATCHES.md): known deployed/backend-doc mismatches.
+- [docs/E2E_TEST_REPORT.md](docs/E2E_TEST_REPORT.md): Docker, backend, and real-account E2E results.
 - [docs/SERVER_E2E_RUNBOOK.md](docs/SERVER_E2E_RUNBOOK.md): real-account E2E commands with OTP continuation.
 - [docs/MOBILE_TESTING.md](docs/MOBILE_TESTING.md): physical phone browser and best-effort Expo Go instructions.
 
@@ -221,4 +235,4 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
   - `@/*` -> `src/*`
   - `@/assets/*` -> `assets/*`
 - `example/` chỉ là code mẫu, không phải luồng chính của ứng dụng hiện tại.
-- Backend thật đã có wrapper cho toàn bộ 40 API và repository integration cho các module chính. Không có token server hợp lệ trong lần probe, nên phần lớn API xác thực chưa được verified end-to-end.
+- Backend thật đã có wrapper cho toàn bộ 40 API và repository integration cho các module chính. Tài khoản HV/GV thật đã verified login/logout và một số read/lifecycle API; các flow theo object thật còn cần server seed dữ liệu course/exercise/post/notification/conversation.

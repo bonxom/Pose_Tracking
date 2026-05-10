@@ -6,6 +6,12 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
+function formatBadge(value = 0) {
+  const count = Number(value || 0);
+  if (!Number.isFinite(count) || count <= 0) return "";
+  return count > 99 ? "99+" : String(count);
+}
+
 export default function NotificationsScreen() {
   const [items, setItems] = useState([]);
   const [lastUpdate, setLastUpdate] = useState("");
@@ -13,6 +19,7 @@ export default function NotificationsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusText, setStatusText] = useState("");
   const unreadCount = useMemo(() => items.filter((item) => item.unread).length, [items]);
+  const unreadBadge = formatBadge(unreadCount);
 
   const loadNotifications = useCallback(async ({ refresh = false, append = false, index = 0 } = {}) => {
     try {
@@ -73,7 +80,9 @@ export default function NotificationsScreen() {
       >
         <View style={demoStyles.header}>
           <Text style={demoStyles.title}>Thông báo</Text>
-          <Text style={demoStyles.subtitle}>{unreadCount} thông báo chưa đọc · last_update: {lastUpdate || "none"}</Text>
+          <Text style={demoStyles.subtitle}>
+            {unreadBadge || "0"} thông báo chưa đọc · last_update: {lastUpdate || "none"}
+          </Text>
           {statusText ? <Text style={demoStyles.cardText}>{statusText}</Text> : null}
         </View>
 
@@ -85,13 +94,22 @@ export default function NotificationsScreen() {
                   <Text style={demoStyles.cardTitle}>{item.title}</Text>
                   <Text style={demoStyles.cardText}>{item.body}</Text>
                   <Text style={demoStyles.statLabel}>
-                    {item.type} · object_id: {item.objectId || item.targetId || "none"} · badge: {item.badge}
+                    {item.type} · object_id: {item.objectId || item.targetId || "none"}
+                    {formatBadge(item.badge) ? ` · badge: ${formatBadge(item.badge)}` : ""}
                   </Text>
                   <Text style={demoStyles.statLabel}>
                     {new Date(item.createdAt).toLocaleString("vi-VN")}
                   </Text>
                 </View>
-                {item.unread ? <View style={demoStyles.unreadDot} /> : null}
+                {item.unread ? (
+                  formatBadge(item.badge) ? (
+                    <View style={demoStyles.notificationBadge}>
+                      <Text style={demoStyles.notificationBadgeText}>{formatBadge(item.badge)}</Text>
+                    </View>
+                  ) : (
+                    <View style={demoStyles.unreadDot} />
+                  )
+                ) : null}
               </View>
             </View>
           </Pressable>

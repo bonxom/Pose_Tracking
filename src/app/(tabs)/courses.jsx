@@ -16,7 +16,9 @@ import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 export default function CoursesScreen() {
-  const [isEnrolled, setIsEnrolled] = useState(DEMO_COURSE.enrolled);
+  const [enrollmentStatus, setEnrollmentStatus] = useState(
+    DEMO_COURSE.enrolled ? "enrolled" : "none",
+  );
   const [course, setCourse] = useState(DEMO_COURSE);
   const [exercisePosts, setExercisePosts] = useState([]);
   const [students, setStudents] = useState([]);
@@ -32,7 +34,7 @@ export default function CoursesScreen() {
           const studentItems = await getCourseStudents(currentCourse.id);
           const requestItems = await getRequestedEnrollments(currentCourse.id).catch(() => []);
           setCourse(currentCourse);
-          setIsEnrolled(Boolean(currentCourse.enrolled));
+          setEnrollmentStatus(currentCourse.enrollmentStatus || (currentCourse.enrolled ? "enrolled" : currentCourse.requested ? "requested" : "none"));
           setExercisePosts(posts);
           setStudents(studentItems);
           setRequests(requestItems);
@@ -47,14 +49,17 @@ export default function CoursesScreen() {
 
   const handleRequestCourse = async () => {
     try {
-      await requestCourse(course.id);
-      setIsEnrolled(true);
-      setStatusText("Đã gửi yêu cầu/tham gia khóa học.");
+      const result = await requestCourse(course.id);
+      setEnrollmentStatus(result.enrollmentStatus || "requested");
+      setStatusText("Đã gửi yêu cầu tham gia. Vui lòng chờ GV duyệt.");
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
       setStatusText(error.message || "Không thể gửi yêu cầu tham gia khóa học.");
     }
   };
+
+  const isEnrolled = enrollmentStatus === "enrolled";
+  const isRequested = enrollmentStatus === "requested";
 
   const handleApprove = async (request, isAccepted) => {
     try {
@@ -75,7 +80,7 @@ export default function CoursesScreen() {
           <Text style={demoStyles.subtitle}>{course.title}</Text>
           <View style={demoStyles.badge}>
             <Text style={demoStyles.badgeText}>
-              {isEnrolled ? "Đã tham gia" : "Chưa tham gia"}
+              {isEnrolled ? "Đã tham gia" : isRequested ? "Đang chờ duyệt" : "Chưa tham gia"}
             </Text>
           </View>
         </View>
@@ -98,9 +103,9 @@ export default function CoursesScreen() {
             </View>
           </View>
           <AppButton
-            title={isEnrolled ? "Đang học" : "Xin tham gia"}
+            title={isEnrolled ? "Đang học" : isRequested ? "Đã gửi yêu cầu" : "Xin tham gia"}
             onPress={handleRequestCourse}
-            disabled={isEnrolled}
+            disabled={isEnrolled || isRequested || !course.id}
           />
           {statusText ? <Text style={demoStyles.cardText}>{statusText}</Text> : null}
         </View>

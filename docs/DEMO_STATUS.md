@@ -27,6 +27,10 @@ EXPO_PUBLIC_DATA_SOURCE=server
 - Profile tab calls `get_user_info` and backend logout best-effort.
 - Settings screens exist for profile edit, push settings, password change, device token, version check, and blocks.
 - Conversation list/detail screens exist for read/delete HTTP flows.
+- Existing real HV/GV accounts verified backend login/logout and several authenticated read/lifecycle endpoints.
+- Student course request state now stays pending/requested until GV approval.
+- Post detail edit UI supports optional two-video replacement with the same duration validation rules used by uploads.
+- Notification unread/badge display uses normalized server fields and a `99+` cap.
 
 ## Local Fallback Features
 
@@ -38,13 +42,14 @@ EXPO_PUBLIC_DATA_SOURCE=server
 
 ## Backend-Blocked Or Unverified
 
-- No valid backend token was available during this pass.
-- Successful authenticated responses for feed, post detail, comments, likes, courses, notifications, settings, blocks, and conversations are not token-verified.
+- Fresh signup/verify still requires unused real phone numbers and OTP.
+- Existing real accounts returned no posts/courses/exercises/notifications/conversations, so object-level actions are still data-blocked.
+- Feed, search, and course empty states are token-verified with real accounts.
+- Saved search list, block list, push settings, device token, conversation list, logout, and deployed-compatibility profile/notification/version/check-new-item paths are token-verified with real accounts.
 - Deployed `/it4788/like` returned 404 in prior probe findings.
-- `add_post` appears to require multipart and `device_slave`; successful real upload is not verified.
+- Deployed `/it4788/delete_post` returned 404 in prior probe findings.
+- `add_post` requires multipart and `device_slave`; successful real upload is blocked until real `course_id` and `exercise_id` are available.
 - Full client-side pose scoring is not implemented.
-- Teacher approval dashboard and post edit/delete/report menus need final UI work.
-- Central invalid/stale token handling remains incomplete.
 
 ## Documentation Added For Real Implementation
 
@@ -54,3 +59,4 @@ EXPO_PUBLIC_DATA_SOURCE=server
 - [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md)
 - [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md)
 - [E2E_TEST_REPORT.md](E2E_TEST_REPORT.md)
+- [FRONTEND_SERVER_TEST_REPORT.md](FRONTEND_SERVER_TEST_REPORT.md)

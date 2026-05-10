@@ -22,7 +22,36 @@ docker compose run --rm expo npm run e2e:server
 
 Expected without credentials: the harness reports blocked steps for signup/login/token-required flows. This confirms the harness can run without mutating backend data.
 
-## 3. Real Signup With Manual OTP
+## 3. Existing Real Accounts
+
+Use this path when the team has already provided valid HV/GV accounts. Do not place real credentials in tracked files.
+
+```bash
+docker compose run --rm expo sh -lc '
+  E2E_USE_EXISTING_ACCOUNTS=1 \
+  E2E_HV_PHONE=<provided-hv-phone> \
+  E2E_GV_PHONE=<provided-gv-phone> \
+  E2E_PASSWORD=<provided-password> \
+  npm run e2e:server
+'
+```
+
+Safe lifecycle mutation check:
+
+```bash
+docker compose run --rm expo sh -lc '
+  E2E_USE_EXISTING_ACCOUNTS=1 \
+  E2E_RUN_MUTATIONS=1 \
+  E2E_HV_PHONE=<provided-hv-phone> \
+  E2E_GV_PHONE=<provided-gv-phone> \
+  E2E_PASSWORD=<provided-password> \
+  npm run e2e:server
+'
+```
+
+Final-pass result: existing-account HV/GV login, logout, saved search list, block list, push settings, conversation list, compatibility profile/notification/version/check-new-item reads, and `set_devtoken` were server-verified. The server returned no course/exercise/post objects, so object-level upload/comment/approval flows need seeded backend data.
+
+## 4. Real Signup With Manual OTP
 
 Choose fresh real phone numbers for one HV and one GV.
 
@@ -54,7 +83,7 @@ docker compose run --rm expo sh -lc '
 
 The harness tries common deployed verification field names (`code`, `verify_code`, `code_verify`, `otp`) and records which one works.
 
-## 4. Optional Enrollment And Upload Mutations
+## 5. Optional Enrollment And Upload Mutations
 
 After HV/GV accounts exist, provide course and video inputs:
 
@@ -81,7 +110,7 @@ Video requirements:
 - similar duration
 - real file paths mounted into the Docker container
 
-## 5. Manual Browser Smoke
+## 6. Manual Browser Smoke
 
 1. Start the app:
 
@@ -109,6 +138,7 @@ Video requirements:
 
 ## Current Expected Blockers
 
-- Valid HV/GV phone numbers and OTP codes are not available in this repository session.
+- Fresh signup still requires unused HV/GV phone numbers and OTP codes.
+- Existing real accounts currently return no real post/course/exercise objects.
 - Deployed `/it4788/like` and `/it4788/delete_post` have returned 404 in prior probes.
 - Full client-side pose scoring is not implemented.

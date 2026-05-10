@@ -73,7 +73,7 @@ export default function SignupBirthdayScreen() {
     scrollToIndex(dayRef, dayIndex);
     scrollToIndex(monthRef, monthIndex);
     scrollToIndex(yearRef, yearIndex);
-  }, []);
+  }, [day, days.length, month, months.length, year, years]);
 
   useEffect(() => {
     if (day > days.length) {
@@ -99,8 +99,6 @@ export default function SignupBirthdayScreen() {
   };
 
   const handleSubmit = () => {
-    const selectedDate = new Date(year, month - 1, day);
-
     setError("");
     const birthday = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
@@ -108,6 +106,8 @@ export default function SignupBirthdayScreen() {
       pathname: "/(auth)/signup",
       params: {
         birthday,
+        phonenumber,
+        signupRequestId,
         username,
         height,
         role,

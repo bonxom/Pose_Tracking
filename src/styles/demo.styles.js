@@ -114,6 +114,20 @@ const demoStyles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.primary,
   },
+  notificationBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    paddingHorizontal: sizes.xs,
+  },
+  notificationBadgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "800",
+  },
   input: {
     minHeight: 44,
     borderRadius: sizes.radiusMd,

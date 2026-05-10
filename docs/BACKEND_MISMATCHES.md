@@ -22,10 +22,27 @@ These notes come from the deployed backend probe against `http://group1.it4788.s
 | check_new_item auth | Authenticated freshness check expected with session token | Deployed runtime rejects `token` with `property token should not exist`; earlier no-token probe returned `1000 OK` | Repository sends `token` first per spec, then retries without token as an isolated compatibility workaround |
 | change_info_after_signup payload | Profile completion should be reconciled with auth slides; `set_user_info` uses `user_name/avatar/cover_image` | Deployed `change_info_after_signup` rejects `user_name` before token validation | Auth adapter tries spec-style fields first, then deployed legacy `username/height/avatar` shape |
 | set_request_course payload | Course request expected with course metadata | Deployed probe reaches token validation only with both `course_id` and `user_id` | Repository sends `course_id` and actual session `user_id`; no longer sends course id as user id |
+| get_list_courses_of_student params | Slides specify `token` + `user_id` | Runtime existing-account tests returned clean empty state only when compatibility pagination fields were also included | Repository sends `user_id` plus string `index`/`count` compatibility fields |
+| search payload | General search and profile search are spec flows | Runtime requires/accepts `user_id` in existing-account checks | Repository includes the current session user id for normal and profile search |
+| check_new_version field | Slides use snake-case freshness field style (`last_update`) | Runtime rejects `last_update` and accepts `lastUpdate` | Repository tries spec payload first, then isolated camelCase compatibility retry |
+| get_user_info field | Slides specify `token` + `user_id` | Runtime rejects `user_id` with `property user_id should not exist` | Repository tries spec payload first, then compatibility retry without `user_id` |
+| get_notification field | Slides include `last_update` for notification cache behavior | Runtime rejects `last_update` and accepts request without it | Repository tries spec payload first, then compatibility retry without `last_update` |
+| set_devtoken payload | Device token registration is required in lifecycle | Runtime requires numeric `devtype`; non-numeric values are rejected | Repository and probe send `devtype: "1"` |
 
-## Unverified Due To Missing Valid Token
+## Real Existing-Account Runtime Findings
 
-- Successful backend login response shape and token field.
+The team-provided HV/GV accounts were used through environment variables only. Both accounts successfully logged in with backend code `1000` and produced real tokens.
+
+Authenticated read/write findings:
+
+- `get_list_posts`, `search`, and `get_list_courses_of_student` returned `9994 No data`, so real object detail/pagination flows could not be exercised.
+- `get_saved_search`, `get_list_blocks`, `get_push_settings`, `get_list_conversation`, deployed-compatible `get_user_info`, deployed-compatible `get_notification`, deployed-compatible `check_new_item`, and deployed-compatible `check_new_version` returned backend code `1000`.
+- `set_devtoken` returned backend code `1000` after adding numeric `devtype`.
+- HV receives `1009 Not access` for teacher-only `get_list_students` and `get_requested_enrollment`; GV receives empty data for those flows.
+- Real upload remains blocked by missing real `course_id` and `exercise_id` from the existing-account server data, not by a frontend placeholder path.
+
+## Still Unverified Or Blocked
+
 - Real signup/verify/profile-completion flow for a fresh HV/GV.
 - Real server feed shape from `get_list_posts`.
 - Real post detail shape from `get_post`, including `time_series_poses`.

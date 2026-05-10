@@ -328,6 +328,7 @@ const endpointSpecs = [
     body: ({ token }) => ({
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
       devtoken: loginBody.devtoken,
+      devtype: "1",
     }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,

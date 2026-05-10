@@ -73,6 +73,7 @@ The app is a React Native / Expo social learning system for `Tap dong tac dieu b
 - `get_list_blocks` uses `token`, `index`, `count`, and `user_id`.
 - `set_approve_enrollment` uses `token`, `user_id`, and `is_accept`.
 - `set_request_course` should request course membership; deployed field details must be verified with valid accounts.
+- Sending a course request must not mark an HV as enrolled until GV approval is confirmed; the intermediate UI state is pending/requested.
 - Teacher sees pending enrollment requests and accepts/rejects them.
 - Block list must de-duplicate users and support block/unblock.
 
@@ -80,6 +81,7 @@ The app is a React Native / Expo social learning system for `Tap dong tac dieu b
 
 - `get_notification` includes `notification_id`, `type`, `object_id`, `title`, `created`, `avatar`, `group`, `read`, `badge`, and `last_update`.
 - Notification list supports read/unread state, badges, pull-down refresh, pull-up pagination, and navigation by `type`/`object_id`/`group`.
+- Badge display should cap large counts at `99+` while preserving the raw server value internally when returned.
 - `set_read_notification` marks a notification read.
 - Notification cache behavior should follow the weekly slides; the current app normalizes these fields and keeps screen-level state.
 

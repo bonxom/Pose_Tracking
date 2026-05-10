@@ -20,16 +20,14 @@ Override when needed:
 EXPO_PUBLIC_API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788 docker compose up
 ```
 
-## Demo Accounts
+## Developer Local Demo Accounts
 
 ```text
 Student HV: 0900000001 / 123456
 Teacher GV: 0900000002 / 123456
 ```
 
-The login screen also has visible demo-account buttons for developer fallback.
-
-Important: these demo shortcuts are explicitly local and do not prove backend integration. The normal login form attempts backend login in the normal `server` mode.
+Important: these demo shortcuts are explicitly local and do not prove backend integration. In normal `server` mode, developer fallback controls are visually separated from the real login form.
 
 ## Data Source Modes
 
@@ -99,6 +97,15 @@ Run lint inside Docker:
 docker compose run --rm expo npm run lint
 ```
 
+Align Expo package versions after SDK updates:
+
+```bash
+docker compose run --rm expo sh -lc 'npx expo install --fix'
+docker compose run --rm expo sh -lc 'npx expo-doctor'
+```
+
+Latest result in this pass: `expo-doctor` reported `18/18 checks passed`.
+
 Probe the deployed backend contract:
 
 ```bash
@@ -158,6 +165,7 @@ docker compose up
 - Server-first repositories are wired into actual UI paths: login/signup, feed, post detail, likes, comments, search, courses/enrollment, notifications, profile, settings, blocks, conversations, and exercise submission.
 - `add_post` uses multipart in server-backed sessions with real selected videos.
 - `backendStatus` no longer treats unauthenticated `get_list_posts` as a generic reachability probe.
+- Existing real HV/GV accounts have verified server login/logout, saved-search list, block list, push settings, device token registration, conversation list, and deployed-compatibility profile/notification/version/check-new-item reads.
 
 ## Local Fallback And Development-Only Parts
 
@@ -175,7 +183,8 @@ docker compose up
 - `/it4788/like` returned 404 during the probe.
 - `get_list_posts` worked best with form-urlencoded string values.
 - `add_post` requires multipart and `device_slave`.
-- All 40 APIs are now represented in the probe script, but most authenticated success paths remain unverified without a valid token.
+- Existing real accounts verified several authenticated paths, but returned no posts/courses/exercises, so object-specific flows remain data-blocked.
+- Deployed runtime differs from the slides for `check_new_version.last_update`, `get_user_info.user_id`, `get_notification.last_update`, and `check_new_item.token`; repositories keep spec-shaped calls first and isolate compatibility retries.
 
 See [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md) and [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md).
 
@@ -190,16 +199,15 @@ See [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md) and [BACKEND_MISMAT
 
 ## Known Gaps Versus Backend/API Source Of Truth
 
-- No valid backend test account/token was available in this environment, so most authenticated API success payloads are unverified.
+- Fresh signup/verify requires an unused real phone number and OTP.
+- Real existing accounts returned no post/course/exercise objects, so upload, post detail, comment, notification-read, conversation-detail, and approval flows need seeded backend data or a course fixture.
 - Invalid/stale token handling uses shared `SessionExpiredError` and screen redirects, but there is still no global fetch interceptor.
 - Feed load-more/cache reconciliation is implemented at the Home screen level; deeper persistent disk cache can be added if the slides require it.
-- Teacher approval dashboard, saved-search management, notification cache, and conversation UI are compact rather than full administrative surfaces.
 - Full client-side scoring remains a separate gap unless backend scoring is accepted as authoritative by the course rubric.
 
 ## Recommended Next Phases
 
-1. Obtain or create valid backend GV/HV accounts and rerun `PROBE_MUTATION=1` only for the intended signup/enrollment/upload test path.
-2. Verify successful response shapes for all authenticated APIs and update normalizers.
-3. Finish teacher enrollment approval UI and post action menus.
-4. Centralize invalid-token handling and server error presentation.
-5. Decide whether client-side scoring is required beyond displaying backend scoring fields.
+1. Seed or create a real course/exercise/post set for the provided HV/GV accounts.
+2. Run the E2E harness with real `E2E_COURSE_ID`, `E2E_EXERCISE_ID`, and two video fixtures.
+3. Complete physical-device testing for camera/file picker, native duration metadata, and phone-browser LAN access.
+4. Decide whether full client-side scoring is required beyond displaying backend scoring fields.

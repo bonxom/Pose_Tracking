@@ -84,10 +84,18 @@ export async function changePassword(oldPassword, newPassword) {
 
 export async function checkNewVersion() {
   const session = await getCurrentSession();
-  const response = await backendApi.checkNewVersion({
+  let response = await backendApi.checkNewVersion({
     token: session?.token || "",
     last_update: "2026-05-10T00:00:00.000Z",
   });
+
+  if (String(response?.message || "").includes("property last_update should not exist")) {
+    console.info("[DATA] check_new_version deployed compatibility: retrying with lastUpdate");
+    response = await backendApi.checkNewVersion({
+      token: session?.token || "",
+      lastUpdate: "2026-05-10T00:00:00.000Z",
+    });
+  }
 
   await assertBackendOk(response, { message: "Backend check_new_version failed" });
 
@@ -104,6 +112,7 @@ export async function setDeviceToken(devtoken = DEFAULT_DEVICE_TOKEN) {
   const response = await backendApi.setDevtoken({
     token: session.token,
     devtoken,
+    devtype: "1",
   });
 
   await assertBackendOk(response, { message: "Backend set_devtoken failed" });

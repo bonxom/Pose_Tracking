@@ -36,10 +36,17 @@ export async function getUserInfo(userId = "") {
   }
 
   try {
-    const response = await backendApi.getUserInfo({
+    let response = await backendApi.getUserInfo({
       token: session.token,
       user_id: userId,
     });
+
+    if (String(response?.message || "").includes("property user_id should not exist")) {
+      console.info("[DATA] get_user_info deployed compatibility: retrying without user_id");
+      response = await backendApi.getUserInfo({
+        token: session.token,
+      });
+    }
 
     await assertBackendOk(response, { message: "Backend get_user_info failed" });
 
