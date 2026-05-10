@@ -18,6 +18,7 @@ Audit date: 2026-05-06
 
 - `src/app`: Expo Router route files and layouts.
 - `src/api`: local-first auth plus lightweight backend client helpers.
+- `src/repositories`: server/local adapter layer for UI business flows.
 - `src/services`: local post/comment/feed storage.
 - `src/components`: common UI, post, and profile components.
 - `src/config`: environment config for backend base URL and timeout.
@@ -59,6 +60,8 @@ Audit date: 2026-05-06
 - Automatic local scoring comment for student submissions.
 - Course tab, search tab, notification tab, and menu/profile tab.
 - Lightweight backend API client/config layer with safe fallback behavior.
+- Backend probe script and documented deployed-contract findings.
+- Data-source modes: `auto`, `server`, and `local`.
 - Local persistence for feed data, post drafts, comment drafts, and session.
 - Docker-based Expo Web workflow for host machines without npm.
 
@@ -70,13 +73,14 @@ Audit date: 2026-05-06
 - Post videos are `mock://` placeholders and are not playable uploaded assets.
 - Likes, comments, post creation, and avatar changes are not synced to a server.
 - Course, exercise, notification, enrollment, and search behavior is local-first.
+- Demo-account shortcut auth is explicitly local.
 - Pose scoring comments are simulated demo results, not backend scoring results.
 
 ## Missing Major Product Features
 
-- Real backend auth token lifecycle.
-- Backend-connected teacher/student course enrollment and course detail flows.
-- Backend-connected exercise assignment/submission flow.
+- Verified real backend auth token lifecycle with a valid test account.
+- Fully verified backend-connected teacher/student course enrollment and course detail flows.
+- Fully verified backend-connected exercise assignment/submission flow.
 - Video upload, validation, preview, and backend processing status.
 - Pose comparison/scoring result screens connected to authoritative scoring data.
 - Friends/groups, moderation, full account settings, and real chat.
@@ -85,7 +89,8 @@ Audit date: 2026-05-06
 
 ## Risks
 
-- App behavior depends on local demo response shapes that may not match the deployed backend.
+- Server repository behavior is defensive, but successful backend payload mapping is not verified without a valid token.
+- `/it4788/like` returned 404 during probing, so server likes are wired but likely blocked by deployed route mismatch.
 - Signup flow route names in the existing README were stale compared with actual files; audit docs now list current routes.
 - `expo-secure-store` needs web fallbacks, which are already present in session and post storage helpers.
 - Expo Web can expose native/browser behavior differences for image picker and camera.

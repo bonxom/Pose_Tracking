@@ -120,6 +120,15 @@ export default function PostCard({
         </View>
       ) : null}
 
+      {post.timeSeriesPoses ? (
+        <View style={postStyles.exerciseBanner}>
+          <Text style={postStyles.exerciseBannerTitle}>time_series_poses</Text>
+          <Text style={postStyles.exerciseBannerMeta}>
+            Backend có dữ liệu tư thế theo thời gian cho bài này.
+          </Text>
+        </View>
+      ) : null}
+
       {isSubmissionPost && post.scoreSummary ? (
         <View style={postStyles.scoreSummaryCard}>
           <Text style={postStyles.scoreSummaryNumber}>

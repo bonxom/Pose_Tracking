@@ -2,7 +2,7 @@ import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import PostCard from "@/components/post/PostCard";
 import { DEMO_COURSE } from "@/constants/demo";
-import { searchPosts, toggleLike } from "@/services/postStore";
+import { searchPosts, toggleLike } from "@/repositories/postRepository";
 import demoStyles from "@/styles/demo.styles";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -29,9 +29,9 @@ export default function SearchScreen() {
     runSearch(query);
   }, [query, runSearch]);
 
-  const handleToggleLike = async (postId) => {
-    const updated = await toggleLike(postId);
-    setResults((current) => current.map((item) => (item.id === postId ? updated : item)));
+  const handleToggleLike = async (post) => {
+    const updated = await toggleLike(post);
+    setResults((current) => current.map((item) => (item.id === post.id ? updated : item)));
   };
 
   return (
@@ -63,7 +63,7 @@ export default function SearchScreen() {
             post={post}
             onPress={() => router.push(`/post/${post.id}`)}
             onPressComment={() => router.push(`/comment/${post.id}`)}
-            onToggleLike={() => handleToggleLike(post.id)}
+            onToggleLike={() => handleToggleLike(post)}
             onSubmitExercise={() =>
               router.push({
                 pathname: "/post/create",

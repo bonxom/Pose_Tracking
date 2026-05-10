@@ -1,7 +1,7 @@
 import AppButton from "@/components/common/AppButton";
 import Screen from "@/components/common/Screen";
 import PostCard from "@/components/post/PostCard";
-import { getFeedPage, toggleLike } from "@/services/postStore";
+import { getFeedPage, toggleLike } from "@/repositories/postRepository";
 import homeStyles from "@/styles/home.styles";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -9,15 +9,21 @@ import { ActivityIndicator, FlatList, Text, View } from "react-native";
 
 export default function HomeScreen() {
   const [posts, setPosts] = useState([]);
+  const [sourceLabel, setSourceLabel] = useState("Nguồn dữ liệu: Demo local");
+  const [errorText, setErrorText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const loadPosts = useCallback(async () => {
     try {
       setIsLoading(true);
+      setErrorText("");
       const result = await getFeedPage({ index: 0, count: 10 });
       setPosts(result.items || []);
+      setSourceLabel(result.sourceLabel || "Nguồn dữ liệu: Demo local");
     } catch (error) {
       console.warn("Failed to load posts:", error);
+      setSourceLabel("Nguồn dữ liệu: Server lỗi");
+      setErrorText(error.message || "Không thể tải dữ liệu backend.");
     } finally {
       setIsLoading(false);
     }
@@ -29,11 +35,11 @@ export default function HomeScreen() {
     }, [loadPosts])
   );
 
-  const handleToggleLike = async (postId) => {
+  const handleToggleLike = async (post) => {
     try {
-      const updatedPost = await toggleLike(postId);
+      const updatedPost = await toggleLike(post);
       setPosts((prevPosts) =>
-        prevPosts.map((p) => (p.id === postId ? updatedPost : p))
+        prevPosts.map((p) => (p.id === post.id ? updatedPost : p))
       );
     } catch (error) {
       console.warn("Failed to toggle like:", error);
@@ -77,6 +83,10 @@ export default function HomeScreen() {
           <Text style={homeStyles.subtitle}>
             Bài tập diễu binh, bài nộp học viên và kết quả chấm tự động
           </Text>
+          <Text style={homeStyles.sourceLabel}>{sourceLabel}</Text>
+          {errorText ? (
+            <Text style={homeStyles.errorText}>{errorText}</Text>
+          ) : null}
         </View>
 
         <FlatList
@@ -86,7 +96,7 @@ export default function HomeScreen() {
             <PostCard
               post={item}
               onPress={() => handlePostPress(item.id)}
-              onToggleLike={() => handleToggleLike(item.id)}
+              onToggleLike={() => handleToggleLike(item)}
               onPressComment={() => handleCommentPress(item.id)}
               onSubmitExercise={() => handleSubmitExercise(item)}
             />

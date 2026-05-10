@@ -1,13 +1,26 @@
 import Screen from "@/components/common/Screen";
-import { DEMO_NOTIFICATIONS } from "@/constants/demo";
+import { getNotifications } from "@/repositories/notificationRepository";
 import demoStyles from "@/styles/demo.styles";
-import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 export default function NotificationsScreen() {
-  const [items, setItems] = useState(DEMO_NOTIFICATIONS);
+  const [items, setItems] = useState([]);
   const unreadCount = useMemo(() => items.filter((item) => item.unread).length, [items]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadNotifications = async () => {
+        try {
+          setItems(await getNotifications());
+        } catch (error) {
+          console.warn("Failed to load notifications:", error);
+        }
+      };
+      loadNotifications();
+    }, []),
+  );
 
   const openNotification = (item) => {
     setItems((current) =>

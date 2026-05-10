@@ -1,7 +1,8 @@
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
-import { addComment, getComments } from "@/services/postStore";
+import { addComment, getComments } from "@/repositories/commentRepository";
+import { getPostById } from "@/repositories/postRepository";
 import postStyles from "@/styles/post.styles";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -10,6 +11,7 @@ import { ActivityIndicator, Alert, FlatList, Text, View } from "react-native";
 export default function CommentScreen() {
   const { postId } = useLocalSearchParams();
   const [comments, setComments] = useState([]);
+  const [post, setPost] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,7 +19,9 @@ export default function CommentScreen() {
   const loadComments = useCallback(async () => {
     try {
       setIsLoading(true);
-      const result = await getComments(postId, { index: 0, count: 50 });
+      const loadedPost = await getPostById(postId);
+      setPost(loadedPost);
+      const result = await getComments(loadedPost || postId, { index: 0, count: 50 });
       setComments(result.comments || []);
     } catch (error) {
       console.warn("Failed to load comments:", error);
@@ -38,7 +42,7 @@ export default function CommentScreen() {
 
     try {
       setIsSubmitting(true);
-      const result = await addComment(postId, commentText);
+      const result = await addComment(post || postId, commentText);
       if (result.comment) {
         setComments((prevComments) => [...prevComments, result.comment]);
         setCommentText("");

@@ -27,6 +27,23 @@ const homeStyles = StyleSheet.create({
     color: colors.subtext,
     marginTop: sizes.xs,
   },
+  sourceLabel: {
+    alignSelf: "flex-start",
+    marginTop: sizes.sm,
+    borderRadius: 999,
+    backgroundColor: colors.primaryLight,
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "800",
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.xs,
+  },
+  errorText: {
+    marginTop: sizes.sm,
+    color: colors.error,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   buttonSpacing: {
     height: sizes.md,
   },

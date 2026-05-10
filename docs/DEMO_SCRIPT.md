@@ -19,13 +19,17 @@ http://localhost:8081
 
 ## 2. Demo Account
 
-Use the visible `Use demo student account` button on the login screen, or type:
+Use the visible `Use demo student account` button on the login screen.
+
+The local demo credentials are:
 
 ```text
 Phone: 0900000001
 Password: 123456
 Role: HV
 ```
+
+For tomorrow morning, use the visible demo shortcut. The normal login form now attempts backend login first in `auto` and `server` modes, and the deployed backend did not validate these local demo phone numbers during probing.
 
 Optional teacher account:
 
@@ -71,9 +75,10 @@ Kết quả chấm tự động: 86/100. Lỗi chính: tay phải chưa thẳng 
 
 ## 4. Known Demo-Only Limitations To Mention
 
-- The main demo flow is local-first so it remains reliable without backend test accounts, CORS fixes, or stable API contracts.
+- The app is now server-first hybrid, but the visible demo-account buttons intentionally use local demo mode.
+- The deployed backend was reachable, but the local demo credentials returned `9995 User is not validated`, so a real server login was not verified.
 - Video attachments are web-safe placeholders, not real uploaded files.
 - The score is a realistic simulation, not a real pose-estimation result.
 - Likes, comments, notifications, enrollment, and submissions are stored locally in the browser/native storage.
-- A lightweight backend API client exists, but only auth attempts backend opportunistically when local demo credentials do not match.
+- Backend repositories are wired for auth/feed/post/comment/like/add_post, but server flows need a valid backend token to exercise fully.
 - Real upload, scoring pipeline, push notifications, and chat should be integrated after the demo.

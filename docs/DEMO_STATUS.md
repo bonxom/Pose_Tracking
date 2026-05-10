@@ -5,6 +5,9 @@ Status date: 2026-05-06
 ## Completed Demo Features
 
 - Docker-based Expo Web workflow remains the required run path.
+- Server-first hybrid data-source modes: `auto`, `server`, and `local`.
+- Backend probe script and contract report.
+- Repository adapters are wired into actual auth/feed/post/comment/course/notification UI paths.
 - Demo-ready login screen with visible HV and GV demo account shortcuts.
 - Local session persistence on web.
 - Five bottom tabs: Home, Courses, Search, Notifications, Menu/Profile.
@@ -21,6 +24,7 @@ Status date: 2026-05-06
 
 ## Local Or Mock Features
 
+- Demo-account shortcut buttons are explicitly local.
 - Demo users, course, exercises, notifications, conversations, scoring templates, and video placeholders are seeded locally.
 - Feed persistence, post creation, likes, comments, submission creation, enrollment changes, and notification read state use local storage.
 - Video upload is represented by two placeholder cards: `Góc quay trái` and `Góc quay phải`.
@@ -28,7 +32,7 @@ Status date: 2026-05-06
 - Signup remains a draft mock flow and is preserved for continuity.
 - Demo chat data exists as constants, but no full chat route was added in this urgent pass.
 
-## Backend-Opportunistic Behavior
+## Backend-Integrated Or Backend-Ready Behavior
 
 - Backend base URL defaults to:
 
@@ -36,16 +40,16 @@ Status date: 2026-05-06
 http://group1.it4788.sukkaito.id.vn/it4788
 ```
 
-- `EXPO_PUBLIC_API_BASE_URL` can override the base URL.
-- `src/api/client.js` includes safe URL joining, timeout, POST helper, safe JSON parsing, and normalized errors.
-- Prepared endpoints include login, list posts, post detail, like, get comments, and set comment.
-- Login accepts known demo users locally first. Unknown local users may attempt backend login, then fail safely back to demo behavior.
-- The core demo path does not require backend availability.
+- `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_DATA_SOURCE`, `EXPO_PUBLIC_API_TIMEOUT_MS`, and `EXPO_PUBLIC_API_DEBUG` are supported.
+- `src/api/client.js` includes JSON, form-urlencoded, and multipart helpers.
+- Repository-backed UI paths include login, feed, post detail, like, comments, search, courses, notifications, and add_post best-effort.
+- Normal login attempts backend first in `auto`/`server`; demo shortcut login is local by design.
+- A valid backend token was not available during this pass, so successful server feed/post/comment/like behavior is wired but not end-to-end verified.
 
 ## Known Gaps After This MVP
 
 - No real backend token lifecycle, refresh, or authenticated request headers.
-- No contract-mapped backend feed, post creation, comment, like, course, notification, or enrollment integration.
+- No verified successful backend feed, post creation, comment, like, course, notification, or enrollment flow because demo credentials were not backend-valid.
 - No real media picker/upload path for web demo submissions.
 - No real pose-estimation or scoring service integration.
 - No teacher content-management flow beyond seeded exercise posts.

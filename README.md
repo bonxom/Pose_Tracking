@@ -8,7 +8,7 @@ Backend chính thức cho các bước tích hợp sau:
 http://group1.it4788.sukkaito.id.vn
 ```
 
-Hiện tại frontend dùng chiến lược local-first để giữ demo web chạy ổn định. Lớp API backend đã được chuẩn bị theo hướng opportunistic fallback, nhưng luồng demo chính không phụ thuộc backend.
+Hiện tại frontend dùng chiến lược server-first hybrid: ưu tiên backend khi có session server thật, nhưng vẫn giữ local demo fallback để buổi demo không phụ thuộc tài khoản test/CORS/contract backend.
 
 ## Công nghệ chính
 
@@ -41,6 +41,20 @@ GV: 0900000002 / 123456
 ```
 
 Xem thêm hướng dẫn và troubleshooting trong [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Kịch bản click demo sáng mai nằm ở [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+
+## Data source modes
+
+```bash
+EXPO_PUBLIC_DATA_SOURCE=auto   # mặc định: server nếu có token thật, fallback local
+EXPO_PUBLIC_DATA_SOURCE=server # chỉ backend, lỗi rõ ràng nếu backend/token không hợp lệ
+EXPO_PUBLIC_DATA_SOURCE=local  # demo local như MVP trước
+```
+
+Backend probe:
+
+```bash
+docker compose run --rm expo npm run backend:probe
+```
 
 ## Cách chạy nếu có npm trên host
 
@@ -99,6 +113,7 @@ Pose_Tracking/
 │   │   └── mocks/users.js         # dữ liệu user giả lập
 │   ├── config/
 │   │   └── env.js                 # API base URL and timeout config
+│   ├── repositories/              # server/local adapters for app flows
 │   ├── styles/
 │   │   ├── auth/                  # style cho từng màn auth
 │   │   ├── common/
@@ -171,6 +186,9 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
 - [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md): exact morning demo runbook and click path.
 - [docs/DEMO_STATUS.md](docs/DEMO_STATUS.md): completed features, local/mock features, backend behavior, known gaps.
 - [docs/FRONTEND_BASELINE_AUDIT.md](docs/FRONTEND_BASELINE_AUDIT.md): tech stack, routes, implemented features, mock/local-only parts, risks.
+- [docs/BACKEND_CONTRACT_REPORT.md](docs/BACKEND_CONTRACT_REPORT.md): deployed backend probe results.
+- [docs/BACKEND_MISMATCHES.md](docs/BACKEND_MISMATCHES.md): known deployed/backend-doc mismatches.
+- [docs/MOBILE_TESTING.md](docs/MOBILE_TESTING.md): physical phone browser and best-effort Expo Go instructions.
 
 ## Ghi chú
 
@@ -178,4 +196,4 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
   - `@/*` -> `src/*`
   - `@/assets/*` -> `assets/*`
 - `example/` chỉ là code mẫu, không phải luồng chính của ứng dụng hiện tại.
-- Backend thật đã có client/config chuẩn bị, nhưng demo chính vẫn local-first để tránh CORS, tài khoản test, hoặc API contract mismatch làm hỏng buổi demo.
+- Backend thật đã có repository integration cho auth/feed/post/comment/like/add_post best-effort. Không có token server hợp lệ trong lần probe, nên demo mặc định vẫn an toàn qua `auto` + local fallback.

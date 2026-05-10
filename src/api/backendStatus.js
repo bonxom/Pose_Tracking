@@ -1,20 +1,68 @@
 import { API_BASE_URL } from "@/config/env";
 import { backendApi } from "@/api/client";
+import { getDataSourceMode, hasServerSession } from "@/repositories/source";
 
-export async function checkBackendStatus() {
-  try {
-    await backendApi.getListPosts({ index: 0, count: 1 });
+export async function checkBackendStatus(session = null) {
+  if (getDataSourceMode() === "local") {
     return {
       ok: true,
       baseUrl: API_BASE_URL,
-      mode: "backend",
-      message: "Backend reachable",
+      state: "local-fallback",
+      mode: "local",
+      message: "Configured for local demo data",
+    };
+  }
+
+  try {
+    const loginProbe = await backendApi.login({
+      phonenumber: "0000000000",
+      password: "probe",
+      devtoken: "expo-web-demo",
+    });
+
+    const reachable = Boolean(loginProbe?.code || loginProbe?.message);
+
+    if (session && hasServerSession(session)) {
+      try {
+        await backendApi.getListPosts({
+          token: session.token,
+          index: "0",
+          count: "1",
+          last_id: "",
+          category_id: "",
+        });
+
+        return {
+          ok: true,
+          baseUrl: API_BASE_URL,
+          state: "authenticated",
+          mode: "server",
+          message: "Backend reachable with current session",
+        };
+      } catch (authError) {
+        return {
+          ok: false,
+          baseUrl: API_BASE_URL,
+          state: "contract-error",
+          mode: "server",
+          message: authError.message || "Backend session check failed",
+        };
+      }
+    }
+
+    return {
+      ok: reachable,
+      baseUrl: API_BASE_URL,
+      state: reachable ? "reachable" : "contract-error",
+      mode: "auto",
+      message: reachable ? "Backend login route reachable" : "Backend returned unexpected response",
     };
   } catch (error) {
     return {
       ok: false,
       baseUrl: API_BASE_URL,
-      mode: "local-demo",
+      state: "unavailable",
+      mode: "local-fallback",
       message: error.message || "Using local demo fallback",
     };
   }

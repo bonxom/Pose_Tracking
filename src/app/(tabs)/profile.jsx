@@ -4,6 +4,7 @@ import { DEMO_COURSE } from "@/constants/demo";
 import demoStyles from "@/styles/demo.styles";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import { getInitials } from "@/utils/formatters";
+import { getSourceLabel } from "@/repositories/source";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -67,7 +68,9 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={demoStyles.badge}>
-            <Text style={demoStyles.badgeText}>Demo mode</Text>
+            <Text style={demoStyles.badgeText}>
+              {session?.demoMode ? "Demo mode" : getSourceLabel(session?.source)}
+            </Text>
           </View>
         </View>
 

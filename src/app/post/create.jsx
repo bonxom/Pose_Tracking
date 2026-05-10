@@ -2,8 +2,9 @@ import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import { DEMO_COURSE, DEMO_EXERCISES, DEMO_VIDEO_PLACEHOLDERS } from "@/constants/demo";
-import { createExerciseSubmission, createPost, getPostById } from "@/services/postStore";
+import { createExerciseSubmission, createPost, getPostById } from "@/repositories/postRepository";
 import postStyles from "@/styles/post.styles";
+import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
@@ -44,6 +45,35 @@ export default function CreatePostScreen() {
 
   const useBothDemoVideos = () => {
     setSelectedVideos(DEMO_VIDEO_PLACEHOLDERS);
+  };
+
+  const pickRealVideo = async (slotIndex) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      quality: 1,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    const video = {
+      id: `real_video_${slotIndex}_${Date.now()}`,
+      uri: asset.uri,
+      name: asset.fileName || `real-video-${slotIndex + 1}.mp4`,
+      mimeType: asset.mimeType || "video/mp4",
+      angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
+      duration: asset.duration || 0,
+      fileSize: asset.fileSize || 0,
+    };
+
+    setSelectedVideos((current) => {
+      const next = [...current];
+      next[slotIndex] = video;
+      return next.filter(Boolean).slice(0, 2);
+    });
   };
 
   const handleCreatePost = async () => {
@@ -165,6 +195,20 @@ export default function CreatePostScreen() {
             <Text style={postStyles.slotHint}>
               Đã chọn {selectedVideos.length}/2 video. Web demo không cần mở file picker.
             </Text>
+            <View style={postStyles.actionRow}>
+              <AppButton
+                title="Chọn video thật 1"
+                onPress={() => pickRealVideo(0)}
+                style={[postStyles.actionButton, postStyles.secondaryButton]}
+                textStyle={postStyles.secondaryButtonText}
+              />
+              <AppButton
+                title="Chọn video thật 2"
+                onPress={() => pickRealVideo(1)}
+                style={[postStyles.actionButton, postStyles.secondaryButton]}
+                textStyle={postStyles.secondaryButtonText}
+              />
+            </View>
           </View>
         ) : null}
 

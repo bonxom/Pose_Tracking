@@ -1,6 +1,6 @@
 # Development Workflow
 
-This repository is a React Native / Expo Router frontend for the IT4788 marching/parade pose-training social app. The urgent demo strategy is local-first: the app should look and behave like a real Facebook-style learning social app even if the deployed backend is unavailable, blocked by CORS, or returns a different contract than expected.
+This repository is a React Native / Expo Router frontend for the IT4788 marching/parade pose-training social app. The current strategy is server-first hybrid: use the deployed backend when a real server session exists, but keep the local demo fallback so the app remains demo-safe if backend auth, routes, CORS, or contracts fail.
 
 Backend source of truth for future integration:
 
@@ -28,6 +28,32 @@ Teacher GV: 0900000002 / 123456
 ```
 
 The login screen also has visible demo-account buttons, so the morning demo can start without typing credentials.
+
+Important: these demo shortcuts are explicitly local. The normal login form attempts backend login first in `auto` and `server` modes.
+
+## Data Source Modes
+
+Default:
+
+```bash
+EXPO_PUBLIC_DATA_SOURCE=auto
+```
+
+Modes:
+
+- `auto`: use server repositories only when a real server session/token exists; fall back to local demo data if a backend call fails.
+- `server`: use backend repositories and show safe errors if backend/token/contracts fail.
+- `local`: preserve the local demo behavior exactly.
+
+Optional config:
+
+```bash
+EXPO_PUBLIC_API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788
+EXPO_PUBLIC_API_TIMEOUT_MS=4500
+EXPO_PUBLIC_API_DEBUG=1
+```
+
+The Home/Menu UI shows a small data-source label such as `Nguồn dữ liệu: Server`, `Local fallback`, or `Demo local`.
 
 ## Run With Docker
 
@@ -73,6 +99,18 @@ Run lint inside Docker:
 docker compose run --rm expo npm run lint
 ```
 
+Probe the deployed backend contract:
+
+```bash
+docker compose run --rm expo npm run backend:probe
+```
+
+Compact probe output:
+
+```bash
+docker compose run --rm expo sh -lc 'PROBE_COMPACT=1 npm run backend:probe'
+```
+
 Clear the Expo cache inside Docker:
 
 ```bash
@@ -96,6 +134,8 @@ docker compose up
 ## Current Implemented Demo Features
 
 - Demo login for HV and GV accounts, with web session persistence.
+- Normal login attempts backend first in `auto`/`server` modes.
+- Repository layer for auth, posts, comments, courses, notifications, and server/local fallback.
 - Five-tab app shell: Home, Courses, Search, Notifications, Menu/Profile.
 - Facebook-like local home feed with teacher exercise posts and student submission posts.
 - Teacher exercise cards with course/exercise metadata, hashtags, two video placeholders, and a clear `Nộp bài` action.
@@ -107,6 +147,14 @@ docker compose up
 - Notifications tab with local unread/read behavior and simple navigation targets.
 - Menu/Profile tab with logged-in user info, demo-mode label, navigation rows, and logout.
 
+## Server-Integrated Or Server-Ready Parts
+
+- Backend probe script: `scripts/probe-backend.mjs`.
+- API client supports JSON, form-urlencoded, and multipart requests.
+- Server-first repositories are wired into actual UI paths: login, feed, post detail, likes, comments, search, courses, notifications, and exercise submission.
+- `add_post` uses multipart in server-backed sessions with real selected videos.
+- `backendStatus` no longer treats unauthenticated `get_list_posts` as a generic reachability probe.
+
 ## Mock And Local-Only Parts
 
 - Demo users, course, exercises, notifications, conversations, video placeholders, and scoring templates come from `src/constants/demo.js`.
@@ -116,13 +164,16 @@ docker compose up
 - Pose scoring is a realistic fixed simulation, not a real pose-estimation algorithm.
 - Chat data is prepared as demo constants, but no real socket chat is implemented.
 
-## Backend-Opportunistic Behavior
+## Backend Contract Findings
 
-- `src/config/env.js` defines `API_BASE_URL` and `API_TIMEOUT_MS`.
-- `src/api/client.js` provides safe URL joining, POST helper, timeout, safe JSON parsing, and normalized `ApiError` objects.
-- Prepared backend endpoint functions: `login`, `get_list_posts`, `get_post`, `like`, `get_comment`, and `set_comment`.
-- `src/api/auth.js` accepts known local demo users first. If a user is not found locally, it attempts backend login and falls back safely if the backend is unreachable or malformed.
-- The main demo feed, submission, search, notifications, and course screens do not require backend success.
+- `/it4788/login` is active; `/login` is not.
+- Login requires `devtoken`.
+- The local demo credentials are not validated backend accounts.
+- `/it4788/like` returned 404 during the probe.
+- `get_list_posts` worked best with form-urlencoded string values.
+- `add_post` requires multipart and `device_slave`.
+
+See [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md) and [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md).
 
 ## Troubleshooting Expo In Docker
 

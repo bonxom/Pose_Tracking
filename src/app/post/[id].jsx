@@ -2,7 +2,8 @@ import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import PostCard from "@/components/post/PostCard";
-import { addComment, getComments, getPostById, toggleLike } from "@/services/postStore";
+import { addComment, getComments } from "@/repositories/commentRepository";
+import { getPostById, toggleLike } from "@/repositories/postRepository";
 import postStyles from "@/styles/post.styles";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -20,7 +21,7 @@ export default function PostDetailScreen() {
       setIsLoading(true);
       const data = await getPostById(id);
       setPost(data);
-      const commentResult = await getComments(id, { index: 0, count: 50 });
+      const commentResult = await getComments(data || id, { index: 0, count: 50 });
       setComments(commentResult.comments || []);
     } catch (error) {
       console.warn("Failed to load post:", error);
@@ -36,7 +37,7 @@ export default function PostDetailScreen() {
   const handleToggleLike = async () => {
     if (!post) return;
     try {
-      const updatedPost = await toggleLike(post.id);
+      const updatedPost = await toggleLike(post);
       setPost(updatedPost);
     } catch (error) {
       console.warn("Failed to toggle like:", error);
@@ -63,7 +64,7 @@ export default function PostDetailScreen() {
       return;
     }
 
-    const result = await addComment(post.id, commentText);
+    const result = await addComment(post, commentText);
     if (result.comment) {
       setComments((current) => [...current, result.comment]);
       setCommentText("");

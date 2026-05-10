@@ -1,6 +1,5 @@
-import authApi from "@/api/auth";
 import Screen from "@/components/common/Screen";
-import { DEMO_STUDENT, DEMO_TEACHER } from "@/constants/demo";
+import { loginDemoStudent, loginDemoTeacher, loginWithPassword } from "@/repositories/authRepository";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -42,6 +41,7 @@ export default function LoginScreen() {
         avatar: data.avatar,
         height: data.height,
         handle: data.handle,
+        source: data.source,
         demoMode: Boolean(data.demoMode),
         loggedInAt: new Date().toISOString(),
       });
@@ -52,24 +52,16 @@ export default function LoginScreen() {
     router.replace("/(tabs)/home");
   };
 
-  const handleDemoLogin = async (demoUser) => {
-    setPhoneNumber(demoUser.phonenumber);
-    setPassword(demoUser.password);
+  const handleDemoLogin = async (loginFn, phone, password) => {
+    setPhoneNumber(phone);
+    setPassword(password);
     setPhoneNumberError("");
     setPasswordError("");
-    await persistAndNavigate({
-      id: demoUser.id,
-      token: `${demoUser.role.toLowerCase()}_demo_token`,
-      phonenumber: demoUser.phonenumber,
-      identifier: demoUser.phonenumber,
-      username: demoUser.displayName || demoUser.username,
-      displayName: demoUser.displayName || demoUser.username,
-      role: demoUser.role,
-      avatar: demoUser.avatar,
-      height: demoUser.height,
-      handle: demoUser.handle,
-      demoMode: true,
-    });
+    const response = await loginFn();
+
+    if (response.code === "1000") {
+      await persistAndNavigate(response.data);
+    }
   };
 
   const handleLogin = async () => {
@@ -90,7 +82,7 @@ export default function LoginScreen() {
     // Gọi Mock API
     setIsLoading(true);
     try {
-      const response = await authApi.login(normalizedPhone, normalizedPassword);
+      const response = await loginWithPassword(normalizedPhone, normalizedPassword);
 
       switch (response.code) {
         case "1000": {
@@ -105,7 +97,7 @@ export default function LoginScreen() {
         }
         case "9995":
           // Chưa được đăng ký
-          setPhoneNumberError("Tài khoản chưa được đăng ký trên hệ thống.");
+          setPhoneNumberError("Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.");
           break;
         case "1004":
           // Format sai hoặc mật khẩu sai
@@ -195,7 +187,7 @@ export default function LoginScreen() {
       <View style={{ gap: 10, marginTop: 12 }}>
         <Pressable
           style={[styles.createButton, { borderColor: "#2563EB" }]}
-          onPress={() => handleDemoLogin(DEMO_STUDENT)}
+          onPress={() => handleDemoLogin(loginDemoStudent, "0900000001", "123456")}
           disabled={isLoading}
         >
           <Text style={styles.createText}>
@@ -204,7 +196,7 @@ export default function LoginScreen() {
         </Pressable>
         <Pressable
           style={[styles.createButton, { borderColor: "#94A3B8" }]}
-          onPress={() => handleDemoLogin(DEMO_TEACHER)}
+          onPress={() => handleDemoLogin(loginDemoTeacher, "0900000002", "123456")}
           disabled={isLoading}
         >
           <Text style={styles.createText}>

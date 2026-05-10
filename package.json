@@ -9,6 +9,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "web:docker": "WEB_HOST=0.0.0.0 expo start --web --lan --port 8081",
+    "mobile:lan": "expo start --lan --port 8081",
+    "mobile:tunnel": "expo start --tunnel",
+    "backend:probe": "node scripts/probe-backend.mjs",
     "lint": "expo lint"
   },
   "dependencies": {
