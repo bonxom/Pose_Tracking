@@ -1,12 +1,22 @@
 import AppButton from "@/components/common/AppButton";
-import Screen from "@/components/common/Screen";
 import PostCard from "@/components/post/PostCard";
-import { checkNewItems, getFeedPage, toggleLike } from "@/repositories/postRepository";
+import {
+  checkNewItems,
+  getFeedPage,
+  toggleLike,
+} from "@/repositories/postRepository";
 import homeStyles from "@/styles/home.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+} from "react-native";
 
 export default function HomeScreen() {
   const [posts, setPosts] = useState([]);
@@ -79,7 +89,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadPosts();
-    }, [loadPosts])
+    }, [loadPosts]),
   );
 
   useEffect(() => {
@@ -91,7 +101,7 @@ export default function HomeScreen() {
     try {
       const updatedPost = await toggleLike(post);
       setPosts((prevPosts) =>
-        prevPosts.map((p) => (p.id === post.id ? updatedPost : p))
+        prevPosts.map((p) => (p.id === post.id ? updatedPost : p)),
       );
     } catch (error) {
       console.warn("Failed to toggle like:", error);
@@ -123,16 +133,16 @@ export default function HomeScreen() {
 
   if (isLoading) {
     return (
-      <Screen style={homeStyles.container}>
+      <View style={[homeStyles.container, { flex: 1 }]}>
         <ActivityIndicator size="large" />
-      </Screen>
+      </View>
     );
   }
 
   return (
-    <Screen style={homeStyles.container}>
+    <View style={homeStyles.container}>
       <View style={{ flex: 1, width: "100%" }}>
-        <View style={homeStyles.headerCard}>
+        {/* <View style={homeStyles.headerCard}>
           <Text style={homeStyles.title}>IT4788 PoseFeed</Text>
           <Text style={homeStyles.subtitle}>
             Bài tập diễu binh, bài nộp học viên và kết quả chấm tự động
@@ -141,7 +151,7 @@ export default function HomeScreen() {
           {errorText ? (
             <Text style={homeStyles.errorText}>{errorText}</Text>
           ) : null}
-        </View>
+        </View> */}
 
         <FlatList
           data={posts}
@@ -173,9 +183,7 @@ export default function HomeScreen() {
               onSubmitExercise={() => handleSubmitExercise(item)}
             />
           )}
-          ItemSeparatorComponent={() => (
-            <View style={{ height: 12 }} />
-          )}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           ListEmptyComponent={
             <Text style={homeStyles.subtitle}>Không có bài viết nào</Text>
           }
@@ -197,6 +205,6 @@ export default function HomeScreen() {
           onPress={() => router.push("/post/create")}
         />
       </View>
-    </Screen>
+    </View>
   );
 }

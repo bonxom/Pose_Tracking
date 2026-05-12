@@ -1,11 +1,12 @@
-import { StyleSheet } from 'react-native';
-import colors from '../constants/colors';
-import sizes from '../constants/sizes';
+import { StyleSheet } from "react-native";
+import colors from "../constants/colors";
+import sizes from "../constants/sizes";
 
 const homeStyles = StyleSheet.create({
   container: {
-    paddingHorizontal: sizes.md,
-    backgroundColor: "#F0F2F5",
+    flex: 1,
+    padding: sizes.md,
+    backgroundColor: "#fff",
   },
   headerCard: {
     backgroundColor: colors.white,
@@ -18,7 +19,7 @@ const homeStyles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: "800",
     color: colors.text,
   },
   subtitle: {

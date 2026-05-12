@@ -1,10 +1,10 @@
-import { StyleSheet } from "react-native";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
+import { StyleSheet } from "react-native";
 
 const demoStyles = StyleSheet.create({
   screen: {
-    backgroundColor: "#F0F2F5",
+    backgroundColor: "#fff",
     paddingHorizontal: sizes.md,
   },
   scrollContent: {

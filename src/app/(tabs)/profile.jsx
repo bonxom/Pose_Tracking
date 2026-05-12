@@ -1,12 +1,11 @@
 import AppButton from "@/components/common/AppButton";
-import Screen from "@/components/common/Screen";
 import { DEMO_COURSE } from "@/constants/demo";
 import { logoutSession } from "@/repositories/authRepository";
 import { getSourceLabel } from "@/repositories/source";
 import { getUserInfo } from "@/repositories/userRepository";
 import demoStyles from "@/styles/demo.styles";
-import { clearAuthSession, getAuthSession } from "@/utils/session";
 import { getInitials } from "@/utils/formatters";
+import { clearAuthSession, getAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -46,7 +45,11 @@ export default function ProfileScreen() {
     {
       label: "My posts",
       detail: "Tìm kiếm trong hồ sơ",
-      onPress: () => router.push({ pathname: "/(tabs)/search", params: { userId: session?.id || "" } }),
+      onPress: () =>
+        router.push({
+          pathname: "/(tabs)/search",
+          params: { userId: session?.id || "" },
+        }),
     },
     {
       label: "My courses",
@@ -71,23 +74,28 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <Screen style={demoStyles.screen}>
+    <View style={demoStyles.screen}>
       <ScrollView contentContainerStyle={demoStyles.scrollContent}>
         <View style={demoStyles.header}>
           <View style={demoStyles.row}>
             <View style={demoStyles.avatar}>
-              <Text style={demoStyles.avatarText}>{getInitials(displayName)}</Text>
+              <Text style={demoStyles.avatarText}>
+                {getInitials(displayName)}
+              </Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={demoStyles.title}>{displayName}</Text>
               <Text style={demoStyles.subtitle}>
-                {role} · {session?.phonenumber || session?.identifier || "0900000001"}
+                {role} ·{" "}
+                {session?.phonenumber || session?.identifier || "0900000001"}
               </Text>
             </View>
           </View>
           <View style={demoStyles.badge}>
             <Text style={demoStyles.badgeText}>
-              {session?.demoMode ? "Demo mode" : getSourceLabel(session?.source)}
+              {session?.demoMode
+                ? "Demo mode"
+                : getSourceLabel(session?.source)}
             </Text>
           </View>
         </View>
@@ -109,11 +117,12 @@ export default function ProfileScreen() {
         <View style={demoStyles.card}>
           <Text style={demoStyles.cardTitle}>Trạng thái dữ liệu</Text>
           <Text style={demoStyles.cardText}>
-            Mặc định sản phẩm dùng server. Nút demo trên màn hình đăng nhập chỉ dành cho phát triển và chạy local riêng biệt.
+            Mặc định sản phẩm dùng server. Nút demo trên màn hình đăng nhập chỉ
+            dành cho phát triển và chạy local riêng biệt.
           </Text>
           <AppButton title="Đăng xuất" onPress={handleLogout} />
         </View>
       </ScrollView>
-    </Screen>
+    </View>
   );
 }
