@@ -1,4 +1,3 @@
-import AppButton from "@/components/common/AppButton";
 import PostCard from "@/components/post/PostCard";
 import {
   checkNewItems,
@@ -196,13 +195,6 @@ export default function HomeScreen() {
           }
           onEndReached={loadMore}
           onEndReachedThreshold={0.35}
-        />
-
-        <View style={homeStyles.buttonSpacing} />
-
-        <AppButton
-          title="Tạo bài viết"
-          onPress={() => router.push("/post/create")}
         />
       </View>
     </View>

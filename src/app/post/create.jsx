@@ -1,16 +1,72 @@
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
-import { DEMO_COURSE, DEMO_EXERCISES, DEMO_VIDEO_PLACEHOLDERS } from "@/constants/demo";
-import { createExerciseSubmission, createPost, getPostById } from "@/repositories/postRepository";
+import DraftActionSheet from "@/components/post/DraftActionSheet";
+import colors from "@/constants/colors";
+import {
+  DEMO_COURSE,
+  DEMO_EXERCISES,
+  DEMO_VIDEO_PLACEHOLDERS,
+} from "@/constants/demo";
+import {
+  createExerciseSubmission,
+  createPost,
+  getPostById,
+} from "@/repositories/postRepository";
 import { ACTIVE_SOURCES } from "@/repositories/source";
+import { getUserInfo } from "@/repositories/userRepository";
 import postStyles from "@/styles/post.styles";
-import { getAuthSession } from "@/utils/session";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import { getAuthSession } from "@/utils/session";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Keyboard,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+
+function VideoPreview({ uri }) {
+  const [isVideoReady, setIsVideoReady] = useState(false);
+
+  const player = useVideoPlayer(uri, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = true;
+    videoPlayer.pause();
+  });
+
+  useEffect(() => {
+    setIsVideoReady(false);
+  }, [uri]);
+
+  return (
+    <View style={localStyles.videoPreviewFrame}>
+      <VideoView
+        player={player}
+        style={localStyles.videoPreview}
+        contentFit="cover"
+        nativeControls
+        onFirstFrameRender={() => setIsVideoReady(true)}
+      />
+      {!isVideoReady ? (
+        <View style={localStyles.videoLoadingOverlay}>
+          <ActivityIndicator size="small" color={colors.white} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 export default function CreatePostScreen() {
   const params = useLocalSearchParams();
@@ -19,8 +75,11 @@ export default function CreatePostScreen() {
   const [sourcePost, setSourcePost] = useState(null);
   const [selectedVideos, setSelectedVideos] = useState([]);
   const [session, setSession] = useState(null);
+  const [profileUser, setProfileUser] = useState(null);
   const [statusText, setStatusText] = useState("");
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDraftSheet, setShowDraftSheet] = useState(false);
   const selectedVideoCount = selectedVideos.filter(Boolean).length;
 
   const exercise = useMemo(() => {
@@ -31,15 +90,53 @@ export default function CreatePostScreen() {
   }, [params.exerciseId]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadSourcePost = async () => {
-      setSession(await getAuthSession());
+      const authSession = await getAuthSession();
+      if (isMounted) {
+        setSession(authSession);
+      }
+
+      try {
+        const user = await getUserInfo();
+        if (isMounted) {
+          setProfileUser(user);
+        }
+      } catch (error) {
+        if (await redirectIfSessionExpired(error, router)) return;
+        console.warn("Failed to load current user profile:", error);
+      }
+
       if (!params.sourcePostId) return;
       const post = await getPostById(params.sourcePostId);
-      setSourcePost(post);
+      if (isMounted) {
+        setSourcePost(post);
+      }
     };
 
     loadSourcePost();
+    return () => {
+      isMounted = false;
+    };
   }, [params.sourcePostId]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardOffset(event.endCoordinates?.height || 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardOffset(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const addDemoVideo = (video) => {
     setSelectedVideos((current) => {
@@ -54,7 +151,8 @@ export default function CreatePostScreen() {
     setSelectedVideos(DEMO_VIDEO_PLACEHOLDERS);
   };
 
-  const isLocalSession = session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL;
+  const isLocalSession =
+    session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL;
 
   const readVideoDuration = async (asset) => {
     if (asset.duration) return asset.duration;
@@ -69,6 +167,20 @@ export default function CreatePostScreen() {
     });
   };
 
+  const buildVideoItem = async (asset, slotIndex) => {
+    const duration = await readVideoDuration(asset);
+    return {
+      id: `real_video_${slotIndex}_${Date.now()}`,
+      uri: asset.uri,
+      file: asset.file,
+      name: asset.fileName || `real-video-${slotIndex + 1}.mp4`,
+      mimeType: asset.mimeType || "video/mp4",
+      angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
+      duration,
+      fileSize: asset.fileSize || 0,
+    };
+  };
+
   const pickRealVideo = async (slotIndex) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
@@ -80,18 +192,7 @@ export default function CreatePostScreen() {
       return;
     }
 
-    const asset = result.assets[0];
-    const duration = await readVideoDuration(asset);
-    const video = {
-      id: `real_video_${slotIndex}_${Date.now()}`,
-      uri: asset.uri,
-      file: asset.file,
-      name: asset.fileName || `real-video-${slotIndex + 1}.mp4`,
-      mimeType: asset.mimeType || "video/mp4",
-      angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
-      duration,
-      fileSize: asset.fileSize || 0,
-    };
+    const video = await buildVideoItem(result.assets[0], slotIndex);
 
     setSelectedVideos((current) => {
       const next = [...current];
@@ -100,14 +201,40 @@ export default function CreatePostScreen() {
     });
   };
 
-  const handleCreatePost = async () => {
-    const completeVideos = selectedVideos.filter(Boolean);
-    if (completeVideos.length !== 2) {
-      Alert.alert("Thiếu video", "Bài viết cần đúng 2 video.");
+  const pickCreateVideo = async () => {
+    if (selectedVideoCount >= 2) {
+      Alert.alert("Giới hạn video", "Bạn chỉ có thể chọn tối đa 2 video.");
       return;
     }
 
-    if (!isSubmissionMode && !content.trim()) {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      quality: 1,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return;
+    }
+
+    const video = await buildVideoItem(result.assets[0], selectedVideoCount);
+    setSelectedVideos((current) => [...current, video].slice(0, 2));
+  };
+
+  const handleCreatePost = async () => {
+    const completeVideos = selectedVideos.filter(Boolean);
+
+    if (isSubmissionMode && completeVideos.length !== 2) {
+      Alert.alert("Thiếu video", "Bài nộp cần đúng 2 video.");
+      return;
+    }
+
+    if (!isSubmissionMode && completeVideos.length > 2) {
+      Alert.alert("Giới hạn video", "Bài viết chỉ cho tối đa 2 video.");
+      return;
+    }
+
+    if (!content.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập nội dung bài viết");
       return;
     }
@@ -116,22 +243,24 @@ export default function CreatePostScreen() {
       setIsSubmitting(true);
       const newPost = isSubmissionMode
         ? await createExerciseSubmission({
-            content,
-            videos: completeVideos,
-            courseId: params.courseId || DEMO_COURSE.id,
-            exerciseId: params.exerciseId || exercise.id,
-            sourcePostId: params.sourcePostId || sourcePost?.id || "",
-          })
+          content,
+          videos: completeVideos,
+          courseId: params.courseId || DEMO_COURSE.id,
+          exerciseId: params.exerciseId || exercise.id,
+          sourcePostId: params.sourcePostId || sourcePost?.id || "",
+        })
         : await createPost({
-            content: content.trim(),
-            videos: completeVideos,
-          });
+          content: content.trim(),
+          videos: completeVideos,
+        });
 
       if (newPost) {
         Alert.alert(
           "Thành công",
           isSubmissionMode
-            ? isLocalSession ? "Bài nộp local đã được chấm demo." : "Bài nộp đã được gửi lên server."
+            ? isLocalSession
+              ? "Bài nộp local đã được chấm demo."
+              : "Bài nộp đã được gửi lên server."
             : "Bài viết đã được tạo",
         );
         router.replace(`/post/${newPost.id}`);
@@ -139,31 +268,77 @@ export default function CreatePostScreen() {
     } catch (error) {
       console.warn("Failed to create post:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể tạo bài viết. Vui lòng thử lại.");
+      setStatusText(
+        error.message || "Không thể tạo bài viết. Vui lòng thử lại.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleBack = () => {
+    if (content.trim() || selectedVideoCount > 0) {
+      setShowDraftSheet(true);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleSaveDraft = () => {
+    setShowDraftSheet(false);
+    Alert.alert("Đã lưu bản nháp", "Bản nháp của bạn đã được lưu cục bộ.");
+    router.back();
+  };
+
+  const handleDiscard = () => {
+    setShowDraftSheet(false);
+    router.back();
+  };
+
+  const isSubmitDisabled =
+    isSubmitting || (isSubmissionMode && selectedVideoCount !== 2) || !content.trim();
+  const bottomToolbarInset = 56 + keyboardOffset;
+
   return (
     <Screen style={postStyles.screen}>
-      <ScrollView
-        contentContainerStyle={postStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={postStyles.title}>
-          {isSubmissionMode ? "Nộp bài tập" : "Tạo bài viết mới"}
+      <View style={localStyles.header}>
+        <Pressable onPress={handleBack} style={localStyles.backButton}>
+          <Ionicons name="arrow-back-sharp" size={24} color="black" />
+        </Pressable>
+        <Text style={localStyles.headerTitle}>
+          {isSubmissionMode ? "Nộp bài tập" : "Tạo bài viết"}
         </Text>
-        <Text style={postStyles.subtitle}>
-          {isSubmissionMode
-            ? isLocalSession
-              ? "Local fallback có thể dùng placeholder demo. Server mode cần 2 video thật."
-              : "Nộp 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương nhau."
-            : "Bài viết server cần đúng 2 video thật theo yêu cầu IT4788."}
-        </Text>
-        {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
+        <Pressable
+          onPress={handleCreatePost}
+          disabled={isSubmitDisabled}
+          style={localStyles.submitButton}
+        >
+          <Text
+            style={[
+              localStyles.submitText,
+              isSubmitDisabled && localStyles.submitTextDisabled,
+            ]}
+          >
+            {isSubmitting ? "ĐANG XL..." : isSubmissionMode ? "NỘP" : "ĐĂNG"}
+          </Text>
+        </Pressable>
+      </View>
 
-        {isSubmissionMode ? (
+      {isSubmissionMode ? (
+        <ScrollView
+          contentContainerStyle={postStyles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={postStyles.subtitle}>
+            {isLocalSession
+              ? "Local fallback có thể dùng placeholder demo. Server mode cần 2 video thật."
+              : "Nộp 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương nhau."}
+          </Text>
+
+          {statusText ? (
+            <Text style={postStyles.warningText}>{statusText}</Text>
+          ) : null}
+
           <View style={postStyles.infoCard}>
             <Text style={postStyles.infoTitle}>{exercise.title}</Text>
             <Text style={postStyles.infoText}>{DEMO_COURSE.title}</Text>
@@ -171,116 +346,338 @@ export default function CreatePostScreen() {
               {DEMO_COURSE.hashtag} {exercise.hashtag}
             </Text>
           </View>
-        ) : null}
 
-        <View style={postStyles.inputCard}>
-          <Text style={postStyles.slotLabel}>
-            {isSubmissionMode ? "Ghi chú bài nộp" : "Nội dung"}
-          </Text>
-          <AppInput
-            placeholder={
-              isSubmissionMode
-                ? "Ví dụ: Em nộp bài với 2 góc quay theo hướng dẫn..."
-                : "Viết nội dung bài viết của bạn..."
-            }
-            value={content}
-            onChangeText={setContent}
-            multiline
-            numberOfLines={6}
-            style={postStyles.textArea}
-          />
-          <Text style={postStyles.slotHint}>{content.length} ký tự</Text>
-        </View>
-
-        <View style={postStyles.inputCard}>
-          <Text style={postStyles.slotLabel}>Video bài viết</Text>
-          <View style={postStyles.actionRow}>
-            <AppButton
-              title="Chọn video trái"
-              onPress={() => pickRealVideo(0)}
-              style={[postStyles.actionButton, postStyles.secondaryButton]}
-              textStyle={postStyles.secondaryButtonText}
-            />
-            <AppButton
-              title="Chọn video phải"
-              onPress={() => pickRealVideo(1)}
-              style={[postStyles.actionButton, postStyles.secondaryButton]}
-              textStyle={postStyles.secondaryButtonText}
-            />
-          </View>
-          <View style={postStyles.mediaList}>
-            {[0, 1].map((slotIndex) => {
-              const video = selectedVideos[slotIndex];
-              return (
-                <View key={slotIndex} style={postStyles.mediaCard}>
-                  <Text style={postStyles.mediaTitle}>{slotIndex === 0 ? "Góc quay trái" : "Góc quay phải"}</Text>
-                  <Text style={postStyles.mediaSubtitle}>{video?.name || "Chưa chọn video thật"}</Text>
-                  <Text style={postStyles.mediaSubtitle}>
-                    {video?.duration ? `${Math.round(video.duration / 1000)} giây` : "Cần video >= 10 giây"}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-          <Text style={postStyles.slotHint}>Đã chọn {selectedVideoCount}/2 video.</Text>
-        </View>
-
-        {isSubmissionMode && isLocalSession ? (
           <View style={postStyles.inputCard}>
-            <Text style={postStyles.slotLabel}>Placeholder local-only</Text>
+            <Text style={postStyles.slotLabel}>Ghi chú bài nộp</Text>
+            <AppInput
+              placeholder="Ví dụ: Em nộp bài với 2 góc quay theo hướng dẫn..."
+              value={content}
+              onChangeText={setContent}
+              multiline
+              numberOfLines={6}
+              style={postStyles.textArea}
+            />
+            <Text style={postStyles.slotHint}>{content.length} ký tự</Text>
+          </View>
+
+          <View style={postStyles.inputCard}>
+            <Text style={postStyles.slotLabel}>Video bài nộp</Text>
+            <View style={postStyles.actionRow}>
+              <AppButton
+                title="Chọn video trái"
+                onPress={() => pickRealVideo(0)}
+                style={[postStyles.actionButton, postStyles.secondaryButton]}
+                textStyle={postStyles.secondaryButtonText}
+              />
+              <AppButton
+                title="Chọn video phải"
+                onPress={() => pickRealVideo(1)}
+                style={[postStyles.actionButton, postStyles.secondaryButton]}
+                textStyle={postStyles.secondaryButtonText}
+              />
+            </View>
             <View style={postStyles.mediaList}>
-              {DEMO_VIDEO_PLACEHOLDERS.map((video) => {
-                const selected = selectedVideos.some((item) => item?.id === video.id);
+              {[0, 1].map((slotIndex) => {
+                const video = selectedVideos[slotIndex];
                 return (
-                  <View
-                    key={video.id}
-                    style={[
-                      postStyles.mediaCard,
-                      selected && postStyles.selectedMediaCard,
-                    ]}
-                  >
-                    <Text style={postStyles.mediaTitle}>{video.angle}</Text>
-                    <Text style={postStyles.mediaSubtitle}>{video.name}</Text>
-                    <Text style={postStyles.mediaSubtitle}>
-                      {selected ? "Đã chọn cho demo" : "Chưa chọn"}
+                  <View key={slotIndex} style={postStyles.mediaCard}>
+                    <Text style={postStyles.mediaTitle}>
+                      {slotIndex === 0 ? "Góc quay trái" : "Góc quay phải"}
                     </Text>
-                    <AppButton
-                      title={selected ? "Đã dùng" : `Use demo video ${video.id.endsWith("left_video") ? "1" : "2"}`}
-                      onPress={() => addDemoVideo(video)}
-                      disabled={selected}
-                      style={[postStyles.actionButton, postStyles.secondaryButton]}
-                      textStyle={postStyles.secondaryButtonText}
-                    />
+                    <Text style={postStyles.mediaSubtitle}>
+                      {video?.name || "Chưa chọn video thật"}
+                    </Text>
+                    <Text style={postStyles.mediaSubtitle}>
+                      {video?.duration
+                        ? `${Math.round(video.duration / 1000)} giây`
+                        : "Cần video >= 10 giây"}
+                    </Text>
                   </View>
                 );
               })}
             </View>
-            <AppButton title="Dùng đủ 2 video demo" onPress={useBothDemoVideos} />
             <Text style={postStyles.slotHint}>
-              Placeholder không bao giờ được gửi lên backend server.
+              Đã chọn {selectedVideoCount}/2 video.
             </Text>
           </View>
-        ) : null}
 
-        <AppButton
-          title={
-            isSubmitting
-              ? "Đang xử lý..."
-              : isSubmissionMode
-                ? isLocalSession ? "Nộp bài local" : "Nộp bài lên server"
-                : "Đăng bài"
-          }
-          onPress={handleCreatePost}
-          disabled={isSubmitting || selectedVideoCount !== 2 || (!isSubmissionMode && !content.trim())}
-        />
+          {isLocalSession ? (
+            <View style={postStyles.inputCard}>
+              <Text style={postStyles.slotLabel}>Placeholder local-only</Text>
+              <View style={postStyles.mediaList}>
+                {DEMO_VIDEO_PLACEHOLDERS.map((video) => {
+                  const selected = selectedVideos.some(
+                    (item) => item?.id === video.id,
+                  );
+                  return (
+                    <View
+                      key={video.id}
+                      style={[
+                        postStyles.mediaCard,
+                        selected && postStyles.selectedMediaCard,
+                      ]}
+                    >
+                      <Text style={postStyles.mediaTitle}>{video.angle}</Text>
+                      <Text style={postStyles.mediaSubtitle}>{video.name}</Text>
+                      <Text style={postStyles.mediaSubtitle}>
+                        {selected ? "Đã chọn cho demo" : "Chưa chọn"}
+                      </Text>
+                      <AppButton
+                        title={
+                          selected
+                            ? "Đã dùng"
+                            : `Use demo video ${video.id.endsWith("left_video") ? "1" : "2"}`
+                        }
+                        onPress={() => addDemoVideo(video)}
+                        disabled={selected}
+                        style={[
+                          postStyles.actionButton,
+                          postStyles.secondaryButton,
+                        ]}
+                        textStyle={postStyles.secondaryButtonText}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+              <AppButton title="Dùng đủ 2 video demo" onPress={useBothDemoVideos} />
+              <Text style={postStyles.slotHint}>
+                Placeholder không bao giờ được gửi lên backend server.
+              </Text>
+            </View>
+          ) : null}
+        </ScrollView>
+      ) : (
+        <View style={localStyles.createBody}>
+          <ScrollView
+            contentContainerStyle={[
+              localStyles.createContent,
+              { paddingBottom: bottomToolbarInset + 12 },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={localStyles.userInfoContainer}>
+              <Image
+                source={{
+                  uri:
+                    profileUser?.avatar ||
+                    session?.avatar ||
+                    session?.user?.avatar ||
+                    "https://ui-avatars.com/api/?name=User&background=random",
+                }}
+                style={localStyles.avatar}
+              />
+              <View>
+                <Text style={localStyles.userName}>
+                  {profileUser?.displayName ||
+                    profileUser?.username ||
+                    session?.displayName ||
+                    session?.username ||
+                    session?.user?.username ||
+                    session?.user?.name ||
+                    "Người dùng"}
+                </Text>
+                <View style={localStyles.privacyBadge}>
+                  <Ionicons name="earth" size={14} color={colors.subtext} />
+                  <Text style={localStyles.privacyText}>Công khai</Text>
+                </View>
+              </View>
+            </View>
 
-        <AppButton
-          title="Hủy"
-          onPress={() => router.back()}
-          style={[postStyles.actionButton, postStyles.secondaryButton]}
-          textStyle={postStyles.secondaryButtonText}
-        />
-      </ScrollView>
+            {statusText ? (
+              <Text style={postStyles.warningText}>{statusText}</Text>
+            ) : null}
+
+            <TextInput
+              placeholder="Viết nội dung bài viết của bạn..."
+              placeholderTextColor={colors.placeholder}
+              value={content}
+              onChangeText={setContent}
+              multiline
+              style={[
+                localStyles.createTextArea,
+                selectedVideoCount > 0 && localStyles.createTextAreaWithMedia,
+              ]}
+              textAlignVertical="top"
+            />
+
+            {selectedVideoCount > 0 ? (
+              <View style={localStyles.videoGrid}>
+                {selectedVideos.map((video) => {
+                  if (!video?.uri) return null;
+                  return (
+                    <View key={video.id} style={localStyles.videoCard}>
+                      <VideoPreview uri={video.uri} />
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
+          </ScrollView>
+
+          <View
+            style={[
+              localStyles.bottomToolbar,
+              { bottom: keyboardOffset },
+            ]}
+          >
+            <Pressable
+              onPress={pickCreateVideo}
+              style={localStyles.libraryButton}
+              hitSlop={8}
+            >
+              <MaterialIcons name="photo-library" size={30} color={colors.subtext} />
+              <Text style={localStyles.libraryText}>Video ({selectedVideoCount}/2)</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      <DraftActionSheet
+        visible={showDraftSheet}
+        onClose={() => setShowDraftSheet(false)}
+        onSaveDraft={handleSaveDraft}
+        onDiscard={handleDiscard}
+        onContinue={() => setShowDraftSheet(false)}
+      />
     </Screen>
   );
 }
+
+const localStyles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.text,
+  },
+  submitButton: {
+    padding: 4,
+  },
+  submitText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#2196F3",
+  },
+  submitTextDisabled: {
+    color: colors.textMuted,
+  },
+  createBody: {
+    flex: 1,
+    position: "relative",
+  },
+  createContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    gap: 12,
+  },
+  userInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 0,
+    gap: 12,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: colors.text,
+  },
+  privacyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "transparent",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+    marginTop: 4,
+    alignSelf: "flex-start",
+  },
+  privacyText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.subtext,
+  },
+  createTextArea: {
+    minHeight: 26,
+    fontSize: 18,
+    color: colors.text,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    lineHeight: 26,
+  },
+  createTextAreaWithMedia: {
+    minHeight: 26,
+  },
+  videoGrid: {
+    flexDirection: "row",
+    gap: 0,
+  },
+  videoCard: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  videoPreviewFrame: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: 1,
+    backgroundColor: colors.black,
+  },
+  videoPreview: {
+    width: "100%",
+    height: "100%",
+  },
+  videoLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.35)",
+  },
+  bottomToolbar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.white,
+  },
+  libraryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+  },
+  libraryText: {
+    fontSize: 14,
+    color: colors.subtext,
+    fontWeight: "600",
+  },
+});

@@ -52,7 +52,7 @@ const studentAuthor = {
 const FIRST_POST_COMMENTS = [
   {
     id: "comment_teacher_001",
-    authorName: "Đại úy Chính",
+    authorName: "Chu Đức Nghính",
     content: "Các em nộp đủ 2 góc quay để hệ thống chấm tư thế chính xác hơn.",
     createdAt: "2026-05-06T00:40:00.000Z",
   },
@@ -71,9 +71,9 @@ export const DEFAULT_POSTS = [
     author: teacherAuthor,
     createdAt: "2026-05-06T00:30:00.000Z",
     content:
-      "Bài tập tuần này: động tác chào điều lệnh. Học viên xem 2 góc quay mẫu, tập theo khẩu lệnh, sau đó bấm Nộp bài và gửi đủ 2 video để hệ thống chấm tự động.",
+      "Bài tập chú nghinh: động tác chào điều lệnh. Học viên xem 2 góc quay mẫu, tập theo khẩu lệnh, sau đó bấm Nộp bài và gửi đủ 2 video để hệ thống chấm tự động. Hạn cuối nộp bài là trước 8h sáng mai để thầy có thời gian chấm và feedback trước buổi học. Các em chú ý xem kỹ phần mô tả chi tiết và gợi ý chấm điểm để tập cho đúng nhé. Các em ơi các em lớn rồi, banh cái đầu chóa của mình ra mà suy nghĩ. #course_marching_101 #exercise_chao_dieu_lenh.",
     described:
-      "Bài tập tuần này: động tác chào điều lệnh. Học viên xem 2 góc quay mẫu, tập theo khẩu lệnh, sau đó bấm Nộp bài và gửi đủ 2 video để hệ thống chấm tự động.",
+      "Bài tập chú nghinh: động tác chào điều lệnh. Học viên xem 2 góc quay mẫu, tập theo khẩu lệnh, sau đó bấm Nộp bài và gửi đủ 2 video để hệ thống chấm tự động. Hạn cuối nộp bài là trước 8h sáng mai để thầy có thời gian chấm và feedback trước buổi học. Các em chú ý xem kỹ phần mô tả chi tiết và gợi ý chấm điểm để tập cho đúng nhé. Các em ơi các em lớn rồi, banh cái đầu chóa của mình ra mà suy nghĩ. #course_marching_101 #exercise_chao_dieu_lenh.",
     videos: [
       {
         id: "video_standard_left_001",

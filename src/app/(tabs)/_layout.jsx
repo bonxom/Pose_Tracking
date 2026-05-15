@@ -1,4 +1,5 @@
-import { Tabs, usePathname } from "expo-router";
+import { FontAwesome } from "@expo/vector-icons";
+import { router, Tabs, usePathname } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -63,9 +64,18 @@ function HomeTopSection() {
   return (
     <View style={styles.homeHeader}>
       <Text style={styles.homeTitle}>Pose Tracking</Text>
-      <Pressable style={styles.searchBtn} hitSlop={8}>
-        <SearchIcon />
-      </Pressable>
+      <View style={styles.headerActions}>
+        <Pressable
+          style={styles.actionBtn}
+          hitSlop={8}
+          onPress={() => router.push("/post/create")}
+        >
+          <FontAwesome name="plus-square-o" size={24} color={INK} />
+        </Pressable>
+        <Pressable style={styles.searchBtn} hitSlop={8}>
+          <SearchIcon />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -147,6 +157,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     letterSpacing: -0.4,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
   },
   tabBar: {
     backgroundColor: "#fff",

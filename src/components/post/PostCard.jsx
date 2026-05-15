@@ -1,13 +1,17 @@
 import AppButton from "@/components/common/AppButton";
+import CommentButton from "@/components/post/CommentButton";
 import LikeButton from "@/components/post/LikeButton";
+import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import {
-    formatRelativeTime,
-    getInitials,
-    isFreshPost,
+  formatRelativeTime,
+  getInitials,
+  isFreshPost,
 } from "@/utils/formatters";
-import { useMemo, useState } from "react";
+import { getAuthSession } from "@/utils/session";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 const EXPAND_THRESHOLD = 180;
@@ -28,6 +32,16 @@ export default function PostCard({
   detail = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(detail);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isOptionsVisible, setIsOptionsVisible] = useState(false);
+
+  useEffect(() => {
+    getAuthSession().then(setCurrentUser).catch(console.warn);
+  }, []);
+
+  const isOwnPost = Boolean(
+    currentUser?.id && post?.author?.id && currentUser.id === post.author.id,
+  );
 
   const content = post.content || "Bài viết chưa có mô tả.";
   const shouldShowExpand = !detail && content.length > EXPAND_THRESHOLD;
@@ -78,6 +92,18 @@ export default function PostCard({
             {post.author?.role || "HV"}
           </Text>
         </View>
+
+        <Pressable
+          style={{ padding: 4, marginLeft: 4 }}
+          onPress={() => setIsOptionsVisible(true)}
+          hitSlop={8}
+        >
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={20}
+            color={colors.subtext}
+          />
+        </Pressable>
       </View>
 
       {post.exerciseTitle ? (
@@ -85,22 +111,31 @@ export default function PostCard({
           <Text style={postStyles.exerciseBannerTitle}>
             {isExercisePost ? "Bài tập GV" : "Bài nộp HV"}
           </Text>
-          <Text style={postStyles.exerciseBannerText}>{post.exerciseTitle}</Text>
+          <Text style={postStyles.exerciseBannerText}>
+            {post.exerciseTitle}
+          </Text>
           {post.courseTitle ? (
-            <Text style={postStyles.exerciseBannerMeta}>{post.courseTitle}</Text>
+            <Text style={postStyles.exerciseBannerMeta}>
+              {post.courseTitle}
+            </Text>
           ) : null}
         </View>
       ) : null}
 
-      <Text style={postStyles.bodyText}>{previewText}</Text>
-
       {shouldShowExpand ? (
         <Pressable onPress={() => setIsExpanded((current) => !current)}>
-          <Text style={postStyles.expandText}>
-            {isExpanded ? "Thu gọn" : "Xem thêm"}
+          <Text style={postStyles.bodyText}>
+            {isExpanded ? content : previewText}
+            {!isExpanded && (
+              <Text style={[postStyles.expandText, { color: colors.subtext }]}>
+                Xem thêm
+              </Text>
+            )}
           </Text>
         </Pressable>
-      ) : null}
+      ) : (
+        <Text style={postStyles.bodyText}>{content}</Text>
+      )}
 
       {hashtags.length ? (
         <View style={postStyles.hashtagRow}>
@@ -124,7 +159,10 @@ export default function PostCard({
               </Text>
               <Text style={postStyles.mediaSubtitle}>{video.name}</Text>
               <Text
-                style={[postStyles.mediaSubtitle, { color: colors.placeholder }]}
+                style={[
+                  postStyles.mediaSubtitle,
+                  { color: colors.placeholder },
+                ]}
               >
                 {video.uri}
               </Text>
@@ -159,46 +197,57 @@ export default function PostCard({
       ) : null}
 
       <View style={postStyles.statsRow}>
-        <Text style={postStyles.statText}>{formatCount(post.likeCount)} lượt thích</Text>
-        <Text style={postStyles.statText}>{formatCount(post.commentCount)} bình luận</Text>
+        <Text style={postStyles.statText}>
+          {formatCount(post.likeCount)} lượt thích
+        </Text>
+        <Text style={postStyles.statText}>
+          {formatCount(post.commentCount)} bình luận
+        </Text>
       </View>
 
       {post.canComment === false ? (
-        <Text style={postStyles.lockedText}>Bài viết này đang khóa bình luận.</Text>
+        <Text style={postStyles.lockedText}>
+          Bài viết này đang khóa bình luận.
+        </Text>
       ) : null}
 
       <View style={postStyles.actionRow}>
         <LikeButton
           isLiked={post.isLiked}
-          likeCount={post.likeCount}
           onPress={onToggleLike}
+          style={{ flex: 1, justifyContent: "center" }}
         />
 
-        <AppButton
-          title="Bình luận"
+        <CommentButton
           onPress={onPressComment}
           disabled={post.canComment === false}
-          style={[postStyles.actionButton, postStyles.secondaryButton]}
-          textStyle={postStyles.secondaryButtonText}
+          style={{ flex: 1, justifyContent: "center" }}
         />
 
-        {isExercisePost ? (
-          <AppButton
-            title="Nộp bài"
-            onPress={onSubmitExercise}
-            style={postStyles.actionButton}
-          />
-        ) : null}
-
-        {!detail ? (
-          <AppButton
-            title="Xem chi tiết"
-            onPress={onPress}
-            style={[postStyles.actionButton, postStyles.secondaryButton]}
-            textStyle={postStyles.secondaryButtonText}
-          />
-        ) : null}
+        {isExercisePost && (
+          <View style={{ flex: 1 }}>
+            <AppButton
+              title="Nộp bài"
+              onPress={onSubmitExercise}
+              style={[
+                postStyles.actionButton,
+                { minWidth: "auto", width: "100%" },
+              ]}
+            />
+          </View>
+        )}
       </View>
+
+      <PostOptionsSheet
+        visible={isOptionsVisible}
+        onClose={() => setIsOptionsVisible(false)}
+        isOwnPost={isOwnPost}
+        onTurnOffNotifications={() => setIsOptionsVisible(false)}
+        onTurnOnNotifications={() => setIsOptionsVisible(false)}
+        onDeletePost={() => setIsOptionsVisible(false)}
+        onEditPost={() => setIsOptionsVisible(false)}
+        onReportPost={() => setIsOptionsVisible(false)}
+      />
     </View>
   );
 }
