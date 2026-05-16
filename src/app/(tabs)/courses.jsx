@@ -16,12 +16,12 @@ const SearchIcon = ({ color = INK, size = 26 }) => (
   </Svg>
 );
 
-export default function FriendsScreen() {
+export default function CoursesScreen() {
   return (
     <View style={demoStyles.screen}>
       <ScrollView contentContainerStyle={demoStyles.scrollContent}>
         <View style={styles.searchContainer}>
-          <Text style={styles.searchTitle}>Bạn bè</Text>
+          <Text style={styles.searchTitle}>Khóa học</Text>
           <Pressable hitSlop={8}>
             <SearchIcon />
           </Pressable>
