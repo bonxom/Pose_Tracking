@@ -1,4 +1,10 @@
+import {
+  getNotificationBadge,
+  getNotificationsPage,
+  subscribeNotificationBadge
+} from "@/services/notificationStore";
 import { Tabs, usePathname } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -28,13 +34,27 @@ const FriendsIcon = ({ focused }) => (
   </Svg>
 );
 
-const BellIcon = ({ focused }) => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M3 9.5a9 9 0 1 1 18 0v2.927c0 1.69.475 3.345 1.37 4.778a1.5 1.5 0 0 1-1.272 2.295h-4.625a4.5 4.5 0 0 1-8.946 0H2.902a1.5 1.5 0 0 1-1.272-2.295A9.01 9.01 0 0 0 3 12.43V9.5zm6.55 10a2.5 2.5 0 0 0 4.9 0h-4.9z"
-      fill={focused ? FB_BLUE : INK}
-    />
-  </Svg>
+const BellIcon = ({ focused, badge = 0 }) => (
+  <View style={styles.notificationIconWrap}>
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d={
+          focused
+            ? "M12 2C8.134 2 5 5.134 5 9v3.764c0 1.17-.366 2.31-1.047 3.262l-.678.95A1.95 1.95 0 0 0 4.862 20h14.276a1.95 1.95 0 0 0 1.587-3.024l-.678-.95A5.617 5.617 0 0 1 19 12.764V9c0-3.866-3.134-7-7-7Zm-2.75 19.25a2.75 2.75 0 0 0 5.5 0h-5.5Z"
+            : "M12 2C8.134 2 5 5.134 5 9v3.764c0 1.17-.366 2.31-1.047 3.262l-.678.95A1.95 1.95 0 0 0 4.862 20h14.276a1.95 1.95 0 0 0 1.587-3.024l-.678-.95A5.617 5.617 0 0 1 19 12.764V9c0-3.866-3.134-7-7-7Zm0 2c2.762 0 5 2.238 5 5v3.764c0 1.587.496 3.135 1.42 4.426l.578.81H4.752l.578-.81A7.617 7.617 0 0 0 7 12.764V9c0-2.762 2.238-5 5-5Zm-2.75 17.25h5a1.75 1.75 0 0 1-5 0Z"
+        }
+        fill={focused ? FB_BLUE : INK}
+      />
+    </Svg>
+
+    {badge > 0 ? (
+      <View style={styles.notificationBadge}>
+        <Text style={styles.notificationBadgeText}>
+          {badge > 99 ? "99+" : badge}
+        </Text>
+      </View>
+    ) : null}
+  </View>
 );
 
 const AccountIcon = ({ focused }) => (
@@ -84,14 +104,49 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const isHome = pathname === "/home" || pathname === "/";
 
+  const [notificationBadge, setTabNotificationBadge] = useState(
+    getNotificationBadge(),
+  );
+
+  useEffect(() => {
+    const unsubscribe = subscribeNotificationBadge(setTabNotificationBadge);
+
+    getNotificationsPage({
+      index: 0,
+      count: 20,
+    }).catch((error) => {
+      console.log("LOAD_NOTIFICATION_BADGE_ERROR", error?.message);
+    });
+
+    return unsubscribe;
+  }, []);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {isHome && <HomeTopSection />}
       <Tabs
         screenOptions={{
           tabBarPosition: "top",
-          tabBarShowLabel: false,
-          tabBarStyle: styles.tabBar,
+          tabBarShowLabel: true,
+          tabBarActiveTintColor: "#0866FF",
+          tabBarInactiveTintColor: "#1C1E21",
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: "600",
+            marginTop: 2,
+          },
+          tabBarIconStyle: {
+            marginBottom: 0,
+          },
+          tabBarStyle: {
+            height: 64,
+            paddingTop: 6,
+            paddingBottom: 6,
+            backgroundColor: "#FFFFFF",
+            borderTopWidth: 0,
+            borderBottomWidth: 1,
+            borderBottomColor: "#E4E6EB",
+          },
           tabBarItemStyle: styles.tabItem,
           headerShown: false,
         }}
@@ -99,6 +154,8 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="home"
           options={{
+            title: "Trang chủ",
+            tabBarLabel: "Trang chủ",
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => <HomeIcon focused={focused} />,
           }}
@@ -106,6 +163,8 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="friends"
           options={{
+            title: "Bạn bè",
+            tabBarLabel: "Bạn bè",
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => <FriendsIcon focused={focused} />,
           }}
@@ -113,13 +172,19 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="notifications"
           options={{
+            title: "Thông báo",
+            tabBarLabel: "Thông báo",
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <BellIcon focused={focused} />,
+            tabBarIcon: ({ focused }) => (
+              <BellIcon focused={focused} badge={notificationBadge} />
+            ),
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
+            title: "Hồ sơ",
+            tabBarLabel: "Hồ sơ",
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => <AccountIcon focused={focused} />,
           }}
@@ -172,4 +237,31 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   indicatorActive: { backgroundColor: FB_BLUE },
+  notificationIconWrap: {
+    width: 36,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -4,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: "#E41E3F",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: "800",
+  },
 });
