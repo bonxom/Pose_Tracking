@@ -151,17 +151,10 @@ export async function getCourseStudents() {
 
   await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_students failed" });
 
-  return extractList(response).map((item) => ({
-    id: String(item.id || item.user_id || item.student_id || ""),
-    username: item.username || item.name || item.fullname || "Học viên",
-    role: item.role || "HV",
-    phonenumber: item.phonenumber || item.phone || "",
-    source: ACTIVE_SOURCES.SERVER,
-    raw: item,
-  }));
+  return response.data
 }
 
-export async function getRequestedEnrollments() {
+export async function getRequestedEnrollments(index = 0, count = 50) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
@@ -170,8 +163,8 @@ export async function getRequestedEnrollments() {
 
   const response = await backendApi.getRequestedEnrollment({
     token: session.token,
-    index: "0",
-    count: "50",
+    index: String(index),
+    count: String(count),
   });
 
   await assertBackendOk(response, { allowNoData: true, message: "Backend get_requested_enrollment failed" });
