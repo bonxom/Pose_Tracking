@@ -1,4 +1,4 @@
-import { Tabs, usePathname } from "expo-router";
+import { Tabs, router, usePathname } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -63,7 +63,11 @@ function HomeTopSection() {
   return (
     <View style={styles.homeHeader}>
       <Text style={styles.homeTitle}>Pose Tracking</Text>
-      <Pressable style={styles.searchBtn} hitSlop={8}>
+      <Pressable
+        style={styles.searchBtn}
+        hitSlop={8}
+        onPress={() => router.push("/search")}
+      >
         <SearchIcon />
       </Pressable>
     </View>
@@ -162,6 +166,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   indicator: {
     position: "absolute",

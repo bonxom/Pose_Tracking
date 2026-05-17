@@ -46,6 +46,8 @@ http://192.168.1.3:8081
 
 5. Use a real backend account for server-mode testing. Developer demo buttons remain local-only fallback.
 
+The app now defaults to the HTTPS API base. HTTP remains a fallback for debugging only.
+
 ## Troubleshooting Phone Browser Access
 
 - Make sure the phone and laptop are on the same Wi-Fi and not isolated by guest-network rules.
@@ -86,5 +88,5 @@ Notes:
 - Docker publishes `8081:8081`.
 - Expo Web starts and serves `http://localhost:8081`.
 - Host LAN IP discovery was verified with `ifconfig`; use `http://192.168.1.3:8081` for this machine while it stays on the same network.
-- Actual second-device phone browsing was not verified in this environment because no physical phone/browser session was available to this agent.
+- Actual second-device phone browsing was not verified in this environment because no physical phone/browser session was available to this agent. The published port and LAN URL path are ready for team verification.
 - Native Expo Go was not verified in this environment.

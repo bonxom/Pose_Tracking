@@ -1,6 +1,6 @@
 # IT4788 Source Of Truth
 
-Status date: 2026-05-10
+Status date: 2026-05-14
 
 This repository follows the IT4788 weekly requirement slides / course specification as the product source of truth. Existing frontend mock behavior and deployed-backend quirks are implementation evidence only. If the deployed backend differs from the slides, the mismatch is tracked in `docs/BACKEND_MISMATCHES.md` and any compatibility behavior must stay isolated.
 

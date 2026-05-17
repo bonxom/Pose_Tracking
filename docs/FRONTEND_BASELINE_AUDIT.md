@@ -1,16 +1,17 @@
 # Frontend Baseline Audit
 
-Audit date: 2026-05-10
+Audit date: 2026-05-14
 
 ## Tech Stack Detected
 
 - React Native `0.83.6`
-- Expo SDK `~55.0.23`
+- Expo SDK `~55.0.24`
 - Expo Router `~55.0.14`
 - React `19.2.0`
-- React Navigation bottom tabs
+- Expo Router with the leader's four-section Facebook-like top navigator
 - React Native Web
 - Expo SecureStore, ImagePicker, WebBrowser, Splash Screen, Status Bar
+- `react-native-svg` for the top navigator icons
 - ESLint with `eslint-config-expo`
 - JavaScript/JSX with `@/*` path aliases from `jsconfig.json`
 
@@ -41,10 +42,11 @@ Audit date: 2026-05-10
 - `/(auth)/change-info-after-signup`: profile completion step.
 - `/(auth)/signup-success`: signup success screen.
 - `/(tabs)/home`: social feed tab with exercise/submission posts.
-- `/(tabs)/courses`: server-backed course, enrollment, student, and request tab.
-- `/(tabs)/search`: server-backed search and saved-search tab.
+- `/(tabs)/friends`: top-nav Friends section shell for future UI ownership.
 - `/(tabs)/notifications`: server-backed notification tab.
 - `/(tabs)/profile`: menu/profile tab with logout.
+- `/courses`: non-tab server-backed course, enrollment, student, and request screen.
+- `/search`: non-tab server-backed search and saved-search screen.
 - `/post/create`: server multipart post creation and exercise submission screen.
 - `/post/[id]`: post detail screen with comments and scoring result.
 - `/comment/[postId]`: local comment thread screen.
@@ -66,7 +68,9 @@ Audit date: 2026-05-10
 - Repository-backed like toggling, post detail, post creation, and comments.
 - Teacher exercise submission flow with server multipart upload for real videos and local placeholders only in dev fallback.
 - Automatic local scoring comment for student submissions.
-- Course tab, search tab, notification tab, menu/profile tab, settings screens, blocks, and conversations.
+- Four-section top navigator: Home, Friends, Notifications, Profile.
+- Non-tab Search and Courses screens for UI teammates to place behind buttons/menu rows.
+- Notification tab, menu/profile tab, settings screens, blocks, and conversations.
 - Backend API client wrappers for all 40 IT4788 APIs.
 - Backend probe script and documented deployed-contract findings.
 - Existing real HV/GV account verification for login/logout, saved search, blocks, push settings, device token, conversations list, and deployed-compatibility profile/notification/version/check-new-item calls.
@@ -87,7 +91,7 @@ Audit date: 2026-05-10
 
 ## Missing Major Product Features
 
-- Fully verified backend-connected teacher/student course enrollment and course detail flows.
+- Fully verified backend-connected teacher/student course enrollment and course detail flows with seeded course data.
 - Fully verified backend-connected exercise assignment/submission flow.
 - Successful two-video upload and backend processing/scoring status.
 - Pose comparison/scoring result screens connected to authoritative scoring data.

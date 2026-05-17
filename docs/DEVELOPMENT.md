@@ -2,13 +2,13 @@
 
 This repository is a React Native / Expo Router frontend for the IT4788 marching/parade pose-training social app. The current product strategy is server-authoritative: normal app usage should call the deployed IT4788 backend. Local mode remains available only for development, emergency demos, and isolated fallback testing.
 
-Backend source of truth for future integration:
+Backend source of truth:
 
 ```text
-http://group1.it4788.sukkaito.id.vn
+https://group1.it4788.sukkaito.id.vn/it4788
 ```
 
-Prepared frontend API base URL:
+HTTP fallback:
 
 ```text
 http://group1.it4788.sukkaito.id.vn/it4788
@@ -46,12 +46,12 @@ Modes:
 Optional config:
 
 ```bash
-EXPO_PUBLIC_API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788
+EXPO_PUBLIC_API_BASE_URL=https://group1.it4788.sukkaito.id.vn/it4788
 EXPO_PUBLIC_API_TIMEOUT_MS=4500
 EXPO_PUBLIC_API_DEBUG=1
 ```
 
-The Home/Menu UI shows a small data-source label such as `Nguồn dữ liệu: Server`, `Local fallback`, or `Demo local`.
+API-owner note: use `API_BASE_URL=...` for Node probe/E2E scripts and `EXPO_PUBLIC_API_BASE_URL=...` for Expo runtime.
 
 ## Run With Docker
 
@@ -143,14 +143,14 @@ docker compose up
 - Normal login attempts backend in default `server` mode.
 - Demo login for HV and GV accounts remains available as explicit local fallback.
 - Repository layer for auth, posts, comments, courses, notifications, user/profile, settings, blocks, and conversations.
-- Five-tab app shell: Home, Courses, Search, Notifications, Menu/Profile.
+- Four-section top navigator: Home, Friends, Notifications, Profile.
 - Facebook-like local home feed with teacher exercise posts and student submission posts.
 - Teacher exercise cards with course/exercise metadata, hashtags, two video placeholders, and a clear `Nộp bài` action.
 - Exercise submission flow on `/post/create` with two web-safe demo video placeholders.
 - Server-backed exercise submission uses multipart with two real videos when a server session exists; local demo placeholders are developer-only.
 - Post detail with comments, like/unlike, submission navigation, owner edit/delete controls, and non-owner report controls.
-- Courses tab with course card, teacher info, enrollment state, stats, and exercise list.
-- Search tab over posts, authors, hashtags, and course/exercise text.
+- Non-tab `/courses` screen with course card, teacher info, enrollment state, stats, and exercise list.
+- Non-tab `/search` screen over posts, authors, hashtags, and course/exercise text, opened from search buttons.
 - Notifications tab with server read-state API integration.
 - Menu/Profile tab with server user info, settings/chat navigation rows, and logout.
 - Settings screens for profile edit, push settings, password change, device token/version check, and block list.
@@ -178,6 +178,7 @@ docker compose up
 ## Backend Contract Findings
 
 - `/it4788/login` is active; `/login` is not.
+- HTTPS is the default and is verified with real-account E2E. HTTP remains available as a fallback, but redirects to HTTPS and is less reliable for multipart probes.
 - Login requires `devtoken`.
 - The local demo credentials are not validated backend accounts.
 - `/it4788/like` returned 404 during the probe.

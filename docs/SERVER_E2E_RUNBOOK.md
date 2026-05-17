@@ -1,8 +1,8 @@
 # Server E2E Runbook
 
-Status date: 2026-05-10
+Status date: 2026-05-14
 
-This runbook verifies real server behavior against `http://group1.it4788.sukkaito.id.vn/it4788`. It is mutation-safe by default and only creates/modifies data when `E2E_RUN_MUTATIONS=1` is set.
+This runbook verifies real server behavior against `https://group1.it4788.sukkaito.id.vn/it4788`. HTTP remains a fallback via `API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788`. The harness is mutation-safe by default and only creates/modifies data when `E2E_RUN_MUTATIONS=1` is set.
 
 ## 1. Baseline Docker Checks
 
@@ -49,7 +49,20 @@ docker compose run --rm expo sh -lc '
 '
 ```
 
-Final-pass result: existing-account HV/GV login, logout, saved search list, block list, push settings, conversation list, compatibility profile/notification/version/check-new-item reads, and `set_devtoken` were server-verified. The server returned no course/exercise/post objects, so object-level upload/comment/approval flows need seeded backend data.
+HTTP fallback check:
+
+```bash
+docker compose run --rm expo sh -lc '
+  API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788 \
+  E2E_USE_EXISTING_ACCOUNTS=1 \
+  E2E_HV_PHONE=<provided-hv-phone> \
+  E2E_GV_PHONE=<provided-gv-phone> \
+  E2E_PASSWORD=<provided-password> \
+  npm run e2e:server
+'
+```
+
+Final-pass result: existing-account HV/GV login, logout, saved search list, block list, push settings, conversation list, compatibility profile/notification/version/check-new-item reads, and `set_devtoken` were server-verified over HTTPS. HTTP fallback also verified login and read-oriented checks. The server returned no course/exercise/post objects, so object-level upload/comment/approval flows need seeded backend data.
 
 ## 4. Real Signup With Manual OTP
 
@@ -97,8 +110,8 @@ docker compose run --rm expo sh -lc '
   E2E_GV_VERIFY_CODE=654321 \
   E2E_COURSE_ID=<real-course-id> \
   E2E_EXERCISE_ID=<real-exercise-id> \
-  E2E_VIDEO_LEFT=/app/test-fixtures/left.mp4 \
-  E2E_VIDEO_RIGHT=/app/test-fixtures/right.mp4 \
+  E2E_VIDEO_LEFT=/app/video/cam1.mp4 \
+  E2E_VIDEO_RIGHT=/app/video/cam2.mp4 \
   npm run e2e:server
 '
 ```
@@ -109,6 +122,7 @@ Video requirements:
 - each video at least 10 seconds
 - similar duration
 - real file paths mounted into the Docker container
+- local fixture videos under `video/*.mp4` are ignored by Git and must not be committed
 
 ## 6. Manual Browser Smoke
 
@@ -128,8 +142,9 @@ Video requirements:
    - post detail
    - two-video create/submission flow with real files
    - comment/like/report/edit/delete safe behavior
-   - search and saved search delete
-   - courses, request enrollment, teacher approval
+   - Search from the Home top-right search action
+   - Courses from Profile/menu or direct `/courses`
+   - request enrollment and teacher approval when backend data exists
    - profile edit with `user_name`, `avatar`, `cover_image`
    - settings, push settings, change password, version/device token
    - notifications/read state

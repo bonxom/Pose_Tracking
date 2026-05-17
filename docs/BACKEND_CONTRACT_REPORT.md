@@ -1,6 +1,6 @@
 # Backend Contract Probe Report
 
-Probe date: 2026-05-10 local time
+Probe date: 2026-05-14 local time
 
 Probe command:
 
@@ -11,16 +11,19 @@ docker compose run --rm expo sh -lc 'PROBE_COMPACT=1 npm run backend:probe'
 Backend root tested:
 
 ```text
-http://group1.it4788.sukkaito.id.vn
+https://group1.it4788.sukkaito.id.vn
 ```
 
 The probe intentionally ran with `PROBE_MUTATION` disabled. Mutating endpoints were called with invalid tokens or validation-safe payloads to identify routes, transports, and auth behavior without changing production data.
 
-Latest compact summary generated at `2026-05-10T16:20:27.303Z`.
+Latest compact HTTPS summary generated at `2026-05-14T17:13:54.030Z`.
+
+HTTP fallback was also probed with `API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788`; it still reaches the API, but HTTP redirects to HTTPS and multipart probes are less reliable on fallback.
 
 ## Summary
 
 - The deployed API prefix is `/it4788`; `/login` without the prefix returns 404.
+- HTTPS is now the frontend default. HTTP remains documented as fallback.
 - `/it4788/login` is reachable and requires `devtoken`; the local demo account returns `9995 User is not validated`.
 - The unauthenticated probe does not embed real credentials. Separate existing-account E2E runs verified real HV/GV login and authenticated reads where the server returned data or clean empty states.
 - CORS preflight returned `204` with `Access-Control-Allow-Origin: *` on selected endpoints.
@@ -80,6 +83,7 @@ Latest compact summary generated at `2026-05-10T16:20:27.303Z`.
 - `login`: JSON and form-urlencoded reach the route when `devtoken` is present. Multipart is not suitable.
 - `get_list_posts`: form-urlencoded string params are most tolerant.
 - `add_post` and `edit_post`: multipart reaches token validation; JSON/form return backend exceptions for `add_post`.
+- HTTP fallback redirects to HTTPS and returned `Multipart: Unexpected end of form` for multipart probe bodies; use HTTPS for upload testing.
 - `set_comment`: form-urlencoded with `index`/`count` reaches token validation.
 - `check_new_item`: spec-shaped token payload is rejected by deployed runtime; repository contains a documented compatibility retry without token.
 - `set_devtoken`: existing-account mutation verification passes when `devtype` is numeric (`"1"`).
@@ -90,7 +94,8 @@ Latest compact summary generated at `2026-05-10T16:20:27.303Z`.
 Credentials are not stored in this repository. With team-provided HV/GV credentials supplied via environment variables:
 
 - HV and GV login both returned HTTP 200, backend code `1000`, and a token.
-- `get_list_posts`, `search`, `profile search`, and `get_list_courses_of_student` returned `9994 No data`; the frontend treats this as a valid empty state.
+- `get_list_posts`, `search`, and `profile search` returned `9994 No data`; the frontend treats this as a valid empty state.
+- `get_list_courses_of_student` returned `9994 No data` for GV but `1001 Can not connect to DB` for HV in the final HTTPS run.
 - `get_saved_search`, `get_list_blocks`, `get_push_settings`, `get_list_conversation`, compatibility `get_user_info`, compatibility `get_notification`, compatibility `check_new_version`, compatibility `check_new_item`, and `logout` returned backend code `1000`.
 - No real post, course, exercise, notification, or conversation object id was returned, so object-specific calls remain frontend-complete but not real-object verified.
 

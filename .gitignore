@@ -11,6 +11,9 @@ web-build/
 .env
 .env.*
 
+# local media fixtures
+video/*.mp4
+
 # logs
 npm-debug.*
 yarn-debug.*

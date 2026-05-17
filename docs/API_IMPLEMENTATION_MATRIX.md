@@ -1,6 +1,6 @@
 # API Implementation Matrix
 
-Status date: 2026-05-10
+Status date: 2026-05-14
 
 Legend:
 
@@ -13,7 +13,7 @@ The matrix intentionally distinguishes wrappers, repositories, UI usage, and suc
 
 | API | Key spec params / behavior | Wrapper | Repository | UI / flow usage | Real success verified | Deployed status / notes |
 |---|---|---:|---:|---:|---:|---|
-| `login` | `phonenumber`, `password`; deployed also needs `devtoken` | Yes | Yes | Yes | Yes | Existing HV/GV env-only accounts returned code `1000` and tokens |
+| `login` | `phonenumber`, `password`; deployed also needs `devtoken` | Yes | Yes | Yes | Yes | Existing HV/GV env-only accounts returned code `1000` and tokens over HTTPS and HTTP fallback |
 | `logout` | `token` | Yes | Yes | Yes | Yes | Existing HV logout returned code `1000` |
 | `signup` | `phonenumber`, `password`, `uuid`, `role` | Yes | Yes | Yes | No | Mutation/OTP requires real phone |
 | `get_verify_code` | `phonenumber` | Yes | Yes | Yes | No | Mutation/OTP requires real phone |
@@ -21,7 +21,7 @@ The matrix intentionally distinguishes wrappers, repositories, UI usage, and suc
 | `change_info_after_signup` | token-bearing profile completion | Yes | Yes | Yes | No | Deployed rejects `user_name`; frontend tries spec-style fields then legacy auth-completion fields |
 | `get_list_posts` | `token`, `index`, `count`, `last_id`, `category_id`, `new_items` | Yes | Yes | Yes | Empty | Existing accounts returned valid `9994 No data`; pagination UI complete but no real posts |
 | `get_post` | `token`, post id; preserve `time_series_poses` | Yes | Yes | Yes | No | Token/post-id blocked |
-| `add_post` | multipart, exactly 2 videos, `course_id`, `exercise_id`, `device_slave` workaround | Yes | Yes | Yes | No | Multipart reaches token validation |
+| `add_post` | multipart, exactly 2 videos, `course_id`, `exercise_id`, `device_slave` workaround | Yes | Yes | Yes | No | Multipart reaches token validation; real upload blocked by no server course/exercise IDs for supplied accounts |
 | `edit_post` | owner HV edit with valid replacement-video rules | Yes | Yes | Yes | No | Detail edit UI added; token/post blocked |
 | `delete_post` | owner HV delete | Yes | Yes | Yes | No | Deployed `/delete_post` returns 404 |
 | `get_comment` | `token`, post id, pagination | Yes | Yes | Yes | No | Token/post blocked |
@@ -34,7 +34,7 @@ The matrix intentionally distinguishes wrappers, repositories, UI usage, and suc
 | `get_list_students` | teacher course student list | Yes | Yes | Yes | Empty / role-gated | GV returned empty; HV returned `1009 Not access` |
 | `get_user_info` | `token`, `user_id` | Yes | Yes | Yes | Compatibility | Spec payload rejected `user_id`; compatibility retry without it returned `1000` |
 | `set_user_info` | `token`, `user_name`, `avatar`, `cover_image` | Yes | Yes | Yes | No | Incorrect height contract removed from edit profile |
-| `get_list_courses_of_student` | `token`, `user_id` | Yes | Yes | Yes | Empty | Existing accounts returned `9994 No data`; repository sends `user_id` plus deployed pagination compatibility |
+| `get_list_courses_of_student` | `token`, `user_id` | Yes | Yes | Yes | Mixed | GV returned `9994 No data`; final HV run returned backend `1001 Can not connect to DB`; repository sends `user_id` plus deployed pagination compatibility; non-tab route is `/courses` |
 | `get_list_blocks` | `token`, `index`, `count`, `user_id` | Yes | Yes | Yes | Yes | Existing accounts returned code `1000` |
 | `set_block` | block/unblock user | Yes | Yes | Yes | No | Block/unblock UI added |
 | `set_approve_enrollment` | `token`, `user_id`, `is_accept` | Yes | Yes | Yes | No | Teacher approval controls added in Courses |
@@ -58,5 +58,5 @@ The matrix intentionally distinguishes wrappers, repositories, UI usage, and suc
 
 - Wrappers: all 40 APIs are represented in `src/api/client.js`.
 - Repositories: all 40 APIs are reachable through repository or auth adapters, with local adapters retained only for development modes.
-- UI: all required modules have a user-facing path, though teacher enrollment management, saved-search management, notifications, and conversations remain intentionally compact.
+- UI: all required modules have a user-facing path, though the leader-owned top navigator now exposes only Home, Friends, Notifications, and Profile as tabs. Search and Courses are API-backed non-tab routes for UI teammates to place where desired.
 - Real success verification: existing HV/GV accounts verify login/logout and several authenticated read/lifecycle APIs. Fresh signup/OTP and object-specific post/course/notification/conversation mutations remain blocked by external data availability or deployed endpoint mismatches.

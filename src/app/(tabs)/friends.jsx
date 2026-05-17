@@ -1,4 +1,5 @@
 import demoStyles from "@/styles/demo.styles";
+import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 
@@ -22,7 +23,7 @@ export default function FriendsScreen() {
       <ScrollView contentContainerStyle={demoStyles.scrollContent}>
         <View style={styles.searchContainer}>
           <Text style={styles.searchTitle}>Bạn bè</Text>
-          <Pressable hitSlop={8}>
+          <Pressable hitSlop={8} onPress={() => router.push("/search")}>
             <SearchIcon />
           </Pressable>
         </View>

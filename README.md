@@ -2,11 +2,13 @@
 
 Ứng dụng React Native dùng Expo Router (file-based routing) cho social app luyện tập tư thế diễu hành trong học phần IT4788.
 
-Backend chính thức cho các bước tích hợp sau:
+Backend chính thức:
 
 ```text
-http://group1.it4788.sukkaito.id.vn
+https://group1.it4788.sukkaito.id.vn/it4788
 ```
+
+HTTP fallback remains available at `http://group1.it4788.sukkaito.id.vn/it4788`, but HTTPS is the default.
 
 Định hướng hiện tại là server-authoritative: luồng sản phẩm mặc định dùng backend IT4788. Local/demo mode chỉ còn là đường dự phòng phát triển và phải được đánh dấu rõ.
 
@@ -117,7 +119,9 @@ Pose_Tracking/
 │   │   ├── _layout.jsx            # root stack
 │   │   ├── index.jsx              # redirect -> /(auth)/login
 │   │   ├── (auth)/                # flow đăng ký/đăng nhập
-│   │   ├── (tabs)/                # Home, Courses, Search, Notifications, Menu
+│   │   ├── (tabs)/                # Home, Friends, Notifications, Profile
+│   │   ├── search/                # non-tab search screen opened from top search actions
+│   │   ├── courses/               # non-tab course/enrollment API screen
 │   │   ├── post/                  # stack bài viết
 │   │   ├── comment/               # stack bình luận
 │   │   ├── settings/              # profile/push/password/blocks/device/version
@@ -152,11 +156,13 @@ Pose_Tracking/
 
 ### Root stack
 
-- `src/app/_layout.jsx` khai báo 6 nhánh:
+- `src/app/_layout.jsx` khai báo các nhánh chính:
   - `(auth)`
   - `(tabs)`
   - `post`
   - `comment`
+  - `search`
+  - `courses`
   - `settings`
   - `chat`
 
@@ -182,10 +188,14 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
 ### Tabs sau đăng nhập
 
 - `/(tabs)/home`
-- `/(tabs)/courses`
-- `/(tabs)/search`
+- `/(tabs)/friends`
 - `/(tabs)/notifications`
 - `/(tabs)/profile`
+
+Search and Courses are still API-backed, but they are no longer top-level tabs:
+
+- `/search`
+- `/courses`
 
 ### Post/comment routes
 
@@ -217,6 +227,8 @@ Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ 
 
 - [docs/IT4788_SOURCE_OF_TRUTH.md](docs/IT4788_SOURCE_OF_TRUTH.md): source-of-truth summary for product rules and 40 APIs.
 - [docs/API_IMPLEMENTATION_MATRIX.md](docs/API_IMPLEMENTATION_MATRIX.md): 40-API wrapper/repository/screen/probe matrix.
+- [docs/API_HANDOFF_FOR_UI_TEAM.md](docs/API_HANDOFF_FOR_UI_TEAM.md): repository usage guide for UI teammates.
+- [docs/API_POSTMAN_MAPPING.md](docs/API_POSTMAN_MAPPING.md): mapping between frontend API code and Postman requests.
 - [docs/SCREEN_FLOW_MATRIX.md](docs/SCREEN_FLOW_MATRIX.md): routes and server API usage by flow.
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): Docker workflow, web URL, data-source modes, troubleshooting.
 - [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md): exact morning demo runbook and click path.

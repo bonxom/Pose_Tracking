@@ -47,14 +47,14 @@ export default function ProfileScreen() {
       detail: "Tìm kiếm trong hồ sơ",
       onPress: () =>
         router.push({
-          pathname: "/(tabs)/search",
+          pathname: "/search",
           params: { userId: session?.id || "" },
         }),
     },
     {
       label: "My courses",
       detail: DEMO_COURSE.title,
-      onPress: () => router.push("/(tabs)/courses"),
+      onPress: () => router.push("/courses"),
     },
     {
       label: "Messages",

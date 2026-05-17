@@ -1,13 +1,14 @@
 # Backend Mismatches And Unresolved Contract Notes
 
-Status date: 2026-05-10
+Status date: 2026-05-14
 
-These notes come from the deployed backend probe against `http://group1.it4788.sukkaito.id.vn`.
+These notes come from deployed backend probes against `https://group1.it4788.sukkaito.id.vn` and HTTP fallback.
 
 ## Confirmed Mismatches
 
 | Area | Expected or prior assumption | Deployed behavior | Frontend handling |
 |---|---|---|---|
+| Default transport | HTTP was the original documented base | HTTPS works and HTTP redirects to HTTPS; HTTP multipart probes can fail with `Multipart: Unexpected end of form` | Default API base is now HTTPS; HTTP remains fallback only |
 | API base path | `/login` might work | `/login` returns 404; `/it4788/login` is active | Default `EXPO_PUBLIC_API_BASE_URL` remains `/it4788` |
 | Login payload | `phonenumber` and `password` only | Login also requires `devtoken`; `device_token`, `deviceToken`, `uuid`, and similar fields are rejected | Server login sends `devtoken` |
 | Demo accounts | Local demo credentials might validate server login | `0900000001 / 123456` returns `9995 User is not validated` | Demo buttons are explicitly local and no longer imply backend success |
@@ -23,6 +24,7 @@ These notes come from the deployed backend probe against `http://group1.it4788.s
 | change_info_after_signup payload | Profile completion should be reconciled with auth slides; `set_user_info` uses `user_name/avatar/cover_image` | Deployed `change_info_after_signup` rejects `user_name` before token validation | Auth adapter tries spec-style fields first, then deployed legacy `username/height/avatar` shape |
 | set_request_course payload | Course request expected with course metadata | Deployed probe reaches token validation only with both `course_id` and `user_id` | Repository sends `course_id` and actual session `user_id`; no longer sends course id as user id |
 | get_list_courses_of_student params | Slides specify `token` + `user_id` | Runtime existing-account tests returned clean empty state only when compatibility pagination fields were also included | Repository sends `user_id` plus string `index`/`count` compatibility fields |
+| get_list_courses_of_student HV data | Should return the HV's joined courses or a valid empty state | Final real-account HTTPS run returned `1001 Can not connect to DB` for HV while GV returned `9994 No data` | Frontend keeps the course UI and repository contract; classify HV result as deployed backend/data blocker |
 | search payload | General search and profile search are spec flows | Runtime requires/accepts `user_id` in existing-account checks | Repository includes the current session user id for normal and profile search |
 | check_new_version field | Slides use snake-case freshness field style (`last_update`) | Runtime rejects `last_update` and accepts `lastUpdate` | Repository tries spec payload first, then isolated camelCase compatibility retry |
 | get_user_info field | Slides specify `token` + `user_id` | Runtime rejects `user_id` with `property user_id should not exist` | Repository tries spec payload first, then compatibility retry without `user_id` |
@@ -35,11 +37,13 @@ The team-provided HV/GV accounts were used through environment variables only. B
 
 Authenticated read/write findings:
 
-- `get_list_posts`, `search`, and `get_list_courses_of_student` returned `9994 No data`, so real object detail/pagination flows could not be exercised.
+- `get_list_posts` and `search` returned `9994 No data`, so real object detail/pagination flows could not be exercised.
+- `get_list_courses_of_student` returned `9994 No data` for GV but `1001 Can not connect to DB` for HV.
 - `get_saved_search`, `get_list_blocks`, `get_push_settings`, `get_list_conversation`, deployed-compatible `get_user_info`, deployed-compatible `get_notification`, deployed-compatible `check_new_item`, and deployed-compatible `check_new_version` returned backend code `1000`.
 - `set_devtoken` returned backend code `1000` after adding numeric `devtype`.
 - HV receives `1009 Not access` for teacher-only `get_list_students` and `get_requested_enrollment`; GV receives empty data for those flows.
 - Real upload remains blocked by missing real `course_id` and `exercise_id` from the existing-account server data, not by a frontend placeholder path.
+- HTTPS and HTTP both verified real-account login/read flows. Prefer HTTPS for uploads.
 
 ## Still Unverified Or Blocked
 
@@ -48,8 +52,8 @@ Authenticated read/write findings:
 - Real post detail shape from `get_post`, including `time_series_poses`.
 - Successful comment creation shape from `set_comment`.
 - Successful multipart `add_post` response shape and scoring/result payload.
-- Search, courses, notifications, and user-info success payloads.
-- Blocks, settings, conversations, read-state, enrollment approval, and saved-search success payloads.
+- Object-rich search, courses, notifications, and user-info payloads.
+- Blocks/settings/conversations read-state mutations, enrollment approval, and saved-search deletion.
 
 ## Implementation Decision
 

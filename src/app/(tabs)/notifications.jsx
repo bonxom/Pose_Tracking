@@ -84,7 +84,7 @@ export default function NotificationsScreen() {
     }
 
     if (item.targetType === "course") {
-      router.push("/(tabs)/courses");
+      router.push("/courses");
     }
   };
 

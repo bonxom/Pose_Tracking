@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 
-const DEFAULT_ROOT = "http://group1.it4788.sukkaito.id.vn";
-const ROOT_URL = (process.env.PROBE_BACKEND_ROOT || DEFAULT_ROOT).replace(/\/+$/, "");
+const DEFAULT_ROOT = "https://group1.it4788.sukkaito.id.vn";
+const rawBaseUrl =
+  process.env.API_BASE_URL ||
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  process.env.PROBE_BACKEND_ROOT ||
+  DEFAULT_ROOT;
+const ROOT_URL = rawBaseUrl.replace(/\/+$/, "").replace(/\/it4788$/, "");
 const TIMEOUT_MS = Number(process.env.PROBE_TIMEOUT_MS || 6000);
 const MUTATION_ENABLED = process.env.PROBE_MUTATION === "1";
 const COMPACT_OUTPUT = process.env.PROBE_COMPACT === "1";

@@ -1,6 +1,6 @@
 # Server-Backed MVP Status
 
-Status date: 2026-05-10
+Status date: 2026-05-14
 
 ## Current Product Direction
 
@@ -22,9 +22,10 @@ EXPO_PUBLIC_DATA_SOURCE=server
 - Signup/verify/profile-completion screens now call backend auth helpers in server mode.
 - Feed/post detail/comment/like/search paths call repositories instead of directly using local stores.
 - Two-video submission uses multipart `add_post` for real server sessions and rejects demo placeholders in strict server mode.
-- Courses tab calls course/student/enrollment repositories.
+- Courses are API-backed through the non-tab `/courses` route after the leader's 4-section navigator change.
 - Notifications tab calls `get_notification` and `set_read_notification`.
 - Profile tab calls `get_user_info` and backend logout best-effort.
+- Search is API-backed through the non-tab `/search` route, opened from top search actions/menu rows.
 - Settings screens exist for profile edit, push settings, password change, device token, version check, and blocks.
 - Conversation list/detail screens exist for read/delete HTTP flows.
 - Existing real HV/GV accounts verified backend login/logout and several authenticated read/lifecycle endpoints.

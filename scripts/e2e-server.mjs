@@ -3,7 +3,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || "http://group1.it4788.sukkaito.id.vn/it4788").replace(/\/+$/, "");
+const API_BASE_URL = (
+  process.env.API_BASE_URL ||
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  "https://group1.it4788.sukkaito.id.vn/it4788"
+).replace(/\/+$/, "");
 const RUN_MUTATIONS = process.env.E2E_RUN_MUTATIONS === "1";
 const USE_EXISTING_ACCOUNTS = process.env.E2E_USE_EXISTING_ACCOUNTS === "1";
 const PASSWORD = process.env.E2E_PASSWORD || "123456";
