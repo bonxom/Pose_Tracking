@@ -1,6 +1,6 @@
 # Frontend Server Test Report
 
-Report date: 2026-05-14
+Report date: 2026-05-17
 
 ## Scope
 
@@ -58,7 +58,7 @@ Results:
 - HTTP fallback HV/GV login: server success for normal form requests.
 - HV logout: server success, code `1000`.
 - Empty-state server reads verified for feed, search, profile search, GV courses, teacher students, and requested enrollment.
-- HV course-list read returned deployed backend code `1001 Can not connect to DB` in the final HTTPS run.
+- HV/GV course-list reads returned clean `9994 No data` states in the latest HTTPS run. A prior HV run returned backend code `1001 Can not connect to DB`, so the endpoint is still tracked as intermittently unstable.
 - Success reads verified for saved search, blocks, push settings, conversation list, compatibility user info, compatibility notifications, compatibility version check, and compatibility check-new-item.
 - Safe lifecycle mutation `set_devtoken` verified with backend code `1000`.
 - Two real local MP4 fixtures were restored from `stash@{0}` and ignored by Git. Upload remains blocked by missing real `course_id`/`exercise_id` for the supplied accounts.
@@ -89,7 +89,7 @@ The web runtime is verified through Docker start and HTTP checks, and the UI smo
 | Post detail/interactions | Frontend complete; real object verification blocked by no post ids and missing deployed `/like`/`delete_post` routes. |
 | Create/upload | Frontend complete; two real MP4 fixtures generated for harness, but upload is blocked until real `course_id` and `exercise_id` are available. |
 | Search/saved search | Server empty search and saved-search list verified. Deletion not run against shared real accounts. |
-| Courses/enrollment | Frontend pending/requested/enrolled states fixed; approval flow blocked by no real course/request data. Final HV course list returned backend `1001 Can not connect to DB`; GV course/request reads returned valid empty states. |
+| Courses/enrollment | Frontend pending/requested/enrolled states fixed; approval flow blocked by no real course/request data. Latest HV/GV course-list reads returned valid empty states; an earlier HV run returned backend `1001 Can not connect to DB`. |
 | Profile/settings/device | Server verified for compatibility profile read, push settings, version check, and set-devtoken. |
 | Notifications | Server verified through compatibility payload; read-state object action blocked by no notification ids. |
 | Blocks | List read verified; block/unblock mutation not run against shared accounts. |

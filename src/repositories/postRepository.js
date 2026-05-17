@@ -1,5 +1,6 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
+import { DEMO_SAVED_SEARCHES } from "@/constants/demo";
 import * as localPosts from "@/services/postStore";
 import {
   extractList,
@@ -15,6 +16,8 @@ import {
   isServerPost,
   shouldUseServer,
 } from "@/repositories/source";
+
+let localSavedSearches = DEMO_SAVED_SEARCHES.map((item) => ({ ...item }));
 
 function localResult(value, fallback = false) {
   if (value == null) return value;
@@ -236,7 +239,7 @@ export async function getSavedSearches() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return [];
+    return localSavedSearches;
   }
 
   try {
@@ -267,6 +270,12 @@ export async function getSavedSearches() {
 
 export async function deleteSavedSearch(searchId) {
   const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    localSavedSearches = localSavedSearches.filter((item) => item.id !== searchId);
+    return true;
+  }
+
   assertServerSession(session);
 
   const response = await backendApi.delSavedSearch({

@@ -10,7 +10,7 @@ https://group1.it4788.sukkaito.id.vn/it4788
 
 HTTP fallback remains available at `http://group1.it4788.sukkaito.id.vn/it4788`, but HTTPS is the default.
 
-Định hướng hiện tại là server-authoritative: luồng sản phẩm mặc định dùng backend IT4788. Local/demo mode chỉ còn là đường dự phòng phát triển và phải được đánh dấu rõ.
+Định hướng hiện tại là server-authoritative: luồng sản phẩm mặc định dùng backend IT4788. Mock mode là đường dự phòng rõ ràng cho UI development khi backend chưa ổn định.
 
 ## Công nghệ chính
 
@@ -44,12 +44,21 @@ GV: 0900000002 / 123456
 
 Xem thêm hướng dẫn và troubleshooting trong [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Báo cáo kiểm thử server nằm ở [docs/FRONTEND_SERVER_TEST_REPORT.md](docs/FRONTEND_SERVER_TEST_REPORT.md).
 
-## Data source modes
+## API modes
 
 ```bash
-EXPO_PUBLIC_DATA_SOURCE=server # mặc định: dùng backend, lỗi rõ ràng nếu backend/token không hợp lệ
-EXPO_PUBLIC_DATA_SOURCE=auto   # dev fallback: server khi có token thật, fallback local nếu backend lỗi
-EXPO_PUBLIC_DATA_SOURCE=local  # developer-only local fallback
+EXPO_PUBLIC_API_TYPE=backend # mặc định: dùng backend thật, lỗi rõ ràng nếu backend/token không hợp lệ
+EXPO_PUBLIC_API_TYPE=mock    # chỉ dùng repository/mock data local, không gọi backend
+```
+
+`API_TYPE=mock|backend` is accepted by the Docker `up` command as a convenience alias, but Expo runtime code should use the public `EXPO_PUBLIC_API_TYPE` form. Legacy `EXPO_PUBLIC_DATA_SOURCE=server|local|auto` still works for older scripts; new work should prefer `EXPO_PUBLIC_API_TYPE`.
+
+Examples:
+
+```bash
+EXPO_PUBLIC_API_TYPE=backend docker compose up
+EXPO_PUBLIC_API_TYPE=mock docker compose up
+API_TYPE=mock docker compose up
 ```
 
 Backend probe:
@@ -132,11 +141,11 @@ Pose_Tracking/
 │   │   └── Screen.jsx
 │   ├── constants/
 │   │   ├── colors.js              # design tokens màu
-│   │   ├── demo.js                # demo users/course/exercises/notifications
+│   │   ├── demo.js                # mock users/course/exercises/notifications/friends
 │   │   ├── sizes.js               # spacing/radius/size tokens
 │   │   └── mocks/users.js         # dữ liệu user giả lập
 │   ├── config/
-│   │   └── env.js                 # API base URL and timeout config
+│   │   └── env.js                 # API type/base URL/timeout config
 │   ├── repositories/              # server-authoritative adapters plus local dev fallback
 │   ├── styles/
 │   │   ├── auth/                  # style cho từng màn auth

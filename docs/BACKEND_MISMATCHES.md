@@ -1,6 +1,6 @@
 # Backend Mismatches And Unresolved Contract Notes
 
-Status date: 2026-05-14
+Status date: 2026-05-17
 
 These notes come from deployed backend probes against `https://group1.it4788.sukkaito.id.vn` and HTTP fallback.
 
@@ -24,7 +24,8 @@ These notes come from deployed backend probes against `https://group1.it4788.suk
 | change_info_after_signup payload | Profile completion should be reconciled with auth slides; `set_user_info` uses `user_name/avatar/cover_image` | Deployed `change_info_after_signup` rejects `user_name` before token validation | Auth adapter tries spec-style fields first, then deployed legacy `username/height/avatar` shape |
 | set_request_course payload | Course request expected with course metadata | Deployed probe reaches token validation only with both `course_id` and `user_id` | Repository sends `course_id` and actual session `user_id`; no longer sends course id as user id |
 | get_list_courses_of_student params | Slides specify `token` + `user_id` | Runtime existing-account tests returned clean empty state only when compatibility pagination fields were also included | Repository sends `user_id` plus string `index`/`count` compatibility fields |
-| get_list_courses_of_student HV data | Should return the HV's joined courses or a valid empty state | Final real-account HTTPS run returned `1001 Can not connect to DB` for HV while GV returned `9994 No data` | Frontend keeps the course UI and repository contract; classify HV result as deployed backend/data blocker |
+| get_list_courses_of_student HV data | Should return the HV's joined courses or a valid empty state | A prior real-account HTTPS run returned `1001 Can not connect to DB` for HV; the latest HTTPS run returned `9994 No data` for both HV and GV | Frontend keeps the course UI and repository contract; treat this as an intermittent deployed backend/data risk until backend confirms stability |
+| course_id identity | Course ids were previously unknown to frontend testing | Backend team now says `course_id` is the teacher/GV id | Mock data and E2E helpers can use GV id when explicitly requested; `exercise_id` remains unresolved |
 | search payload | General search and profile search are spec flows | Runtime requires/accepts `user_id` in existing-account checks | Repository includes the current session user id for normal and profile search |
 | check_new_version field | Slides use snake-case freshness field style (`last_update`) | Runtime rejects `last_update` and accepts `lastUpdate` | Repository tries spec payload first, then isolated camelCase compatibility retry |
 | get_user_info field | Slides specify `token` + `user_id` | Runtime rejects `user_id` with `property user_id should not exist` | Repository tries spec payload first, then compatibility retry without `user_id` |
@@ -38,11 +39,11 @@ The team-provided HV/GV accounts were used through environment variables only. B
 Authenticated read/write findings:
 
 - `get_list_posts` and `search` returned `9994 No data`, so real object detail/pagination flows could not be exercised.
-- `get_list_courses_of_student` returned `9994 No data` for GV but `1001 Can not connect to DB` for HV.
+- `get_list_courses_of_student` returned `9994 No data` for both HV and GV in the latest HTTPS run. A prior HV run returned `1001 Can not connect to DB`, so the endpoint remains an intermittent backend/data risk.
 - `get_saved_search`, `get_list_blocks`, `get_push_settings`, `get_list_conversation`, deployed-compatible `get_user_info`, deployed-compatible `get_notification`, deployed-compatible `check_new_item`, and deployed-compatible `check_new_version` returned backend code `1000`.
 - `set_devtoken` returned backend code `1000` after adding numeric `devtype`.
 - HV receives `1009 Not access` for teacher-only `get_list_students` and `get_requested_enrollment`; GV receives empty data for those flows.
-- Real upload remains blocked by missing real `course_id` and `exercise_id` from the existing-account server data, not by a frontend placeholder path.
+- Real upload can now use teacher/GV id as `course_id` when the team confirms the target teacher, but remains blocked by missing real `exercise_id`.
 - HTTPS and HTTP both verified real-account login/read flows. Prefer HTTPS for uploads.
 
 ## Still Unverified Or Blocked
@@ -57,4 +58,4 @@ Authenticated read/write findings:
 
 ## Implementation Decision
 
-The app now defaults to `EXPO_PUBLIC_DATA_SOURCE=server`. In this mode, server repositories do not silently fake success. `auto` and `local` remain available for development and emergency fallback, and local demo shortcuts are visibly separate from backend login.
+The app now defaults to `EXPO_PUBLIC_API_TYPE=backend`. In this mode, server repositories do not silently fake success. `EXPO_PUBLIC_API_TYPE=mock` is the explicit local-only path, while legacy `EXPO_PUBLIC_DATA_SOURCE=server|local|auto` remains supported for older scripts.

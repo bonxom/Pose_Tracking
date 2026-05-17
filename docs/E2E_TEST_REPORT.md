@@ -1,6 +1,6 @@
 # E2E Test Report
 
-Report date: 2026-05-14
+Report date: 2026-05-17
 
 Security note: the real GV/HV credentials supplied by the team were used only as shell environment variables during verification. They are intentionally not recorded in this repository.
 
@@ -13,9 +13,9 @@ Security note: the real GV/HV credentials supplied by the team were used only as
 | `docker compose run --rm expo sh -lc 'npx expo-doctor'` | Passed | `18/18 checks passed. No issues detected!` |
 | `docker compose build` | Passed | Docker image builds with `npm ci`; the npm lockfile is now authoritative. Npm still reports 5 transitive audit findings. |
 | `docker compose run --rm expo npm run lint` | Passed | 0 errors after route and Home cleanup. |
-| `docker compose run --rm expo sh -lc 'PROBE_COMPACT=1 npm run backend:probe'` | Passed | Probe covers all 40 APIs over HTTPS. Latest run in this pass: `2026-05-14T17:13:54.030Z`. |
+| `docker compose run --rm expo sh -lc 'PROBE_COMPACT=1 npm run backend:probe'` | Passed | Probe covers all 40 APIs over HTTPS. Latest run in this pass: `2026-05-17T09:13:46.475Z`. |
 | `docker compose run --rm expo sh -lc 'API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788 PROBE_COMPACT=1 npm run backend:probe'` | Passed | HTTP fallback remains reachable for normal requests, but HTTP upload probes are less reliable than HTTPS. |
-| `docker compose run --rm expo sh -lc 'E2E_USE_EXISTING_ACCOUNTS=1 ... npm run e2e:server'` | Passed | Latest HTTPS run: `2026-05-14T17:14:05.594Z`. Existing HV/GV logins returned backend code `1000`; independent reads completed or were clearly blocked by missing data/backend errors. |
+| `docker compose run --rm expo sh -lc 'E2E_USE_EXISTING_ACCOUNTS=1 ... npm run e2e:server'` | Passed | Latest HTTPS run: `2026-05-17T09:14:11.371Z`. Existing HV/GV logins returned backend code `1000`; independent reads completed or were clearly blocked by missing data/backend errors. |
 | `docker compose run --rm expo sh -lc 'API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788 E2E_USE_EXISTING_ACCOUNTS=1 ... npm run e2e:server'` | Passed | HTTP fallback also supports login and read-oriented checks. |
 | `docker compose run --rm expo sh -lc 'E2E_USE_EXISTING_ACCOUNTS=1 E2E_RUN_MUTATIONS=1 ... npm run e2e:server'` | Passed with blocked upload | `set_devtoken` returned code `1000`; upload was correctly blocked because no real `course_id`/`exercise_id` was available. |
 | `docker compose up -d` | Passed | Container `pose_tracking-expo-1` started. |
@@ -53,6 +53,7 @@ docker compose run --rm expo sh -lc '
 ```
 
 The `video/*.mp4` fixtures are ignored by Git and must not be committed.
+If the team wants to use the latest clarification that `course_id` equals GV id, set `E2E_USE_GV_ID_AS_COURSE_ID=1` explicitly. `E2E_EXERCISE_ID` is still required unless the backend returns a real exercise id; the harness does not guess it.
 
 ## Real Existing-Account Results
 
@@ -68,7 +69,7 @@ The `video/*.mp4` fixtures are ignored by Git and must not be committed.
 | Create/upload | Frontend complete, object-data blocked | Real local MP4 fixtures were restored from `stash@{0}`, but upload was not attempted because the server returned no real `course_id` and `exercise_id` for these accounts. Server mode correctly refuses demo placeholders and unknown course/exercise IDs. |
 | Search | Verified empty success path | Search and profile-scoped search returned `9994 No data` for both accounts. |
 | Saved search | Verified server success | `get_saved_search` returned code `1000`; destructive deletion is not run by default against shared real accounts. |
-| Courses | Mixed backend result | GV `get_list_courses_of_student` returned `9994 No data`; HV returned `1001 Can not connect to DB` in the final HTTPS run. UI still shows pending/requested separately from enrolled. |
+| Courses | Latest empty success; intermittent backend risk remains documented | GV and HV `get_list_courses_of_student` both returned `9994 No data` in the latest HTTPS run. A prior HTTPS run returned `1001 Can not connect to DB` for HV, so the deployed endpoint remains worth watching. UI still shows pending/requested separately from enrolled. |
 | Teacher enrollment APIs | Role-aware result | HV received `1009 Not access` for teacher-only student/requested-enrollment reads; GV received `9994 No data`. |
 | Blocks | Verified server success | `get_list_blocks` returned code `1000` for both accounts. |
 | Push settings | Verified server success | `get_push_settings` returned code `1000` for both accounts. |
@@ -87,7 +88,7 @@ The `video/*.mp4` fixtures are ignored by Git and must not be committed.
 | Post interactions | Frontend complete; blocked by no real post objects and deployed `/like`/`delete_post` route issues. |
 | Upload/scoring | Frontend complete for validation and multipart path; blocked by no real course/exercise IDs and no server scoring payload. |
 | Search/saved search | Server verified for empty search and saved-search list; deletion intentionally not run against shared accounts. |
-| Courses/enrollment | Frontend fixed for pending/requested state; real approval flow blocked by no course/request data, and final HV course-list read returned deployed backend `1001 Can not connect to DB`. |
+| Courses/enrollment | Frontend fixed for pending/requested state; real approval flow blocked by no course/request data. Latest HV/GV course-list reads returned clean empty states, while an earlier HV run returned deployed backend `1001 Can not connect to DB`. |
 | Profile/settings/device | Server verified for profile compatibility, push settings, device token, and version compatibility. |
 | Notifications | Server verified through compatibility payload; read-state object action blocked by no notification objects. |
 | Blocks | Server read verified; block/unblock mutation not run against shared real accounts. |
@@ -96,6 +97,6 @@ The `video/*.mp4` fixtures are ignored by Git and must not be committed.
 ## External Or Backend-Blocked Items
 
 - Fresh signup and verify still require a real unused phone number and OTP.
-- Real two-video `add_post` still needs valid server course and exercise IDs plus real media on a device/browser.
+- Real two-video `add_post` can derive course id from GV id only when `E2E_USE_GV_ID_AS_COURSE_ID=1` is explicitly set, and it still needs a real `E2E_EXERCISE_ID` plus real media on a device/browser.
 - Full client-side scoring remains a separate implementation gap; server scoring fields are displayed when returned.
 - Browser-level smoke can be completed after `docker compose up -d`; this report records HTTP server availability, while physical-device UI testing remains a team/manual step.

@@ -10,6 +10,8 @@ const ROOT_URL = rawBaseUrl.replace(/\/+$/, "").replace(/\/it4788$/, "");
 const TIMEOUT_MS = Number(process.env.PROBE_TIMEOUT_MS || 6000);
 const MUTATION_ENABLED = process.env.PROBE_MUTATION === "1";
 const COMPACT_OUTPUT = process.env.PROBE_COMPACT === "1";
+const PROBE_COURSE_ID =
+  process.env.PROBE_COURSE_ID || process.env.PROBE_TEACHER_ID || "__probe_teacher_id__";
 
 const loginBody = {
   phonenumber: process.env.PROBE_PHONE || "0900000001",
@@ -92,7 +94,7 @@ const endpointSpecs = [
     body: ({ token }) => ({
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
       described: "probe add_post",
-      course_id: "course_marching_101",
+      course_id: PROBE_COURSE_ID,
       exercise_id: "exercise_salute_001",
       device_slave: "expo-web-demo",
     }),
@@ -281,7 +283,7 @@ const endpointSpecs = [
     paths: ["/it4788/set_request_course"],
     body: ({ token }) => ({
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
-      course_id: process.env.PROBE_COURSE_ID || "course_marching_101",
+      course_id: PROBE_COURSE_ID,
       user_id: process.env.PROBE_USER_ID || "1",
     }),
     transports: ["json", "form", "multipart"],

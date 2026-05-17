@@ -116,6 +116,14 @@ docker compose run --rm expo sh -lc '
 '
 ```
 
+If the target course is the provided GV's course and the backend team has confirmed the `course_id = GV id` rule for that environment, you may opt in instead of passing `E2E_COURSE_ID`:
+
+```bash
+E2E_USE_GV_ID_AS_COURSE_ID=1
+```
+
+`E2E_EXERCISE_ID` remains required unless the backend returns a real exercise id; the harness never invents one.
+
 Video requirements:
 
 - exactly 2 videos

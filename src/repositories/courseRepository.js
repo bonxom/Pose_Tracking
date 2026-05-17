@@ -1,5 +1,10 @@
 import { backendApi } from "@/api/client";
-import { DEMO_COURSE, DEMO_STUDENT } from "@/constants/demo";
+import {
+  DEMO_COURSE,
+  DEMO_ENROLLMENT_REQUESTS,
+  DEMO_FRIENDS,
+  DEMO_STUDENT,
+} from "@/constants/demo";
 import { getExercisePosts } from "@/repositories/postRepository";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
@@ -134,13 +139,19 @@ export async function getCourseStudents() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return [{
-      id: DEMO_STUDENT.id,
-      username: DEMO_STUDENT.displayName,
-      role: "HV",
-      phonenumber: DEMO_STUDENT.phonenumber,
-      source: ACTIVE_SOURCES.LOCAL,
-    }];
+    return [
+      {
+        id: DEMO_STUDENT.id,
+        username: DEMO_STUDENT.displayName,
+        role: "HV",
+        phonenumber: DEMO_STUDENT.phonenumber,
+        source: ACTIVE_SOURCES.LOCAL,
+      },
+      ...DEMO_FRIENDS.filter((item) => item.role === "HV").map((item) => ({
+        ...item,
+        source: ACTIVE_SOURCES.LOCAL,
+      })),
+    ];
   }
 
   const response = await backendApi.getListStudents({
@@ -165,7 +176,7 @@ export async function getRequestedEnrollments() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return [];
+    return DEMO_ENROLLMENT_REQUESTS;
   }
 
   const response = await backendApi.getRequestedEnrollment({
@@ -199,6 +210,11 @@ export async function requestCourse(courseId = DEMO_COURSE.id) {
 
 export async function approveEnrollment(requestId, isApproved = true) {
   const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return { approved: isApproved, source: ACTIVE_SOURCES.LOCAL };
+  }
+
   const response = await backendApi.setApproveEnrollment({
     token: session.token,
     user_id: requestId,

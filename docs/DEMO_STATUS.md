@@ -1,16 +1,16 @@
 # Server-Backed MVP Status
 
-Status date: 2026-05-14
+Status date: 2026-05-17
 
 ## Current Product Direction
 
 The temporary demo-only phase is finished. The default app path is server-authoritative with:
 
 ```bash
-EXPO_PUBLIC_DATA_SOURCE=server
+EXPO_PUBLIC_API_TYPE=backend
 ```
 
-`auto` and `local` remain available for development and emergency fallback. Demo account buttons are explicitly local and should not be treated as backend verification.
+`EXPO_PUBLIC_API_TYPE=mock` is the explicit no-backend UI-development path. Legacy `auto` and `local` data-source values remain compatibility aliases. Demo account buttons are explicitly local and should not be treated as backend verification.
 
 ## Completed Server-Oriented Features
 

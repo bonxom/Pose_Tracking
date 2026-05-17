@@ -1,6 +1,6 @@
 # Backend Contract Probe Report
 
-Probe date: 2026-05-14 local time
+Probe date: 2026-05-17 local time
 
 Probe command:
 
@@ -16,9 +16,9 @@ https://group1.it4788.sukkaito.id.vn
 
 The probe intentionally ran with `PROBE_MUTATION` disabled. Mutating endpoints were called with invalid tokens or validation-safe payloads to identify routes, transports, and auth behavior without changing production data.
 
-Latest compact HTTPS summary generated at `2026-05-14T17:13:54.030Z`.
+Latest compact HTTPS summary generated at `2026-05-17T09:13:46.475Z`.
 
-HTTP fallback was also probed with `API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788`; it still reaches the API, but HTTP redirects to HTTPS and multipart probes are less reliable on fallback.
+HTTP fallback was also probed at `2026-05-17T09:13:54.781Z` with `API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788`; it still reaches the API, but HTTP redirects to HTTPS and multipart probes are less reliable on fallback.
 
 ## Summary
 
@@ -31,6 +31,7 @@ HTTP fallback was also probed with `API_BASE_URL=http://group1.it4788.sukkaito.i
 - `/it4788/like` and `/it4788/delete_post` returned 404 on the deployed server.
 - `check_new_item` rejects a `token` field in deployed runtime even though the app keeps the spec-shaped call first.
 - `set_request_course` reaches token validation only after both `course_id` and `user_id` are present.
+- Backend-team clarification now says `course_id` is the teacher/GV id; `exercise_id` is still unresolved test data.
 - Existing-account runtime shows several spec/runtime payload splits: `check_new_version` wants `lastUpdate`, `get_user_info` rejects `user_id`, `get_notification` rejects `last_update`, and `check_new_item` rejects `token`.
 
 ## 40-API Probe Results
@@ -95,10 +96,10 @@ Credentials are not stored in this repository. With team-provided HV/GV credenti
 
 - HV and GV login both returned HTTP 200, backend code `1000`, and a token.
 - `get_list_posts`, `search`, and `profile search` returned `9994 No data`; the frontend treats this as a valid empty state.
-- `get_list_courses_of_student` returned `9994 No data` for GV but `1001 Can not connect to DB` for HV in the final HTTPS run.
+- `get_list_courses_of_student` returned `9994 No data` for both HV and GV in the latest HTTPS run. A prior HV run returned `1001 Can not connect to DB`, so the endpoint remains an intermittent deployed risk.
 - `get_saved_search`, `get_list_blocks`, `get_push_settings`, `get_list_conversation`, compatibility `get_user_info`, compatibility `get_notification`, compatibility `check_new_version`, compatibility `check_new_item`, and `logout` returned backend code `1000`.
 - No real post, course, exercise, notification, or conversation object id was returned, so object-specific calls remain frontend-complete but not real-object verified.
 
 ## Integration Decision
 
-The frontend default is `EXPO_PUBLIC_DATA_SOURCE=server`. Local/demo mode is still available but is no longer the product default. Runtime deviations are isolated in repository payload choices and tracked in [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md).
+The frontend default is `EXPO_PUBLIC_API_TYPE=backend`. `EXPO_PUBLIC_API_TYPE=mock` is the explicit no-backend path for UI work; older `EXPO_PUBLIC_DATA_SOURCE` values remain compatibility aliases. Runtime deviations are isolated in repository payload choices and tracked in [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md).

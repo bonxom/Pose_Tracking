@@ -1,6 +1,6 @@
 # API Postman Mapping
 
-Status date: 2026-05-14
+Status date: 2026-05-17
 
 | API | Frontend wrapper / repository | Postman request | Known mismatch / workaround | Verification status |
 |---|---|---|---|---|
@@ -12,7 +12,7 @@ Status date: 2026-05-14
 | change_info_after_signup | backendApi.changeInfoAfterSignup | Auth / Change Info After Signup | Deployed rejects user_name in probe | Mismatch |
 | get_list_posts | backendApi.getListPosts / getFeedPage | Feed / Posts / Get List Posts | Form-urlencoded string params | Verified empty |
 | get_post | backendApi.getPost / getPostById | Feed / Posts / Get Post | Needs postId | Data-blocked |
-| add_post | backendApi.addPost / createPost | Feed / Posts / Add Post Multipart | Multipart with device_slave and two files | Course/exercise data-blocked |
+| add_post | backendApi.addPost / createPost | Feed / Posts / Add Post Multipart | Multipart with device_slave and two files; courseId may be teacherId/GV id | exerciseId data-blocked |
 | edit_post | backendApi.editPostMultipart / editPost | Feed / Posts / Edit Post Multipart | Multipart for video replacement | Data-blocked |
 | delete_post | backendApi.deletePost / deletePost | Feed / Posts / Delete Post | Deployed 404 | Backend-blocked |
 | get_comment | backendApi.getComment / getComments | Comments / Likes / Reports / Get Comment | Needs postId | Data-blocked |
@@ -25,12 +25,12 @@ Status date: 2026-05-14
 | get_list_students | backendApi.getListStudents / getCourseStudents | Courses / Enrollment / Get List Students | HV may get Not access | GV empty verified |
 | get_user_info | backendApi.getUserInfo / getUserInfo | Profile / Users / Get User Info | Deployed rejects user_id; retry without | Compatibility verified |
 | set_user_info | backendApi.setUserInfo / updateUserInfo | Profile / Users / Set User Info | Spec user_name/avatar/cover_image | Not mutated |
-| get_list_courses_of_student | backendApi.getListCoursesOfStudent / getStudentCourses | Courses / Enrollment / Get List Courses Of Student | Sends user_id plus pagination compatibility | Verified empty |
+| get_list_courses_of_student | backendApi.getListCoursesOfStudent / getStudentCourses | Courses / Enrollment / Get List Courses Of Student | Sends user_id plus pagination compatibility | Latest HV/GV empty verified; earlier HV run returned backend `1001` |
 | get_list_blocks | backendApi.getListBlocks / getBlocks | Blocks / Get List Blocks | Requires user_id | Verified |
 | set_block | backendApi.setBlock / setBlock | Blocks / Set Block | Destructive/shared accounts | Not run |
 | set_approve_enrollment | backendApi.setApproveEnrollment / approveEnrollment | Courses / Enrollment / Set Approve Enrollment | Needs pending request | Data-blocked |
 | get_requested_enrollment | backendApi.getRequestedEnrollment / getRequestedEnrollments | Courses / Enrollment / Get Requested Enrollment | GV only | GV empty verified |
-| set_request_course | backendApi.setRequestCourse / requestCourse | Courses / Enrollment / Set Request Course | Needs real courseId | Data-blocked |
+| set_request_course | backendApi.setRequestCourse / requestCourse | Courses / Enrollment / Set Request Course | courseId may equal teacherId/GV id; exerciseId not involved | Data-blocked |
 | get_push_settings | backendApi.getPushSettings / getPushSettings | Settings / Device / Get Push Settings | None | Verified |
 | set_push_settings | backendApi.setPushSettings / setPushSettings | Settings / Device / Set Push Settings | Mutation not run | Not run |
 | change_password | backendApi.changePassword / changePassword | Settings / Device / Change Password | Destructive | Not run |

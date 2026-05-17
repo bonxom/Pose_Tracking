@@ -1,17 +1,19 @@
 import { API_BASE_URL } from "@/config/env";
 import { backendApi } from "@/api/client";
-import { getDataSourceMode, hasServerSession } from "@/repositories/source";
+import { getApiType, getDataSourceMode, hasServerSession, isMockMode } from "@/repositories/source";
 
 export async function checkBackendStatus(session = null) {
   const mode = getDataSourceMode();
+  const apiType = getApiType();
 
-  if (mode === "local") {
+  if (isMockMode()) {
     return {
       ok: true,
       baseUrl: API_BASE_URL,
       state: "local-fallback",
       mode,
-      message: "Configured for local demo data",
+      apiType,
+      message: "Configured for mock data",
     };
   }
 
@@ -39,6 +41,7 @@ export async function checkBackendStatus(session = null) {
           baseUrl: API_BASE_URL,
           state: "authenticated",
           mode,
+          apiType,
           message: "Backend reachable with current session",
         };
       } catch (authError) {
@@ -47,6 +50,7 @@ export async function checkBackendStatus(session = null) {
           baseUrl: API_BASE_URL,
           state: "contract-error",
           mode: "server",
+          apiType,
           message: authError.message || "Backend session check failed",
         };
       }
@@ -57,6 +61,7 @@ export async function checkBackendStatus(session = null) {
       baseUrl: API_BASE_URL,
       state: reachable ? "reachable" : "contract-error",
       mode,
+      apiType,
       message: reachable ? "Backend login route reachable" : "Backend returned unexpected response",
     };
   } catch (error) {
@@ -65,6 +70,7 @@ export async function checkBackendStatus(session = null) {
       baseUrl: API_BASE_URL,
       state: "unavailable",
       mode: "local-fallback",
+      apiType,
       message: error.message || "Using local demo fallback",
     };
   }

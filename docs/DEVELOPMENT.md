@@ -1,6 +1,6 @@
 # Development Workflow
 
-This repository is a React Native / Expo Router frontend for the IT4788 marching/parade pose-training social app. The current product strategy is server-authoritative: normal app usage should call the deployed IT4788 backend. Local mode remains available only for development, emergency demos, and isolated fallback testing.
+This repository is a React Native / Expo Router frontend for the IT4788 marching/parade pose-training social app. The current product strategy is server-authoritative: normal app usage should call the deployed IT4788 backend. Mock mode is available as an explicit UI-development/emergency path when the backend is unstable.
 
 Backend source of truth:
 
@@ -27,26 +27,45 @@ Student HV: 0900000001 / 123456
 Teacher GV: 0900000002 / 123456
 ```
 
-Important: these demo shortcuts are explicitly local and do not prove backend integration. In normal `server` mode, developer fallback controls are visually separated from the real login form.
+Important: these demo shortcuts are explicitly local and do not prove backend integration. In normal `backend` mode, developer fallback controls are visually separated from the real login form.
 
-## Data Source Modes
+## API Modes
 
 Default:
 
 ```bash
-EXPO_PUBLIC_DATA_SOURCE=server
+EXPO_PUBLIC_API_TYPE=backend
 ```
 
 Modes:
 
-- `server`: default product mode. Use backend repositories and show safe errors if backend/token/contracts fail.
-- `auto`: development fallback. Use server repositories when a real server session/token exists and fall back to local data if compatible backend calls fail.
-- `local`: developer-only local fallback.
+- `backend`: default product mode. Use backend repositories and show safe errors if backend/token/contracts fail.
+- `mock`: local-only repository mode. Never calls backend and uses seeded mock data for UI work.
+
+Docker convenience alias:
+
+```bash
+API_TYPE=mock docker compose up
+```
+
+Canonical Expo runtime form:
+
+```bash
+EXPO_PUBLIC_API_TYPE=mock docker compose up
+EXPO_PUBLIC_API_TYPE=backend docker compose up
+```
+
+Legacy compatibility remains available for older scripts:
+
+- `EXPO_PUBLIC_DATA_SOURCE=server` maps to backend mode.
+- `EXPO_PUBLIC_DATA_SOURCE=local` maps to mock mode.
+- `EXPO_PUBLIC_DATA_SOURCE=auto` preserves the older server-with-local-fallback development behavior.
 
 Optional config:
 
 ```bash
 EXPO_PUBLIC_API_BASE_URL=https://group1.it4788.sukkaito.id.vn/it4788
+EXPO_PUBLIC_API_TYPE=backend
 EXPO_PUBLIC_API_TIMEOUT_MS=4500
 EXPO_PUBLIC_API_DEBUG=1
 ```
@@ -141,7 +160,7 @@ docker compose up
 ## Current Implemented Product Features
 
 - Normal login attempts backend in default `server` mode.
-- Demo login for HV and GV accounts remains available as explicit local fallback.
+- Demo login for HV and GV accounts remains available as explicit mock/local fallback.
 - Repository layer for auth, posts, comments, courses, notifications, user/profile, settings, blocks, and conversations.
 - Four-section top navigator: Home, Friends, Notifications, Profile.
 - Facebook-like local home feed with teacher exercise posts and student submission posts.
@@ -169,8 +188,8 @@ docker compose up
 
 ## Local Fallback And Development-Only Parts
 
-- Demo users, course, exercises, notifications, conversations, video placeholders, and scoring templates come from `src/constants/demo.js` only in local/dev flows.
-- `src/services/postStore.js` is retained for local mode and explicit demo shortcuts.
+- Mock users, course, exercises, notifications, friends, saved searches, blocks, conversations, video placeholders, settings, and scoring templates come from `src/constants/demo.js`.
+- `src/services/postStore.js` is retained for mock mode and explicit demo shortcuts.
 - Demo video placeholders are not sent to backend; server mode requires real files.
 - Pose scoring simulation is local-only. Server-authoritative scoring/result fields are preserved when returned.
 - There is no `send_message` API in the 40-API list, so composing a new chat message remains local-only.
@@ -184,6 +203,7 @@ docker compose up
 - `/it4788/like` returned 404 during the probe.
 - `get_list_posts` worked best with form-urlencoded string values.
 - `add_post` requires multipart and `device_slave`.
+- Backend-team guidance currently says `course_id` equals the teacher/GV id; `exercise_id` is still explicit backend/test data and should not be guessed.
 - Existing real accounts verified several authenticated paths, but returned no posts/courses/exercises, so object-specific flows remain data-blocked.
 - Deployed runtime differs from the slides for `check_new_version.last_update`, `get_user_info.user_id`, `get_notification.last_update`, and `check_new_item.token`; repositories keep spec-shaped calls first and isolate compatibility retries.
 
@@ -209,6 +229,6 @@ See [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md) and [BACKEND_MISMAT
 ## Recommended Next Phases
 
 1. Seed or create a real course/exercise/post set for the provided HV/GV accounts.
-2. Run the E2E harness with real `E2E_COURSE_ID`, `E2E_EXERCISE_ID`, and two video fixtures.
+2. Run the E2E harness with real `E2E_COURSE_ID` or explicit `E2E_USE_GV_ID_AS_COURSE_ID=1`, plus required `E2E_EXERCISE_ID` and two video fixtures.
 3. Complete physical-device testing for camera/file picker, native duration metadata, and phone-browser LAN access.
 4. Decide whether full client-side scoring is required beyond displaying backend scoring fields.

@@ -1,6 +1,6 @@
 # API Implementation Matrix
 
-Status date: 2026-05-14
+Status date: 2026-05-17
 
 Legend:
 
@@ -21,7 +21,7 @@ The matrix intentionally distinguishes wrappers, repositories, UI usage, and suc
 | `change_info_after_signup` | token-bearing profile completion | Yes | Yes | Yes | No | Deployed rejects `user_name`; frontend tries spec-style fields then legacy auth-completion fields |
 | `get_list_posts` | `token`, `index`, `count`, `last_id`, `category_id`, `new_items` | Yes | Yes | Yes | Empty | Existing accounts returned valid `9994 No data`; pagination UI complete but no real posts |
 | `get_post` | `token`, post id; preserve `time_series_poses` | Yes | Yes | Yes | No | Token/post-id blocked |
-| `add_post` | multipart, exactly 2 videos, `course_id`, `exercise_id`, `device_slave` workaround | Yes | Yes | Yes | No | Multipart reaches token validation; real upload blocked by no server course/exercise IDs for supplied accounts |
+| `add_post` | multipart, exactly 2 videos, `course_id`, `exercise_id`, `device_slave` workaround | Yes | Yes | Yes | No | Multipart reaches token validation; team says course id may be GV id, but real upload still needs explicit exercise id |
 | `edit_post` | owner HV edit with valid replacement-video rules | Yes | Yes | Yes | No | Detail edit UI added; token/post blocked |
 | `delete_post` | owner HV delete | Yes | Yes | Yes | No | Deployed `/delete_post` returns 404 |
 | `get_comment` | `token`, post id, pagination | Yes | Yes | Yes | No | Token/post blocked |
@@ -34,7 +34,7 @@ The matrix intentionally distinguishes wrappers, repositories, UI usage, and suc
 | `get_list_students` | teacher course student list | Yes | Yes | Yes | Empty / role-gated | GV returned empty; HV returned `1009 Not access` |
 | `get_user_info` | `token`, `user_id` | Yes | Yes | Yes | Compatibility | Spec payload rejected `user_id`; compatibility retry without it returned `1000` |
 | `set_user_info` | `token`, `user_name`, `avatar`, `cover_image` | Yes | Yes | Yes | No | Incorrect height contract removed from edit profile |
-| `get_list_courses_of_student` | `token`, `user_id` | Yes | Yes | Yes | Mixed | GV returned `9994 No data`; final HV run returned backend `1001 Can not connect to DB`; repository sends `user_id` plus deployed pagination compatibility; non-tab route is `/courses` |
+| `get_list_courses_of_student` | `token`, `user_id` | Yes | Yes | Yes | Empty / intermittent risk | Latest HV/GV run returned `9994 No data`; an earlier HV run returned backend `1001 Can not connect to DB`; repository sends `user_id` plus deployed pagination compatibility; non-tab route is `/courses` |
 | `get_list_blocks` | `token`, `index`, `count`, `user_id` | Yes | Yes | Yes | Yes | Existing accounts returned code `1000` |
 | `set_block` | block/unblock user | Yes | Yes | Yes | No | Block/unblock UI added |
 | `set_approve_enrollment` | `token`, `user_id`, `is_accept` | Yes | Yes | Yes | No | Teacher approval controls added in Courses |

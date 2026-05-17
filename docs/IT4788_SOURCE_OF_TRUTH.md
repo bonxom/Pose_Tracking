@@ -1,6 +1,6 @@
 # IT4788 Source Of Truth
 
-Status date: 2026-05-14
+Status date: 2026-05-17
 
 This repository follows the IT4788 weekly requirement slides / course specification as the product source of truth. Existing frontend mock behavior and deployed-backend quirks are implementation evidence only. If the deployed backend differs from the slides, the mismatch is tracked in `docs/BACKEND_MISMATCHES.md` and any compatibility behavior must stay isolated.
 
@@ -16,6 +16,7 @@ The app is a React Native / Expo social learning system for `Tap dong tac dieu b
 - `HV`: student. A student can join multiple courses.
 - GV creates standard exercise posts for their course.
 - HV creates exercise submission posts tied to `course_id` and `exercise_id`.
+- Current backend-team clarification says `course_id` is the teacher/GV id; `exercise_id` remains explicit backend/test data until clarified.
 - GV/HV relation can be affected by course enrollment, approval, and block actions.
 - HV can edit/delete their own posts according to the stated role rules; non-owners report posts.
 

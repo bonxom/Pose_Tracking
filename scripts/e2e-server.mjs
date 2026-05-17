@@ -10,6 +10,7 @@ const API_BASE_URL = (
 ).replace(/\/+$/, "");
 const RUN_MUTATIONS = process.env.E2E_RUN_MUTATIONS === "1";
 const USE_EXISTING_ACCOUNTS = process.env.E2E_USE_EXISTING_ACCOUNTS === "1";
+const USE_GV_ID_AS_COURSE_ID = process.env.E2E_USE_GV_ID_AS_COURSE_ID === "1";
 const PASSWORD = process.env.E2E_PASSWORD || "123456";
 const DEVICE_TOKEN = process.env.E2E_DEVICE_TOKEN || "expo-web-e2e";
 const VERIFY_FIELDS = ["code", "verify_code", "code_verify", "otp"];
@@ -374,7 +375,11 @@ async function verifyAuthenticatedReads(label, session) {
 async function verifyOptionalMutations(hv, gv, hvContext = {}, gvContext = {}) {
   if (!RUN_MUTATIONS) return;
 
-  const courseId = process.env.E2E_COURSE_ID || hvContext.courseId || gvContext.courseId || "";
+  const courseId =
+    process.env.E2E_COURSE_ID ||
+    hvContext.courseId ||
+    gvContext.courseId ||
+    (USE_GV_ID_AS_COURSE_ID ? gv?.userId || "" : "");
   if (hv?.token && courseId) {
     const requestCourse = await request("/set_request_course", { token: hv.token, course_id: courseId, user_id: hv.userId });
     addStep("HV set_request_course", ok(requestCourse) ? "passed" : "failed", {

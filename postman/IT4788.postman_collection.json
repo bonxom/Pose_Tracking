@@ -412,7 +412,7 @@
                 "value": "application/json"
               }
             ],
-            "description": "Multipart upload. Pick local files for video1/video2 in Postman. Requires seeded courseId/exerciseId for HV submissions.",
+            "description": "Multipart upload. Pick local files for video1/video2 in Postman. Current backend-team guidance says courseId may equal teacherId/GV id; exerciseId is still explicit test data and must be supplied.",
             "url": {
               "raw": "{{baseUrl}}/add_post",
               "host": [

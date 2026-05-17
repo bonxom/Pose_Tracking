@@ -9,6 +9,8 @@ import {
   shouldUseServer,
 } from "@/repositories/source";
 
+let localNotifications = DEMO_NOTIFICATIONS.map((item) => ({ ...item }));
+
 function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   const type = raw.type || raw.notification_type || "info";
   const objectId = raw.object_id || raw.objectId || raw.target_id || raw.post_id || raw.course_id || "";
@@ -57,7 +59,7 @@ export async function getNotificationPage(params = {}) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return normalizeNotificationPage({ data: DEMO_NOTIFICATIONS }, ACTIVE_SOURCES.LOCAL);
+    return normalizeNotificationPage({ data: localNotifications }, ACTIVE_SOURCES.LOCAL);
   }
 
   try {
@@ -95,6 +97,11 @@ export async function markNotificationRead(notificationId) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
+    localNotifications = localNotifications.map((item) =>
+      item.id === notificationId || item.notification_id === notificationId
+        ? { ...item, unread: false, read: 1, badge: 0 }
+        : item,
+    );
     return { read: true, source: ACTIVE_SOURCES.LOCAL };
   }
 

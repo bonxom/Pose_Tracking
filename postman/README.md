@@ -8,6 +8,7 @@ Import `IT4788.postman_collection.json` and `IT4788.local.postman_environment.js
 2. Keep `baseUrl` as HTTPS by default: `{{baseUrlHttps}}`.
 3. To test HTTP fallback, set `baseUrl` to `{{baseUrlHttp}}`. The current HTTP endpoint redirects to HTTPS.
 4. Fill `hvPhone`, `gvPhone`, and `password` locally in Postman. Do not export real credentials back into the repo.
+5. `apiType` mirrors frontend development mode only; Postman requests still target whichever `baseUrl` you choose.
 
 ## Login And Tokens
 
@@ -19,7 +20,8 @@ Import `IT4788.postman_collection.json` and `IT4788.local.postman_environment.js
 
 - Use `Feed / Posts / Add Post Multipart`.
 - Pick two local files for `video1` and `video2` in Postman.
-- Set `courseId` and `exerciseId` from seeded backend data first.
+- Current backend-team guidance says `courseId` may equal the teacher/GV id, so `teacherId` can be copied into `courseId` when that is the object under test.
+- `exerciseId` is still backend/test-data driven and must be supplied explicitly.
 - Do not use mock:// placeholders against the server.
 
 ## Known Backend Mismatches
@@ -34,4 +36,4 @@ Import `IT4788.postman_collection.json` and `IT4788.local.postman_environment.js
 
 ## Seeded Data Requirements
 
-Several flows need real IDs from backend data: `postId`, `courseId`, `exerciseId`, `notificationId`, `conversationId`, and `messageId`. Existing shared accounts may return empty feed/course data, which is a data blocker rather than a Postman issue.
+Several flows need real IDs from backend data: `postId`, `teacherId`, `courseId`, `exerciseId`, `notificationId`, `conversationId`, and `messageId`. Current team guidance says `courseId` can be the GV id; `exerciseId` remains unknown until backend data or clarification is available. Existing shared accounts may return empty feed/course data, which is a data blocker rather than a Postman issue.

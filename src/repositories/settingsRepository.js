@@ -1,5 +1,6 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
+import { DEMO_PUSH_SETTINGS } from "@/constants/demo";
 import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import {
@@ -9,19 +10,7 @@ import {
   shouldUseServer,
 } from "@/repositories/source";
 
-const LOCAL_PUSH_SETTINGS = {
-  like_comment: true,
-  from_friends: true,
-  requested_friend: true,
-  suggested_friend: true,
-  birthday: true,
-  video: true,
-  report: true,
-  sound_on: true,
-  notification_on: true,
-  vibrant_on: true,
-  led_on: true,
-};
+const LOCAL_PUSH_SETTINGS = DEMO_PUSH_SETTINGS;
 
 export async function getPushSettings() {
   const session = await getCurrentSession();
@@ -84,6 +73,15 @@ export async function changePassword(oldPassword, newPassword) {
 
 export async function checkNewVersion() {
   const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    return {
+      version: "mock",
+      lastUpdate: "2026-05-17T00:00:00.000Z",
+      source: ACTIVE_SOURCES.LOCAL,
+    };
+  }
+
   let response = await backendApi.checkNewVersion({
     token: session?.token || "",
     last_update: "2026-05-10T00:00:00.000Z",

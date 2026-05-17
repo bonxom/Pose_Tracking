@@ -9,7 +9,7 @@ import { getAuthSession } from "@/utils/session";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-const POSTS_STORAGE_KEY = "pose_tracking.posts.v2";
+const POSTS_STORAGE_KEY = "pose_tracking.posts.v3";
 const CREATE_DRAFT_STORAGE_KEY = "pose_tracking.post_draft.v1";
 const COMMENT_DRAFT_STORAGE_KEY = "pose_tracking.comment_drafts.v1";
 

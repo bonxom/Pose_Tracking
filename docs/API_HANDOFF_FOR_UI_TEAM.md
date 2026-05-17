@@ -1,6 +1,6 @@
 # API Handoff For UI Team
 
-Status date: 2026-05-14
+Status date: 2026-05-17
 
 This project now keeps the leader's 4-section Facebook-style navigator:
 
@@ -17,15 +17,31 @@ API-backed features do not need to be top-level tabs. UI screens should call rep
 - Call repositories from `src/repositories/*`.
 - Keep request payload quirks and response normalization inside repositories/API client.
 - Use `redirectIfSessionExpired(error, router)` in screen catch blocks.
-- In server mode, do not fake success. Show a friendly error when the backend fails.
-- Local/demo fallback is for development only and should stay visually separate.
+- In backend mode, do not fake success. Show a friendly error when the backend fails.
+- Mock mode is for UI development/demo fallback and should stay visually separate.
+
+## API Mode Switch
+
+```bash
+EXPO_PUBLIC_API_TYPE=backend # default real integration mode
+EXPO_PUBLIC_API_TYPE=mock    # local-only mock repositories; no backend calls
+```
+
+`API_TYPE=mock|backend` is a Docker `up` convenience alias. Legacy `EXPO_PUBLIC_DATA_SOURCE=server|local|auto` still works, but new UI work should use `EXPO_PUBLIC_API_TYPE`.
+
+Helpers are available in `src/repositories/source.js`:
+
+- `getApiType()`
+- `isBackendMode()`
+- `isMockMode()`
+- `getDataSourceLabel(source)`
 
 ## Current Routes After Leader Navigation Change
 
 | Product area | Current route | Notes |
 |---|---|---|
 | Home feed | `/(tabs)/home` | Top-tab Home. Calls post repository. |
-| Friends | `/(tabs)/friends` | Shell screen. Can later use search/user/block APIs. |
+| Friends | `/(tabs)/friends` | Shell screen. Mock seed includes friend/user rows; future UI can use search/user/block repositories. |
 | Notifications | `/(tabs)/notifications` | Top-tab Notifications. Calls notification repository. |
 | Profile | `/(tabs)/profile` | Top-tab Profile. Calls user/auth repositories and links to supporting screens. |
 | Search | `/search` | Non-tab API shell opened by Home/Friends/Profile search actions. |
@@ -114,9 +130,9 @@ File: `src/repositories/courseRepository.js`
 | `requestCourse(courseId)` | HV request join | returns `requested`, not enrolled |
 | `approveEnrollment(requestId, isApproved)` | GV approve/reject | backend result |
 
-Important UI state: after `requestCourse`, show pending/requested until GV approval is confirmed.
+Important UI state: after `requestCourse`, show pending/requested until GV approval is confirmed. Current backend-team guidance says `courseId` equals the teacher/GV id; `exerciseId` remains explicit backend/test data.
 
-Verified: empty course state with real accounts. Data-blocked: no real course/request objects returned.
+Verified: latest HV/GV course-list checks both returned clean empty states. An earlier HV run returned `1001 Can not connect to DB`, so keep the error state visible and treat the endpoint as intermittently unstable. Mock mode has seeded enrolled course, students, and a pending request.
 
 ### Notifications
 
@@ -165,7 +181,7 @@ File: `src/repositories/blockRepository.js`
 | `getBlocks()` | Block list |
 | `setBlock(userId, type)` | Block/unblock action |
 
-Verified: block list. Block mutation not run against shared accounts.
+Verified: block list. Block mutation not run against shared accounts. Mock mode has mutable local block data.
 
 ### Conversations
 
