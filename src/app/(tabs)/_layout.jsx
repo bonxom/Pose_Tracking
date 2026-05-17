@@ -67,6 +67,17 @@ const AccountIcon = ({ focused }) => (
   </Svg>
 );
 
+const MenuIcon = ({ focused }) => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M4 6.5h16M4 12h16M4 17.5h16"
+      stroke={focused ? FB_BLUE : INK}
+      strokeWidth={2.4}
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
 const SearchIcon = ({ color = INK, size = 28 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle cx={11} cy={11} r={7} stroke={color} strokeWidth={2} />
@@ -187,6 +198,15 @@ export default function TabsLayout() {
             tabBarLabel: "Hồ sơ",
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => <AccountIcon focused={focused} />,
+          }}
+        />
+        <Tabs.Screen
+          name="menu"
+          options={{
+            title: "Menu",
+            tabBarLabel: "Menu",
+            tabBarButton: (props) => <TabButton {...props} />,
+            tabBarIcon: ({ focused }) => <MenuIcon focused={focused} />,
           }}
         />
       </Tabs>

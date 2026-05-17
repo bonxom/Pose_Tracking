@@ -238,7 +238,7 @@ export default function LoginScreen() {
 
       <Pressable
         style={styles.createButton}
-        onPress={() => router.push("/(auth)/signup-start")}
+        onPress={() => router.push("/(auth)/signup")}
       >
         <Text style={styles.createText}>Tạo tài khoản mới</Text>
       </Pressable>

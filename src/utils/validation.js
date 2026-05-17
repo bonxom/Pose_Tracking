@@ -41,17 +41,13 @@ export const validateRole = (role) => {
 export const validateVerifyCode = (code) => {
   if (!code) return "Mã xác thực không được bỏ trống.";
 
-  if (!/^\d{6}$/.test(code)) {
-    return "Mã xác thực phải gồm đúng 6 chữ số.";
+  if (!/^[a-zA-Z0-9]{6}$/.test(code)) {
+    return "Mã xác thực phải gồm đúng 6 ký tự chữ hoặc số.";
   }
 
   return "";
 };
 
-/**
- * Validate phone number (phone-only auth)
- * Alias for validatePhoneNumber for backward compatibility
- */
 export const validateIdentifier = (identifier) => {
   return validatePhoneNumber(identifier);
 };

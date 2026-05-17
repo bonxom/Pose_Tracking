@@ -62,6 +62,11 @@ export function setNotificationBadge(value) {
   });
 }
 
+export function clearNotificationState() {
+  mockReadIds.clear();
+  setNotificationBadge(0);
+}
+
 export function subscribeNotificationBadge(listener) {
   notificationBadgeListeners.add(listener);
   listener(notificationBadge);

@@ -3,7 +3,7 @@ import { DATA_SOURCE_MODE, DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { MOCK_USERS } from "@/constants/mocks/users";
 import { isPhone } from "@/utils/validation";
 
-// Giả lập network delay để test loading state
+// Giáº£ láº­p network delay Ä‘á»ƒ test loading state
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Mock verification code storage (in-memory)
@@ -27,7 +27,7 @@ function backendError(response, fallbackMessage = "Backend request failed") {
 
 const authApi = {
   /**
-   * Đăng nhập bằng số điện thoại
+   * ÄÄƒng nháº­p báº±ng sá»‘ Ä‘iá»‡n thoáº¡i
    * @param {string} phonenumber
    * @param {string} password
    * @returns {Promise<{code: string, message: string, data: any}>}
@@ -106,12 +106,12 @@ const authApi = {
   },
 
   /**
-   * Đăng ký mới
+   * ÄÄƒng kÃ½ má»›i
    * @param {Object} params
    * @param {string} params.phonenumber
    * @param {string} params.password
    * @param {string} params.uuid
-   * @param {string} params.role - "GV" hoặc "HV"
+   * @param {string} params.role - "GV" hoáº·c "HV"
    * @returns {Promise<{code: string, message: string, data: any}>}
    */
   signup: async ({ phonenumber, password, uuid, role }) => {
@@ -163,6 +163,15 @@ const authApi = {
             signupRequestId: data.signupRequestId || data.signup_request_id || data.id || phonenumber,
             phonenumber: data.phonenumber || phonenumber,
             role: data.role || role,
+            token: data.token || data.access_token || data.accessToken || response.token || "",
+            verifyCode:
+              data.verifyCode ||
+              data.verify_code ||
+              data.code ||
+              data.mock_verify_code ||
+              response.verifyCode ||
+              response.verify_code ||
+              "",
           },
         };
       } catch (error) {
@@ -174,7 +183,7 @@ const authApi = {
       }
     }
 
-    // Chặn duplicate phone number
+    // Cháº·n duplicate phone number
     const existingUser = MOCK_USERS.find((u) => u.phonenumber === phonenumber);
     if (existingUser) {
       return {
@@ -184,11 +193,11 @@ const authApi = {
       };
     }
 
-    // Mock verify code (in thực tế sẽ gửi SMS/email)
+    // Mock verify code (in thá»±c táº¿ sáº½ gá»­i SMS/email)
     const mockVerifyCode = "123456";
     const signupRequestId = `signup_${Date.now()}`;
 
-    // Lưu vào memory để check sau (lưu cả password để sử dụng sau)
+    // LÆ°u vÃ o memory Ä‘á»ƒ check sau (lÆ°u cáº£ password Ä‘á»ƒ sá»­ dá»¥ng sau)
     MOCK_VERIFY_CODES.set(signupRequestId, {
       phonenumber,
       password,
@@ -204,13 +213,13 @@ const authApi = {
         signupRequestId,
         phonenumber,
         role,
-        mock_verify_code: mockVerifyCode, // Cho dev dùng
+        mock_verify_code: mockVerifyCode, // Cho dev dÃ¹ng
       },
     };
   },
 
   /**
-   * Gửi lại mã xác thực (phải có signupRequestId)
+   * Gá»­i láº¡i mÃ£ xÃ¡c thá»±c (pháº£i cÃ³ signupRequestId)
    * @param {Object} params
    * @param {string} params.phonenumber
    * @param {string} params.signupRequestId
@@ -252,7 +261,7 @@ const authApi = {
       }
     }
 
-    // Verify request tồn tại
+    // Verify request tá»“n táº¡i
     const stored = MOCK_VERIFY_CODES.get(signupRequestId);
     if (!stored) {
       return {
@@ -262,7 +271,7 @@ const authApi = {
       };
     }
 
-    // Mock: mã xác thực
+    // Mock: mÃ£ xÃ¡c thá»±c
     const mockCode = "123456";
     console.warn("[MOCK] Verify code sent:", mockCode);
 
@@ -276,7 +285,7 @@ const authApi = {
   },
 
   /**
-   * Kiểm tra mã xác thực
+   * Kiá»ƒm tra mÃ£ xÃ¡c thá»±c
    * @param {Object} params
    * @param {string} params.phonenumber
    * @param {string} params.code
@@ -297,18 +306,43 @@ const authApi = {
     if (isServerAuthMode()) {
       try {
         const candidateBodies = [
-          { phonenumber, code_verify: code },
-          { phonenumber, verify_code: code },
           { phonenumber, code },
+          { phoneNumber: phonenumber, code },
+          { phone: phonenumber, code },
+          { phonenumber, verify_code: code },
+          { phonenumber, code_verify: code },
+          { phonenumber, otp: code },
+          { phonenumber, verifyCode: code },
+          { phonenumber, verifycode: code },
+          { code },
+          { verify_code: code },
+          { code_verify: code },
+          { otp: code },
+          { phonenumber, code, signupRequestId },
+          { phonenumber, code, signup_request_id: signupRequestId },
         ];
         let response = null;
+        let lastError = null;
 
         for (const body of candidateBodies) {
-          response = await backendApi.checkVerifyCode(body);
-          if (isOk(response)) break;
+          try {
+            response = await backendApi.checkVerifyCode(body);
+            if (isOk(response)) break;
+          } catch (error) {
+            lastError = error;
+            response = error?.data || response;
+            if (isOk(response)) break;
+          }
         }
 
         if (!isOk(response)) {
+          if (lastError && !response) {
+            return {
+              code: String(lastError.code || "NETWORK_ERROR"),
+              message: lastError.message || "Backend check_verify_code unavailable",
+              data: null,
+            };
+          }
           return backendError(response, "Backend check_verify_code failed");
         }
 
@@ -318,8 +352,9 @@ const authApi = {
           message: response.message || "OK",
           data: {
             ...data,
-            token: data.token || response.token || "",
+            token: data.token || data.access_token || data.accessToken || response.token || "",
             phonenumber: data.phonenumber || phonenumber,
+            role: data.role || "",
             signupRequestId: data.signupRequestId || data.signup_request_id || signupRequestId || phonenumber,
           },
         };
@@ -342,7 +377,7 @@ const authApi = {
       };
     }
 
-    // Check phone khớp với request
+    // Check phone khá»›p vá»›i request
     if (stored.phonenumber !== phonenumber) {
       return {
         code: "1004",
@@ -360,7 +395,7 @@ const authApi = {
       };
     }
 
-    // Code đúng -> trả về user data để tiếp tục change-info
+    // Code Ä‘Ãºng -> tráº£ vá» user data Ä‘á»ƒ tiáº¿p tá»¥c change-info
     return {
       code: "1000",
       message: "OK",
@@ -369,13 +404,13 @@ const authApi = {
         token: `token_${Date.now()}`,
         phonenumber,
         role: stored.role,
-        signupRequestId, // Trả về để lấy password sau
+        signupRequestId, // Tráº£ vá» Ä‘á»ƒ láº¥y password sau
       },
     };
   },
 
   /**
-   * Hoàn thành đăng ký (cập nhật thông tin)
+   * HoÃ n thÃ nh Ä‘Äƒng kÃ½ (cáº­p nháº­t thÃ´ng tin)
    * @param {Object} params
    * @param {string} params.token
    * @param {string} params.phonenumber
@@ -385,10 +420,10 @@ const authApi = {
    * @param {string} params.signupRequestId
    * @returns {Promise<{code: string, message: string, data: any}>}
    */
-  changeInfoAfterSignup: async ({ token, phonenumber, username, height, avatar = "", signupRequestId }) => {
+  changeInfoAfterSignup: async ({ token, phonenumber, username, height = "", avatar = "", signupRequestId }) => {
     await delay(800);
 
-    if (!token || !phonenumber || !username || !height || (!signupRequestId && !isServerAuthMode())) {
+    if (!token || !username || (!phonenumber && !isServerAuthMode()) || (!signupRequestId && !isServerAuthMode())) {
       return {
         code: "1002",
         message: "Parameter is not enough",
@@ -401,28 +436,48 @@ const authApi = {
         const candidateBodies = [
           {
             token,
+            username,
+            avatar,
+            height,
+          },
+          {
+            token,
             user_name: username,
             avatar,
             cover_image: "",
+            height,
           },
           {
             token,
             username,
-            height,
             avatar,
           },
         ];
         let response = null;
+        let lastError = null;
 
         for (const body of candidateBodies) {
-          response = await backendApi.changeInfoAfterSignup(body);
-          if (isOk(response)) break;
+          try {
+            response = await backendApi.changeInfoAfterSignup(body);
+            if (isOk(response)) break;
+          } catch (error) {
+            lastError = error;
+          }
         }
+
+        if (!isOk(response) && lastError && !response) throw lastError;
 
         return isOk(response) ? {
           code: "1000",
           message: response.message || "OK",
-          data: response.data || { token, phonenumber, username, height, avatar },
+          data: {
+            ...(response.data || {}),
+            token: response.data?.token || response.token || token,
+            phonenumber: response.data?.phonenumber || phonenumber,
+            username: response.data?.username || response.data?.user_name || username,
+            height: response.data?.height || height || "",
+            avatar: response.data?.avatar || avatar || "",
+          },
         } : backendError(response, "Backend change_info_after_signup failed");
       } catch (error) {
         return {
@@ -433,7 +488,7 @@ const authApi = {
       }
     }
 
-    // Lấy password từ signup request
+    // Láº¥y password tá»« signup request
     const signupData = MOCK_VERIFY_CODES.get(signupRequestId);
     if (!signupData) {
       return {
@@ -446,10 +501,10 @@ const authApi = {
     const password = signupData.password;
     const role = signupData.role;
 
-    // Mock: lưu user vào MOCK_USERS (thực tế sẽ là DB)
+    // Mock: lÆ°u user vÃ o MOCK_USERS (thá»±c táº¿ sáº½ lÃ  DB)
     const newUser = {
       phonenumber,
-      password, // Lưu password thật từ signup
+      password, // LÆ°u password tháº­t tá»« signup
       role,
       verified: true,
       data: {
@@ -466,7 +521,7 @@ const authApi = {
       },
     };
 
-    // Thêm vào MOCK_USERS (để lần sau login được)
+    // ThÃªm vÃ o MOCK_USERS (Ä‘á»ƒ láº§n sau login Ä‘Æ°á»£c)
     const exists = MOCK_USERS.findIndex((u) => u.phonenumber === phonenumber);
     if (exists === -1) {
       MOCK_USERS.push(newUser);
@@ -474,7 +529,7 @@ const authApi = {
       MOCK_USERS[exists] = newUser;
     }
 
-    // Xóa signup request sau khi hoàn thành
+    // XÃ³a signup request sau khi hoÃ n thÃ nh
     MOCK_VERIFY_CODES.delete(signupRequestId);
 
     return {
