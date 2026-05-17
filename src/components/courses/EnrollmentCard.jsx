@@ -1,15 +1,22 @@
-import { Pressable, Text, View } from "react-native";
 import coursesStyles from "@/styles/courses.styles";
-import UserAvatar from "./UserAvatar";
 import { getTimeAgo } from "@/utils/timeago";
+import { Pressable, Text, View } from "react-native";
+import UserAvatar from "./UserAvatar";
 
-export default function EnrollmentCard({ item, actionStatus, onAccept, onReject }) {
+export default function EnrollmentCard({
+  item,
+  actionStatus,
+  onAccept,
+  onReject,
+  onPressCard,
+  onPressBlock,
+}) {
   const { avatar, user_name, created, id } = item.request;
 
   return (
     <Pressable
       style={coursesStyles.userCard}
-      onPress={() => console.log("Card pressed:", id)}
+      onPress={() => onPressCard && onPressCard(id, user_name)}
     >
       <UserAvatar uri={avatar} name={user_name} />
       <View style={coursesStyles.cardBody}>
@@ -20,11 +27,29 @@ export default function EnrollmentCard({ item, actionStatus, onAccept, onReject 
           <Text style={coursesStyles.timeText}>{getTimeAgo(created)}</Text>
         </View>
         {actionStatus === "accepted" ? (
-          <Text style={coursesStyles.actionStatusText}>
-            Đã chấp nhận yêu cầu
-          </Text>
+          <View style={coursesStyles.actionStatusRow}>
+            <Text style={coursesStyles.actionStatusText}>
+              Đã chấp nhận yêu cầu
+            </Text>
+          </View>
         ) : actionStatus === "rejected" ? (
-          <Text style={coursesStyles.actionStatusText}>Đã từ chối yêu cầu</Text>
+          <View style={coursesStyles.actionStatusRow}>
+            <Text style={coursesStyles.actionStatusText}>
+              Đã từ chối yêu cầu
+            </Text>
+            <Pressable
+              onPress={() => onPressBlock && onPressBlock(id, user_name)}
+            >
+              <Text style={coursesStyles.actionLink}>Chặn</Text>
+            </Pressable>
+          </View>
+        ) : actionStatus === "blocked" ? (
+          <View style={coursesStyles.actionStatusRow}>
+            <Text style={coursesStyles.actionStatusText}>
+              Đã từ chối yêu cầu và{" "}
+              <Text style={{ color: "#e41e3f" }}>chặn</Text>
+            </Text>
+          </View>
         ) : (
           <View style={coursesStyles.cardButtons}>
             <Pressable

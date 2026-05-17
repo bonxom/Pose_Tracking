@@ -222,11 +222,21 @@ const coursesStyles = StyleSheet.create({
   },
 
   // ── Action Status Text ──
+  actionStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 8,
+  },
   actionStatusText: {
     fontSize: 14,
     fontWeight: "600",
     color: GRAY_TEXT,
-    marginTop: 8,
+  },
+  actionLink: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: FB_BLUE,
   },
 });
 

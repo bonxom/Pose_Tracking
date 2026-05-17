@@ -7,6 +7,8 @@ export default function StudentCard({
   actionStatus,
   onAccept,
   onReject,
+  onPressCard,
+  onPressBlock,
 }) {
   const { avatar, name, id } = item;
 
@@ -15,7 +17,7 @@ export default function StudentCard({
   return (
     <Pressable
       style={coursesStyles.userCard}
-      onPress={() => console.log("Student pressed:", id)}
+      onPress={() => onPressCard && onPressCard(id, name)}
     >
       <UserAvatar uri={avatar} name={name} />
       <View style={coursesStyles.cardBody}>
@@ -25,11 +27,26 @@ export default function StudentCard({
           </Text>
         </View>
         {actionStatus === "accepted" ? (
-          <Text style={coursesStyles.actionStatusText}>
-            Đã chấp nhận yêu cầu
-          </Text>
+          <View style={coursesStyles.actionStatusRow}>
+            <Text style={coursesStyles.actionStatusText}>
+              Đã chấp nhận yêu cầu
+            </Text>
+          </View>
         ) : actionStatus === "rejected" ? (
-          <Text style={coursesStyles.actionStatusText}>Đã từ chối yêu cầu</Text>
+          <View style={coursesStyles.actionStatusRow}>
+            <Text style={coursesStyles.actionStatusText}>
+              Đã từ chối yêu cầu
+            </Text>
+            <Pressable onPress={() => onPressBlock && onPressBlock(id, name)}>
+              <Text style={coursesStyles.actionLink}>Chặn</Text>
+            </Pressable>
+          </View>
+        ) : actionStatus === "blocked" ? (
+          <View style={coursesStyles.actionStatusRow}>
+            <Text style={coursesStyles.actionStatusText}>
+              Đã từ chối yêu cầu và chặn
+            </Text>
+          </View>
         ) : (
           hasButton && (
             <View style={coursesStyles.cardButtons}>

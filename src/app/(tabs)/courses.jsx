@@ -2,7 +2,10 @@ import EnrollmentCard from "@/components/courses/EnrollmentCard";
 import SectionHeader from "@/components/courses/SectionHeader";
 import StudentCard from "@/components/courses/StudentCard";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
+import BlockIcon from "@/components/icons/BlockIcon";
+import ActionBottomSheet from "@/components/modals/ActionBottomSheet";
 import ModalConfirm from "@/components/modals/ModalConfirm";
+import { setBlock } from "@/repositories/blockRepository";
 import {
   approveEnrollment,
   getCourseStudents,
@@ -77,6 +80,13 @@ export default function CoursesScreen() {
   });
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
+  // Action Bottom Sheet state
+  const [bottomSheetState, setBottomSheetState] = useState({
+    visible: false,
+    userId: null,
+    userName: "",
+  });
+
   // Track whether sub-view data has been fetched
   const allEnrollmentsFetched = useRef(false);
   const studentsFetched = useRef(false);
@@ -98,6 +108,18 @@ export default function CoursesScreen() {
       requestId: id,
       userName: name,
     });
+  }, []);
+
+  const openBottomSheet = useCallback((id, name) => {
+    setBottomSheetState({
+      visible: true,
+      userId: id,
+      userName: name,
+    });
+  }, []);
+
+  const closeBottomSheet = useCallback(() => {
+    setBottomSheetState((prev) => ({ ...prev, visible: false }));
   }, []);
 
   const closeConfirm = useCallback(() => {
@@ -281,6 +303,47 @@ export default function CoursesScreen() {
     );
   };
 
+  const renderActionBottomSheet = () => {
+    const { visible, userName, userId } = bottomSheetState;
+    const buttons = [
+      {
+        icon: <BlockIcon />,
+        title: `Chặn trang cá nhân của ${userName}`,
+        description: `${userName} sẽ không thể nhìn thấy bạn hoặc liên hệ với bạn`,
+        onPress: async () => {
+          if (!userId) return;
+          console.log("Block userId: ", userId);
+          try {
+            setIsLoading(true);
+            await setBlock(userId, "block");
+
+            // Update local status to reflect "Đã từ chối yêu cầu và chặn"
+            setActionStatuses((prev) => ({
+              ...prev,
+              [userId]: "blocked",
+            }));
+          } catch (error) {
+            // Can't await redirect in render method directly, but onPress is async so it's fine
+            redirectIfSessionExpired(error, router).then((expired) => {
+              if (!expired)
+                setErrorText(error.message || "Không thể chặn người dùng này.");
+            });
+          } finally {
+            setIsLoading(false);
+          }
+        },
+      },
+    ];
+
+    return (
+      <ActionBottomSheet
+        visible={visible}
+        onClose={closeBottomSheet}
+        buttons={buttons}
+      />
+    );
+  };
+
   // ══════════════════════════════════════════
   // VIEW: All Students ("Tất cả học viên")
   // ══════════════════════════════════════════
@@ -313,7 +376,12 @@ export default function CoursesScreen() {
             </>
           }
           renderItem={({ item }) => (
-            <StudentCard item={item} actionStatus={actionStatuses[item.id]} />
+            <StudentCard
+              item={item}
+              actionStatus={actionStatuses[item.id]}
+              onPressCard={() => {}}
+              onPressBlock={openBottomSheet}
+            />
           )}
           ListEmptyComponent={
             <View style={coursesStyles.centerBox}>
@@ -374,6 +442,8 @@ export default function CoursesScreen() {
               actionStatus={actionStatuses[item.request.id]}
               onAccept={promptAccept}
               onReject={promptReject}
+              onPressCard={openBottomSheet}
+              onPressBlock={openBottomSheet}
             />
           )}
           ListEmptyComponent={
@@ -446,6 +516,8 @@ export default function CoursesScreen() {
             actionStatus={actionStatuses[item.request.id]}
             onAccept={promptAccept}
             onReject={promptReject}
+            onPressCard={openBottomSheet}
+            onPressBlock={openBottomSheet}
           />
         )}
         ListEmptyComponent={
@@ -457,6 +529,7 @@ export default function CoursesScreen() {
         }
       />
       {renderModalConfirm()}
+      {renderActionBottomSheet()}
     </View>
   );
 }
