@@ -1,5 +1,6 @@
 import {
   getNotificationBadge,
+  getNotificationCache,
   getNotificationsPage,
   subscribeNotificationBadge
 } from "@/services/notificationStore";
@@ -110,13 +111,18 @@ export default function TabsLayout() {
 
   useEffect(() => {
     const unsubscribe = subscribeNotificationBadge(setTabNotificationBadge);
+    const cache = getNotificationCache();
 
-    getNotificationsPage({
-      index: 0,
-      count: 20,
-    }).catch((error) => {
-      console.log("LOAD_NOTIFICATION_BADGE_ERROR", error?.message);
-    });
+    if (!cache.hasLoaded) {
+      getNotificationsPage({
+        index: 0,
+        count: 20,
+      }).catch(() => {
+        // Silently handle error - notification badge will not update
+      });
+    } else {
+      setTabNotificationBadge(cache.badge);
+    }
 
     return unsubscribe;
   }, []);

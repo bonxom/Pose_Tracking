@@ -1,19 +1,22 @@
 import {
-    getNotificationsPage,
-    markNotificationRead,
-    setNotificationBadge
+  getNotificationCache,
+  getNotificationsPage,
+  markNotificationRead,
+  markNotificationReadLocal,
+  setNotificationBadge,
 } from "@/services/notificationStore";
 import styles from "@/styles/notifications.styles";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Pressable,
-    RefreshControl,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -55,40 +58,29 @@ function formatTime(value) {
 
 function navigateFromNotification(item) {
   const type = String(item.type || "").toLowerCase();
+  const group = String(item.group ?? "0");
   const objectId = item.objectId;
 
-  if (!objectId) return;
+  if (group !== "1") {
+    return;
+  }
+
+  if (!objectId || objectId === "0") {
+    return;
+  }
 
   if (type.includes("comment")) {
-    router.push({
-      pathname: "/mock-post/[id]",
-      params: {
-        id: objectId,
-        source: "comment",
-        comment_id: item.commentId || "",
-      },
-    });
+    router.push(`/comment/${objectId}`);
     return;
   }
 
-  if (type.includes("like")) {
-    router.push({
-      pathname: "/mock-post/[id]",
-      params: {
-        id: objectId,
-        source: "like",
-      },
-    });
+  if (type.includes("like") || type.includes("post")) {
+    router.push(`/post/${objectId}`);
     return;
   }
 
-  router.push({
-    pathname: "/mock-post/[id]",
-    params: {
-      id: objectId,
-      source: "post",
-    },
-  });
+  // type lỗi/default theo yêu cầu thầy: về trang chủ
+  router.replace("/(tabs)/home");
 }
 
 function NotificationTypeBadge({ type = "" }) {
@@ -167,15 +159,17 @@ function NotificationItem({ item, onPress }) {
 }
 
 export default function NotificationsScreen() {
-  const [items, setItems] = useState([]);
-  const [badge, setBadge] = useState(0);
+  const initialCache = getNotificationCache();
+
+  const [items, setItems] = useState(initialCache.items);
+  const [badge, setBadge] = useState(initialCache.badge);
+  const [hasMore, setHasMore] = useState(initialCache.hasMore);
+  const [isLoading, setIsLoading] = useState(!initialCache.hasLoaded);
   const [activeFilter, setActiveFilter] = useState("all");
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
 
   const visibleItems = useMemo(() => {
@@ -209,6 +203,7 @@ export default function NotificationsScreen() {
         setNotificationBadge(result.badge);
         setHasMore(result.hasMore);
       } catch (err) {
+        if (await redirectIfSessionExpired(err, router)) return;
         setError(err?.message || "Không tải được thông báo.");
       } finally {
         setIsLoading(false);
@@ -219,7 +214,7 @@ export default function NotificationsScreen() {
   );
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || isLoading || !hasMore) {
+    if (isLoadingMore || isLoading || isRefreshing || !hasMore) {
       return;
     }
 
@@ -231,38 +226,55 @@ export default function NotificationsScreen() {
         count: PAGE_SIZE,
       });
 
-      setItems((prev) => [...prev, ...result.items]);
+      setItems((prev) => {
+        const existingIds = new Set(prev.map((item) => item.id));
+
+        const nextItems = result.items.filter((item) => {
+          if (!item.id) return false;
+          if (existingIds.has(item.id)) return false;
+          existingIds.add(item.id);
+          return true;
+        });
+
+        return [...prev, ...nextItems];
+      });
+
       setBadge(result.badge);
+      setNotificationBadge(result.badge);
       setHasMore(result.hasMore);
     } catch (err) {
+      if (await redirectIfSessionExpired(err, router)) return;
       setError(err?.message || "Không tải thêm được thông báo.");
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoading, isLoadingMore, items.length]);
+  }, [hasMore, isLoading, isRefreshing, isLoadingMore, items.length]);
 
   useFocusEffect(
     useCallback(() => {
-      loadPage({
-        refresh: true,
-        silent: items.length > 0,
-      });
-    }, [items.length, loadPage]),
+      const cache = getNotificationCache();
+
+      if (cache.hasLoaded) {
+        setItems(cache.items);
+        setBadge(cache.badge);
+        setNotificationBadge(cache.badge);
+        setHasMore(cache.hasMore);
+        setIsLoading(false);
+        return;
+      }
+
+      loadPage({ silent: false });
+    }, [loadPage]),
   );
 
   const handlePressNotification = useCallback(
     async (item) => {
       if (!item.read) {
-        const nextBadge = Math.max(0, badge - 1);
+        const cache = markNotificationReadLocal(item.notificationId);
 
-        setItems((prev) =>
-          prev.map((current) =>
-            current.id === item.id ? { ...current, read: true } : current,
-          ),
-        );
-
-        setBadge(nextBadge);
-        setNotificationBadge(nextBadge);
+        setItems(cache.items);
+        setBadge(cache.badge);
+        setNotificationBadge(cache.badge);
 
         try {
           const result = await markNotificationRead(item.notificationId);
@@ -274,12 +286,18 @@ export default function NotificationsScreen() {
           }
         } catch (err) {
           console.warn("Failed to mark notification read:", err);
+
+          if (await redirectIfSessionExpired(err, router)) {
+            return;
+          }
+
+          // Theo yêu cầu thầy: server lỗi cũng không rollback trạng thái đã đọc.
         }
       }
 
       navigateFromNotification(item);
     },
-    [badge],
+    [],
   );
 
   if (isLoading && items.length === 0) {
@@ -356,7 +374,7 @@ export default function NotificationsScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
             <Text style={styles.emptyText}>
-              Khi có lượt thích, bình luận, tin nhắn hoặc cập nhật mới, chúng sẽ
+              Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ
               xuất hiện ở đây.
             </Text>
           </View>
