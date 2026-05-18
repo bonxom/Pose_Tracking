@@ -96,7 +96,7 @@ const coursesStyles = StyleSheet.create({
   // ── User Card ──
   userCard: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
     gap: 12,
@@ -131,6 +131,12 @@ const coursesStyles = StyleSheet.create({
   },
   userName: {
     fontSize: 16,
+    fontWeight: "700",
+    color: INK,
+    flex: 1,
+  },
+  biggerUserName: {
+    fontSize: 20,
     fontWeight: "700",
     color: INK,
     flex: 1,
@@ -183,7 +189,7 @@ const coursesStyles = StyleSheet.create({
   navLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 4,
   },
   backBtn: {
     width: 32,
@@ -225,7 +231,7 @@ const coursesStyles = StyleSheet.create({
   actionStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 2,
     gap: 8,
   },
   actionStatusText: {

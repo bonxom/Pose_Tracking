@@ -22,7 +22,12 @@ export default function StudentCard({
       <UserAvatar uri={avatar} name={name} />
       <View style={coursesStyles.cardBody}>
         <View style={coursesStyles.cardTopRow}>
-          <Text style={coursesStyles.userName} numberOfLines={1}>
+          <Text
+            style={
+              hasButton ? coursesStyles.userName : coursesStyles.biggerUserName
+            }
+            numberOfLines={1}
+          >
             {name}
           </Text>
         </View>
@@ -37,6 +42,7 @@ export default function StudentCard({
             <Text style={coursesStyles.actionStatusText}>
               Đã từ chối yêu cầu
             </Text>
+            <Text> • </Text>
             <Pressable onPress={() => onPressBlock && onPressBlock(id, name)}>
               <Text style={coursesStyles.actionLink}>Chặn</Text>
             </Pressable>

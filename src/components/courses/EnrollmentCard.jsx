@@ -37,6 +37,7 @@ export default function EnrollmentCard({
             <Text style={coursesStyles.actionStatusText}>
               Đã từ chối yêu cầu
             </Text>
+            <Text> • </Text>
             <Pressable
               onPress={() => onPressBlock && onPressBlock(id, user_name)}
             >
@@ -46,8 +47,7 @@ export default function EnrollmentCard({
         ) : actionStatus === "blocked" ? (
           <View style={coursesStyles.actionStatusRow}>
             <Text style={coursesStyles.actionStatusText}>
-              Đã từ chối yêu cầu và{" "}
-              <Text style={{ color: "#e41e3f" }}>chặn</Text>
+              Đã từ chối yêu cầu và chặn
             </Text>
           </View>
         ) : (

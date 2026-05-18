@@ -3,6 +3,7 @@ import SectionHeader from "@/components/courses/SectionHeader";
 import StudentCard from "@/components/courses/StudentCard";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
 import BlockIcon from "@/components/icons/BlockIcon";
+import SearchIcon from "@/components/icons/SearchIcon";
 import ActionBottomSheet from "@/components/modals/ActionBottomSheet";
 import ModalConfirm from "@/components/modals/ModalConfirm";
 import { setBlock } from "@/repositories/blockRepository";
@@ -23,23 +24,8 @@ import {
   Text,
   View,
 } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
 
 const INK = "#050505";
-
-// Icons
-
-const SearchIcon = ({ color = INK, size = 22 }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx={11} cy={11} r={7} stroke={color} strokeWidth={2} />
-    <Path
-      d="M20 20L16.65 16.65"
-      stroke={color}
-      strokeWidth={2}
-      strokeLinecap="round"
-    />
-  </Svg>
-);
 
 // Helpers
 
@@ -307,7 +293,7 @@ export default function CoursesScreen() {
     const { visible, userName, userId } = bottomSheetState;
     const buttons = [
       {
-        icon: <BlockIcon />,
+        icon: <BlockIcon size={28} />,
         title: `Chặn trang cá nhân của ${userName}`,
         description: `${userName} sẽ không thể nhìn thấy bạn hoặc liên hệ với bạn`,
         onPress: async () => {
@@ -478,7 +464,7 @@ export default function CoursesScreen() {
             <View style={coursesStyles.header}>
               <Text style={coursesStyles.headerTitle}>Khoá học</Text>
               <Pressable style={coursesStyles.searchBtn} hitSlop={8}>
-                <SearchIcon />
+                <SearchIcon color={INK} size={24} />
               </Pressable>
             </View>
 
