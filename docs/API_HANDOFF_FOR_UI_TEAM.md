@@ -54,7 +54,7 @@ Helpers are available in `src/repositories/source.js`:
 | Product area | Current route | Notes |
 |---|---|---|
 | Home feed | `/(tabs)/home` | Top-tab Home. Calls post repository. |
-| Friends | `/(tabs)/friends` | Shell screen. Mock seed includes friend/user rows; future UI can use search/user/block repositories. |
+| Friends | `/(tabs)/friends` | Shell screen. Mock seed includes friend/user rows; backend currently has no confirmed friend route, so use search/user/block repositories until backend confirms one. |
 | Notifications | `/(tabs)/notifications` | Top-tab Notifications. Calls notification repository. |
 | Profile | `/(tabs)/profile` | Top-tab Profile. Calls user/auth repositories and links to supporting screens. |
 | Search | `/search` | Non-tab API shell opened by Home/Friends/Profile search actions. |
@@ -197,6 +197,26 @@ File: `src/repositories/blockRepository.js`
 | `setBlock(userId, type)` | Block/unblock action |
 
 Verified: block list. Block mutation not run against shared accounts. Mock mode has mutable local block data.
+
+### Friends / User Social
+
+No real deployed friend endpoint is confirmed yet. Newer slide context appears to mention friend/user-social behavior, so the backend probe checks the most likely route names. Latest result:
+
+- `get_user_friends`: deployed 404
+- `get_list_friends`: deployed 404
+- `get_friends`: deployed 404
+- friend mutation candidates such as `set_request_friend`, `send_friend_request`, `accept_friend`, `reject_friend`, `delete_friend`, and `unfriend` are guarded behind `PROBE_FRIEND_MUTATIONS=1` and were not executed against shared accounts
+
+Until backend confirms exact routes and payloads, build the Friends screen using existing server-backed APIs:
+
+| Need | Repository/function | Notes |
+|---|---|---|
+| Search users/posts | `postRepository.searchPosts(query, { userId })` | Runtime search accepts current `user_id`; UI can filter person-like results if backend returns them. |
+| Open a user profile | `userRepository.getUserInfo(userId)` | Spec payload includes `user_id`; deployed runtime currently retries without it. |
+| Show blocked users | `blockRepository.getBlocks()` | Verified with real accounts. |
+| Block/unblock | `blockRepository.setBlock(userId, type)` | Do not run destructive actions on shared accounts unless intentionally testing. |
+
+Mock mode has friend/user seed rows so UI teammates can design the Friends section without backend stability. Backend mode should not show friend-request success until a real route is confirmed.
 
 ### Conversations
 

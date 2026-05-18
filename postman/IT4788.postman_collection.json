@@ -1126,6 +1126,367 @@
       ]
     },
     {
+      "name": "Friends / User Social",
+      "description": "Candidate friend/user-social requests from newer slide context. Latest deployed probe returned 404 for get_user_friends/get_list_friends/get_friends. Use search/get_user_info/block requests as the current server-backed Friends scope until backend confirms official routes.",
+      "item": [
+        {
+          "name": "Get User Friends Candidate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Probe candidate from newer slides. Latest deployed result: 404 Cannot POST /it4788/get_user_friends.",
+            "url": {
+              "raw": "{{baseUrl}}/get_user_friends",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_user_friends"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "type": "text",
+                  "description": "Current auth token"
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{friendUserId}}",
+                  "type": "text",
+                  "description": "User whose friends should be listed"
+                },
+                {
+                  "key": "index",
+                  "value": "0",
+                  "type": "text",
+                  "description": "Pagination index"
+                },
+                {
+                  "key": "count",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Pagination size"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get List Friends Candidate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Alternate friend-list route candidate. Latest deployed result: 404 Cannot POST /it4788/get_list_friends.",
+            "url": {
+              "raw": "{{baseUrl}}/get_list_friends",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_list_friends"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "type": "text",
+                  "description": "Current auth token"
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{friendUserId}}",
+                  "type": "text",
+                  "description": "User whose friends should be listed"
+                },
+                {
+                  "key": "index",
+                  "value": "0",
+                  "type": "text",
+                  "description": "Pagination index"
+                },
+                {
+                  "key": "count",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Pagination size"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Friends Candidate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Alternate friend-list route candidate. Latest deployed result: 404 Cannot POST /it4788/get_friends.",
+            "url": {
+              "raw": "{{baseUrl}}/get_friends",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_friends"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "type": "text",
+                  "description": "Current auth token"
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{friendUserId}}",
+                  "type": "text",
+                  "description": "User whose friends should be listed"
+                },
+                {
+                  "key": "index",
+                  "value": "0",
+                  "type": "text",
+                  "description": "Pagination index"
+                },
+                {
+                  "key": "count",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Pagination size"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search User Via Search API",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Current fallback for Friends UI. Uses the existing search API until backend confirms a friend endpoint.",
+            "url": {
+              "raw": "{{baseUrl}}/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"keyword\": \"{{searchKeyword}}\",\n  \"user_id\": \"{{userId}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get User Info For Friend Candidate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Open a user profile from Friends/Search. Spec includes user_id; deployed runtime currently rejects user_id and frontend retries without it.",
+            "url": {
+              "raw": "{{baseUrl}}/get_user_info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_user_info"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Block User From Friends Context",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Use carefully. Existing block API can support Friends safety actions while friend API is unconfirmed.",
+            "url": {
+              "raw": "{{baseUrl}}/set_block",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_block"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\",\n  \"type\": \"block\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Request Friend Candidate - do not run by default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mutation candidate only. Run only with backend-approved route/params and safe test data. Probe script guards mutations behind PROBE_FRIEND_MUTATIONS=1.",
+            "url": {
+              "raw": "{{baseUrl}}/request_friend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "request_friend"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Accept Friend Candidate - do not run by default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mutation candidate only. Run only with backend-approved route/params and safe test data.",
+            "url": {
+              "raw": "{{baseUrl}}/accept_friend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accept_friend"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\",\n  \"request_id\": \"{{friendRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Reject Friend Candidate - do not run by default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mutation candidate only. Run only with backend-approved route/params and safe test data.",
+            "url": {
+              "raw": "{{baseUrl}}/reject_friend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reject_friend"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\",\n  \"request_id\": \"{{friendRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete Friend Candidate - do not run by default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mutation candidate only. Run only with backend-approved route/params and safe test data.",
+            "url": {
+              "raw": "{{baseUrl}}/delete_friend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "delete_friend"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Courses / Enrollment",
       "item": [
         {

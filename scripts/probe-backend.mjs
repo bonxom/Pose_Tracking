@@ -11,14 +11,32 @@ const TIMEOUT_MS = Number(process.env.PROBE_TIMEOUT_MS || 6000);
 const MUTATION_ENABLED = process.env.PROBE_MUTATION === "1";
 const COMPACT_OUTPUT = process.env.PROBE_COMPACT === "1";
 const NO_EXERCISE_ENTITY = process.env.PROBE_NO_EXERCISE_ENTITY === "1";
+const FRIEND_MUTATIONS_ENABLED = process.env.PROBE_FRIEND_MUTATIONS === "1";
 const PROBE_COURSE_ID =
   process.env.PROBE_COURSE_ID || process.env.PROBE_TEACHER_ID || "__probe_teacher_id__";
+const PROBE_FRIEND_USER_ID =
+  process.env.PROBE_FRIEND_USER_ID || process.env.PROBE_TARGET_USER_ID || "";
 
 const loginBody = {
   phonenumber: process.env.PROBE_PHONE || "0900000001",
   password: process.env.PROBE_PASSWORD || "123456",
   devtoken: process.env.PROBE_DEVICE_TOKEN || "expo-web-demo",
 };
+
+const probeAccountInputs = [
+  ["GV", "PROBE_GV_PHONE", "PROBE_GV_PASSWORD"],
+  ["HV", "PROBE_HV_PHONE", "PROBE_HV_PASSWORD"],
+  ["HV2", "PROBE_HV2_PHONE", "PROBE_HV2_PASSWORD"],
+  ["HV3", "PROBE_HV3_PHONE", "PROBE_HV3_PASSWORD"],
+  ["HV4", "PROBE_HV4_PHONE", "PROBE_HV4_PASSWORD"],
+  ["HV5", "PROBE_HV5_PHONE", "PROBE_HV5_PASSWORD"],
+]
+  .map(([label, phoneKey, passwordKey]) => ({
+    label,
+    phonenumber: process.env[phoneKey] || "",
+    password: process.env[passwordKey] || "",
+  }))
+  .filter((item) => item.phonenumber && item.password);
 
 const endpointSpecs = [
   {
@@ -409,6 +427,76 @@ const endpointSpecs = [
   },
 ];
 
+const friendEndpointSpecs = [
+  {
+    name: "get_user_friends",
+    paths: ["/it4788/get_user_friends"],
+    body: ({ token, friendTargetUserId, userId }) => ({
+      token,
+      user_id: friendTargetUserId || userId || "1",
+      index: 0,
+      count: 20,
+    }),
+    transports: ["form", "json"],
+    authSensitive: true,
+    friend: true,
+  },
+  {
+    name: "get_list_friends",
+    paths: ["/it4788/get_list_friends"],
+    body: ({ token, friendTargetUserId, userId }) => ({
+      token,
+      user_id: friendTargetUserId || userId || "1",
+      index: 0,
+      count: 20,
+    }),
+    transports: ["form", "json"],
+    authSensitive: true,
+    friend: true,
+  },
+  {
+    name: "get_friends",
+    paths: ["/it4788/get_friends"],
+    body: ({ token, friendTargetUserId, userId }) => ({
+      token,
+      user_id: friendTargetUserId || userId || "1",
+      index: 0,
+      count: 20,
+    }),
+    transports: ["form", "json"],
+    authSensitive: true,
+    friend: true,
+  },
+  ...[
+    "set_request_friend",
+    "request_friend",
+    "send_friend_request",
+    "accept_friend",
+    "accept_friend_request",
+    "reject_friend",
+    "reject_friend_request",
+    "delete_friend",
+    "unfriend",
+  ].map((name) => ({
+    name,
+    paths: [`/it4788/${name}`],
+    body: ({ token, friendTargetUserId, userId }) => ({
+      token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
+      user_id: friendTargetUserId || userId || "1",
+      target_user_id: friendTargetUserId || userId || "1",
+      index: 0,
+      count: 20,
+    }),
+    transports: ["form", "json"],
+    authSensitive: true,
+    mutation: true,
+    friend: true,
+    friendMutation: true,
+  })),
+];
+
+endpointSpecs.push(...friendEndpointSpecs);
+
 function joinUrl(path) {
   return `${ROOT_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
@@ -556,6 +644,11 @@ function extractToken(json) {
   return data?.token || data?.access_token || data?.accessToken || json?.token || "";
 }
 
+function extractUserId(json) {
+  const data = json?.data || json?.user || json?.result || json;
+  return String(data?.id || data?.user_id || data?._id || "");
+}
+
 function extractPostId(json) {
   const candidates = [
     json?.data,
@@ -605,6 +698,14 @@ function compactAttempt(attempt) {
 }
 
 function compactResult(item) {
+  if (item.skipped) {
+    return {
+      endpoint: item.endpoint,
+      skipped: true,
+      reason: item.reason,
+    };
+  }
+
   return {
     endpoint: item.endpoint,
     selected: {
@@ -626,14 +727,78 @@ function compactResult(item) {
   };
 }
 
+async function loginProbeAccount(account) {
+  const body = {
+    phonenumber: account.phonenumber,
+    password: account.password,
+    devtoken: `${loginBody.devtoken}-${account.label.toLowerCase()}`,
+  };
+  const attempts = [];
+
+  for (const transport of ["json", "form"]) {
+    const result = await request(joinUrl("/it4788/login"), body, transport);
+    attempts.push({
+      endpoint: `login:${account.label}`,
+      transport,
+      requestBody: { phonenumber: "<redacted>", password: "<redacted>", devtoken: body.devtoken },
+      ...result,
+      summary: summarizeJson(result.json),
+      authRequired: looksAuthRequired(result),
+    });
+  }
+
+  const best = chooseBest(attempts);
+  return {
+    label: account.label,
+    status: best.status,
+    validJson: best.validJson,
+    code: best.summary.code,
+    message: best.summary.message,
+    token: extractToken(best.json),
+    userId: extractUserId(best.json),
+  };
+}
+
 async function main() {
   const context = {
     token: process.env.PROBE_TOKEN || "",
     postId: process.env.PROBE_POST_ID || "",
+    userId: process.env.PROBE_USER_ID || "",
+    friendTargetUserId: PROBE_FRIEND_USER_ID,
   };
+  const probeAccountLogins = [];
   const results = [];
 
+  for (const account of probeAccountInputs) {
+    const login = await loginProbeAccount(account);
+    probeAccountLogins.push({
+      label: login.label,
+      status: login.status,
+      validJson: login.validJson,
+      code: login.code,
+      message: login.message,
+      hasToken: Boolean(login.token),
+      userId: login.userId || "",
+    });
+
+    if (!context.token && login.token) context.token = login.token;
+    if (!context.userId && login.userId) context.userId = login.userId;
+    if (!context.friendTargetUserId && login.userId && login.userId !== context.userId) {
+      context.friendTargetUserId = login.userId;
+    }
+  }
+
   for (const spec of endpointSpecs) {
+    if (spec.friendMutation && !FRIEND_MUTATIONS_ENABLED) {
+      results.push({
+        endpoint: spec.name,
+        skipped: true,
+        reason: "Friend mutation probe skipped. Set PROBE_FRIEND_MUTATIONS=1 to run intentionally.",
+        attempts: [],
+      });
+      continue;
+    }
+
     const endpointResults = [];
 
     for (const path of spec.paths) {
@@ -678,9 +843,13 @@ async function main() {
     rootUrl: ROOT_URL,
     timeoutMs: TIMEOUT_MS,
     mutationEnabled: MUTATION_ENABLED,
+    friendMutationEnabled: FRIEND_MUTATIONS_ENABLED,
     loginPhone: loginBody.phonenumber,
     discoveredToken: Boolean(context.token),
+    discoveredUserId: context.userId,
+    friendTargetUserId: context.friendTargetUserId,
     discoveredPostId: context.postId,
+    probeAccountLogins,
     results,
   };
 

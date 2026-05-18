@@ -28,6 +28,7 @@ HTTP fallback was also probed at `2026-05-17T09:13:54.781Z` with `API_BASE_URL=h
 - The unauthenticated probe does not embed real credentials. Separate existing-account E2E runs verified real HV/GV login and authenticated reads where the server returned data or clean empty states.
 - CORS preflight returned `204` with `Access-Control-Allow-Origin: *` on selected endpoints.
 - The probe covers all 40 IT4788 APIs.
+- Newer slide/user-social candidates were also probed: `get_user_friends`, `get_list_friends`, and `get_friends` currently return deployed 404; friend mutation candidates are documented but not executed unless `PROBE_FRIEND_MUTATIONS=1`.
 - `/it4788/like` and `/it4788/delete_post` returned 404 on the deployed server.
 - `check_new_item` rejects a `token` field in deployed runtime even though the app keeps the spec-shaped call first.
 - `set_request_course` reaches token validation only after both `course_id` and `user_id` are present.
@@ -103,6 +104,26 @@ Credentials are not stored in this repository. With team-provided HV/GV credenti
 - No upload variant succeeded. The route rejected real two-file payloads before `exercise_id` validation, and the metadata-only HV control still required `exercise_id`.
 - `get_saved_search`, `get_list_blocks`, `get_push_settings`, `get_list_conversation`, compatibility `get_user_info`, compatibility `get_notification`, compatibility `check_new_version`, compatibility `check_new_item`, and `logout` returned backend code `1000`.
 - No real post, course, exercise, notification, or conversation object id was returned, so object-specific calls remain frontend-complete but not real-object verified.
+
+## Friend / User-Social Probe Addendum
+
+Newer slide context appears to mention friend/user-social behavior beyond the older 40-API list, so the probe now includes a guarded friend endpoint group. Real account values are supplied only through environment variables and are never written to tracked files.
+
+Latest friend probe ran with multiple team-provided accounts and `PROBE_FRIEND_MUTATIONS` disabled. All supplied accounts logged in successfully, which allowed token-bearing route checks. Results:
+
+| Candidate endpoint | Method / transport | Result | Notes |
+|---|---|---|---|
+| `get_user_friends` | POST form-urlencoded, JSON fallback | 404 | `Cannot POST /it4788/get_user_friends` |
+| `get_list_friends` | POST form-urlencoded, JSON fallback | 404 | `Cannot POST /it4788/get_list_friends` |
+| `get_friends` | POST form-urlencoded, JSON fallback | 404 | `Cannot POST /it4788/get_friends` |
+| `set_request_friend` | POST form-urlencoded/JSON | Skipped | Mutation candidate; run only with `PROBE_FRIEND_MUTATIONS=1` |
+| `request_friend` | POST form-urlencoded/JSON | Skipped | Mutation candidate; run only with `PROBE_FRIEND_MUTATIONS=1` |
+| `send_friend_request` | POST form-urlencoded/JSON | Skipped | Mutation candidate; run only with `PROBE_FRIEND_MUTATIONS=1` |
+| `accept_friend`, `accept_friend_request` | POST form-urlencoded/JSON | Skipped | Mutation candidates; run only with `PROBE_FRIEND_MUTATIONS=1` |
+| `reject_friend`, `reject_friend_request` | POST form-urlencoded/JSON | Skipped | Mutation candidates; run only with `PROBE_FRIEND_MUTATIONS=1` |
+| `delete_friend`, `unfriend` | POST form-urlencoded/JSON | Skipped | Mutation candidates; run only with `PROBE_FRIEND_MUTATIONS=1` |
+
+Decision for the current frontend/API handoff: there is no confirmed deployed friend API yet. Until backend confirms an exact route and payload, the Friends section should use the existing server-backed scope: `search`, `get_user_info`, `get_list_blocks`, and `set_block`. Mock mode can still provide friend rows so UI teammates can design the Friends screen without backend dependency.
 
 ## Integration Decision
 

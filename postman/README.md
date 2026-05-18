@@ -29,6 +29,7 @@ Import `IT4788.postman_collection.json` and `IT4788.local.postman_environment.js
 
 - `/like` returned 404 in deployed probes.
 - `/delete_post` returned 404 in deployed probes.
+- Friend/user-social candidates `get_user_friends`, `get_list_friends`, and `get_friends` returned 404 in deployed probes.
 - `check_new_item` rejects `token`; frontend sends spec payload first and retries without token.
 - `get_user_info` rejects `user_id`; frontend retries without it.
 - `get_notification` rejects `last_update`; frontend retries without it.
@@ -50,3 +51,13 @@ The collection includes separate `add_post` variants:
 - send explicit `exercise_id={{exerciseId}}`
 
 Use HTTPS, set `courseId={{teacherId}}`, and pick two local files for the file fields before sending. As of the latest real-account run, the deployed backend rejected every tested two-file field name with `Unexpected field`, and the metadata-only HV control still required `exercise_id`. Treat that as a backend mismatch until the server team confirms the real multipart field contract.
+
+## Friends / User Social
+
+The collection includes a `Friends / User Social` folder for newer slide/API discussion:
+
+- candidate read probes: `get_user_friends`, `get_list_friends`, `get_friends`
+- existing fallback requests: search user via `search`, get user info via `get_user_info`, block/unblock via `set_block`
+- mutation candidates are described but should not be run unless backend gives exact route names and approved test data
+
+As of the latest probe, no deployed friend route is confirmed. UI teammates can build the Friends tab against mock data and the existing search/user/block repositories while backend clarifies the official friend API.

@@ -33,6 +33,7 @@ These notes come from deployed backend probes against `https://group1.it4788.suk
 | get_user_info field | Slides specify `token` + `user_id` | Runtime rejects `user_id` with `property user_id should not exist` | Repository tries spec payload first, then compatibility retry without `user_id` |
 | get_notification field | Slides include `last_update` for notification cache behavior | Runtime rejects `last_update` and accepts request without it | Repository tries spec payload first, then compatibility retry without `last_update` |
 | set_devtoken payload | Device token registration is required in lifecycle | Runtime requires numeric `devtype`; non-numeric values are rejected | Repository and probe send `devtype: "1"` |
+| Friend/user-social APIs | Newer slide context appears to mention friend/user-social functions such as `get_user_friends` | `POST /it4788/get_user_friends`, `/get_list_friends`, and `/get_friends` all return 404; mutation candidates were not executed without explicit safety flag | Friends tab remains UI-owned; API handoff recommends `search`, `get_user_info`, `get_list_blocks`, and `set_block` until backend confirms exact friend routes |
 
 ## Real Existing-Account Runtime Findings
 
@@ -47,6 +48,7 @@ Authenticated read/write findings:
 - HV receives `1009 Not access` for teacher-only `get_list_students` and `get_requested_enrollment`; GV receives empty data for those flows.
 - Real upload can now use teacher/GV id as `course_id`, but two-video upload remains blocked because the deployed route rejects every tested multipart file field name. A metadata-only HV control still requires `exercise_id`, contradicting the latest backend-team clarification that there is no separate exercise entity.
 - HTTPS and HTTP both verified real-account login/read flows. Prefer HTTPS for uploads.
+- Multiple provided accounts successfully logged in for friend route probing, but read candidates `get_user_friends`, `get_list_friends`, and `get_friends` returned 404. Friend mutation candidates remain untested until backend provides route names and confirms safe test data.
 
 ## Still Unverified Or Blocked
 

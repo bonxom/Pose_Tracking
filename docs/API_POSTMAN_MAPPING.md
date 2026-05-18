@@ -44,3 +44,17 @@ Status date: 2026-05-18
 | get_notification | backendApi.getNotification / getNotificationPage | Notifications / Get Notification | last_update mismatch; retry without | Compatibility verified |
 | set_read_message | backendApi.setReadMessage / markConversationRead | Conversations / Set Read Message | Needs conversationId | Data-blocked |
 | set_read_notification | backendApi.setReadNotification / markNotificationRead | Notifications / Set Read Notification | Needs notificationId | Data-blocked |
+
+## Friend / User-Social Candidate Mapping
+
+Newer slide context appears to include friend/user-social behavior beyond the older 40-API list. These requests are included in Postman for backend discussion and route probing only.
+
+| Candidate API | Frontend wrapper / repository | Postman request | Known mismatch / workaround | Verification status |
+|---|---|---|---|---|
+| get_user_friends | none; probe-only | Friends / User Social / Get User Friends Candidate | Deployed route returns 404 | Backend-blocked |
+| get_list_friends | none; probe-only | Friends / User Social / Get List Friends Candidate | Deployed route returns 404 | Backend-blocked |
+| get_friends | none; probe-only | Friends / User Social / Get Friends Candidate | Deployed route returns 404 | Backend-blocked |
+| search users | backendApi.search / searchPosts | Friends / User Social / Search User Via Search API | Uses existing `search` endpoint while friend API is unconfirmed | Existing search verified empty |
+| get user info | backendApi.getUserInfo / getUserInfo | Friends / User Social / Get User Info For Friend Candidate | Deployed rejects `user_id`; frontend retries without it | Compatibility verified |
+| set_block | backendApi.setBlock / setBlock | Friends / User Social / Block User From Friends Context | Existing block API can support Friends safety actions | Not run |
+| friend mutations | none; probe-only | Friends / User Social / Friend Mutation Candidate - disabled guidance | Only probe with `PROBE_FRIEND_MUTATIONS=1` and backend-approved test data | Not run |

@@ -60,3 +60,17 @@ The matrix intentionally distinguishes wrappers, repositories, UI usage, and suc
 - Repositories: all 40 APIs are reachable through repository or auth adapters, with local adapters retained only for development modes.
 - UI: all required modules have a user-facing path, though the leader-owned top navigator now exposes only Home, Friends, Notifications, and Profile as tabs. Search and Courses are API-backed non-tab routes for UI teammates to place where desired.
 - Real success verification: existing HV/GV accounts verify login/logout and several authenticated read/lifecycle APIs. Fresh signup/OTP and object-specific post/course/notification/conversation mutations remain blocked by external data availability or deployed endpoint mismatches.
+
+## Newer Friend / User-Social Candidate APIs
+
+These are not part of the older 40-API list, but newer slide context appears to mention friend/user-social behavior. They are tracked separately so UI/backend discussions do not accidentally mark them complete.
+
+| Candidate API | Wrapper | Repository | UI / flow usage | Real success verified | Deployed status / notes |
+|---|---:|---:|---:|---:|---|
+| `get_user_friends` | Probe only | No | Friends shell can use search/user/block fallback | No | Deployed `POST /it4788/get_user_friends` returns 404 |
+| `get_list_friends` | Probe only | No | Friends shell can use search/user/block fallback | No | Deployed `POST /it4788/get_list_friends` returns 404 |
+| `get_friends` | Probe only | No | Friends shell can use search/user/block fallback | No | Deployed `POST /it4788/get_friends` returns 404 |
+| `set_request_friend`, `request_friend`, `send_friend_request` | Probe candidate | No | Not exposed | No | Mutation candidates are skipped unless `PROBE_FRIEND_MUTATIONS=1` |
+| `accept_friend`, `accept_friend_request`, `reject_friend`, `reject_friend_request`, `delete_friend`, `unfriend` | Probe candidate | No | Not exposed | No | Mutation candidates are skipped unless `PROBE_FRIEND_MUTATIONS=1` |
+
+Current server-backed Friends scope for UI teammates: `search`, `get_user_info`, `get_list_blocks`, and `set_block`. Mock mode includes friend/user rows for screen building, but backend mode does not claim a real friend API until the server team confirms an endpoint.
