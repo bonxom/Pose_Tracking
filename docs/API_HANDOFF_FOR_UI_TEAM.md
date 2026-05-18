@@ -149,6 +149,8 @@ Trạng thái UI quan trọng: sau `requestCourse`, hiển thị pending/request
 
 Đã xác minh: latest HV/GV course-list trả empty state sạch. Có lần HV trước đó trả `1001 Can not connect to DB`, nên vẫn cần error state rõ ràng.
 
+Trong `mock mode`, raw `backendApi.getListStudents()` trả fixture tương thích backend với `code: "1000"`, `data.total: "2"` và 2 học viên (`Học viên 2`, `Học viên 4`). `getCourseStudents()` dùng cùng fixture nhưng trả danh sách đã normalize cho UI.
+
 ### Notifications
 
 File: `src/repositories/notificationRepository.js`
