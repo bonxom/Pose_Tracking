@@ -16,7 +16,6 @@ function OptionRow({ iconName, label, onPress }) {
 export default function ProfileOptionsSheet({
   visible,
   onClose,
-  onPressTakePhoto,
   onPressPickImage,
 }) {
   return (
@@ -33,14 +32,8 @@ export default function ProfileOptionsSheet({
           <View style={profileStyles.sheetHandle} />
 
           <OptionRow
-            iconName="camera"
-            label="Chụp ảnh đại diện mới"
-            onPress={onPressTakePhoto}
-          />
-
-          <OptionRow
             iconName="images"
-            label="Chọn ảnh đại diện từ thư viện"
+            label="Chọn ảnh đại diện"
             onPress={onPressPickImage}
           />
         </View>

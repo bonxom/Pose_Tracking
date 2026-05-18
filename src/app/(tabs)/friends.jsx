@@ -198,7 +198,7 @@ export default function FriendsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.friendName}>{friend.displayName}</Text>
                     <Text style={styles.friendMeta} numberOfLines={1}>
-                      {[friend.city, friend.country].filter(Boolean).join(", ") || "Bạn bè"}
+                      {friend.city || "Bạn bè"}
                     </Text>
                   </View>
                 </Pressable>

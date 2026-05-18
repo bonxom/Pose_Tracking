@@ -158,6 +158,7 @@ export const backendApi = {
   delSavedSearch: (params) => post("/del_saved_search", params),
   getListStudents: (params) => post("/get_list_students", params),
   getListCoursesOfStudent: (params) => post("/get_list_courses_of_student", params),
+  getUserFriends: (params) => post("/get_user_friends", params),
   getUserInfo: (params) => post("/get_user_info", params),
   setUserInfo: (params) => post("/set_user_info", params),
   getListBlocks: (params) => post("/get_list_blocks", params),

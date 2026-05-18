@@ -4,27 +4,29 @@ import {
   getUserFriends,
   getUserInfo,
   getUserPosts,
+  updateUserInfo,
 } from "@/repositories/userRepository";
 import profileStyles from "@/styles/profile.styles";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Clipboard,
   Image,
   Modal,
   Pressable,
   RefreshControl,
   ScrollView,
-  Share,
   Text,
   View,
 } from "react-native";
 
-const PROFILE_TABS = ["Bài viết", "Giới thiệu", "Bạn bè", "Ảnh", "Reels"];
+const PROFILE_TABS = ["Bài viết", "Bạn bè"];
 
 function initials(name = "") {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -151,34 +153,78 @@ function ProfileMenu({ visible, onClose, onEdit, onSearch, onCopyLink }) {
   );
 }
 
-function MiniFriendStack({ friends }) {
-  const preview = friends.slice(0, 5);
-  if (!preview.length) return null;
+function MediaActionSheet({ visible, onClose, rows }) {
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <View style={profileStyles.modalRoot}>
+        <Pressable style={profileStyles.backdrop} onPress={onClose} />
+        <View style={profileStyles.menuSheet}>
+          <View style={profileStyles.sheetHandle} />
+          {rows.map((row) => (
+            <Pressable
+              key={row.label}
+              style={profileStyles.menuRow}
+              onPress={() => {
+                onClose();
+                row.onPress?.();
+              }}
+            >
+              <View style={profileStyles.menuIcon}>
+                <Ionicons name={row.icon} size={21} color="#050505" />
+              </View>
+              <Text style={profileStyles.menuText}>{row.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function ImagePreviewModal({ uri, visible, onClose }) {
+  return (
+    <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
+      <View style={profileStyles.imagePreviewRoot}>
+        <Pressable style={profileStyles.imagePreviewClose} onPress={onClose}>
+          <Ionicons name="close" size={24} color="#FFFFFF" />
+        </Pressable>
+        {uri ? (
+          <Image source={{ uri }} style={profileStyles.imagePreview} resizeMode="contain" />
+        ) : null}
+      </View>
+    </Modal>
+  );
+}
+
+function ProfileDetails({ profile }) {
+  const city = profile.city || profile.address || "";
+
+  if (!city) return null;
 
   return (
-    <View style={profileStyles.fbMiniFriendStack}>
-      {preview.map((friend, index) => (
-        <View
-          key={friend.id}
-          style={[profileStyles.fbMiniFriend, { marginLeft: index === 0 ? 0 : -8 }]}
-        >
-          <Avatar uri={friend.avatar} name={friend.displayName} size={30} />
-        </View>
-      ))}
+    <View style={profileStyles.fbProfileDetails}>
+      <View style={profileStyles.fbProfileDetailRow}>
+        <Ionicons name="home" size={18} color="#8A8D91" />
+        <Text style={profileStyles.fbProfileDetailText} numberOfLines={1}>
+          Sống tại <Text style={profileStyles.fbProfileDetailStrong}>{city}</Text>
+        </Text>
+      </View>
     </View>
   );
 }
 
 function ProfileHero({
   profile,
-  friends,
   isOwnProfile,
   onOpenMenu,
-  onEdit,
+  onOpenCoverMenu,
+  onOpenAvatarMenu,
   onAddFriend,
   onMessage,
 }) {
-  const description = profile.description || "Chưa có mô tả";
+  const displayName = profile.displayName || profile.username;
+  const username =
+    profile.username && profile.username !== displayName ? profile.username : "";
 
   return (
     <View style={profileStyles.fbHero}>
@@ -191,7 +237,7 @@ function ProfileHero({
           </View>
         )}
         {isOwnProfile ? (
-          <Pressable style={profileStyles.fbCoverCamera} onPress={onEdit}>
+          <Pressable style={profileStyles.fbCoverCamera} onPress={onOpenCoverMenu}>
             <Ionicons name="camera" size={18} color="#050505" />
           </Pressable>
         ) : null}
@@ -202,34 +248,26 @@ function ProfileHero({
           <View>
             <Avatar uri={profile.avatar} name={profile.displayName} size={132} bordered />
             {isOwnProfile ? (
-              <Pressable style={profileStyles.fbAvatarCamera} onPress={onEdit}>
+              <Pressable style={profileStyles.fbAvatarCamera} onPress={onOpenAvatarMenu}>
                 <Ionicons name="camera" size={19} color="#050505" />
               </Pressable>
             ) : null}
           </View>
         </View>
 
-        <Text style={profileStyles.fbName}>{profile.displayName || profile.username}</Text>
-        <View style={profileStyles.fbFriendLine}>
-          <Text style={profileStyles.fbFriendCount}>{profile.friendCount || friends.length} người bạn</Text>
-          <MiniFriendStack friends={friends} />
-        </View>
-        <Text style={profileStyles.fbBio} numberOfLines={3}>
-          {description}
+        <Text style={profileStyles.fbName} numberOfLines={2}>
+          {displayName}
+          {username ? (
+            <Text style={profileStyles.fbUsername}> ({username})</Text>
+          ) : null}
         </Text>
-
-        <View style={profileStyles.fbActionRow}>
-          {isOwnProfile ? (
-            <>
-              <FbButton title="Thêm vào tin" icon="add" onPress={onEdit} />
-              <FbButton
-                title="Chỉnh sửa trang cá nhân"
-                icon="pencil"
-                variant="secondary"
-                onPress={onEdit}
-              />
-            </>
-          ) : profile.relationStatus === "sent" ? (
+        {profile.description ? (
+          <Text style={profileStyles.fbBio} numberOfLines={3}>
+            {profile.description}
+          </Text>
+        ) : null}
+        <View style={[profileStyles.fbActionRow, isOwnProfile && profileStyles.fbOwnActionRow]}>
+          {isOwnProfile ? null : profile.relationStatus === "sent" ? (
             <FbButton title="Đã gửi yêu cầu" icon="time-outline" variant="secondary" disabled />
           ) : profile.relationStatus === "received" ? (
             <>
@@ -244,6 +282,7 @@ function ProfileHero({
           )}
           <FbButton icon="ellipsis-horizontal" variant="icon" onPress={onOpenMenu} compact />
         </View>
+        <ProfileDetails profile={profile} />
       </View>
     </View>
   );
@@ -273,98 +312,7 @@ function ProfileTabs({ activeTab, onChangeTab }) {
             </Text>
           </Pressable>
         ))}
-        <Pressable style={profileStyles.fbTabMore} onPress={() => onChangeTab("Giới thiệu")}>
-          <Ionicons name="ellipsis-horizontal" size={20} color="#050505" />
-        </Pressable>
       </ScrollView>
-    </View>
-  );
-}
-
-function IntroRow({ icon, text, link }) {
-  if (!text) return null;
-
-  return (
-    <Pressable
-      disabled={!link}
-      onPress={() => link && Linking.openURL(link)}
-      style={profileStyles.fbIntroRow}
-    >
-      <Ionicons name={icon} size={22} color="#65676B" />
-      <Text style={[profileStyles.fbIntroText, link && profileStyles.fbIntroLink]} numberOfLines={2}>
-        {text}
-      </Text>
-    </Pressable>
-  );
-}
-
-function IntroCard({ profile, onEdit }) {
-  const location = [profile.address || profile.city, profile.country].filter(Boolean).join(", ");
-
-  return (
-    <View style={profileStyles.fbCard}>
-      <Text style={profileStyles.fbCardTitle}>Giới thiệu</Text>
-      <Text style={profileStyles.fbIntroBio}>{profile.description || "Chưa có mô tả"}</Text>
-      <IntroRow icon="person-circle-outline" text={`Tên người dùng: ${profile.username}`} />
-      <IntroRow icon="people-outline" text={`${profile.friendCount || 0} người bạn`} />
-      <IntroRow icon="location-outline" text={location} />
-      <IntroRow icon="link-outline" text={profile.profileLink} link={profile.profileLink} />
-      <IntroRow icon="radio-button-on-outline" text={profile.online ? "Đang hoạt động" : "Không hiển thị trạng thái hoạt động"} />
-      {profile.isOwnProfile ? (
-        <Pressable style={profileStyles.fbWideGrayButton} onPress={onEdit}>
-          <Text style={profileStyles.fbWideGrayButtonText}>Chỉnh sửa chi tiết công khai</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-function AboutDetail({ profile, onEdit }) {
-  const categories = [
-    "Giới thiệu",
-    "Thông tin cá nhân",
-    "Công việc",
-    "Trình độ học vấn",
-    "Sở thích",
-    "Mối quan tâm",
-    "Liên kết",
-  ];
-
-  return (
-    <View style={profileStyles.fbCard}>
-      <Text style={profileStyles.fbCardTitle}>Giới thiệu</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={profileStyles.fbAboutPills}
-      >
-        {categories.map((item, index) => (
-          <View key={item} style={[profileStyles.fbAboutPill, index === 0 && profileStyles.fbAboutPillActive]}>
-            <Text
-              style={[
-                profileStyles.fbAboutPillText,
-                index === 0 && profileStyles.fbAboutPillTextActive,
-              ]}
-            >
-              {item}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
-
-      <Text style={profileStyles.fbSubheading}>Tiểu sử</Text>
-      <View style={profileStyles.fbBioLine}>
-        <Ionicons name="hand-left-outline" size={23} color="#050505" />
-        <Text style={profileStyles.fbIntroText}>{profile.description || "Chưa có mô tả"}</Text>
-        {profile.isOwnProfile ? (
-          <Pressable onPress={onEdit}>
-            <Ionicons name="pencil-outline" size={22} color="#65676B" />
-          </Pressable>
-        ) : null}
-      </View>
-
-      <Text style={profileStyles.fbSubheading}>Chi tiết đã ghim</Text>
-      <IntroRow icon="pin-outline" text={profile.profileLink || profile.address || "Chi tiết đã ghim"} />
     </View>
   );
 }
@@ -422,20 +370,6 @@ function ComposerCard({ profile }) {
           <Text style={profileStyles.fbComposerText}>Bạn đang nghĩ gì?</Text>
         </Pressable>
       </View>
-      <View style={profileStyles.fbComposerActions}>
-        <View style={profileStyles.fbComposerAction}>
-          <Ionicons name="videocam" size={20} color="#F3425F" />
-          <Text style={profileStyles.fbComposerActionText}>Trực tiếp</Text>
-        </View>
-        <View style={profileStyles.fbComposerAction}>
-          <Ionicons name="images" size={20} color="#45BD62" />
-          <Text style={profileStyles.fbComposerActionText}>Ảnh</Text>
-        </View>
-        <View style={profileStyles.fbComposerAction}>
-          <Ionicons name="flag" size={20} color="#F7B928" />
-          <Text style={profileStyles.fbComposerActionText}>Sự kiện</Text>
-        </View>
-      </View>
     </View>
   );
 }
@@ -447,10 +381,6 @@ function PostsSection({ profile, posts, loading }) {
       <View style={profileStyles.fbCard}>
         <View style={profileStyles.fbCardHeader}>
           <Text style={profileStyles.fbCardTitle}>Bài viết</Text>
-          <Pressable style={profileStyles.fbSmallGrayButton}>
-            <Ionicons name="filter" size={16} color="#050505" />
-            <Text style={profileStyles.fbSmallGrayButtonText}>Bộ lọc</Text>
-          </Pressable>
         </View>
 
         {loading ? (
@@ -474,35 +404,13 @@ function PostsSection({ profile, posts, loading }) {
   );
 }
 
-function MediaCard({ title, icon }) {
-  return (
-    <View style={profileStyles.fbCard}>
-      <Text style={profileStyles.fbCardTitle}>{title}</Text>
-      <EmptyState icon={icon} title={`Chưa có ${title.toLowerCase()}`} body="Nội dung sẽ hiển thị khi API trả dữ liệu." />
-    </View>
-  );
-}
-
-function ProfileBody({ tab, profile, friends, posts, loading, onEdit }) {
-  if (tab === "Giới thiệu") {
-    return <AboutDetail profile={profile} onEdit={onEdit} />;
-  }
-
+function ProfileBody({ tab, profile, friends, posts, loading }) {
   if (tab === "Bạn bè") {
     return <FriendsCard friends={friends} total={profile.friendCount} userId={profile.id} full />;
   }
 
-  if (tab === "Ảnh") {
-    return <MediaCard title="Ảnh" icon="images-outline" />;
-  }
-
-  if (tab === "Reels") {
-    return <MediaCard title="Reels" icon="film-outline" />;
-  }
-
   return (
     <>
-      <IntroCard profile={profile} onEdit={onEdit} />
       <FriendsCard friends={friends} total={profile.friendCount} userId={profile.id} />
       <PostsSection profile={profile} posts={posts} loading={loading} />
     </>
@@ -517,6 +425,9 @@ export default function ProfileScreenContent({ userId = "" }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [menuVisible, setMenuVisible] = useState(false);
+  const [coverMenuVisible, setCoverMenuVisible] = useState(false);
+  const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState("");
   const [activeTab, setActiveTab] = useState("Bài viết");
 
   const loadProfile = useCallback(async (isRefresh = false) => {
@@ -573,15 +484,63 @@ export default function ProfileScreenContent({ userId = "" }) {
 
   const profileLink = useMemo(() => {
     const id = profile?.id || userId || "";
-    return Linking.createURL(id ? `/profile/${id}` : "/(tabs)/profile");
-  }, [profile?.id, userId]);
+    return profile?.profileLink || Linking.createURL(id ? `/profile/${id}` : "/(tabs)/profile");
+  }, [profile?.id, profile?.profileLink, userId]);
 
   const handleCopyLink = async () => {
     try {
-      await Share.share({ message: profileLink, url: profileLink });
+      Clipboard.setString(profileLink);
+      Alert.alert("Đã sao chép", profileLink);
     } catch {
       Alert.alert("Liên kết trang cá nhân", profileLink);
     }
+  };
+
+  const pickProfileImage = async (type) => {
+    if (!profile) return;
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert(
+          "Cần quyền truy cập ảnh",
+          "Vui lòng cấp quyền thư viện ảnh để chọn ảnh.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === "avatar" ? [1, 1] : [16, 9],
+        quality: 0.9,
+      });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const uri = result.assets[0].uri;
+      const nextProfile =
+        type === "avatar"
+          ? { ...profile, avatar: uri }
+          : { ...profile, coverImage: uri };
+      setProfile(nextProfile);
+
+      await updateUserInfo({
+        userName: profile.displayName || profile.username,
+        avatar: nextProfile.avatar,
+        coverImage: nextProfile.coverImage,
+      });
+    } catch (error) {
+      Alert.alert("Không thể cập nhật ảnh", error.message || "Vui lòng thử lại.");
+    }
+  };
+
+  const handleViewCover = () => {
+    if (!profile?.coverImage) {
+      Alert.alert("Ảnh bìa", "Hồ sơ hiện chưa có ảnh bìa.");
+      return;
+    }
+    setPreviewImage(profile.coverImage);
   };
 
   const handleAddFriend = () => {
@@ -630,14 +589,14 @@ export default function ProfileScreenContent({ userId = "" }) {
       >
         <ProfileHero
           profile={profile}
-          friends={friends}
           isOwnProfile={profile.isOwnProfile}
+          onOpenCoverMenu={() => setCoverMenuVisible(true)}
+          onOpenAvatarMenu={() => setAvatarMenuVisible(true)}
           onOpenMenu={() =>
             profile.isOwnProfile
               ? router.push("/profile/settings")
               : setMenuVisible(true)
           }
-          onEdit={() => router.push("/settings/profile-edit")}
           onAddFriend={handleAddFriend}
           onMessage={() => router.push("/chat")}
         />
@@ -651,7 +610,6 @@ export default function ProfileScreenContent({ userId = "" }) {
             friends={friends}
             posts={posts}
             loading={loading}
-            onEdit={() => router.push("/settings/profile-edit")}
           />
         </View>
       </ScrollView>
@@ -667,6 +625,26 @@ export default function ProfileScreenContent({ userId = "" }) {
           })
         }
         onCopyLink={handleCopyLink}
+      />
+      <MediaActionSheet
+        visible={coverMenuVisible}
+        onClose={() => setCoverMenuVisible(false)}
+        rows={[
+          { label: "Xem ảnh bìa", icon: "image-outline", onPress: handleViewCover },
+          { label: "Tải ảnh lên", icon: "cloud-upload-outline", onPress: () => pickProfileImage("cover") },
+        ]}
+      />
+      <MediaActionSheet
+        visible={avatarMenuVisible}
+        onClose={() => setAvatarMenuVisible(false)}
+        rows={[
+          { label: "Chọn ảnh đại diện", icon: "images-outline", onPress: () => pickProfileImage("avatar") },
+        ]}
+      />
+      <ImagePreviewModal
+        uri={previewImage}
+        visible={Boolean(previewImage)}
+        onClose={() => setPreviewImage("")}
       />
     </View>
   );

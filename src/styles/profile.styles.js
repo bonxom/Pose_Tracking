@@ -148,6 +148,7 @@ const profileStyles = StyleSheet.create({
   },
   fbAvatarRow: {
     height: 70,
+    alignItems: "center",
   },
   fbAvatarBorder: {
     borderWidth: 4,
@@ -157,8 +158,8 @@ const profileStyles = StyleSheet.create({
   },
   fbAvatarCamera: {
     position: "absolute",
-    right: 4,
-    bottom: 2,
+    right: -2,
+    bottom: -2,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -170,9 +171,16 @@ const profileStyles = StyleSheet.create({
   },
   fbName: {
     marginTop: 2,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: "900",
+    color: "#050505",
+    textAlign: "center",
+  },
+  fbUsername: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "800",
     color: "#050505",
   },
   fbFriendLine: {
@@ -205,12 +213,39 @@ const profileStyles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     color: "#050505",
+    textAlign: "center",
   },
   fbActionRow: {
     marginTop: sizes.md,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  fbOwnActionRow: {
+    justifyContent: "flex-end",
+  },
+  fbProfileDetails: {
+    marginTop: sizes.sm,
+    paddingTop: sizes.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#DADDE1",
+    gap: 8,
+  },
+  fbProfileDetailRow: {
+    minHeight: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  fbProfileDetailText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#4B5563",
+  },
+  fbProfileDetailStrong: {
+    fontWeight: "900",
+    color: "#050505",
   },
   fbButton: {
     flex: 1,
@@ -691,6 +726,28 @@ const profileStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
     color: "#111827",
+  },
+  imagePreviewRoot: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#000000",
+  },
+  imagePreviewClose: {
+    position: "absolute",
+    top: 48,
+    right: 18,
+    zIndex: 1,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  imagePreview: {
+    width: "100%",
+    height: "100%",
   },
   optionRow: {
     flexDirection: "row",

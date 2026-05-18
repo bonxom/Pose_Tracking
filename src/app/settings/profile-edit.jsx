@@ -88,8 +88,6 @@ export default function ProfileEditScreen() {
   const [avatar, setAvatar] = useState("");
   const [coverImage, setCoverImage] = useState("");
   const [description, setDescription] = useState("");
-  const [address, setAddress] = useState("");
-  const [profileLink, setProfileLink] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
@@ -104,8 +102,6 @@ export default function ProfileEditScreen() {
       setAvatar(user.avatar || "");
       setCoverImage(user.coverImage || "");
       setDescription(user.description || "");
-      setAddress(user.address || user.city || "");
-      setProfileLink(user.profileLink || "");
     } catch (error) {
       if (error.sessionExpired) {
         await clearAuthSession();
@@ -176,8 +172,6 @@ export default function ProfileEditScreen() {
         avatar,
         coverImage,
         description: description.trim().slice(0, 150),
-        address: address.trim(),
-        profileLink: profileLink.trim(),
       });
 
       if (hasLocalImage) {
@@ -186,7 +180,7 @@ export default function ProfileEditScreen() {
           "set_user_info chỉ nhận avatar/coverImage dạng URL. Ảnh chọn từ máy là URI local nên app giữ ảnh cũ trên server.",
         );
       }
-      router.back();
+      router.replace("/(tabs)/profile");
     } catch (error) {
       if (error.sessionExpired) {
         await clearAuthSession();
@@ -242,31 +236,13 @@ export default function ProfileEditScreen() {
                 style={styles.input}
               />
               <AppInput
-                label={`Mô tả bản thân (${description.length}/150)`}
+                label={`Tiểu sử (${description.length}/150)`}
                 value={description}
                 onChangeText={(value) => setDescription(value.slice(0, 150))}
-                placeholder="Viết mô tả ngắn"
+                placeholder="Viết tiểu sử ngắn"
                 multiline
                 containerStyle={styles.inputGroup}
                 style={[styles.input, styles.multilineInput]}
-              />
-              <AppInput
-                label="Địa chỉ / tỉnh / thành / quốc gia"
-                value={address}
-                onChangeText={setAddress}
-                placeholder="Ví dụ: Hà Nội, Việt Nam"
-                containerStyle={styles.inputGroup}
-                style={styles.input}
-              />
-              <AppInput
-                label="Link trang cá nhân"
-                value={profileLink}
-                onChangeText={setProfileLink}
-                placeholder="https://..."
-                autoCapitalize="none"
-                keyboardType="url"
-                containerStyle={styles.inputGroup}
-                style={styles.input}
               />
             </View>
 

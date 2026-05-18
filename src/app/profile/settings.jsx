@@ -10,10 +10,10 @@ import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Clipboard,
   Image,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -85,40 +85,31 @@ export default function ProfileSettingsScreen() {
     return profile?.profileLink || Linking.createURL(id ? `/profile/${id}` : "/(tabs)/profile");
   }, [profile?.id, profile?.profileLink]);
 
-  const showPlaceholder = (label) => {
-    Alert.alert(label, "Mục này đã có giao diện, có thể nối backend sau.");
-  };
-
-  const shareProfile = async () => {
+  const copyProfileLink = async () => {
     try {
-      await Share.share({ message: profileLink, url: profileLink });
+      Clipboard.setString(profileLink);
+      Alert.alert("Đã sao chép", profileLink);
     } catch {
       Alert.alert("Liên kết trang cá nhân", profileLink);
     }
   };
 
   const rows = [
-    { icon: "albums-outline", label: "Cài đặt theo dõi", onPress: () => showPlaceholder("Cài đặt theo dõi") },
-    { icon: "heart-circle-outline", label: "Chỉnh sửa tin nổi bật", onPress: () => showPlaceholder("Chỉnh sửa tin nổi bật") },
-    { icon: "shield-checkmark-outline", label: "Trạng thái trang cá nhân", onPress: () => showPlaceholder("Trạng thái trang cá nhân") },
-    { icon: "archive-outline", label: "Kho lưu trữ", onPress: () => showPlaceholder("Kho lưu trữ") },
-    { icon: "eye-outline", label: "Chế độ xem", onPress: () => router.push(profile?.id ? `/profile/${profile.id}` : "/(tabs)/profile") },
-    { icon: "shield-half-outline", label: "Khóa bảo vệ trang cá nhân", onPress: () => showPlaceholder("Khóa bảo vệ trang cá nhân") },
-    { icon: "list-outline", label: "Nhật ký hoạt động", onPress: () => showPlaceholder("Nhật ký hoạt động") },
-    { icon: "newspaper-outline", label: "Quản lý bài viết", onPress: () => showPlaceholder("Quản lý bài viết") },
-    { icon: "reader-outline", label: "Xem lại bài viết và thẻ", onPress: () => showPlaceholder("Xem lại bài viết và thẻ") },
-    { icon: "lock-closed-outline", label: "Trung tâm quyền riêng tư", onPress: () => showPlaceholder("Trung tâm quyền riêng tư") },
+    {
+      icon: "create-outline",
+      label: "Chỉnh sửa trang cá nhân",
+      onPress: () => router.push("/settings/profile-edit"),
+    },
     {
       icon: "search-outline",
-      label: "Tìm kiếm",
+      label: "Tìm kiếm trên trang cá nhân",
       onPress: () =>
         router.push({
           pathname: "/profile/search",
           params: { userId: profile?.id || "" },
         }),
     },
-    { icon: "person-circle-outline", label: "Bật chế độ chuyên nghiệp", onPress: () => showPlaceholder("Bật chế độ chuyên nghiệp") },
-    { icon: "share-social-outline", label: "Chia sẻ trang cá nhân", onPress: shareProfile },
+    { icon: "link-outline", label: "Sao chép liên kết trang cá nhân", onPress: copyProfileLink },
   ];
 
   return (
@@ -146,12 +137,12 @@ export default function ProfileSettingsScreen() {
 
           <View style={styles.linkSection}>
             <Text style={styles.linkTitle}>Liên kết đến trang cá nhân của bạn</Text>
-            <Text style={styles.linkSubtitle}>Liên kết riêng của bạn trên Facebook.</Text>
+            <Text style={styles.linkSubtitle}>Đường dẫn hiện có trong trường link của hồ sơ.</Text>
             <View style={styles.divider} />
             <Text style={styles.linkValue} numberOfLines={2}>
               {profileLink}
             </Text>
-            <AppButton title="Chia sẻ liên kết" onPress={shareProfile} style={styles.shareButton} />
+            <AppButton title="Sao chép liên kết" onPress={copyProfileLink} style={styles.shareButton} />
           </View>
         </ScrollView>
       )}

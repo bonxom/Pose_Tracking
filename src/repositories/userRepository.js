@@ -251,6 +251,11 @@ function fallbackFriends(source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
   return FALLBACK_FRIENDS.map((item) => normalizeFriend(item, source)).filter((item) => item.id);
 }
 
+function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
+  const friend = fallbackFriends(source).find((item) => isSameUser(item.id, userId));
+  return normalizeUser(friend || {}, source, { isOwnProfile: false });
+}
+
 function isSameUser(left, right) {
   return Boolean(left && right && String(left) === String(right));
 }
@@ -438,20 +443,14 @@ export async function getUserInfo(userId = "") {
       return localUser(session);
     }
 
-    const friend = fallbackFriends(ACTIVE_SOURCES.LOCAL).find((item) => item.id === targetUserId);
-    return normalizeUser(friend || {}, ACTIVE_SOURCES.LOCAL, { isOwnProfile: false });
+    return fallbackUserById(targetUserId, ACTIVE_SOURCES.LOCAL);
   }
 
   try {
     const basePayload = { token: session.token };
-    let response = await backendApi.getUserInfo(
+    const response = await backendApi.getUserInfo(
       isOwnProfile ? basePayload : { ...basePayload, user_id: targetUserId },
     );
-
-    if (String(response?.message || "").includes("property user_id should not exist")) {
-      console.info("[DATA] get_user_info deployed compatibility: retrying without user_id");
-      response = await backendApi.getUserInfo(basePayload);
-    }
 
     await assertBackendOk(response, { message: "Backend get_user_info failed" });
 
@@ -459,21 +458,17 @@ export async function getUserInfo(userId = "") {
       session,
       isOwnProfile,
     });
+
+    if (!isOwnProfile && !isSameUser(normalized.id, targetUserId)) {
+      return fallbackUserById(targetUserId);
+    }
+
     return isOwnProfile && !normalized.description && session?.description
       ? { ...normalized, description: session.description }
       : normalized;
   } catch (error) {
     console.info("[DATA] Server get_user_info fallback", error.message);
     throwIfExpiredFromApiError(error);
-
-    if (!isOwnProfile && rejectsField(error, "user_id")) {
-      const response = await backendApi.getUserInfo({ token: session.token });
-      await assertBackendOk(response, { message: "Backend get_user_info failed" });
-      return normalizeUser(extractObject(response), ACTIVE_SOURCES.SERVER, {
-        session,
-        isOwnProfile,
-      });
-    }
 
     if (!error.sessionExpired) {
       if (isOwnProfile) {
@@ -483,10 +478,7 @@ export async function getUserInfo(userId = "") {
         });
       }
 
-      const friend = fallbackFriends().find((item) => item.id === targetUserId);
-      return normalizeUser(friend || {}, ACTIVE_SOURCES.LOCAL_FALLBACK, {
-        isOwnProfile: false,
-      });
+      return fallbackUserById(targetUserId);
     }
 
     throw error;
@@ -565,24 +557,12 @@ export async function getUserPosts(userId = "", paging = {}) {
   }
 
   try {
-    let response = await backendApi.getListPosts({
+    const response = await backendApi.getListPosts({
       token: session.token,
       user_id: targetUserId,
       index: String(paging.index || 0),
       count: String(paging.count || 20),
-      last_id: paging.lastId || paging.last_id || "",
-      category_id: paging.categoryId || paging.category_id || "",
     });
-
-    if (String(response?.message || "").includes("property user_id should not exist")) {
-      response = await backendApi.getListPosts({
-        token: session.token,
-        index: String(paging.index || 0),
-        count: String(paging.count || 20),
-        last_id: paging.lastId || paging.last_id || "",
-        category_id: paging.categoryId || paging.category_id || "",
-      });
-    }
 
     await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_posts failed" });
 
@@ -601,39 +581,11 @@ export async function getUserPosts(userId = "", paging = {}) {
     console.info("[DATA] Server user posts fallback", error.message);
     throwIfExpiredFromApiError(error);
 
-    if (rejectsField(error, "user_id")) {
-      try {
-        const response = await backendApi.getListPosts({
-          token: session.token,
-          index: String(paging.index || 0),
-          count: String(paging.count || 20),
-          last_id: paging.lastId || paging.last_id || "",
-          category_id: paging.categoryId || paging.category_id || "",
-        });
-
-        await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_posts failed" });
-
-        const items = extractList(response)
-          .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
-          .filter((post) => post.id && isSameUser(post.author?.id, targetUserId) && (includeLocked || post.canComment !== false));
-
-        return {
-          items,
-          total: items.length,
-          hasMore: false,
-          lastId: "",
-          source: ACTIVE_SOURCES.SERVER,
-        };
-      } catch (retryError) {
-        throwIfExpiredFromApiError(retryError);
-      }
-    }
-
     if (!error.sessionExpired) {
       return getLocalUserPosts(
         targetUserId,
         includeLocked,
-        canFallbackToLocal() ? ACTIVE_SOURCES.LOCAL_FALLBACK : ACTIVE_SOURCES.LOCAL,
+        ACTIVE_SOURCES.LOCAL_FALLBACK,
       );
     }
 
@@ -653,10 +605,6 @@ export async function getUserFriends(userId = "", options = {}) {
   }
 
   try {
-    if (typeof backendApi.getUserFriends !== "function") {
-      return fallbackFriends(ACTIVE_SOURCES.LOCAL_FALLBACK);
-    }
-
     const response = await backendApi.getUserFriends({
       token: session.token,
       user_id: targetUserId,
@@ -675,8 +623,9 @@ export async function getUserFriends(userId = "", options = {}) {
       : friends;
   } catch (error) {
     console.info("[DATA] User friends fallback", error.message);
+    throwIfExpiredFromApiError(error);
 
-    if (!error.sessionExpired && canFallbackToLocal()) {
+    if (!error.sessionExpired) {
       const friends = fallbackFriends(ACTIVE_SOURCES.LOCAL_FALLBACK);
       return options.sort === "abc"
         ? friends.sort((left, right) => left.displayName.localeCompare(right.displayName))
@@ -690,6 +639,7 @@ export async function getUserFriends(userId = "", options = {}) {
 export async function searchUserProfile(userId = "", keyword = "") {
   const session = await getCurrentSession();
   const normalizedKeyword = String(keyword || "").trim();
+  const targetUserId = String(userId || session?.id || session?.user_id || session?.identifier || "");
 
   if (!normalizedKeyword) {
     return [];
@@ -697,14 +647,14 @@ export async function searchUserProfile(userId = "", keyword = "") {
 
   if (!shouldUseServer(session)) {
     const items = await localPosts.searchPosts(normalizedKeyword);
-    return userId ? items.filter((post) => isSameUser(post.author?.id, userId)) : items;
+    return targetUserId ? items.filter((post) => isSameUser(post.author?.id, targetUserId)) : items;
   }
 
   try {
     const response = await backendApi.search({
       token: session.token,
       keyword: normalizedKeyword,
-      user_id: userId || session?.id || session?.user_id || session?.identifier || "",
+      user_id: targetUserId,
       index: "0",
       count: "20",
     });
@@ -719,7 +669,7 @@ export async function searchUserProfile(userId = "", keyword = "") {
 
     if (!error.sessionExpired && canFallbackToLocal()) {
       const items = await localPosts.searchPosts(normalizedKeyword);
-      return userId ? items.filter((post) => isSameUser(post.author?.id, userId)) : items;
+      return targetUserId ? items.filter((post) => isSameUser(post.author?.id, targetUserId)) : items;
     }
 
     throw error;

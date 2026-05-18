@@ -59,10 +59,21 @@ const BellIcon = ({ focused, badge = 0 }) => (
 
 const AccountIcon = ({ focused }) => (
   <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Circle cx={12} cy={8} r={4} fill={focused ? FB_BLUE : INK} />
+    <Circle
+      cx={12}
+      cy={12}
+      r={9}
+      stroke={focused ? FB_BLUE : INK}
+      strokeWidth={2}
+    />
+    <Circle cx={12} cy={9} r={3} fill={focused ? FB_BLUE : INK} />
     <Path
-      d="M4 20a8 8 0 0 1 16 0v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1Z"
-      fill={focused ? FB_BLUE : INK}
+      d="M6.9 17.75c.9-2.38 2.8-3.75 5.1-3.75s4.2 1.37 5.1 3.75"
+      stroke={focused ? FB_BLUE : INK}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
     />
   </Svg>
 );

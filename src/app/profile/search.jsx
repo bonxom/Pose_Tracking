@@ -1,14 +1,14 @@
-import AppButton from "@/components/common/AppButton";
 import PostCard from "@/components/post/PostCard";
-import { searchUserProfile } from "@/repositories/userRepository";
+import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { clearAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,8 +23,26 @@ export default function ProfileSearchScreen() {
   const userId = typeof params.userId === "string" ? params.userId : "";
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    getUserInfo(userId)
+      .then((user) => {
+        if (alive) setProfile(user);
+      })
+      .catch(() => {
+        if (alive) setProfile(null);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
 
   const runSearch = async () => {
     const normalizedKeyword = keyword.trim();
@@ -36,6 +54,7 @@ export default function ProfileSearchScreen() {
 
     setLoading(true);
     setError("");
+    setHasSearched(true);
     try {
       const items = await searchUserProfile(userId, normalizedKeyword);
       setResults(items);
@@ -51,29 +70,34 @@ export default function ProfileSearchScreen() {
     }
   };
 
+  const displayName = profile?.displayName || profile?.username || "hồ sơ này";
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconButton}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>Tìm kiếm trên trang cá nhân</Text>
-      </View>
-
-      <View style={styles.searchRow}>
         <View style={styles.inputWrap}>
           <Ionicons name="search-outline" size={20} color={colors.subtext} />
           <TextInput
             value={keyword}
             onChangeText={setKeyword}
-            placeholder="Nhập nội dung bài viết/video"
+            placeholder="Tìm kiếm trong bài viết, ảnh và th..."
             placeholderTextColor={colors.placeholder}
             style={styles.input}
             returnKeyType="search"
             onSubmitEditing={runSearch}
+            autoFocus
           />
         </View>
-        <AppButton title="Tìm" onPress={runSearch} loading={loading} style={styles.searchButton} />
+        <Pressable style={styles.searchSubmit} onPress={runSearch} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Ionicons name="search" size={19} color="#FFFFFF" />
+          )}
+        </Pressable>
       </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -91,10 +115,22 @@ export default function ProfileSearchScreen() {
             />
           ))
         ) : (
-          <View style={styles.empty}>
-            <Ionicons name="search-outline" size={36} color={colors.subtext} />
-            <Text style={styles.emptyTitle}>Chưa có kết quả</Text>
-            <Text style={styles.emptyText}>Kết quả từ API search với tham số user_id sẽ hiển thị tại đây.</Text>
+          <View style={styles.emptyIntro}>
+            <View style={styles.avatar}>
+              {profile?.avatar ? (
+                <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {String(displayName).trim()[0]?.toUpperCase() || "U"}
+                </Text>
+              )}
+            </View>
+            <Text style={styles.emptyTitle}>
+              {hasSearched ? "Không tìm thấy kết quả" : "Bạn đang tìm gì à?"}
+            </Text>
+            <Text style={styles.emptyText}>
+              Tìm kiếm trên trang cá nhân của {displayName} để xem bài viết, ảnh và các hoạt động hiển thị khác.
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -108,41 +144,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F2F5",
   },
   header: {
-    minHeight: 56,
-    paddingHorizontal: sizes.md,
+    minHeight: 54,
+    paddingHorizontal: sizes.sm,
     flexDirection: "row",
     alignItems: "center",
-    gap: sizes.sm,
+    gap: 8,
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#CED0D4",
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E4E6EB",
-  },
-  title: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "900",
-    color: colors.text,
-  },
-  searchRow: {
-    padding: sizes.md,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: sizes.sm,
-    backgroundColor: colors.white,
   },
   inputWrap: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 22,
-    paddingHorizontal: sizes.md,
+    minHeight: 34,
+    borderRadius: 17,
+    paddingHorizontal: sizes.sm,
     flexDirection: "row",
     alignItems: "center",
     gap: sizes.xs,
@@ -153,10 +175,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-  searchButton: {
-    width: 76,
-    height: 44,
-    borderRadius: 22,
+  searchSubmit: {
+    width: 38,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#0866FF",
   },
   errorText: {
     paddingHorizontal: sizes.md,
@@ -166,26 +191,47 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   content: {
-    padding: sizes.md,
+    flexGrow: 1,
+    paddingHorizontal: sizes.md,
+    paddingTop: 52,
+    paddingBottom: sizes.xl,
     gap: sizes.md,
   },
-  empty: {
-    marginTop: sizes.xl,
-    borderRadius: 8,
-    backgroundColor: colors.white,
-    padding: sizes.xl,
+  emptyIntro: {
     alignItems: "center",
-    gap: sizes.sm,
+    paddingHorizontal: sizes.lg,
+  },
+  avatar: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#DDE7F8",
+    marginBottom: sizes.lg,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarText: {
+    color: "#0866FF",
+    fontSize: 26,
+    fontWeight: "900",
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: "900",
     color: colors.text,
+    textAlign: "center",
   },
   emptyText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.subtext,
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#1C1E21",
     textAlign: "center",
   },
 });
