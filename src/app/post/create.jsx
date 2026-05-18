@@ -1,13 +1,7 @@
-import AppButton from "@/components/common/AppButton";
-import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
 import colors from "@/constants/colors";
-import {
-  DEMO_COURSE,
-  DEMO_EXERCISES,
-  DEMO_VIDEO_PLACEHOLDERS,
-} from "@/constants/demo";
+import { DEMO_COURSE, DEMO_EXERCISES } from "@/constants/demo";
 import {
   createExerciseSubmission,
   createPost,
@@ -71,6 +65,7 @@ function VideoPreview({ uri }) {
 export default function CreatePostScreen() {
   const params = useLocalSearchParams();
   const isSubmissionMode = params.mode === "submission";
+
   const [content, setContent] = useState("");
   const [sourcePost, setSourcePost] = useState(null);
   const [selectedVideos, setSelectedVideos] = useState([]);
@@ -78,8 +73,10 @@ export default function CreatePostScreen() {
   const [profileUser, setProfileUser] = useState(null);
   const [statusText, setStatusText] = useState("");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [textAreaHeight, setTextAreaHeight] = useState(26);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
+
   const selectedVideoCount = selectedVideos.filter(Boolean).length;
 
   const exercise = useMemo(() => {
@@ -138,22 +135,6 @@ export default function CreatePostScreen() {
     };
   }, []);
 
-  const addDemoVideo = (video) => {
-    setSelectedVideos((current) => {
-      if (current.some((item) => item?.id === video.id)) {
-        return current;
-      }
-      return [...current, video].slice(0, 2);
-    });
-  };
-
-  const useBothDemoVideos = () => {
-    setSelectedVideos(DEMO_VIDEO_PLACEHOLDERS);
-  };
-
-  const isLocalSession =
-    session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL;
-
   const readVideoDuration = async (asset) => {
     if (asset.duration) return asset.duration;
     if (typeof document === "undefined" || !asset.uri) return 0;
@@ -179,26 +160,6 @@ export default function CreatePostScreen() {
       duration,
       fileSize: asset.fileSize || 0,
     };
-  };
-
-  const pickRealVideo = async (slotIndex) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      allowsEditing: false,
-      quality: 1,
-    });
-
-    if (result.canceled || !result.assets?.[0]) {
-      return;
-    }
-
-    const video = await buildVideoItem(result.assets[0], slotIndex);
-
-    setSelectedVideos((current) => {
-      const next = [...current];
-      next[slotIndex] = video;
-      return next.slice(0, 2);
-    });
   };
 
   const pickCreateVideo = async () => {
@@ -229,13 +190,11 @@ export default function CreatePostScreen() {
       return;
     }
 
-    if (!isSubmissionMode && completeVideos.length > 2) {
-      Alert.alert("Giới hạn video", "Bài viết chỉ cho tối đa 2 video.");
-      return;
-    }
-
     if (!content.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập nội dung bài viết");
+      Alert.alert(
+        "Lỗi",
+        isSubmissionMode ? "Vui lòng nhập ghi chú bài nộp" : "Vui lòng nhập nội dung bài viết",
+      );
       return;
     }
 
@@ -243,18 +202,21 @@ export default function CreatePostScreen() {
       setIsSubmitting(true);
       const newPost = isSubmissionMode
         ? await createExerciseSubmission({
-          content,
-          videos: completeVideos,
-          courseId: params.courseId || DEMO_COURSE.id,
-          exerciseId: params.exerciseId || exercise.id,
-          sourcePostId: params.sourcePostId || sourcePost?.id || "",
-        })
+            content,
+            videos: completeVideos,
+            courseId: params.courseId || DEMO_COURSE.id,
+            exerciseId: params.exerciseId || exercise.id,
+            sourcePostId: params.sourcePostId || sourcePost?.id || "",
+          })
         : await createPost({
-          content: content.trim(),
-          videos: completeVideos,
-        });
+            content: content.trim(),
+            videos: completeVideos,
+          });
 
       if (newPost) {
+        const isLocalSession =
+          session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL;
+
         Alert.alert(
           "Thành công",
           isSubmissionMode
@@ -324,215 +286,101 @@ export default function CreatePostScreen() {
         </Pressable>
       </View>
 
-      {isSubmissionMode ? (
+      <View style={localStyles.createBody}>
         <ScrollView
-          contentContainerStyle={postStyles.scrollContent}
+          contentContainerStyle={[
+            localStyles.createContent,
+            { paddingBottom: bottomToolbarInset + 12 },
+          ]}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={postStyles.subtitle}>
-            {isLocalSession
-              ? "Local fallback có thể dùng placeholder demo. Server mode cần 2 video thật."
-              : "Nộp 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương nhau."}
-          </Text>
+          <View style={localStyles.userInfoContainer}>
+            <Image
+              source={{
+                uri:
+                  profileUser?.avatar ||
+                  session?.avatar ||
+                  session?.user?.avatar ||
+                  "https://ui-avatars.com/api/?name=User&background=random",
+              }}
+              style={localStyles.avatar}
+            />
+            <View>
+              <Text style={localStyles.userName}>
+                {profileUser?.displayName ||
+                  profileUser?.username ||
+                  session?.displayName ||
+                  session?.username ||
+                  session?.user?.username ||
+                  session?.user?.name ||
+                  "Người dùng"}
+              </Text>
+              <View style={localStyles.privacyBadge}>
+                <Ionicons name="earth" size={14} color={colors.subtext} />
+                <Text style={localStyles.privacyText}>Công khai</Text>
+              </View>
+            </View>
+          </View>
 
-          {statusText ? (
-            <Text style={postStyles.warningText}>{statusText}</Text>
+          {isSubmissionMode ? (
+            <Text style={localStyles.modeHint}>
+              Nộp 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương nhau.
+            </Text>
           ) : null}
 
-          <View style={postStyles.infoCard}>
-            <Text style={postStyles.infoTitle}>{exercise.title}</Text>
-            <Text style={postStyles.infoText}>{DEMO_COURSE.title}</Text>
-            <Text style={postStyles.infoText}>
-              {DEMO_COURSE.hashtag} {exercise.hashtag}
-            </Text>
-          </View>
+          {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
 
-          <View style={postStyles.inputCard}>
-            <Text style={postStyles.slotLabel}>Ghi chú bài nộp</Text>
-            <AppInput
-              placeholder="Ví dụ: Em nộp bài với 2 góc quay theo hướng dẫn..."
-              value={content}
-              onChangeText={setContent}
-              multiline
-              numberOfLines={6}
-              style={postStyles.textArea}
-            />
-            <Text style={postStyles.slotHint}>{content.length} ký tự</Text>
-          </View>
+          <TextInput
+            placeholder={
+              isSubmissionMode
+                ? "Ví dụ: Em nộp bài với 2 góc quay theo hướng dẫn..."
+                : "Viết nội dung bài viết của bạn..."
+            }
+            placeholderTextColor={colors.placeholder}
+            value={content}
+            onChangeText={setContent}
+            multiline
+            style={[localStyles.createTextArea, { height: Math.max(26, textAreaHeight) }]}
+            textAlignVertical="top"
+            onContentSizeChange={(event) => {
+              const nextHeight = event.nativeEvent.contentSize.height;
+              if (!Number.isNaN(nextHeight)) {
+                setTextAreaHeight(nextHeight);
+              }
+            }}
+          />
 
-          <View style={postStyles.inputCard}>
-            <Text style={postStyles.slotLabel}>Video bài nộp</Text>
-            <View style={postStyles.actionRow}>
-              <AppButton
-                title="Chọn video trái"
-                onPress={() => pickRealVideo(0)}
-                style={[postStyles.actionButton, postStyles.secondaryButton]}
-                textStyle={postStyles.secondaryButtonText}
-              />
-              <AppButton
-                title="Chọn video phải"
-                onPress={() => pickRealVideo(1)}
-                style={[postStyles.actionButton, postStyles.secondaryButton]}
-                textStyle={postStyles.secondaryButtonText}
-              />
-            </View>
-            <View style={postStyles.mediaList}>
-              {[0, 1].map((slotIndex) => {
-                const video = selectedVideos[slotIndex];
+          {selectedVideoCount > 0 ? (
+            <View style={localStyles.videoGrid}>
+              {selectedVideos.map((video) => {
+                if (!video?.uri) return null;
                 return (
-                  <View key={slotIndex} style={postStyles.mediaCard}>
-                    <Text style={postStyles.mediaTitle}>
-                      {slotIndex === 0 ? "Góc quay trái" : "Góc quay phải"}
-                    </Text>
-                    <Text style={postStyles.mediaSubtitle}>
-                      {video?.name || "Chưa chọn video thật"}
-                    </Text>
-                    <Text style={postStyles.mediaSubtitle}>
-                      {video?.duration
-                        ? `${Math.round(video.duration / 1000)} giây`
-                        : "Cần video >= 10 giây"}
-                    </Text>
+                  <View key={video.id} style={localStyles.videoCard}>
+                    <VideoPreview uri={video.uri} />
                   </View>
                 );
               })}
             </View>
-            <Text style={postStyles.slotHint}>
-              Đã chọn {selectedVideoCount}/2 video.
-            </Text>
-          </View>
-
-          {isLocalSession ? (
-            <View style={postStyles.inputCard}>
-              <Text style={postStyles.slotLabel}>Placeholder local-only</Text>
-              <View style={postStyles.mediaList}>
-                {DEMO_VIDEO_PLACEHOLDERS.map((video) => {
-                  const selected = selectedVideos.some(
-                    (item) => item?.id === video.id,
-                  );
-                  return (
-                    <View
-                      key={video.id}
-                      style={[
-                        postStyles.mediaCard,
-                        selected && postStyles.selectedMediaCard,
-                      ]}
-                    >
-                      <Text style={postStyles.mediaTitle}>{video.angle}</Text>
-                      <Text style={postStyles.mediaSubtitle}>{video.name}</Text>
-                      <Text style={postStyles.mediaSubtitle}>
-                        {selected ? "Đã chọn cho demo" : "Chưa chọn"}
-                      </Text>
-                      <AppButton
-                        title={
-                          selected
-                            ? "Đã dùng"
-                            : `Use demo video ${video.id.endsWith("left_video") ? "1" : "2"}`
-                        }
-                        onPress={() => addDemoVideo(video)}
-                        disabled={selected}
-                        style={[
-                          postStyles.actionButton,
-                          postStyles.secondaryButton,
-                        ]}
-                        textStyle={postStyles.secondaryButtonText}
-                      />
-                    </View>
-                  );
-                })}
-              </View>
-              <AppButton title="Dùng đủ 2 video demo" onPress={useBothDemoVideos} />
-              <Text style={postStyles.slotHint}>
-                Placeholder không bao giờ được gửi lên backend server.
-              </Text>
-            </View>
           ) : null}
         </ScrollView>
-      ) : (
-        <View style={localStyles.createBody}>
-          <ScrollView
-            contentContainerStyle={[
-              localStyles.createContent,
-              { paddingBottom: bottomToolbarInset + 12 },
-            ]}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+
+        <View
+          style={[
+            localStyles.bottomToolbar,
+            { bottom: keyboardOffset },
+          ]}
+        >
+          <Pressable
+            onPress={pickCreateVideo}
+            style={localStyles.libraryButton}
+            hitSlop={8}
           >
-            <View style={localStyles.userInfoContainer}>
-              <Image
-                source={{
-                  uri:
-                    profileUser?.avatar ||
-                    session?.avatar ||
-                    session?.user?.avatar ||
-                    "https://ui-avatars.com/api/?name=User&background=random",
-                }}
-                style={localStyles.avatar}
-              />
-              <View>
-                <Text style={localStyles.userName}>
-                  {profileUser?.displayName ||
-                    profileUser?.username ||
-                    session?.displayName ||
-                    session?.username ||
-                    session?.user?.username ||
-                    session?.user?.name ||
-                    "Người dùng"}
-                </Text>
-                <View style={localStyles.privacyBadge}>
-                  <Ionicons name="earth" size={14} color={colors.subtext} />
-                  <Text style={localStyles.privacyText}>Công khai</Text>
-                </View>
-              </View>
-            </View>
-
-            {statusText ? (
-              <Text style={postStyles.warningText}>{statusText}</Text>
-            ) : null}
-
-            <TextInput
-              placeholder="Viết nội dung bài viết của bạn..."
-              placeholderTextColor={colors.placeholder}
-              value={content}
-              onChangeText={setContent}
-              multiline
-              style={[
-                localStyles.createTextArea,
-                selectedVideoCount > 0 && localStyles.createTextAreaWithMedia,
-              ]}
-              textAlignVertical="top"
-            />
-
-            {selectedVideoCount > 0 ? (
-              <View style={localStyles.videoGrid}>
-                {selectedVideos.map((video) => {
-                  if (!video?.uri) return null;
-                  return (
-                    <View key={video.id} style={localStyles.videoCard}>
-                      <VideoPreview uri={video.uri} />
-                    </View>
-                  );
-                })}
-              </View>
-            ) : null}
-          </ScrollView>
-
-          <View
-            style={[
-              localStyles.bottomToolbar,
-              { bottom: keyboardOffset },
-            ]}
-          >
-            <Pressable
-              onPress={pickCreateVideo}
-              style={localStyles.libraryButton}
-              hitSlop={8}
-            >
-              <MaterialIcons name="photo-library" size={30} color={colors.subtext} />
-              <Text style={localStyles.libraryText}>Video ({selectedVideoCount}/2)</Text>
-            </Pressable>
-          </View>
+            <MaterialIcons name="photo-library" size={30} color={colors.subtext} />
+            <Text style={localStyles.libraryText}>Video ({selectedVideoCount}/2)</Text>
+          </Pressable>
         </View>
-      )}
+      </View>
 
       <DraftActionSheet
         visible={showDraftSheet}
@@ -620,6 +468,11 @@ const localStyles = StyleSheet.create({
     fontWeight: "600",
     color: colors.subtext,
   },
+  modeHint: {
+    fontSize: 13,
+    color: colors.subtext,
+    lineHeight: 18,
+  },
   createTextArea: {
     minHeight: 26,
     fontSize: 18,
@@ -627,9 +480,6 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 0,
     lineHeight: 26,
-  },
-  createTextAreaWithMedia: {
-    minHeight: 26,
   },
   videoGrid: {
     flexDirection: "row",
