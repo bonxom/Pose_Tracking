@@ -1,10 +1,10 @@
+import { DEFAULT_POSTS } from "@/constants/mocks/posts";
 import {
   DEMO_COURSE,
   DEMO_EXERCISES,
   DEMO_SCORING_TEMPLATES,
   DEMO_VIDEO_PLACEHOLDERS,
 } from "@/constants/demo";
-import { DEFAULT_POSTS } from "@/constants/mocks/posts";
 import { getAuthSession } from "@/utils/session";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
@@ -78,9 +78,7 @@ function normalizeComment(comment = {}) {
     createdAt: comment.createdAt || new Date().toISOString(),
     score: comment.score || "",
     detailMistakes: comment.detailMistakes || "",
-    isScoreComment: Boolean(
-      comment.isScoreComment || comment.score || comment.detailMistakes,
-    ),
+    isScoreComment: Boolean(comment.isScoreComment || comment.score || comment.detailMistakes),
   };
 }
 
@@ -88,36 +86,32 @@ function normalizeScoreSummary(scoreSummary = null) {
   if (!scoreSummary) return null;
 
   return {
-    score: Number.isFinite(scoreSummary.score)
-      ? scoreSummary.score
-      : Number(scoreSummary.score) || 0,
+    score: Number.isFinite(scoreSummary.score) ? scoreSummary.score : Number(scoreSummary.score) || 0,
     label: scoreSummary.label || "",
     mistakes: Array.isArray(scoreSummary.mistakes) ? scoreSummary.mistakes : [],
-    suggestions: Array.isArray(scoreSummary.suggestions)
-      ? scoreSummary.suggestions
-      : [],
+    suggestions: Array.isArray(scoreSummary.suggestions) ? scoreSummary.suggestions : [],
   };
 }
 
 function normalizePost(post = {}) {
   const comments = Array.isArray(post.comments)
-    ? post.comments
-        .map(normalizeComment)
-        .sort(
-          (left, right) => new Date(left.createdAt) - new Date(right.createdAt),
-        )
+    ? post.comments.map(normalizeComment).sort(
+        (left, right) => new Date(left.createdAt) - new Date(right.createdAt),
+      )
     : [];
 
   const videos = Array.isArray(post.videos)
-    ? post.videos.filter(Boolean).map((video, index) => ({
-        id: video.id || createId(`video_${index + 1}`),
-        name: video.name || `video-${index + 1}.mp4`,
-        uri: video.uri || "",
-        angle: video.angle || (index === 0 ? "Góc quay trái" : "Góc quay phải"),
-        duration: video.duration ?? 0,
-        fileSize: video.fileSize ?? 0,
-        mimeType: video.mimeType || "video/mp4",
-      }))
+    ? post.videos
+        .filter(Boolean)
+        .map((video, index) => ({
+          id: video.id || createId(`video_${index + 1}`),
+          name: video.name || `video-${index + 1}.mp4`,
+          uri: video.uri || "",
+          angle: video.angle || (index === 0 ? "Góc quay trái" : "Góc quay phải"),
+          duration: video.duration ?? 0,
+          fileSize: video.fileSize ?? 0,
+          mimeType: video.mimeType || "video/mp4",
+        }))
     : [];
 
   return {
@@ -159,7 +153,6 @@ async function persistPosts(posts) {
 }
 
 async function getOrSeedPosts() {
-  // await deleteItem(POSTS_STORAGE_KEY);
   const storedPosts = await getItem(POSTS_STORAGE_KEY);
 
   if (Array.isArray(storedPosts) && storedPosts.length > 0) {
@@ -241,10 +234,7 @@ export async function createPost({
     }));
 
   const authorName =
-    session?.username ||
-    session?.fullName ||
-    session?.displayName ||
-    "Người dùng mới";
+    session?.username || session?.fullName || session?.displayName || "Người dùng mới";
   const phoneSuffix = session?.identifier?.toString().slice(-4) || "0000";
 
   const newPost = normalizePost({
@@ -306,9 +296,7 @@ export async function updatePost(postId, params = {}) {
 
 export async function deletePost(postId) {
   const posts = await getOrSeedPosts();
-  const nextPosts = posts
-    .filter((post) => post.id !== postId)
-    .map(normalizePost);
+  const nextPosts = posts.filter((post) => post.id !== postId).map(normalizePost);
   await persistPosts(nextPosts);
   return true;
 }
@@ -358,12 +346,10 @@ export async function createExerciseSubmission({
   sourcePostId = "",
   videos = DEMO_VIDEO_PLACEHOLDERS,
 }) {
-  const exercise =
-    DEMO_EXERCISES.find((item) => item.id === exerciseId) || DEMO_EXERCISES[0];
+  const exercise = DEMO_EXERCISES.find((item) => item.id === exerciseId) || DEMO_EXERCISES[0];
   const scoreTemplate = DEMO_SCORING_TEMPLATES[0];
   const scoringComment = buildScoringComment(scoreTemplate);
-  const normalizedVideos =
-    videos.length >= 2 ? videos : DEMO_VIDEO_PLACEHOLDERS;
+  const normalizedVideos = videos.length >= 2 ? videos : DEMO_VIDEO_PLACEHOLDERS;
   const body = content.trim()
     ? content.trim()
     : `${DEMO_COURSE.hashtag} ${exercise.hashtag} Em nộp bài luyện tập với 2 góc quay để hệ thống chấm tự động.`;

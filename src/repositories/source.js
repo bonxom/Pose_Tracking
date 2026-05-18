@@ -1,8 +1,7 @@
-import { API_TYPE, API_TYPES, DATA_SOURCE_MODE } from "@/config/env";
+import { API_TYPE, API_TYPES } from "@/config/env";
 import { getAuthSession } from "@/utils/session";
 
 export const DATA_SOURCES = {
-  AUTO: "auto",
   SERVER: "server",
   LOCAL: "local",
 };
@@ -14,7 +13,7 @@ export const ACTIVE_SOURCES = {
 };
 
 export function getDataSourceMode() {
-  return DATA_SOURCE_MODE;
+  return isMockMode() ? DATA_SOURCES.LOCAL : DATA_SOURCES.SERVER;
 }
 
 export function getApiType() {
@@ -39,15 +38,12 @@ export async function getCurrentSession() {
 
 export function shouldUseServer(session) {
   if (isMockMode()) return false;
-  if (DATA_SOURCE_MODE === DATA_SOURCES.LOCAL) return false;
   if (session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL) return false;
-  if (DATA_SOURCE_MODE === DATA_SOURCES.SERVER) return true;
-  return hasServerSession(session);
+  return true;
 }
 
 export function canFallbackToLocal() {
-  if (isMockMode()) return false;
-  return DATA_SOURCE_MODE === DATA_SOURCES.AUTO;
+  return false;
 }
 
 export function getSourceLabel(source) {
@@ -55,23 +51,15 @@ export function getSourceLabel(source) {
     return "Nguồn dữ liệu: Mock";
   }
 
-  if (DATA_SOURCE_MODE === DATA_SOURCES.SERVER && source !== ACTIVE_SOURCES.SERVER) {
-    if (source === ACTIVE_SOURCES.LOCAL) {
-      return "Nguồn dữ liệu: Demo local";
-    }
-
-    return "Nguồn dữ liệu: Server lỗi";
-  }
-
   if (source === ACTIVE_SOURCES.SERVER) {
     return "Nguồn dữ liệu: Server";
   }
 
-  if (source === ACTIVE_SOURCES.LOCAL_FALLBACK) {
-    return "Nguồn dữ liệu: Local fallback";
+  if (source === ACTIVE_SOURCES.LOCAL) {
+    return "Nguồn dữ liệu: Demo local";
   }
 
-  return "Nguồn dữ liệu: Demo local";
+  return "Nguồn dữ liệu: Server lỗi";
 }
 
 export function isServerPost(post) {

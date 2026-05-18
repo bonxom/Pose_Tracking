@@ -86,6 +86,14 @@ function normalizeStudent(item = {}, source = ACTIVE_SOURCES.SERVER) {
   };
 }
 
+function buildStudentCollection(items = [], total = items.length, source = ACTIVE_SOURCES.SERVER) {
+  const students = items.map((item) => normalizeStudent(item, source));
+  return Object.assign(students, {
+    students,
+    total: String(total ?? students.length),
+  });
+}
+
 export async function getCurrentCourse() {
   const session = await getCurrentSession();
 
@@ -154,7 +162,11 @@ export async function getCourseStudents() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return DEMO_LIST_STUDENTS_RESPONSE.data.students.map((item) => normalizeStudent(item, ACTIVE_SOURCES.LOCAL));
+    return buildStudentCollection(
+      DEMO_LIST_STUDENTS_RESPONSE.data.students,
+      DEMO_LIST_STUDENTS_RESPONSE.data.total,
+      ACTIVE_SOURCES.LOCAL,
+    );
   }
 
   const response = await backendApi.getListStudents({
@@ -166,7 +178,7 @@ export async function getCourseStudents() {
   await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_students failed" });
 
   const students = Array.isArray(response?.data?.students) ? response.data.students : extractList(response);
-  return students.map((item) => normalizeStudent(item, ACTIVE_SOURCES.SERVER));
+  return buildStudentCollection(students, response?.data?.total, ACTIVE_SOURCES.SERVER);
 }
 
 export async function getRequestedEnrollments() {

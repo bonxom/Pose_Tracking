@@ -9,29 +9,12 @@ export const API_TYPES = {
   MOCK: "mock",
 };
 
-const requestedApiType = process.env.EXPO_PUBLIC_API_TYPE || process.env.API_TYPE || "";
-const requestedSource = process.env.EXPO_PUBLIC_DATA_SOURCE || "";
-const normalizedRequestedApiType = [API_TYPES.BACKEND, API_TYPES.MOCK].includes(requestedApiType)
-  ? requestedApiType
-  : "";
-const normalizedLegacySource = ["auto", "server", "local"].includes(requestedSource)
-  ? requestedSource
-  : "";
-
-function apiTypeFromLegacySource(source) {
-  return source === "local" ? API_TYPES.MOCK : API_TYPES.BACKEND;
-}
+const requestedApiType = process.env.EXPO_PUBLIC_API_TYPE || process.env.API_TYPE;
 
 export const API_TYPE =
-  normalizedRequestedApiType ||
-  apiTypeFromLegacySource(normalizedLegacySource) ||
-  API_TYPES.BACKEND;
-
-export const DATA_SOURCE_MODE = normalizedRequestedApiType
-  ? API_TYPE === API_TYPES.MOCK
-    ? "local"
-    : "server"
-  : normalizedLegacySource || (API_TYPE === API_TYPES.MOCK ? "local" : "server");
+  requestedApiType === API_TYPES.MOCK
+    ? API_TYPES.MOCK
+    : API_TYPES.BACKEND;
 
 export const API_DEBUG =
   process.env.EXPO_PUBLIC_API_DEBUG === "1" ||
