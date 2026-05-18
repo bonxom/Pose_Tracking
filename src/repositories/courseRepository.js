@@ -71,11 +71,14 @@ function emptyServerCourse() {
   };
 }
 
+let localCourse = normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL);
+let localEnrollmentRequests = DEMO_ENROLLMENT_REQUESTS.map((item) => ({ ...item }));
+
 export async function getCurrentCourse() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL);
+    return { ...localCourse };
   }
 
   try {
@@ -109,7 +112,7 @@ export async function getStudentCourses(params = {}) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return [normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL)];
+    return [{ ...localCourse }];
   }
 
   try {
@@ -176,7 +179,7 @@ export async function getRequestedEnrollments() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return DEMO_ENROLLMENT_REQUESTS;
+    return localEnrollmentRequests.map((item) => ({ ...item }));
   }
 
   const response = await backendApi.getRequestedEnrollment({
@@ -194,7 +197,14 @@ export async function requestCourse(courseId = DEMO_COURSE.id) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return { requested: true, source: ACTIVE_SOURCES.LOCAL };
+    localCourse = {
+      ...localCourse,
+      id: courseId,
+      enrolled: false,
+      requested: true,
+      enrollmentStatus: "requested",
+    };
+    return { requested: true, enrolled: false, enrollmentStatus: "requested", source: ACTIVE_SOURCES.LOCAL };
   }
 
   const response = await backendApi.setRequestCourse({
@@ -212,6 +222,22 @@ export async function approveEnrollment(requestId, isApproved = true) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
+    const request = localEnrollmentRequests.find(
+      (item) => item.id === requestId || item.user_id === requestId,
+    );
+    localEnrollmentRequests = localEnrollmentRequests.filter(
+      (item) => item.id !== requestId && item.user_id !== requestId,
+    );
+
+    if (isApproved && request) {
+      localCourse = {
+        ...localCourse,
+        enrolled: true,
+        requested: false,
+        enrollmentStatus: "enrolled",
+      };
+    }
+
     return { approved: isApproved, source: ACTIVE_SOURCES.LOCAL };
   }
 

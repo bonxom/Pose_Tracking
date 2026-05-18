@@ -1,6 +1,6 @@
 # API Postman Mapping
 
-Status date: 2026-05-17
+Status date: 2026-05-18
 
 | API | Frontend wrapper / repository | Postman request | Known mismatch / workaround | Verification status |
 |---|---|---|---|---|
@@ -12,7 +12,7 @@ Status date: 2026-05-17
 | change_info_after_signup | backendApi.changeInfoAfterSignup | Auth / Change Info After Signup | Deployed rejects user_name in probe | Mismatch |
 | get_list_posts | backendApi.getListPosts / getFeedPage | Feed / Posts / Get List Posts | Form-urlencoded string params | Verified empty |
 | get_post | backendApi.getPost / getPostById | Feed / Posts / Get Post | Needs postId | Data-blocked |
-| add_post | backendApi.addPost / createPost | Feed / Posts / Add Post Multipart | Multipart with device_slave and two files; courseId may be teacherId/GV id | exerciseId data-blocked |
+| add_post | backendApi.addPost / createPost | Feed / Posts / Add Post Multipart variants | Multipart with `device_slave`; `courseId` may be `teacherId`; no-exercise variants included | Backend-blocked: all tested real-file field names returned `Unexpected field`; HV metadata-only control still requires `exercise_id` |
 | edit_post | backendApi.editPostMultipart / editPost | Feed / Posts / Edit Post Multipart | Multipart for video replacement | Data-blocked |
 | delete_post | backendApi.deletePost / deletePost | Feed / Posts / Delete Post | Deployed 404 | Backend-blocked |
 | get_comment | backendApi.getComment / getComments | Comments / Likes / Reports / Get Comment | Needs postId | Data-blocked |

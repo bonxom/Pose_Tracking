@@ -1,6 +1,7 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { DEMO_PUSH_SETTINGS } from "@/constants/demo";
+import { MOCK_USERS } from "@/constants/mocks/users";
 import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import {
@@ -10,13 +11,13 @@ import {
   shouldUseServer,
 } from "@/repositories/source";
 
-const LOCAL_PUSH_SETTINGS = DEMO_PUSH_SETTINGS;
+let localPushSettings = { ...DEMO_PUSH_SETTINGS };
 
 export async function getPushSettings() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return { ...LOCAL_PUSH_SETTINGS, source: ACTIVE_SOURCES.LOCAL };
+    return { ...localPushSettings, source: ACTIVE_SOURCES.LOCAL };
   }
 
   try {
@@ -24,12 +25,12 @@ export async function getPushSettings() {
 
     await assertBackendOk(response, { message: "Backend get_push_settings failed" });
 
-    return { ...LOCAL_PUSH_SETTINGS, ...extractObject(response), source: ACTIVE_SOURCES.SERVER };
+    return { ...localPushSettings, ...extractObject(response), source: ACTIVE_SOURCES.SERVER };
   } catch (error) {
     console.info("[DATA] Server push settings fallback", error.message);
 
     if (!error.sessionExpired && canFallbackToLocal()) {
-      return { ...LOCAL_PUSH_SETTINGS, source: ACTIVE_SOURCES.LOCAL_FALLBACK };
+      return { ...localPushSettings, source: ACTIVE_SOURCES.LOCAL_FALLBACK };
     }
 
     throw error;
@@ -40,7 +41,8 @@ export async function setPushSettings(settings = {}) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return { ...LOCAL_PUSH_SETTINGS, ...settings, source: ACTIVE_SOURCES.LOCAL };
+    localPushSettings = { ...localPushSettings, ...settings };
+    return { ...localPushSettings, source: ACTIVE_SOURCES.LOCAL };
   }
 
   const response = await backendApi.setPushSettings({
@@ -50,13 +52,21 @@ export async function setPushSettings(settings = {}) {
 
   await assertBackendOk(response, { message: "Backend set_push_settings failed" });
 
-  return { ...LOCAL_PUSH_SETTINGS, ...settings, source: ACTIVE_SOURCES.SERVER };
+  return { ...localPushSettings, ...settings, source: ACTIVE_SOURCES.SERVER };
 }
 
 export async function changePassword(oldPassword, newPassword) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
+    const phone = session?.phonenumber || session?.identifier || "";
+    const user = MOCK_USERS.find((item) => item.phonenumber === phone);
+
+    if (!user || user.password !== oldPassword) {
+      throw new Error("Mật khẩu hiện tại không đúng.");
+    }
+
+    user.password = newPassword;
     return { changed: true, source: ACTIVE_SOURCES.LOCAL };
   }
 

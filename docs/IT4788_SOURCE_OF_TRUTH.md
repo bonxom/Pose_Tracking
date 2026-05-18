@@ -15,8 +15,8 @@ The app is a React Native / Expo social learning system for `Tap dong tac dieu b
 - `GV`: teacher/lecturer. A teacher owns one course.
 - `HV`: student. A student can join multiple courses.
 - GV creates standard exercise posts for their course.
-- HV creates exercise submission posts tied to `course_id` and `exercise_id`.
-- Current backend-team clarification says `course_id` is the teacher/GV id; `exercise_id` remains explicit backend/test data until clarified.
+- HV creates exercise submission posts tied to course context.
+- Current backend-team clarification says `course_id` is the teacher/GV id and there is no separate deployed backend exercise entity. The older `exercise_id` concept remains a spec/runtime mismatch to track rather than something the frontend should silently invent in backend mode.
 - GV/HV relation can be affected by course enrollment, approval, and block actions.
 - HV can edit/delete their own posts according to the stated role rules; non-owners report posts.
 
@@ -36,7 +36,7 @@ The app is a React Native / Expo social learning system for `Tap dong tac dieu b
 - The two video durations should be similar; the frontend currently validates with a practical rule: max difference is 3 seconds or 20% of the longer video, whichever is larger.
 - Server mode never uploads demo/mock placeholders.
 - Web upload must support actual browser `File`/`Blob` objects; native upload must support React Native file objects.
-- HV submissions include `course_id` and `exercise_id`.
+- Slides previously modeled HV submissions with `course_id` and `exercise_id`; the latest backend-team clarification says deployed backend has no separate exercise entity.
 - Teacher posts may expose `time_series_poses` for grading/scoring.
 - The app and server both participate in scoring in the full project. Local fake score comments are local/dev-only and must not be shown as real server scoring in server mode.
 - Authoritative server scoring/pose fields must be preserved and displayed when returned.

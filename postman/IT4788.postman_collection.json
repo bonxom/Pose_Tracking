@@ -403,7 +403,7 @@
           "event": []
         },
         {
-          "name": "Add Post Multipart",
+          "name": "Add Post Multipart - No exercise_id",
           "request": {
             "method": "POST",
             "header": [
@@ -412,7 +412,281 @@
                 "value": "application/json"
               }
             ],
-            "description": "Multipart upload. Pick local files for video1/video2 in Postman. Current backend-team guidance says courseId may equal teacherId/GV id; exerciseId is still explicit test data and must be supplied.",
+            "description": "No-exercise runtime probe: omits exercise_id while keeping course_id={{courseId}}. Team guidance says courseId may equal teacherId/GV id. Latest deployed tests still failed earlier on multipart file-field mismatch.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - Empty exercise_id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "No-exercise runtime probe: sends exercise_id as an empty string with course_id={{courseId}}.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "exercise_id",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - exercise_id = courseId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Compatibility probe: sends exercise_id={{courseId}} when backend has no separate exercise entity but still validates the field.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "exercise_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - exercise_id = exercisePostId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Compatibility probe: sends exercise_id={{exercisePostId}} when a teacher post is being tested as the exercise-like object.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "exercise_id",
+                  "value": "{{exercisePostId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - Explicit exercise_id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Strict older spec-shaped probe: sends explicit exercise_id={{exerciseId}} only when intentionally testing the older contract.",
             "url": {
               "raw": "{{baseUrl}}/add_post",
               "host": [

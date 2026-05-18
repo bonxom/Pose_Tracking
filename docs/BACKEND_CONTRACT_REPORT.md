@@ -1,6 +1,6 @@
 # Backend Contract Probe Report
 
-Probe date: 2026-05-17 local time
+Probe date: 2026-05-18 local time
 
 Probe command:
 
@@ -16,7 +16,7 @@ https://group1.it4788.sukkaito.id.vn
 
 The probe intentionally ran with `PROBE_MUTATION` disabled. Mutating endpoints were called with invalid tokens or validation-safe payloads to identify routes, transports, and auth behavior without changing production data.
 
-Latest compact HTTPS summary generated at `2026-05-17T09:13:46.475Z`.
+Latest compact HTTPS summary generated at `2026-05-18T01:51:40.924Z`.
 
 HTTP fallback was also probed at `2026-05-17T09:13:54.781Z` with `API_BASE_URL=http://group1.it4788.sukkaito.id.vn/it4788`; it still reaches the API, but HTTP redirects to HTTPS and multipart probes are less reliable on fallback.
 
@@ -31,7 +31,9 @@ HTTP fallback was also probed at `2026-05-17T09:13:54.781Z` with `API_BASE_URL=h
 - `/it4788/like` and `/it4788/delete_post` returned 404 on the deployed server.
 - `check_new_item` rejects a `token` field in deployed runtime even though the app keeps the spec-shaped call first.
 - `set_request_course` reaches token validation only after both `course_id` and `user_id` are present.
-- Backend-team clarification now says `course_id` is the teacher/GV id; `exercise_id` is still unresolved test data.
+- Backend-team clarification now says `course_id` is the teacher/GV id and there is no separate backend exercise entity.
+- Real-account no-exercise E2E runs show a deployed mismatch: HV metadata-only `add_post` still returns `exercise_id and course_id are required for students`.
+- Real two-file `add_post` attempts are currently blocked earlier by deployed multipart validation: every tested field set (`video1/video2`, `videos`, `video`, `image`, `images`, `image1/image2`, `file1/file2`, `files`, `file`) returned `Unexpected field`.
 - Existing-account runtime shows several spec/runtime payload splits: `check_new_version` wants `lastUpdate`, `get_user_info` rejects `user_id`, `get_notification` rejects `last_update`, and `check_new_item` rejects `token`.
 
 ## 40-API Probe Results
@@ -83,7 +85,7 @@ HTTP fallback was also probed at `2026-05-17T09:13:54.781Z` with `API_BASE_URL=h
 
 - `login`: JSON and form-urlencoded reach the route when `devtoken` is present. Multipart is not suitable.
 - `get_list_posts`: form-urlencoded string params are most tolerant.
-- `add_post` and `edit_post`: multipart reaches token validation; JSON/form return backend exceptions for `add_post`.
+- `add_post` and `edit_post`: multipart reaches token validation without files; JSON/form return backend exceptions for `add_post`. With real files, deployed `add_post` currently rejects all tested field names as `Unexpected field`.
 - HTTP fallback redirects to HTTPS and returned `Multipart: Unexpected end of form` for multipart probe bodies; use HTTPS for upload testing.
 - `set_comment`: form-urlencoded with `index`/`count` reaches token validation.
 - `check_new_item`: spec-shaped token payload is rejected by deployed runtime; repository contains a documented compatibility retry without token.
@@ -97,6 +99,8 @@ Credentials are not stored in this repository. With team-provided HV/GV credenti
 - HV and GV login both returned HTTP 200, backend code `1000`, and a token.
 - `get_list_posts`, `search`, and `profile search` returned `9994 No data`; the frontend treats this as a valid empty state.
 - `get_list_courses_of_student` returned `9994 No data` for both HV and GV in the latest HTTPS run. A prior HV run returned `1001 Can not connect to DB`, so the endpoint remains an intermittent deployed risk.
+- `set_request_course` returned `1001 Can not connect to DB` in the latest mutation-enabled run even with `course_id = GV id`.
+- No upload variant succeeded. The route rejected real two-file payloads before `exercise_id` validation, and the metadata-only HV control still required `exercise_id`.
 - `get_saved_search`, `get_list_blocks`, `get_push_settings`, `get_list_conversation`, compatibility `get_user_info`, compatibility `get_notification`, compatibility `check_new_version`, compatibility `check_new_item`, and `logout` returned backend code `1000`.
 - No real post, course, exercise, notification, or conversation object id was returned, so object-specific calls remain frontend-complete but not real-object verified.
 

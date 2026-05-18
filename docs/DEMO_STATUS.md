@@ -49,7 +49,7 @@ EXPO_PUBLIC_API_TYPE=backend
 - Saved search list, block list, push settings, device token, conversation list, logout, and deployed-compatibility profile/notification/version/check-new-item paths are token-verified with real accounts.
 - Deployed `/it4788/like` returned 404 in prior probe findings.
 - Deployed `/it4788/delete_post` returned 404 in prior probe findings.
-- `add_post` requires multipart and `device_slave`; successful real upload is blocked until real `course_id` and `exercise_id` are available.
+- `add_post` requires multipart and `device_slave`; successful real upload is currently blocked by deployed multipart file-field mismatch. The latest backend-team clarification says there is no separate exercise entity, while the deployed HV metadata-only response still requires `exercise_id`.
 - Full client-side pose scoring is not implemented.
 
 ## Documentation Added For Real Implementation

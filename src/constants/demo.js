@@ -33,12 +33,12 @@ export const DEMO_COURSE = {
   enrolled: true,
   studentCount: 42,
   exerciseCount: 3,
-  latestExerciseId: "exercise_salute_001",
+  latestExerciseId: "post_teacher_exercise_001",
 };
 
 export const DEMO_EXERCISES = [
   {
-    id: "exercise_salute_001",
+    id: "post_teacher_exercise_001",
     sourcePostId: "post_teacher_exercise_001",
     hashtag: "#exercise_chao_dieu_lenh",
     title: "Động tác chào điều lệnh",
@@ -46,7 +46,7 @@ export const DEMO_EXERCISES = [
     dueText: "Hạn nộp: 07/05/2026",
   },
   {
-    id: "exercise_march_002",
+    id: "post_teacher_exercise_002",
     sourcePostId: "post_teacher_exercise_002",
     hashtag: "#exercise_buoc_deu",
     title: "Bước đều tại chỗ",
@@ -54,7 +54,7 @@ export const DEMO_EXERCISES = [
     dueText: "Hạn nộp: 08/05/2026",
   },
   {
-    id: "exercise_turn_003",
+    id: "post_teacher_exercise_003",
     sourcePostId: "post_teacher_exercise_003",
     hashtag: "#exercise_quay_phai",
     title: "Quay phải theo nhịp",

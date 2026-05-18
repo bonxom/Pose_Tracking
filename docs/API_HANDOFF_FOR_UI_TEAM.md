@@ -29,6 +29,19 @@ EXPO_PUBLIC_API_TYPE=mock    # local-only mock repositories; no backend calls
 
 `API_TYPE=mock|backend` is a Docker `up` convenience alias. Legacy `EXPO_PUBLIC_DATA_SOURCE=server|local|auto` still works, but new UI work should use `EXPO_PUBLIC_API_TYPE`.
 
+### Mock completeness
+
+`mock` mode is now intentionally stateful rather than just static seed data:
+
+- auth supports signup, fixed mock OTP verification, profile completion, login, and logout
+- feed/posts support pagination, local create/edit/delete/report, like, comments, saved search history, and new-item counts
+- courses/enrollment support pending request and approval state
+- profile/settings support local profile edits, push-setting edits, password validation/change, and device-token registration
+- notifications support pagination, read state, unread counts, and `99+` badge labels
+- blocks and conversations support local block/unblock, read, delete-message, delete-conversation, and local-only send
+
+The API client throws `MOCK_MODE_BACKEND_DISABLED` if any code path accidentally tries to hit the real backend while `EXPO_PUBLIC_API_TYPE=mock`.
+
 Helpers are available in `src/repositories/source.js`:
 
 - `getApiType()`
@@ -77,7 +90,7 @@ File: `src/repositories/postRepository.js`
 | `searchPosts(query, { userId })` | Search UI, profile search | keyword/user id | normalized post list |
 | `getSavedSearches()` | Search history | none | saved search list |
 | `deleteSavedSearch(searchId)` | Search history delete | search id | backend result |
-| `createPost(params)` | Post/create, exercise submission | content, course/exercise ids, videos | created/normalized post |
+| `createPost(params)` | Post/create, exercise submission | content, `courseId`, optional `exerciseId`, videos | created/normalized post |
 | `editPost(post, params)` | Owner HV edit | described/videos | updated post |
 | `deletePost(post)` | Owner HV delete | post | backend result |
 | `reportPost(post, reason)` | Non-owner report | post/reason | backend result |
@@ -103,7 +116,9 @@ Normalized `Post` shape:
 }
 ```
 
-Verified: feed/search empty states and saved-search list. Data-blocked: post detail, comments, upload, edit/delete/report because current accounts return no real post/course/exercise ids. Backend-blocked: deployed `/like` and `/delete_post` return 404.
+Backend handoff note: the team now says `courseId` equals the teacher/GV id and there is no separate backend exercise entity. In backend mode, treat a teacher post with a `courseId` as the exercise-like object. In mock mode, `exerciseId` is the teacher exercise post id so UI teammates still have a stable key. The adapter only sends `exercise_id` when one is available.
+
+Verified: feed/search empty states and saved-search list. Backend-blocked: real upload currently rejects every tested multipart file-field name before a teacher post can be created; deployed `/like` and `/delete_post` return 404.
 
 ### Comments
 
@@ -130,7 +145,7 @@ File: `src/repositories/courseRepository.js`
 | `requestCourse(courseId)` | HV request join | returns `requested`, not enrolled |
 | `approveEnrollment(requestId, isApproved)` | GV approve/reject | backend result |
 
-Important UI state: after `requestCourse`, show pending/requested until GV approval is confirmed. Current backend-team guidance says `courseId` equals the teacher/GV id; `exerciseId` remains explicit backend/test data.
+Important UI state: after `requestCourse`, show pending/requested until GV approval is confirmed. Current backend-team guidance says `courseId` equals the teacher/GV id. There is no separate backend exercise entity; use teacher posts as exercise-like records in backend-backed UI.
 
 Verified: latest HV/GV course-list checks both returned clean empty states. An earlier HV run returned `1001 Can not connect to DB`, so keep the error state visible and treat the endpoint as intermittently unstable. Mock mode has seeded enrolled course, students, and a pending request.
 

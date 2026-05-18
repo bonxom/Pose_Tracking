@@ -1,6 +1,6 @@
 # Frontend Server Test Report
 
-Report date: 2026-05-17
+Report date: 2026-05-18
 
 ## Scope
 
@@ -61,7 +61,7 @@ Results:
 - HV/GV course-list reads returned clean `9994 No data` states in the latest HTTPS run. A prior HV run returned backend code `1001 Can not connect to DB`, so the endpoint is still tracked as intermittently unstable.
 - Success reads verified for saved search, blocks, push settings, conversation list, compatibility user info, compatibility notifications, compatibility version check, and compatibility check-new-item.
 - Safe lifecycle mutation `set_devtoken` verified with backend code `1000`.
-- Two real local MP4 fixtures were restored from `stash@{0}` and ignored by Git. Upload remains blocked by missing real `course_id`/`exercise_id` for the supplied accounts.
+- Two real local MP4 fixtures were restored from `stash@{0}` and ignored by Git. Upload remains blocked because the deployed route rejects every tested multipart file-field name; `course_id = GV id` is now exercised and no longer the blocker.
 
 ## Browser-Level Smoke
 
@@ -80,6 +80,12 @@ The web runtime is verified through Docker start and HTTP checks, and the UI smo
 8. Confirm server mode shows no local-demo submission placeholders as valid uploads.
 9. Confirm chat composer is hidden/disabled in server mode.
 
+Automated mock-mode browser smoke was also completed on `2026-05-18`:
+
+- Home, `/search`, `/courses`, Friends, Notifications, Profile, `/chat`, `/settings`, and `/settings/blocks` rendered successfully.
+- The mock submission path created a local HV post, attached both demo placeholders, generated the scoring comment, and supported local like/comment mutations.
+- The visible profile source label showed `Mock`, matching the requested API mode.
+
 ## Module Test Matrix
 
 | Module | Status |
@@ -87,7 +93,7 @@ The web runtime is verified through Docker start and HTTP checks, and the UI smo
 | Auth/session | Server verified for existing-account HV/GV login and logout. Fresh signup remains manual phone/OTP blocked. |
 | Feed | Frontend complete; server empty state verified. Real pagination needs posts returned by backend. |
 | Post detail/interactions | Frontend complete; real object verification blocked by no post ids and missing deployed `/like`/`delete_post` routes. |
-| Create/upload | Frontend complete; two real MP4 fixtures generated for harness, but upload is blocked until real `course_id` and `exercise_id` are available. |
+| Create/upload | Frontend complete; two real MP4 fixtures are used by the harness, but deployed upload is blocked by multipart field-name mismatch. The latest team clarification says no separate exercise entity; deployed HV metadata-only control still requires `exercise_id`. |
 | Search/saved search | Server empty search and saved-search list verified. Deletion not run against shared real accounts. |
 | Courses/enrollment | Frontend pending/requested/enrolled states fixed; approval flow blocked by no real course/request data. Latest HV/GV course-list reads returned valid empty states; an earlier HV run returned backend `1001 Can not connect to DB`. |
 | Profile/settings/device | Server verified for compatibility profile read, push settings, version check, and set-devtoken. |

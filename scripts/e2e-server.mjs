@@ -11,6 +11,19 @@ const API_BASE_URL = (
 const RUN_MUTATIONS = process.env.E2E_RUN_MUTATIONS === "1";
 const USE_EXISTING_ACCOUNTS = process.env.E2E_USE_EXISTING_ACCOUNTS === "1";
 const USE_GV_ID_AS_COURSE_ID = process.env.E2E_USE_GV_ID_AS_COURSE_ID === "1";
+const NO_EXERCISE_ENTITY = process.env.E2E_NO_EXERCISE_ENTITY === "1";
+const TRY_ALL_UPLOAD_VARIANTS = process.env.E2E_TRY_ALL_UPLOAD_VARIANTS === "1";
+const UPLOAD_FILE_FIELD_SETS = [
+  ["video1", "video2"],
+  ["videos", "videos"],
+  ["video", "video"],
+  ["image", "image"],
+  ["images", "images"],
+  ["image1", "image2"],
+  ["file1", "file2"],
+  ["files", "files"],
+  ["file", "file"],
+];
 const PASSWORD = process.env.E2E_PASSWORD || "123456";
 const DEVICE_TOKEN = process.env.E2E_DEVICE_TOKEN || "expo-web-e2e";
 const VERIFY_FIELDS = ["code", "verify_code", "code_verify", "otp"];
@@ -20,6 +33,8 @@ const report = {
   apiBaseUrl: API_BASE_URL,
   mutationEnabled: RUN_MUTATIONS,
   useExistingAccounts: USE_EXISTING_ACCOUNTS,
+  useGvIdAsCourseId: USE_GV_ID_AS_COURSE_ID,
+  noExerciseEntity: NO_EXERCISE_ENTITY,
   steps: [],
 };
 
@@ -114,7 +129,12 @@ function firstId(items = [], fields = ["id", "post_id", "conversation_id", "noti
   return "";
 }
 
-async function multipartPost(endpoint, fields, filePaths) {
+function postIdFrom(result) {
+  const data = dataFrom(result);
+  return String(data.id || data.post_id || result?.json?.id || result?.json?.post_id || "");
+}
+
+async function multipartPost(endpoint, fields, filePaths, fileFieldNames = ["video1", "video2"]) {
   const form = new FormData();
   Object.entries(fields).forEach(([key, value]) => {
     if (value !== undefined && value !== null) form.append(key, String(value));
@@ -123,7 +143,7 @@ async function multipartPost(endpoint, fields, filePaths) {
   for (const [index, filePath] of filePaths.entries()) {
     const bytes = await readFile(filePath);
     const blob = new Blob([bytes], { type: "video/mp4" });
-    form.append(index === 0 ? "video1" : "video2", blob, path.basename(filePath));
+    form.append(fileFieldNames[index] || fileFieldNames[fileFieldNames.length - 1], blob, path.basename(filePath));
   }
 
   const response = await fetch(url(endpoint), {
@@ -144,6 +164,183 @@ async function multipartPost(endpoint, fields, filePaths) {
     status: response.status,
     json,
   };
+}
+
+function buildUploadVariants({ courseId, exercisePostId = "", explicitExerciseId = "" }) {
+  const variants = [];
+
+  if (NO_EXERCISE_ENTITY) {
+    variants.push(
+      {
+        key: "A",
+        label: "omit exercise_id",
+        includeExerciseId: false,
+      },
+      {
+        key: "B",
+        label: 'exercise_id=""',
+        includeExerciseId: true,
+        exerciseId: "",
+      },
+      {
+        key: "C",
+        label: "exercise_id=course_id",
+        includeExerciseId: true,
+        exerciseId: courseId,
+      },
+    );
+
+    if (exercisePostId) {
+      variants.push({
+        key: "D",
+        label: "exercise_id=teacher_post_id",
+        includeExerciseId: true,
+        exerciseId: exercisePostId,
+      });
+    }
+  }
+
+  if (explicitExerciseId) {
+    variants.push({
+      key: "E",
+      label: "exercise_id=explicit",
+      includeExerciseId: true,
+      exerciseId: explicitExerciseId,
+    });
+  }
+
+  if (!variants.length) {
+    variants.push({
+      key: "E",
+      label: "exercise_id=explicit",
+      includeExerciseId: true,
+      exerciseId: explicitExerciseId,
+    });
+  }
+
+  return variants;
+}
+
+async function attemptUploadVariants({
+  actorLabel,
+  token,
+  courseId,
+  exercisePostId = "",
+  explicitExerciseId = "",
+  left,
+  right,
+  descriptionPrefix,
+}) {
+  const variants = buildUploadVariants({ courseId, exercisePostId, explicitExerciseId });
+  const timestamp = new Date().toISOString();
+  let firstSuccess = null;
+
+  for (const [fieldSetIndex, fileFieldSet] of UPLOAD_FILE_FIELD_SETS.entries()) {
+    let fieldSetRejected = false;
+    const variantsForFieldSet = fieldSetIndex === 0 ? variants : variants.slice(0, 1);
+
+    for (const variant of variantsForFieldSet) {
+      const fields = {
+        token,
+        described: `${descriptionPrefix} [variant ${variant.key}] ${timestamp}`,
+        course_id: courseId,
+        device_slave: DEVICE_TOKEN,
+      };
+
+      if (variant.includeExerciseId) {
+        fields.exercise_id = variant.exerciseId;
+      }
+
+      const upload = await multipartPost("/add_post", fields, [left, right], fileFieldSet);
+      const success = ok(upload);
+      const postId = postIdFrom(upload);
+      const message = String(upload.json?.message || "");
+
+      addStep(`${actorLabel} add_post variant ${variant.key}`, success ? "passed" : "failed", {
+        status: upload.status,
+        code: upload.json?.code,
+        message: upload.json?.message,
+        variant: variant.label,
+        exerciseIdSent: variant.includeExerciseId ? variant.exerciseId : "<omitted>",
+        fileFields: fileFieldSet.join(","),
+        postId,
+      });
+
+      if (message.includes("Unexpected field")) {
+        fieldSetRejected = true;
+        if (fieldSetIndex > 0) break;
+      }
+
+      if (success && !firstSuccess) {
+        firstSuccess = { upload, variant, postId, fileFields: fileFieldSet };
+        if (!TRY_ALL_UPLOAD_VARIANTS) break;
+      }
+    }
+
+    if (firstSuccess && !TRY_ALL_UPLOAD_VARIANTS) break;
+    if (!fieldSetRejected) break;
+  }
+
+  if (!firstSuccess) {
+    const noFileFields = {
+      token,
+      described: `${descriptionPrefix} [metadata-only control] ${timestamp}`,
+      course_id: courseId,
+      device_slave: DEVICE_TOKEN,
+    };
+    const noFileUpload = await multipartPost("/add_post", noFileFields, []);
+    addStep(`${actorLabel} add_post metadata-only control`, ok(noFileUpload) ? "passed" : "failed", {
+      status: noFileUpload.status,
+      code: noFileUpload.json?.code,
+      message: noFileUpload.json?.message,
+      variant: "metadata-only control",
+      exerciseIdSent: "<omitted>",
+      fileFields: "<none>",
+      postId: postIdFrom(noFileUpload),
+    });
+  }
+
+  return firstSuccess;
+}
+
+async function verifyCreatedPost(label, session, postId, { allowReport = false } = {}) {
+  if (!session?.token || !postId) return;
+
+  const detail = await request("/get_post", { token: session.token, id: postId });
+  addStep(`${label} get_post`, statusForRead(detail), {
+    status: detail.status,
+    code: detail.json?.code,
+    message: detail.json?.message,
+    postId,
+  });
+
+  const comments = await request("/get_comment", {
+    token: session.token,
+    id: postId,
+    index: "0",
+    count: "20",
+  });
+  addStep(`${label} get_comment`, statusForRead(comments), {
+    status: comments.status,
+    code: comments.json?.code,
+    message: comments.json?.message,
+    postId,
+  });
+
+  if (allowReport) {
+    const reportPost = await request("/report_post", {
+      token: session.token,
+      id: postId,
+      subject: "E2E test report",
+      details: "Automated contract verification only",
+    });
+    addStep(`${label} report_post`, ok(reportPost) ? "passed" : "failed", {
+      status: reportPost.status,
+      code: reportPost.json?.code,
+      message: reportPost.json?.message,
+      postId,
+    });
+  }
 }
 
 async function signupRole(role, phone, verifyCode) {
@@ -434,23 +631,58 @@ async function verifyOptionalMutations(hv, gv, hvContext = {}, gvContext = {}) {
 
   const left = process.env.E2E_VIDEO_LEFT;
   const right = process.env.E2E_VIDEO_RIGHT;
-  const exerciseId = process.env.E2E_EXERCISE_ID || hvContext.exerciseId || gvContext.exerciseId || "";
-  if (hv?.token && left && right && courseId && exerciseId) {
-    const upload = await multipartPost("/add_post", {
-      token: hv.token,
-      described: "E2E two-video submission",
-      course_id: courseId,
-      exercise_id: exerciseId,
-      device_slave: DEVICE_TOKEN,
-    }, [left, right]);
-    addStep("HV add_post two-video upload", ok(upload) ? "passed" : "failed", {
-      status: upload.status,
-      code: upload.json?.code,
-      message: upload.json?.message,
+  const explicitExerciseId = process.env.E2E_EXERCISE_ID || hvContext.exerciseId || gvContext.exerciseId || "";
+  let teacherUpload = null;
+
+  if (gv?.token && left && right && courseId && (NO_EXERCISE_ENTITY || explicitExerciseId)) {
+    teacherUpload = await attemptUploadVariants({
+      actorLabel: "GV teacher post",
+      token: gv.token,
+      courseId,
+      explicitExerciseId,
+      left,
+      right,
+      descriptionPrefix: "E2E GV teacher exercise post",
     });
+
+    if (teacherUpload?.postId) {
+      gvContext.postId = teacherUpload.postId;
+      gvContext.exercisePostId = teacherUpload.postId;
+      await verifyCreatedPost("GV created post", gv, teacherUpload.postId);
+    }
+  } else {
+    addStep("GV teacher post add_post upload", "blocked", {
+      reason: NO_EXERCISE_ENTITY
+        ? "Requires E2E_VIDEO_LEFT, E2E_VIDEO_RIGHT, and course_id"
+        : "Requires E2E_VIDEO_LEFT, E2E_VIDEO_RIGHT, course_id, and explicit E2E_EXERCISE_ID",
+    });
+  }
+
+  const exercisePostId = teacherUpload?.postId || gvContext.exercisePostId || gvContext.postId || "";
+  if (hv?.token && left && right && courseId && (NO_EXERCISE_ENTITY || explicitExerciseId)) {
+    const hvUpload = await attemptUploadVariants({
+      actorLabel: "HV submission",
+      token: hv.token,
+      courseId,
+      exercisePostId,
+      explicitExerciseId,
+      left,
+      right,
+      descriptionPrefix: "E2E HV two-video submission",
+    });
+
+    if (hvUpload?.postId) {
+      hvContext.postId = hvUpload.postId;
+      await verifyCreatedPost("HV created submission", hv, hvUpload.postId);
+      if (teacherUpload?.postId) {
+        await verifyCreatedPost("HV report teacher post", hv, teacherUpload.postId, { allowReport: true });
+      }
+    }
   } else {
     addStep("HV add_post two-video upload", "blocked", {
-      reason: "Requires E2E_VIDEO_LEFT, E2E_VIDEO_RIGHT, course_id, and exercise_id from real server data/env",
+      reason: NO_EXERCISE_ENTITY
+        ? "Requires E2E_VIDEO_LEFT, E2E_VIDEO_RIGHT, and course_id"
+        : "Requires E2E_VIDEO_LEFT, E2E_VIDEO_RIGHT, course_id, and explicit E2E_EXERCISE_ID",
     });
   }
 }

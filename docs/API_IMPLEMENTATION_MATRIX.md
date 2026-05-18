@@ -1,6 +1,6 @@
 # API Implementation Matrix
 
-Status date: 2026-05-17
+Status date: 2026-05-18
 
 Legend:
 
@@ -21,7 +21,7 @@ The matrix intentionally distinguishes wrappers, repositories, UI usage, and suc
 | `change_info_after_signup` | token-bearing profile completion | Yes | Yes | Yes | No | Deployed rejects `user_name`; frontend tries spec-style fields then legacy auth-completion fields |
 | `get_list_posts` | `token`, `index`, `count`, `last_id`, `category_id`, `new_items` | Yes | Yes | Yes | Empty | Existing accounts returned valid `9994 No data`; pagination UI complete but no real posts |
 | `get_post` | `token`, post id; preserve `time_series_poses` | Yes | Yes | Yes | No | Token/post-id blocked |
-| `add_post` | multipart, exactly 2 videos, `course_id`, `exercise_id`, `device_slave` workaround | Yes | Yes | Yes | No | Multipart reaches token validation; team says course id may be GV id, but real upload still needs explicit exercise id |
+| `add_post` | multipart, exactly 2 videos, `course_id`, `device_slave`; slides previously modeled `exercise_id` | Yes | Yes | Yes | No | Team now says no separate exercise entity; deployed real-file tests reject all tested multipart file fields, and HV metadata-only control still requires `exercise_id` |
 | `edit_post` | owner HV edit with valid replacement-video rules | Yes | Yes | Yes | No | Detail edit UI added; token/post blocked |
 | `delete_post` | owner HV delete | Yes | Yes | Yes | No | Deployed `/delete_post` returns 404 |
 | `get_comment` | `token`, post id, pagination | Yes | Yes | Yes | No | Token/post blocked |

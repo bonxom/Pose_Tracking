@@ -203,7 +203,7 @@ docker compose up
 - `/it4788/like` returned 404 during the probe.
 - `get_list_posts` worked best with form-urlencoded string values.
 - `add_post` requires multipart and `device_slave`.
-- Backend-team guidance currently says `course_id` equals the teacher/GV id; `exercise_id` is still explicit backend/test data and should not be guessed.
+- Backend-team guidance currently says `course_id` equals the teacher/GV id and there is no separate backend exercise entity.
 - Existing real accounts verified several authenticated paths, but returned no posts/courses/exercises, so object-specific flows remain data-blocked.
 - Deployed runtime differs from the slides for `check_new_version.last_update`, `get_user_info.user_id`, `get_notification.last_update`, and `check_new_item.token`; repositories keep spec-shaped calls first and isolate compatibility retries.
 
@@ -229,6 +229,6 @@ See [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md) and [BACKEND_MISMAT
 ## Recommended Next Phases
 
 1. Seed or create a real course/exercise/post set for the provided HV/GV accounts.
-2. Run the E2E harness with real `E2E_COURSE_ID` or explicit `E2E_USE_GV_ID_AS_COURSE_ID=1`, plus required `E2E_EXERCISE_ID` and two video fixtures.
+2. Run the E2E harness with real `E2E_COURSE_ID` or explicit `E2E_USE_GV_ID_AS_COURSE_ID=1`, `E2E_NO_EXERCISE_ENTITY=1`, and two video fixtures. Use `E2E_EXERCISE_ID` only when intentionally testing the older strict spec-shaped path.
 3. Complete physical-device testing for camera/file picker, native duration metadata, and phone-browser LAN access.
 4. Decide whether full client-side scoring is required beyond displaying backend scoring fields.

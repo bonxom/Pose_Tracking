@@ -1,4 +1,4 @@
-import { API_BASE_URL, API_DEBUG, API_TIMEOUT_MS } from "@/config/env";
+import { API_BASE_URL, API_DEBUG, API_TIMEOUT_MS, API_TYPE, API_TYPES } from "@/config/env";
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -34,6 +34,12 @@ async function safeJson(response) {
 }
 
 async function request(path, body = {}, options = {}) {
+  if (API_TYPE === API_TYPES.MOCK) {
+    throw new ApiError("Backend requests are disabled in mock mode", {
+      code: "MOCK_MODE_BACKEND_DISABLED",
+    });
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeout || API_TIMEOUT_MS);
   const transport = options.transport || "json";

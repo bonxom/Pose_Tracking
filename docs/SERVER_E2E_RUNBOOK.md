@@ -122,6 +122,14 @@ If the target course is the provided GV's course and the backend team has confir
 E2E_USE_GV_ID_AS_COURSE_ID=1
 ```
 
+If the backend team confirms there is no separate exercise entity, add:
+
+```bash
+E2E_NO_EXERCISE_ENTITY=1
+```
+
+The harness will test no-exercise upload variants first and keep the older explicit `E2E_EXERCISE_ID` path available when you need to probe a spec-shaped payload.
+
 `E2E_EXERCISE_ID` remains required unless the backend returns a real exercise id; the harness never invents one.
 
 Video requirements:

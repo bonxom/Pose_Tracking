@@ -18,10 +18,11 @@ Import `IT4788.postman_collection.json` and `IT4788.local.postman_environment.js
 
 ## Upload Testing
 
-- Use `Feed / Posts / Add Post Multipart`.
-- Pick two local files for `video1` and `video2` in Postman.
-- Current backend-team guidance says `courseId` may equal the teacher/GV id, so `teacherId` can be copied into `courseId` when that is the object under test.
-- `exerciseId` is still backend/test-data driven and must be supplied explicitly.
+- Use one of the `Feed / Posts / Add Post Multipart - ...` variants.
+- Pick two local files for the multipart file fields in Postman. The collection keeps the frontend's current `video1`/`video2` contract visible, but the deployed backend is still rejecting tested field names and needs backend-team clarification.
+- Current backend-team guidance says `courseId` equals the teacher/GV id, so `teacherId` can be copied into `courseId`.
+- The backend team now says there is no separate exercise entity. Keep `noExerciseEntity=true` for that deployed interpretation. `exerciseId` is optional unless you are intentionally testing the older strict spec-shaped path.
+- Use `exercisePostId` only when probing the hypothesis that a teacher post acts as the exercise-like object.
 - Do not use mock:// placeholders against the server.
 
 ## Known Backend Mismatches
@@ -36,4 +37,16 @@ Import `IT4788.postman_collection.json` and `IT4788.local.postman_environment.js
 
 ## Seeded Data Requirements
 
-Several flows need real IDs from backend data: `postId`, `teacherId`, `courseId`, `exerciseId`, `notificationId`, `conversationId`, and `messageId`. Current team guidance says `courseId` can be the GV id; `exerciseId` remains unknown until backend data or clarification is available. Existing shared accounts may return empty feed/course data, which is a data blocker rather than a Postman issue.
+Several flows need real IDs from backend data: `postId`, `teacherId`, `courseId`, `exercisePostId`, `notificationId`, `conversationId`, and `messageId`. Current team guidance says `courseId` can be the GV id. `exerciseId` is now only needed when probing the older strict spec payload. Existing shared accounts may return empty feed/course data, which is a data blocker rather than a Postman issue.
+
+## No-exercise upload probes
+
+The collection includes separate `add_post` variants:
+
+- omit `exercise_id`
+- send `exercise_id=""`
+- send `exercise_id={{courseId}}`
+- send `exercise_id={{exercisePostId}}`
+- send explicit `exercise_id={{exerciseId}}`
+
+Use HTTPS, set `courseId={{teacherId}}`, and pick two local files for the file fields before sending. As of the latest real-account run, the deployed backend rejected every tested two-file field name with `Unexpected field`, and the metadata-only HV control still required `exercise_id`. Treat that as a backend mismatch until the server team confirms the real multipart field contract.
