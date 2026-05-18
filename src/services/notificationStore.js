@@ -5,6 +5,8 @@ import { getAuthSession } from "@/utils/session";
 const OK_CODE = "1000";
 const EMPTY_CODE = "9994";
 
+const ENABLE_NOTIFICATION_MOCK_FALLBACK = true;
+
 let notificationBadge = 0;
 let notificationBadgeLastUpdate = "";
 let notificationCache = {
@@ -14,6 +16,10 @@ let notificationCache = {
   hasLoaded: false,
   hasMore: false,
 };
+
+// Chỉ lưu trạng thái đọc của mock trong runtime.
+// Reload app thì reset. Backend thật vẫn dùng set_read_notification.
+const mockReadIds = new Set();
 
 const notificationBadgeListeners = new Set();
 
@@ -87,6 +93,50 @@ export function formatBadge(value) {
 function isValidDate(value) {
   if (!value) return false;
   return !Number.isNaN(new Date(value).getTime());
+}
+
+function buildMockNotificationFallback() {
+  const now = Date.now();
+
+  const mockItems = [
+    {
+      notification_id: "mock-like-post-seed-002",
+      type: "like",
+      object_id: "post_seed_002",
+      title: "Nguyen Van B đã thích bài viết của bạn",
+      created: new Date(now - 1000 * 60 * 2).toISOString(),
+      avatar: "",
+      group: "1",
+      read: "0",
+    },
+    {
+      notification_id: "mock-comment-post-seed-002",
+      type: "comment",
+      object_id: "post_seed_002",
+      title: "Tran Thi C đã bình luận về bài viết của bạn",
+      created: new Date(now - 1000 * 60 * 15).toISOString(),
+      avatar: "",
+      group: "1",
+      read: "0",
+    },
+    {
+      notification_id: "mock-post-teacher-exercise-001",
+      type: "post",
+      object_id: "post_teacher_exercise_001",
+      title: "Đại úy Chính đã đăng bài tập mới",
+      created: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
+      avatar: "",
+      group: "1",
+      read: "1",
+    },
+  ];
+
+  return mockItems.map((item) =>
+    normalizeNotification({
+      ...item,
+      read: mockReadIds.has(item.notification_id) ? "1" : item.read,
+    }),
+  );
 }
 
 function isUsableNotification(item) {
@@ -185,22 +235,29 @@ export async function getNotificationsPage({ index = 0, count = 20 } = {}) {
   const code = asString(response?.code);
 
   if (code === EMPTY_CODE) {
+    const items =
+      ENABLE_NOTIFICATION_MOCK_FALLBACK && Number(index) === 0
+        ? buildMockNotificationFallback()
+        : [];
+
+    const badgeValue = items.filter((item) => !item.read).length;
+
+    setNotificationBadge(badgeValue);
+
     if (Number(index) === 0) {
       notificationCache = {
-        items: [],
-        badge: 0,
-        lastUpdate: "",
+        items,
+        badge: badgeValue,
+        lastUpdate: new Date().toISOString(),
         hasLoaded: true,
         hasMore: false,
       };
-
-      setNotificationBadge(0);
     }
 
     return {
-      items: [],
-      badge: 0,
-      lastUpdate: "",
+      items,
+      badge: badgeValue,
+      lastUpdate: new Date().toISOString(),
       hasMore: false,
     };
   }
@@ -212,11 +269,32 @@ export async function getNotificationsPage({ index = 0, count = 20 } = {}) {
 
   let items = getNotificationArray(response.data)
     .map(normalizeNotification)
-    .filter(isUsableNotification);
+    .filter((item) => {
+      if (!item.notificationId) return false;
+      if (!item.title) return false;
+      if (!item.created) return false;
+      if (String(item.group) === "1" && !item.objectId) return false;
+      return true;
+    });
 
-  const badgeValue = resolveBadgeFromResponse(response, items);
-  const lastUpdate = pickLastUpdate(response);
-  const hasMore = items.length >= Number(count);
+  const usingMockFallback =
+    ENABLE_NOTIFICATION_MOCK_FALLBACK && Number(index) === 0 && items.length === 0;
+
+  if (usingMockFallback) {
+    items = buildMockNotificationFallback();
+  }
+
+  const serverBadge = Number(pickBadge(response));
+  const fallbackBadge = items.filter((item) => !item.read).length;
+
+  const badgeValue = usingMockFallback
+    ? fallbackBadge
+    : Number.isFinite(serverBadge)
+      ? Math.max(0, serverBadge)
+      : fallbackBadge;
+
+  const lastUpdate = pickLastUpdate(response) || new Date().toISOString();
+  const hasMore = usingMockFallback ? false : items.length >= Number(count);
 
   if (Number(index) === 0) {
     notificationCache = {
@@ -281,6 +359,21 @@ export function markNotificationReadLocal(notificationId) {
 }
 
 export async function markNotificationRead(notificationId) {
+  if (String(notificationId).startsWith("mock-")) {
+    mockReadIds.add(String(notificationId));
+
+    const unreadCount = buildMockNotificationFallback().filter(
+      (item) => !item.read,
+    ).length;
+
+    setNotificationBadge(unreadCount);
+
+    return {
+      badge: unreadCount,
+      lastUpdate: new Date().toISOString(),
+    };
+  }
+
   const session = await getAuthSession();
   const token = session?.token;
 
