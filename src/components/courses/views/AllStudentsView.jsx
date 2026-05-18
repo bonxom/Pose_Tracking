@@ -1,12 +1,13 @@
 import SectionHeader from "@/components/courses/SectionHeader";
 import StudentCard from "@/components/courses/StudentCard";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
+import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
 import { getCourseStudents } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -27,6 +28,20 @@ export default function AllStudentsView({
   const [isLoading, setIsLoading] = useState(!cache);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorText, setErrorText] = useState("");
+
+  const [sortOrder, setSortOrder] = useState("default");
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+
+  const displayedStudents = useMemo(() => {
+    if (sortOrder === "default") return students.students;
+    return [...students.students].sort((a, b) => {
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      if (nameA < nameB) return sortOrder === "asc" ? -1 : 1;
+      if (nameA > nameB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [students.students, sortOrder]);
 
   const { actionStatuses, setActionStatuses, openBottomMenu, renderModals } =
     useEnrollmentActions(setErrorText, setIsLoading, onActionSuccess);
@@ -85,7 +100,7 @@ export default function AllStudentsView({
     <View style={coursesStyles.container}>
       <SubViewNavBar title="Tất cả học viên" onBack={onBack} />
       <FlatList
-        data={students.students}
+        data={displayedStudents}
         keyExtractor={(item) => item.id}
         contentContainerStyle={coursesStyles.listContent}
         refreshControl={
@@ -99,7 +114,7 @@ export default function AllStudentsView({
             <SectionHeader
               count={students.total}
               rightLabel="Sắp xếp"
-              onRightPress={() => console.log("Sort pressed")}
+              onRightPress={() => setSortModalVisible(true)}
             />
             {errorText ? (
               <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
@@ -123,6 +138,27 @@ export default function AllStudentsView({
         }
       />
       {renderModals()}
+      <ModalBottomMenu
+        visible={sortModalVisible}
+        onClose={() => setSortModalVisible(false)}
+        buttons={[
+          {
+            title: "Tên (A-Z)",
+            icon: null,
+            onPress: () => setSortOrder("asc"),
+          },
+          {
+            title: "Tên (Z-A)",
+            icon: null,
+            onPress: () => setSortOrder("desc"),
+          },
+          {
+            title: "Mặc định",
+            icon: null,
+            onPress: () => setSortOrder("default"),
+          },
+        ]}
+      />
     </View>
   );
 }

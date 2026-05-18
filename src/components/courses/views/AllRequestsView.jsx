@@ -1,12 +1,13 @@
 import EnrollmentCard from "@/components/courses/EnrollmentCard";
 import SectionHeader from "@/components/courses/SectionHeader";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
+import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
 import { getRequestedEnrollments } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -21,11 +22,27 @@ function sortByCreatedDesc(items) {
   );
 }
 
-export default function AllRequestsView({ onBack, cache, setCache, onActionSuccess }) {
+export default function AllRequestsView({
+  onBack,
+  cache,
+  setCache,
+  onActionSuccess,
+}) {
   const [allEnrollments, setAllEnrollments] = useState(cache || []);
   const [isLoading, setIsLoading] = useState(!cache);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorText, setErrorText] = useState("");
+
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+
+  const displayedEnrollments = useMemo(() => {
+    return [...allEnrollments].sort((a, b) => {
+      const timeA = new Date(a.request.created).getTime();
+      const timeB = new Date(b.request.created).getTime();
+      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
+    });
+  }, [allEnrollments, sortOrder]);
 
   const {
     actionStatuses,
@@ -92,7 +109,7 @@ export default function AllRequestsView({ onBack, cache, setCache, onActionSucce
     <View style={coursesStyles.container}>
       <SubViewNavBar title="Yêu cầu học" onBack={onBack} />
       <FlatList
-        data={allEnrollments}
+        data={displayedEnrollments}
         keyExtractor={(item) => item.request.id}
         contentContainerStyle={coursesStyles.listContent}
         refreshControl={
@@ -106,7 +123,7 @@ export default function AllRequestsView({ onBack, cache, setCache, onActionSucce
             <SectionHeader
               count={allEnrollments.length}
               rightLabel="Sắp xếp"
-              onRightPress={() => console.log("Sort pressed")}
+              onRightPress={() => setSortModalVisible(true)}
             />
             {errorText ? (
               <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
@@ -132,6 +149,27 @@ export default function AllRequestsView({ onBack, cache, setCache, onActionSucce
         }
       />
       {renderModals()}
+      <ModalBottomMenu
+        visible={sortModalVisible}
+        onClose={() => setSortModalVisible(false)}
+        buttons={[
+          {
+            title: "Mặc định",
+            icon: null,
+            onPress: () => setSortOrder("desc"),
+          },
+          {
+            title: "Lời mời mới nhất trước tiên",
+            icon: null,
+            onPress: () => setSortOrder("desc"),
+          },
+          {
+            title: "Lời mời cũ nhất trước tiên",
+            icon: null,
+            onPress: () => setSortOrder("asc"),
+          },
+        ]}
+      />
     </View>
   );
 }
