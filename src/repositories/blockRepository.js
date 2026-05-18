@@ -1,4 +1,5 @@
 import { backendApi } from "@/api/client";
+import { DEMO_BLOCKS } from "@/constants/demo";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import {
@@ -8,11 +9,16 @@ import {
   shouldUseServer,
 } from "@/repositories/source";
 
+let localBlocks = DEMO_BLOCKS.map((item) => ({
+  ...item,
+  source: ACTIVE_SOURCES.LOCAL,
+}));
+
 export async function getBlocks() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return [];
+    return localBlocks;
   }
 
   try {
@@ -55,6 +61,21 @@ export async function setBlock(userId, type = "block") {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
+    if (type === "unblock") {
+      localBlocks = localBlocks.filter((item) => item.id !== userId);
+    } else if (!localBlocks.some((item) => item.id === userId)) {
+      localBlocks = [
+        ...localBlocks,
+        {
+          id: userId,
+          username: `Mock user ${userId}`,
+          avatar: "",
+          role: "HV",
+          source: ACTIVE_SOURCES.LOCAL,
+        },
+      ];
+    }
+
     return { blocked: type !== "unblock", source: ACTIVE_SOURCES.LOCAL };
   }
 

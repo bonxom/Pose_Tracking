@@ -94,10 +94,12 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   const exerciseId = firstValue(raw.exerciseId, raw.exercise_id, raw.lesson_id, "");
   const canCommentValue = firstValue(raw.canComment, raw.can_comment, raw.can_comment_mark, true);
 
+  const isTeacherExerciseLikePost = role === "GV" && Boolean(courseId);
+
   return {
     id: String(firstValue(raw.id, raw.post_id, raw._id, "")),
     source,
-    type: raw.type || (courseId && exerciseId ? "exercise" : "post"),
+    type: raw.type || (isTeacherExerciseLikePost ? "exercise" : "post"),
     author: {
       id: String(firstValue(user.id, user.user_id, raw.author_id, raw.user_id, "server_user")),
       name: firstValue(user.name, user.username, raw.author_name, raw.username, "Người dùng"),
@@ -115,7 +117,7 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     isLiked: Boolean(firstValue(raw.isLiked, raw.is_liked, raw.liked, false)),
     canComment: normalizeCanComment(canCommentValue),
     canEdit: Boolean(firstValue(raw.canEdit, raw.can_edit, false)),
-    canSubmit: Boolean(firstValue(raw.canSubmit, raw.can_submit, courseId && exerciseId && role === "GV")),
+    canSubmit: Boolean(firstValue(raw.canSubmit, raw.can_submit, isTeacherExerciseLikePost)),
     courseId,
     exerciseId,
     sourcePostId: firstValue(raw.sourcePostId, raw.source_post_id, ""),

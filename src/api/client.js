@@ -1,4 +1,5 @@
-import { API_BASE_URL, API_DEBUG, API_TIMEOUT_MS } from "@/config/env";
+import { API_BASE_URL, API_DEBUG, API_TIMEOUT_MS, API_TYPE, API_TYPES } from "@/config/env";
+import { DEMO_LIST_STUDENTS_RESPONSE } from "@/constants/demo";
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -34,6 +35,12 @@ async function safeJson(response) {
 }
 
 async function request(path, body = {}, options = {}) {
+  if (API_TYPE === API_TYPES.MOCK) {
+    throw new ApiError("Backend requests are disabled in mock mode", {
+      code: "MOCK_MODE_BACKEND_DISABLED",
+    });
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeout || API_TIMEOUT_MS);
   const transport = options.transport || "json";
@@ -136,6 +143,16 @@ export async function postMultipart(path, fields = {}, files = [], options = {})
   return request(path, formData, { ...options, transport: "multipart" });
 }
 
+function getMockListStudentsResponse() {
+  return {
+    ...DEMO_LIST_STUDENTS_RESPONSE,
+    data: {
+      ...DEMO_LIST_STUDENTS_RESPONSE.data,
+      students: DEMO_LIST_STUDENTS_RESPONSE.data.students.map((student) => ({ ...student })),
+    },
+  };
+}
+
 export const backendApi = {
   login: (params) => post("/login", params),
   logout: (params) => post("/logout", params),
@@ -156,7 +173,11 @@ export const backendApi = {
   search: (params) => post("/search", params),
   getSavedSearch: (params) => post("/get_saved_search", params),
   delSavedSearch: (params) => post("/del_saved_search", params),
-  getListStudents: (params) => post("/get_list_students", params),
+  getListStudents: (params) => (
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(getMockListStudentsResponse())
+      : post("/get_list_students", params)
+  ),
   getListCoursesOfStudent: (params) => post("/get_list_courses_of_student", params),
   getUserInfo: (params) => post("/get_user_info", params),
   setUserInfo: (params) => post("/set_user_info", params),
