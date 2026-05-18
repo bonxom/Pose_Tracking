@@ -11,6 +11,17 @@ web-build/
 .env
 .env.*
 
+# repo-local artifacts not tracked by the app team
+docs/
+postman/
+Dockerfile
+docker-compose.yml
+.dockerignore
+video/
+*.mp4
+*.mov
+*.m4v
+
 # logs
 npm-debug.*
 yarn-debug.*
