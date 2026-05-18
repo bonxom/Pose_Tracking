@@ -1,90 +1,69 @@
-# Mobile Testing
+# Kiểm Thử Trên Điện Thoại
 
-The reliable physical-phone path is the Expo Web build opened in the phone browser over the same Wi-Fi network. Native Expo Go is best-effort because the project is on Expo SDK 55, and current Expo Go compatibility may be sensitive during the SDK transition.
+Mục tiêu: có đường test mobile thực dụng, không bị kẹt vì Expo Go/native networking trong Docker.
 
-## Reliable Phone Browser Path
+## Đường ổn định: phone browser qua LAN
 
-1. Connect the laptop and phone to the same Wi-Fi network.
-2. Start the web demo:
+1. Chạy app bằng Docker:
 
 ```bash
-docker compose build
-docker compose up
+EXPO_PUBLIC_API_TYPE=backend docker compose up
 ```
 
-3. Find the laptop LAN IP.
-
-macOS Wi-Fi:
+2. Tìm IP LAN của máy host trên macOS:
 
 ```bash
 ipconfig getifaddr en0
 ```
 
-In this environment, `en0` did not report an address, so use the fallback:
+Nếu dùng mạng khác, thử `en1`.
 
-```bash
-ifconfig | grep "inet "
-```
-
-Observed LAN address in the final pass:
-
-```text
-192.168.1.3
-```
-
-4. On the phone browser, open:
+3. Đảm bảo điện thoại và máy host cùng Wi-Fi.
+4. Mở browser trên điện thoại:
 
 ```text
 http://<HOST_LAN_IP>:8081
 ```
 
-Example:
+Ví dụ:
 
 ```text
-http://192.168.1.3:8081
+http://192.168.1.20:8081
 ```
 
-5. Use a real backend account for server-mode testing. Developer demo buttons remain local-only fallback.
+5. Login bằng account backend thật hoặc chạy mock mode nếu backend không ổn định.
 
-## Troubleshooting Phone Browser Access
+## Test upload trên phone browser
 
-- Make sure the phone and laptop are on the same Wi-Fi and not isolated by guest-network rules.
-- Confirm Docker is still running with `docker compose up`.
-- Confirm the desktop browser can open `http://localhost:8081`.
-- If the phone cannot connect, check macOS firewall settings and allow incoming connections for Docker/Expo.
-- If port `8081` is busy, stop the conflicting process before starting compose.
+- Server mode cần file video thật.
+- Chọn 2 video local từ điện thoại nếu browser hỗ trợ file picker.
+- Mỗi video cần >=10 giây và duration tương tự.
+- Nếu backend trả `Unexpected field`, đây là mismatch multipart đã biết, không phải lỗi UI chọn file.
 
-## Best-Effort Native Expo Path
-
-Scripts are available:
+## Mock mode trên điện thoại
 
 ```bash
-npm run mobile:lan
-npm run mobile:tunnel
+EXPO_PUBLIC_API_TYPE=mock docker compose up
 ```
 
-Because the host machine does not have npm, use Docker:
+Mở cùng URL LAN. Mock mode không gọi backend, dùng để UI team test layout/flow khi server không ổn định.
+
+## Expo Go / native path
+
+Expo Go trong Docker có thể quảng cáo URL dạng container IP như:
+
+```text
+exp://172.x.x.x:8081
+```
+
+Điện thoại thường không truy cập được IP container này từ LAN. Có thể thử tunnel nếu project script hỗ trợ:
 
 ```bash
-docker compose run --rm --service-ports expo npm run mobile:lan
+docker compose run --rm expo npm run mobile:tunnel
 ```
 
-Tunnel mode:
+Tunnel có thể cần `@expo/ngrok` hoặc login Expo tùy SDK/tooling. Không coi Expo Go là đường test chính cho đợt này nếu chưa verify được thật.
 
-```bash
-docker compose run --rm --service-ports expo npm run mobile:tunnel
-```
+## Kết luận
 
-Notes:
-
-- `mobile:tunnel` may require Expo's tunnel support and `@expo/ngrok`; if Expo prompts to install it, allow that only when network access is available.
-- Docker LAN mode may advertise the container IP instead of the host LAN IP, so Expo Go may not connect reliably from a phone.
-- Expo SDK 55 native testing was not made the primary demo path. Use phone-browser web testing when time is short.
-
-## Verified In This Pass
-
-- Docker publishes `8081:8081`.
-- Expo Web starts and serves `http://localhost:8081`.
-- Host LAN IP discovery was verified with `ifconfig`; use `http://192.168.1.3:8081` for this machine while it stays on the same network.
-- Actual second-device phone browsing was not verified in this environment because no physical phone/browser session was available to this agent.
-- Native Expo Go was not verified in this environment.
+Browser-over-LAN là đường mobile test chính đã được khuyến nghị. Expo Go/native chỉ best-effort cho tới khi team xác nhận command tunnel/LAN hoạt động ổn trong môi trường Docker.

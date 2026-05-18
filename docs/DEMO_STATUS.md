@@ -1,62 +1,50 @@
-# Server-Backed MVP Status
+# Trạng Thái Demo / Server MVP
 
-Status date: 2026-05-10
+Ngày cập nhật: 2026-05-18
 
-## Current Product Direction
+## Hoàn thành cho demo chạy được
 
-The temporary demo-only phase is finished. The default app path is server-authoritative with:
+- Docker web workflow chạy app qua Expo Web.
+- Navigation 4 section theo leader: Home, Friends, Notifications, Profile.
+- Backend mode mặc định với HTTPS base URL.
+- Mock mode rõ ràng bằng `EXPO_PUBLIC_API_TYPE=mock`.
+- Repository/API layer cho auth, feed/posts/comments/search/courses/notifications/profile/settings/blocks/conversations.
+- Postman assets và docs handoff cho UI/backend team.
+- Probe backend và E2E harness có thể chạy bằng Docker.
 
-```bash
-EXPO_PUBLIC_DATA_SOURCE=server
-```
+## Server-backed đã xác minh một phần
 
-`auto` and `local` remain available for development and emergency fallback. Demo account buttons are explicitly local and should not be treated as backend verification.
+- HV/GV login thật trả token khi credential truyền qua env vars.
+- Logout, saved searches, blocks, push settings, conversation list, check version, set devtoken, một số compatibility notification/user calls trả code `1000`.
+- Feed/search/course list có thể trả empty state hợp lệ.
 
-## Completed Server-Oriented Features
+## Mock/local fallback
 
-- Docker-based Expo Web workflow remains the required run path.
-- API client wrappers exist for all 40 IT4788 APIs.
-- Backend probe script covers all 40 IT4788 APIs with mutation-safe defaults.
-- Repository adapters cover auth, posts, comments, courses/enrollment, notifications, user/profile, settings, blocks, and conversations.
-- Login form uses backend in default server mode.
-- Signup/verify/profile-completion screens now call backend auth helpers in server mode.
-- Feed/post detail/comment/like/search paths call repositories instead of directly using local stores.
-- Two-video submission uses multipart `add_post` for real server sessions and rejects demo placeholders in strict server mode.
-- Courses tab calls course/student/enrollment repositories.
-- Notifications tab calls `get_notification` and `set_read_notification`.
-- Profile tab calls `get_user_info` and backend logout best-effort.
-- Settings screens exist for profile edit, push settings, password change, device token, version check, and blocks.
-- Conversation list/detail screens exist for read/delete HTTP flows.
-- Existing real HV/GV accounts verified backend login/logout and several authenticated read/lifecycle endpoints.
-- Student course request state now stays pending/requested until GV approval.
-- Post detail edit UI supports optional two-video replacement with the same duration validation rules used by uploads.
-- Notification unread/badge display uses normalized server fields and a `99+` cap.
+`mock mode` hỗ trợ:
 
-## Local Fallback Features
+- auth/signup/mock OTP/login/logout
+- feed pagination/new-items
+- create/edit/delete/report/like/comment local
+- search/saved search
+- course/enrollment pending/approval state
+- notifications read/unread/badge `99+`
+- profile/settings/push/password/device token local
+- blocks/conversations stateful local data
+- friend/user rows cho Friends UI
 
-- Developer demo users, course, exercises, notifications, conversations, video placeholders, and scoring templates live in `src/constants/demo.js`.
-- Local feed/post/comment persistence remains in `src/services/postStore.js`.
-- Demo buttons on login intentionally create local sessions.
-- Local scoring comments remain available only for local/demo submissions.
-- Creating a new chat message is local-only because the 40-API list does not include a send-message endpoint.
+Mock mode không được dùng để claim backend integration.
 
-## Backend-Blocked Or Unverified
+## Backend/data blockers
 
-- Fresh signup/verify still requires unused real phone numbers and OTP.
-- Existing real accounts returned no posts/courses/exercises/notifications/conversations, so object-level actions are still data-blocked.
-- Feed, search, and course empty states are token-verified with real accounts.
-- Saved search list, block list, push settings, device token, conversation list, logout, and deployed-compatibility profile/notification/version/check-new-item paths are token-verified with real accounts.
-- Deployed `/it4788/like` returned 404 in prior probe findings.
-- Deployed `/it4788/delete_post` returned 404 in prior probe findings.
-- `add_post` requires multipart and `device_slave`; successful real upload is blocked until real `course_id` and `exercise_id` are available.
-- Full client-side pose scoring is not implemented.
+- `/like` và `/delete_post` trả 404.
+- Multipart upload thật bị `Unexpected field` với mọi field name đã thử.
+- Backend team nói không có exercise entity, nhưng deployed HV `add_post` vẫn đòi `exercise_id` trong control metadata-only.
+- `check_new_item`, `get_user_info`, `get_notification`, `check_new_version` có payload mismatch cần compatibility retry.
+- Friend/user-social candidates `get_user_friends`, `get_list_friends`, `get_friends` trả 404.
+- Shared accounts hiện không có object-rich data đủ để xác minh post detail, notification read, conversation detail, enrollment approval thật.
 
-## Documentation Added For Real Implementation
+## Nên dùng mode nào
 
-- [IT4788_SOURCE_OF_TRUTH.md](IT4788_SOURCE_OF_TRUTH.md)
-- [API_IMPLEMENTATION_MATRIX.md](API_IMPLEMENTATION_MATRIX.md)
-- [SCREEN_FLOW_MATRIX.md](SCREEN_FLOW_MATRIX.md)
-- [BACKEND_CONTRACT_REPORT.md](BACKEND_CONTRACT_REPORT.md)
-- [BACKEND_MISMATCHES.md](BACKEND_MISMATCHES.md)
-- [E2E_TEST_REPORT.md](E2E_TEST_REPORT.md)
-- [FRONTEND_SERVER_TEST_REPORT.md](FRONTEND_SERVER_TEST_REPORT.md)
+- Dev/API verification: `EXPO_PUBLIC_API_TYPE=backend`.
+- UI build/demo backup khi backend không ổn định: `EXPO_PUBLIC_API_TYPE=mock`.
+- Không dùng `auto` cho luồng sản phẩm mới nếu không có lý do rõ.
