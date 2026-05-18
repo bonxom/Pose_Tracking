@@ -1,48 +1,48 @@
 # IT4788 Postman Assets
 
-Import `IT4788.postman_collection.json` and `IT4788.local.postman_environment.json` into Postman.
+Import `IT4788.postman_collection.json` và `IT4788.local.postman_environment.json` vào Postman.
 
 ## Setup
 
-1. Select the `IT4788 Local / Shared Server` environment.
-2. Keep `baseUrl` as HTTPS by default: `{{baseUrlHttps}}`.
-3. To test HTTP fallback, set `baseUrl` to `{{baseUrlHttp}}`. The current HTTP endpoint redirects to HTTPS.
-4. Fill `hvPhone`, `gvPhone`, and `password` locally in Postman. Do not export real credentials back into the repo.
-5. `apiType` mirrors frontend development mode only; Postman requests still target whichever `baseUrl` you choose.
+1. Chọn environment `IT4788 Local / Shared Server`.
+2. Giữ `baseUrl` mặc định là HTTPS: `{{baseUrlHttps}}`.
+3. Nếu cần test HTTP fallback, đổi `baseUrl` thành `{{baseUrlHttp}}`. HTTP hiện redirect sang HTTPS.
+4. Tự điền `hvPhone`, `gvPhone`, `password` trong Postman local. Không export credential thật ngược lại repo.
+5. `apiType` chỉ phản ánh frontend development mode; Postman request vẫn gọi `baseUrl` bạn chọn.
 
-## Login And Tokens
+## Login và token
 
-- Run `Auth / HV Login` to store `hvToken` and `currentToken`.
-- Run `Auth / GV Login` to store `gvToken` and `currentToken`.
-- For role-specific tests, copy either token into `currentToken` if needed.
+- Chạy `Auth / HV Login` để lưu `hvToken` và `currentToken`.
+- Chạy `Auth / GV Login` để lưu `gvToken` và `currentToken`.
+- Với test theo role, copy token cần dùng vào `currentToken` nếu cần.
 
-## Upload Testing
+## Test upload
 
-- Use one of the `Feed / Posts / Add Post Multipart - ...` variants.
-- Pick two local files for the multipart file fields in Postman. The collection keeps the frontend's current `video1`/`video2` contract visible, but the deployed backend is still rejecting tested field names and needs backend-team clarification.
-- Current backend-team guidance says `courseId` equals the teacher/GV id, so `teacherId` can be copied into `courseId`.
-- The backend team now says there is no separate exercise entity. Keep `noExerciseEntity=true` for that deployed interpretation. `exerciseId` is optional unless you are intentionally testing the older strict spec-shaped path.
-- Use `exercisePostId` only when probing the hypothesis that a teacher post acts as the exercise-like object.
-- Do not use mock:// placeholders against the server.
+- Dùng một request `Feed / Posts / Add Post Multipart - ...`.
+- Chọn 2 file local cho multipart file fields trong Postman. Collection giữ contract frontend hiện tại `video1`/`video2`, nhưng deployed backend vẫn reject các field name đã thử và cần backend team xác nhận.
+- Backend team nói `courseId` bằng teacher/GV id, nên có thể copy `teacherId` vào `courseId`.
+- Backend team nói không có exercise entity riêng. Giữ `noExerciseEntity=true` cho cách hiểu deployed hiện tại. `exerciseId` chỉ optional khi test strict spec path cũ.
+- Dùng `exercisePostId` khi muốn probe giả thuyết teacher post là exercise-like object.
+- Không dùng `mock://` placeholders với server thật.
 
-## Known Backend Mismatches
+## Known backend mismatches
 
-- `/like` returned 404 in deployed probes.
-- `/delete_post` returned 404 in deployed probes.
-- Friend/user-social candidates `get_user_friends`, `get_list_friends`, and `get_friends` returned 404 in deployed probes.
-- `check_new_item` rejects `token`; frontend sends spec payload first and retries without token.
-- `get_user_info` rejects `user_id`; frontend retries without it.
-- `get_notification` rejects `last_update`; frontend retries without it.
-- `check_new_version` rejects `last_update`; frontend retries with `lastUpdate`.
-- `set_devtoken` requires numeric `devtype`, usually `1`.
+- `/like` trả 404 trong deployed probes.
+- `/delete_post` trả 404 trong deployed probes.
+- Friend/user-social candidates `get_user_friends`, `get_list_friends`, `get_friends` trả 404 trong deployed probes.
+- `check_new_item` reject `token`; frontend gửi spec payload trước rồi retry không token.
+- `get_user_info` reject `user_id`; frontend retry không có field này.
+- `get_notification` reject `last_update`; frontend retry không có field này.
+- `check_new_version` reject `last_update`; frontend retry với `lastUpdate`.
+- `set_devtoken` cần numeric `devtype`, thường là `1`.
 
-## Seeded Data Requirements
+## Seed data cần có
 
-Several flows need real IDs from backend data: `postId`, `teacherId`, `courseId`, `exercisePostId`, `notificationId`, `conversationId`, and `messageId`. Current team guidance says `courseId` can be the GV id. `exerciseId` is now only needed when probing the older strict spec payload. Existing shared accounts may return empty feed/course data, which is a data blocker rather than a Postman issue.
+Nhiều flow cần ID thật từ backend: `postId`, `teacherId`, `courseId`, `exercisePostId`, `notificationId`, `conversationId`, `messageId`. Theo team, `courseId` có thể là GV id. `exerciseId` hiện chỉ cần khi probe strict spec payload cũ. Shared accounts có thể trả empty feed/course data; đó là data blocker, không phải lỗi Postman.
 
 ## No-exercise upload probes
 
-The collection includes separate `add_post` variants:
+Collection có các variant `add_post` riêng:
 
 - omit `exercise_id`
 - send `exercise_id=""`
@@ -50,14 +50,14 @@ The collection includes separate `add_post` variants:
 - send `exercise_id={{exercisePostId}}`
 - send explicit `exercise_id={{exerciseId}}`
 
-Use HTTPS, set `courseId={{teacherId}}`, and pick two local files for the file fields before sending. As of the latest real-account run, the deployed backend rejected every tested two-file field name with `Unexpected field`, and the metadata-only HV control still required `exercise_id`. Treat that as a backend mismatch until the server team confirms the real multipart field contract.
+Dùng HTTPS, set `courseId={{teacherId}}`, chọn 2 local files cho file fields trước khi gửi. Theo run mới nhất, deployed backend reject mọi field name 2 file bằng `Unexpected field`, và metadata-only HV control vẫn yêu cầu `exercise_id`. Coi đây là backend mismatch cho tới khi server team xác nhận contract multipart thật.
 
 ## Friends / User Social
 
-The collection includes a `Friends / User Social` folder for newer slide/API discussion:
+Collection có folder `Friends / User Social` cho thảo luận API từ slide mới:
 
 - candidate read probes: `get_user_friends`, `get_list_friends`, `get_friends`
-- existing fallback requests: search user via `search`, get user info via `get_user_info`, block/unblock via `set_block`
-- mutation candidates are described but should not be run unless backend gives exact route names and approved test data
+- fallback hiện có: search user qua `search`, get user info qua `get_user_info`, block/unblock qua `set_block`
+- mutation candidates chỉ mô tả, không nên chạy nếu backend chưa cung cấp route chính xác và test data an toàn
 
-As of the latest probe, no deployed friend route is confirmed. UI teammates can build the Friends tab against mock data and the existing search/user/block repositories while backend clarifies the official friend API.
+Probe mới nhất chưa xác nhận route friend nào trên deployed backend. UI team có thể build Friends tab bằng mock data và repository search/user/block hiện có trong lúc chờ backend.

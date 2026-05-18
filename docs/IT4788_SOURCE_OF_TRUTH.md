@@ -1,104 +1,54 @@
 # IT4788 Source Of Truth
 
-Status date: 2026-05-17
+Tài liệu này tóm tắt source-of-truth từ bộ slide/spec IT4788. Nếu deployed backend khác spec, coi đó là backend mismatch và ghi vào `docs/BACKEND_MISMATCHES.md`.
 
-This repository follows the IT4788 weekly requirement slides / course specification as the product source of truth. Existing frontend mock behavior and deployed-backend quirks are implementation evidence only. If the deployed backend differs from the slides, the mismatch is tracked in `docs/BACKEND_MISMATCHES.md` and any compatibility behavior must stay isolated.
+## Mục đích app
 
-`restful_api.xlsx` is intentionally not used because it appears to describe a different Mercari/product project.
+Ứng dụng mobile social learning cho học phần/lớp luyện tập “Tập động tác diễu binh diễu hành”. Sản phẩm giống mạng xã hội mobile kiểu Facebook nhưng phục vụ course/training, post video, comment, notification, chat và chấm/đánh giá tư thế.
 
-## Product Purpose
+## Vai trò
 
-The app is a React Native / Expo social learning system for `Tap dong tac dieu binh dieu hanh`. It combines a Facebook-style mobile feed with marching/parade course enrollment, teacher standard exercise posts, student two-video submissions, comments, likes, notifications, conversations, blocks, settings, and scoring/pose feedback.
+- `GV`: giảng viên/teacher. Theo mô hình course, GV sở hữu một course.
+- `HV`: học viên/student. HV có thể tham gia nhiều course.
 
-## Roles And Course Rules
+## Course và exercise
 
-- `GV`: teacher/lecturer. A teacher owns one course.
-- `HV`: student. A student can join multiple courses.
-- GV creates standard exercise posts for their course.
-- HV creates exercise submission posts tied to course context.
-- Current backend-team clarification says `course_id` is the teacher/GV id and there is no separate deployed backend exercise entity. The older `exercise_id` concept remains a spec/runtime mismatch to track rather than something the frontend should silently invent in backend mode.
-- GV/HV relation can be affected by course enrollment, approval, and block actions.
-- HV can edit/delete their own posts according to the stated role rules; non-owners report posts.
+- Rule spec/team hiện tại: `course_id` có thể là teacher/GV id.
+- Backend team mới nói không có entity `exercise` riêng.
+- Về UI/product, “exercise” nên được hiểu là teacher standard post hoặc exercise-like teacher post trong backend mode.
+- Mock mode có thể giữ `exerciseId` ổn định bằng teacher post id để UI dễ link.
+- Nếu deployed backend vẫn yêu cầu `exercise_id`, ghi mismatch, không che giấu bằng fake success trong backend mode.
 
-## Auth And Profile Rules
+## Post và video
 
-- Real product flow starts from `signup`, `get_verify_code`, `check_verify_code`, `change_info_after_signup`, then `login`.
-- Signup uses `phonenumber`, `password`, `uuid`, and `role` (`GV` or `HV`) in the known contract.
-- Phone validation observed in deployed backend: 10 digits and starts with `0`.
-- Verification may require manual SMS/OTP; the app must provide an input flow and E2E runbook continuation.
-- Invalid/stale token and blocked-account responses must clear session/cache and redirect to login.
-- `set_user_info` follows the slide contract: `token`, `user_name`, `avatar`, `cover_image`.
+- Post hợp lệ cần 2 video.
+- Mỗi video tối thiểu 10 giây.
+- Hai video nên có duration tương tự nhau.
+- HV submission phải có `course_id`; `exercise_id` chỉ gửi khi backend/spec yêu cầu hoặc có dữ liệu.
+- Teacher post có thể expose `time_series_poses` phục vụ grading.
+- HV có thể edit/delete post của mình theo role-specific rules; GV không edit/delete theo cùng cách nếu spec giới hạn.
+- Comment giới hạn độ dài, chỉ text/link/emoticon.
 
-## Post, Video, And Scoring Rules
+## Feed/cache/refresh
 
-- Valid posts require exactly two videos.
-- Each video must be at least 10 seconds.
-- The two video durations should be similar; the frontend currently validates with a practical rule: max difference is 3 seconds or 20% of the longer video, whichever is larger.
-- Server mode never uploads demo/mock placeholders.
-- Web upload must support actual browser `File`/`Blob` objects; native upload must support React Native file objects.
-- Slides previously modeled HV submissions with `course_id` and `exercise_id`; the latest backend-team clarification says deployed backend has no separate exercise entity.
-- Teacher posts may expose `time_series_poses` for grading/scoring.
-- The app and server both participate in scoring in the full project. Local fake score comments are local/dev-only and must not be shown as real server scoring in server mode.
-- Authoritative server scoring/pose fields must be preserved and displayed when returned.
+- Feed dùng server `last_id`, `index`, `count`, `new_items`.
+- Client không tự suy diễn authoritative `last_id` từ rendered UI items.
+- Pull-down refresh và pull-up load more phải được hỗ trợ.
+- `check_new_item` hiển thị floating/new-items button khi có item mới.
+- Data malformed xử lý defensive:
+  - author id invalid: drop post
+  - described invalid và media invalid cùng lúc: drop post
+  - like/comment/is_liked invalid: default an toàn
+  - can_comment invalid/false: ẩn comment input
 
-## Feed, Cache, And Refresh Rules
+## Notification/chat
 
-- `get_list_posts` uses `token`, `index`, `count`, `last_id`, and optional `category_id`.
-- Default page size is 20.
-- The client must use server-provided `last_id` and must not derive authoritative cursors from rendered UI posts.
-- Pull-down refresh and pull-up load-more are required.
-- `check_new_item` drives the new-items UX. When `new_items > 0`, the UI shows a floating/new-items reload affordance.
-- Feed malformed-data handling:
-  - invalid/missing author id: drop the post from the feed.
-  - invalid described/content and invalid media together: drop the post.
-  - invalid like/comment/is_liked: default safely.
-  - invalid/false `can_comment`: hide comment input.
-- Cache reconciliation is currently implemented for the Home feed path only.
+- Notification fields theo slide: `notification_id`, `type`, `object_id`, `title`, `created`, `avatar`, `group`, `read`, `badge`, `last_update`.
+- Badge nên cap dạng `99+` nếu vượt ngưỡng.
+- Notification cần cache/refresh/load-more theo slide.
+- Chat/conversation APIs có list/detail/read/delete. Danh sách 40 API không có `send_message`, nên server mode không được trình bày composer send như tính năng thật nếu backend chưa bổ sung API.
 
-## Comment Rules
-
-- Comments are text/link/emoticon only.
-- The frontend limits comments to 500 characters and strips control characters before sending.
-- Comment input is hidden when `can_comment` is false/invalid.
-
-## Search And Profile Rules
-
-- Search is server-backed and supports navigation to results.
-- Saved search history uses `get_saved_search` and `del_saved_search`.
-- Profile search uses `search` with `user_id`.
-- Profile view uses `get_user_info`; profile edit uses `set_user_info`.
-
-## Course, Enrollment, And Block Rules
-
-- `get_list_courses_of_student` uses `token` and `user_id`.
-- `get_list_blocks` uses `token`, `index`, `count`, and `user_id`.
-- `set_approve_enrollment` uses `token`, `user_id`, and `is_accept`.
-- `set_request_course` should request course membership; deployed field details must be verified with valid accounts.
-- Sending a course request must not mark an HV as enrolled until GV approval is confirmed; the intermediate UI state is pending/requested.
-- Teacher sees pending enrollment requests and accepts/rejects them.
-- Block list must de-duplicate users and support block/unblock.
-
-## Notification Rules
-
-- `get_notification` includes `notification_id`, `type`, `object_id`, `title`, `created`, `avatar`, `group`, `read`, `badge`, and `last_update`.
-- Notification list supports read/unread state, badges, pull-down refresh, pull-up pagination, and navigation by `type`/`object_id`/`group`.
-- Badge display should cap large counts at `99+` while preserving the raw server value internally when returned.
-- `set_read_notification` marks a notification read.
-- Notification cache behavior should follow the weekly slides; the current app normalizes these fields and keeps screen-level state.
-
-## Conversation Rules
-
-- The 40-API list includes conversation list/detail/read/delete flows.
-- No `send_message` API exists in the authoritative 40-API list. The app must not present local send-message behavior as a real server product feature in server mode.
-
-## Settings And Device Rules
-
-- Push settings use `get_push_settings` and `set_push_settings`.
-- Password change uses `change_password`.
-- Version checks use `check_new_version`.
-- Device token registration uses `set_devtoken` in auth/session lifecycle paths, not only as a manual debug button.
-
-## Authoritative 40 APIs
+## Danh sách 40 API gốc
 
 1. `login`
 2. `logout`
@@ -141,6 +91,12 @@ The app is a React Native / Expo social learning system for `Tap dong tac dieu b
 39. `set_read_message`
 40. `set_read_notification`
 
-## Product Mode
+## API từ slide mới hơn
 
-The normal product path is server-authoritative. `EXPO_PUBLIC_DATA_SOURCE=server` is the default. `auto` and `local` remain available only for development/emergency fallback, and local demo shortcuts are visually separated from real backend auth.
+Slide mới có vẻ nhắc friend/user-social như `get_user_friends`. Vì source-of-truth có thể được cập nhật theo tuần, không giả định danh sách 40 API cũ là cuối cùng. Probe hiện tại cho thấy:
+
+- `get_user_friends`: deployed 404
+- `get_list_friends`: deployed 404
+- `get_friends`: deployed 404
+
+Nếu backend team xác nhận endpoint friend chính thức, cần bổ sung wrapper/repository/mock/Postman và cập nhật ma trận.
