@@ -1,0 +1,2229 @@
+{
+  "info": {
+    "_postman_id": "7b321684-9d5d-4d2e-aa75-4788f00a0001",
+    "name": "IT4788 Pose Training API",
+    "description": "Postman collection generated from the frontend API/repository contract. Defaults to HTTPS and keeps HTTP fallback in the environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "HV Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Login as HV/student. Deployed backend requires devtoken. Stores hvToken and currentToken when code=1000.",
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phonenumber\": \"{{hvPhone}}\",\n  \"password\": \"{{password}}\",\n  \"devtoken\": \"{{deviceToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { json = {}; }",
+                  "function tokenFrom(value) {",
+                  "  const data = value && (value.data || value.user || value.result || value);",
+                  "  return (data && (data.token || data.access_token || data.accessToken)) || value.token || '';",
+                  "}",
+                  "const code = String(json.code ?? json.status ?? '');",
+                  "if (code === '1000' || json.success === true) {",
+                  "  const token = tokenFrom(json);",
+                  "  if (token) {",
+                  "    pm.environment.set('hvToken', token);",
+                  "    pm.environment.set('currentToken', token);",
+                  "  }",
+                  "  const data = json.data || json.user || json.result || json;",
+                  "  const userId = data && (data.id || data.user_id);",
+                  "  if (userId) pm.environment.set('userId', String(userId));",
+                  "}",
+                  "pm.test('response is JSON or empty JSON-compatible', function () {",
+                  "  pm.expect(json).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GV Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Login as GV/teacher. Deployed backend requires devtoken. Stores gvToken and currentToken when code=1000.",
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phonenumber\": \"{{gvPhone}}\",\n  \"password\": \"{{password}}\",\n  \"devtoken\": \"{{deviceToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { json = {}; }",
+                  "function tokenFrom(value) {",
+                  "  const data = value && (value.data || value.user || value.result || value);",
+                  "  return (data && (data.token || data.access_token || data.accessToken)) || value.token || '';",
+                  "}",
+                  "const code = String(json.code ?? json.status ?? '');",
+                  "if (code === '1000' || json.success === true) {",
+                  "  const token = tokenFrom(json);",
+                  "  if (token) {",
+                  "    pm.environment.set('gvToken', token);",
+                  "    pm.environment.set('currentToken', token);",
+                  "  }",
+                  "  const data = json.data || json.user || json.result || json;",
+                  "  const userId = data && (data.id || data.user_id);",
+                  "  if (userId) pm.environment.set('userId', String(userId));",
+                  "}",
+                  "pm.test('response is JSON or empty JSON-compatible', function () {",
+                  "  pm.expect(json).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Server logout for currentToken.",
+            "url": {
+              "raw": "{{baseUrl}}/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Fresh signup. Requires a real unused phone and may require OTP.",
+            "url": {
+              "raw": "{{baseUrl}}/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phonenumber\": \"{{newPhone}}\",\n  \"password\": \"{{password}}\",\n  \"uuid\": \"{{deviceToken}}\",\n  \"role\": \"HV\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Get Verify Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Request verification code for signup phone.",
+            "url": {
+              "raw": "{{baseUrl}}/get_verify_code",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_verify_code"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phonenumber\": \"{{newPhone}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Check Verify Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Verification field is runtime-sensitive; frontend harness also tries code, verify_code, code_verify, otp.",
+            "url": {
+              "raw": "{{baseUrl}}/check_verify_code",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "check_verify_code"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phonenumber\": \"{{newPhone}}\",\n  \"code_verify\": \"{{verifyCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Change Info After Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Spec-style profile completion. Deployed runtime has rejected user_name in probes; see mismatches doc.",
+            "url": {
+              "raw": "{{baseUrl}}/change_info_after_signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "change_info_after_signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_name\": \"{{userName}}\",\n  \"avatar\": \"{{avatarUrl}}\",\n  \"cover_image\": \"{{coverImageUrl}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Feed / Posts",
+      "item": [
+        {
+          "name": "Get List Posts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Uses form-urlencoded string params per deployed behavior. Stores first postId and lastId when present.",
+            "url": {
+              "raw": "{{baseUrl}}/get_list_posts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_list_posts"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "index",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "count",
+                  "value": "20",
+                  "type": "text"
+                },
+                {
+                  "key": "last_id",
+                  "value": "{{lastId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (error) { json = {}; }",
+                  "const data = json.data || json.result || json.items || json.posts || json;",
+                  "const list = Array.isArray(data) ? data : (data && (data.items || data.list || data.posts || data.post));",
+                  "const first = Array.isArray(list) ? list[0] : data;",
+                  "const fields = [\"id\",\"post_id\",\"_id\"];",
+                  "for (const field of fields) {",
+                  "  if (first && first[field]) { pm.environment.set('postId', String(first[field])); break; }",
+                  "}",
+                  "pm.test('request completed', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 401, 403, 404, 500]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Fetch post detail. Teacher posts may include time_series_poses.",
+            "url": {
+              "raw": "{{baseUrl}}/get_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_post"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{postId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - No exercise_id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "No-exercise runtime probe: omits exercise_id while keeping course_id={{courseId}}. Team guidance says courseId may equal teacherId/GV id. Latest deployed tests still failed earlier on multipart file-field mismatch.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - Empty exercise_id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "No-exercise runtime probe: sends exercise_id as an empty string with course_id={{courseId}}.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "exercise_id",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - exercise_id = courseId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Compatibility probe: sends exercise_id={{courseId}} when backend has no separate exercise entity but still validates the field.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "exercise_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - exercise_id = exercisePostId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Compatibility probe: sends exercise_id={{exercisePostId}} when a teacher post is being tested as the exercise-like object.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "exercise_id",
+                  "value": "{{exercisePostId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Add Post Multipart - Explicit exercise_id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Strict older spec-shaped probe: sends explicit exercise_id={{exerciseId}} only when intentionally testing the older contract.",
+            "url": {
+              "raw": "{{baseUrl}}/add_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "add_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Postman two-video submission",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "course_id",
+                  "value": "{{courseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "exercise_id",
+                  "value": "{{exerciseId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "device_slave",
+                  "value": "{{deviceToken}}",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Edit Post Multipart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Multipart edit path. Video replacement must keep two valid videos when replacing media.",
+            "url": {
+              "raw": "{{baseUrl}}/edit_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "edit_post"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "type": "text",
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "id",
+                  "value": "{{postId}}",
+                  "src": []
+                },
+                {
+                  "type": "text",
+                  "key": "described",
+                  "value": "Updated by Postman",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video1",
+                  "value": "",
+                  "src": []
+                },
+                {
+                  "type": "file",
+                  "key": "video2",
+                  "value": "",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Delete Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Spec endpoint. Deployed /delete_post returned 404 in probes.",
+            "url": {
+              "raw": "{{baseUrl}}/delete_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "delete_post"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{postId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Check New Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Spec payload uses token; deployed runtime rejects token, and frontend retries without token as isolated compatibility.",
+            "url": {
+              "raw": "{{baseUrl}}/check_new_item",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "check_new_item"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"last_id\": \"{{lastId}}\",\n  \"category_id\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Comments / Likes / Reports",
+      "item": [
+        {
+          "name": "Get Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Fetch comments for a post.",
+            "url": {
+              "raw": "{{baseUrl}}/get_comment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_comment"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{postId}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Uses form-urlencoded with index/count per deployed behavior.",
+            "url": {
+              "raw": "{{baseUrl}}/set_comment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_comment"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "id",
+                  "value": "{{postId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "comment",
+                  "value": "Postman comment",
+                  "type": "text"
+                },
+                {
+                  "key": "index",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "count",
+                  "value": "20",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Report Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Report non-owned post.",
+            "url": {
+              "raw": "{{baseUrl}}/report_post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "report_post"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{postId}}\",\n  \"subject\": \"Postman report\",\n  \"details\": \"Report details\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Like",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Spec endpoint. Deployed /like returned 404 in probes.",
+            "url": {
+              "raw": "{{baseUrl}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "like"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{postId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Server search. Frontend includes user_id for deployed compatibility and profile-scoped search.",
+            "url": {
+              "raw": "{{baseUrl}}/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"keyword\": \"{{searchKeyword}}\",\n  \"user_id\": \"{{userId}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Get Saved Search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "List saved searches.",
+            "url": {
+              "raw": "{{baseUrl}}/get_saved_search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_saved_search"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Delete Saved Search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Destructive; use only with an intended savedSearchId.",
+            "url": {
+              "raw": "{{baseUrl}}/del_saved_search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "del_saved_search"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{savedSearchId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Friends / User Social",
+      "description": "Candidate friend/user-social requests from newer slide context. Latest deployed probe returned 404 for get_user_friends/get_list_friends/get_friends. Use search/get_user_info/block requests as the current server-backed Friends scope until backend confirms official routes.",
+      "item": [
+        {
+          "name": "Get User Friends Candidate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Probe candidate from newer slides. Latest deployed result: 404 Cannot POST /it4788/get_user_friends.",
+            "url": {
+              "raw": "{{baseUrl}}/get_user_friends",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_user_friends"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "type": "text",
+                  "description": "Current auth token"
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{friendUserId}}",
+                  "type": "text",
+                  "description": "User whose friends should be listed"
+                },
+                {
+                  "key": "index",
+                  "value": "0",
+                  "type": "text",
+                  "description": "Pagination index"
+                },
+                {
+                  "key": "count",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Pagination size"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get List Friends Candidate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Alternate friend-list route candidate. Latest deployed result: 404 Cannot POST /it4788/get_list_friends.",
+            "url": {
+              "raw": "{{baseUrl}}/get_list_friends",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_list_friends"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "type": "text",
+                  "description": "Current auth token"
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{friendUserId}}",
+                  "type": "text",
+                  "description": "User whose friends should be listed"
+                },
+                {
+                  "key": "index",
+                  "value": "0",
+                  "type": "text",
+                  "description": "Pagination index"
+                },
+                {
+                  "key": "count",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Pagination size"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Friends Candidate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Alternate friend-list route candidate. Latest deployed result: 404 Cannot POST /it4788/get_friends.",
+            "url": {
+              "raw": "{{baseUrl}}/get_friends",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_friends"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{currentToken}}",
+                  "type": "text",
+                  "description": "Current auth token"
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{friendUserId}}",
+                  "type": "text",
+                  "description": "User whose friends should be listed"
+                },
+                {
+                  "key": "index",
+                  "value": "0",
+                  "type": "text",
+                  "description": "Pagination index"
+                },
+                {
+                  "key": "count",
+                  "value": "20",
+                  "type": "text",
+                  "description": "Pagination size"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search User Via Search API",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Current fallback for Friends UI. Uses the existing search API until backend confirms a friend endpoint.",
+            "url": {
+              "raw": "{{baseUrl}}/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"keyword\": \"{{searchKeyword}}\",\n  \"user_id\": \"{{userId}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get User Info For Friend Candidate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Open a user profile from Friends/Search. Spec includes user_id; deployed runtime currently rejects user_id and frontend retries without it.",
+            "url": {
+              "raw": "{{baseUrl}}/get_user_info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_user_info"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Block User From Friends Context",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Use carefully. Existing block API can support Friends safety actions while friend API is unconfirmed.",
+            "url": {
+              "raw": "{{baseUrl}}/set_block",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_block"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\",\n  \"type\": \"block\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Request Friend Candidate - do not run by default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mutation candidate only. Run only with backend-approved route/params and safe test data. Probe script guards mutations behind PROBE_FRIEND_MUTATIONS=1.",
+            "url": {
+              "raw": "{{baseUrl}}/request_friend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "request_friend"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Accept Friend Candidate - do not run by default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mutation candidate only. Run only with backend-approved route/params and safe test data.",
+            "url": {
+              "raw": "{{baseUrl}}/accept_friend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accept_friend"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\",\n  \"request_id\": \"{{friendRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Reject Friend Candidate - do not run by default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mutation candidate only. Run only with backend-approved route/params and safe test data.",
+            "url": {
+              "raw": "{{baseUrl}}/reject_friend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reject_friend"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\",\n  \"request_id\": \"{{friendRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete Friend Candidate - do not run by default",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mutation candidate only. Run only with backend-approved route/params and safe test data.",
+            "url": {
+              "raw": "{{baseUrl}}/delete_friend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "delete_friend"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{friendTargetUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Courses / Enrollment",
+      "item": [
+        {
+          "name": "Get List Courses Of Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Spec says token+user_id; frontend also sends pagination compatibility fields.",
+            "url": {
+              "raw": "{{baseUrl}}/get_list_courses_of_student",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_list_courses_of_student"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{userId}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Get List Students",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Teacher-side student list. HV may receive Not access.",
+            "url": {
+              "raw": "{{baseUrl}}/get_list_students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_list_students"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Get Requested Enrollment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Teacher-side pending enrollment requests.",
+            "url": {
+              "raw": "{{baseUrl}}/get_requested_enrollment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_requested_enrollment"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set Request Course",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "HV course request. Frontend keeps pending/requested until GV approval.",
+            "url": {
+              "raw": "{{baseUrl}}/set_request_course",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_request_course"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"course_id\": \"{{courseId}}\",\n  \"user_id\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set Approve Enrollment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "GV accept/reject request. Use is_accept=1 or 0.",
+            "url": {
+              "raw": "{{baseUrl}}/set_approve_enrollment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_approve_enrollment"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{userId}}\",\n  \"is_accept\": \"1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Profile / Users",
+      "item": [
+        {
+          "name": "Get User Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Spec payload includes user_id; deployed runtime rejects user_id, and frontend retries without it.",
+            "url": {
+              "raw": "{{baseUrl}}/get_user_info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_user_info"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set User Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Profile edit per slides.",
+            "url": {
+              "raw": "{{baseUrl}}/set_user_info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_user_info"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_name\": \"{{userName}}\",\n  \"avatar\": \"{{avatarUrl}}\",\n  \"cover_image\": \"{{coverImageUrl}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Blocks",
+      "item": [
+        {
+          "name": "Get List Blocks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Block list with user_id per slides.",
+            "url": {
+              "raw": "{{baseUrl}}/get_list_blocks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_list_blocks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{userId}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set Block",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Block/unblock target user. Use carefully against shared accounts.",
+            "url": {
+              "raw": "{{baseUrl}}/set_block",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_block"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"user_id\": \"{{targetUserId}}\",\n  \"type\": \"block\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Settings / Device",
+      "item": [
+        {
+          "name": "Get Push Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Read push settings.",
+            "url": {
+              "raw": "{{baseUrl}}/get_push_settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_push_settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set Push Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Update push settings.",
+            "url": {
+              "raw": "{{baseUrl}}/set_push_settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_push_settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"notification_on\": \"1\",\n  \"like_comment\": \"1\",\n  \"from_friends\": \"1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Destructive; do not run against shared accounts unless planned.",
+            "url": {
+              "raw": "{{baseUrl}}/change_password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "change_password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"password\": \"{{oldPassword}}\",\n  \"new_password\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Check New Version",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Spec uses last_update; deployed runtime accepts lastUpdate compatibility payload in frontend retry.",
+            "url": {
+              "raw": "{{baseUrl}}/check_new_version",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "check_new_version"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"last_update\": \"{{lastUpdate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set Devtoken",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Device token registration. Deployed runtime requires numeric devtype such as 1.",
+            "url": {
+              "raw": "{{baseUrl}}/set_devtoken",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_devtoken"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"devtoken\": \"{{deviceToken}}\",\n  \"devtype\": \"{{devtype}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Spec includes last_update; deployed runtime rejects it, and frontend retries without it.",
+            "url": {
+              "raw": "{{baseUrl}}/get_notification",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_notification"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"index\": \"0\",\n  \"count\": \"20\",\n  \"last_update\": \"{{lastUpdate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set Read Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mark notification read.",
+            "url": {
+              "raw": "{{baseUrl}}/set_read_notification",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_read_notification"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"notification_id\": \"{{notificationId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Conversations",
+      "item": [
+        {
+          "name": "Get List Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Conversation list.",
+            "url": {
+              "raw": "{{baseUrl}}/get_list_conversation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_list_conversation"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Get Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Conversation detail.",
+            "url": {
+              "raw": "{{baseUrl}}/get_conversation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get_conversation"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{conversationId}}\",\n  \"index\": \"0\",\n  \"count\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Set Read Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Mark conversation/message read.",
+            "url": {
+              "raw": "{{baseUrl}}/set_read_message",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "set_read_message"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{conversationId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Delete Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Delete one message. Destructive.",
+            "url": {
+              "raw": "{{baseUrl}}/delete_message",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "delete_message"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{messageId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "Delete Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Delete conversation. Destructive.",
+            "url": {
+              "raw": "{{baseUrl}}/delete_conversation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "delete_conversation"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{currentToken}}\",\n  \"id\": \"{{conversationId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Diagnostics / Backend health",
+      "item": [
+        {
+          "name": "Backend Login Route Probe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "Quick route/body probe; use HTTPS baseUrl by default.",
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phonenumber\": \"{{hvPhone}}\",\n  \"password\": \"{{password}}\",\n  \"devtoken\": \"{{deviceToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": []
+        }
+      ]
+    }
+  ]
+}

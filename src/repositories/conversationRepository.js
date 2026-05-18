@@ -115,6 +115,10 @@ export async function deleteMessage(messageId) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
+    localConversations = localConversations.map((conversation) => ({
+      ...conversation,
+      messages: (conversation.messages || []).filter((message) => message.id !== messageId),
+    }));
     return { deleted: true, source: ACTIVE_SOURCES.LOCAL };
   }
 
@@ -150,6 +154,9 @@ export async function markConversationRead(conversationId) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
+    localConversations = localConversations.map((conversation) =>
+      conversation.id === conversationId ? { ...conversation, unread: false } : conversation,
+    );
     return { read: true, source: ACTIVE_SOURCES.LOCAL };
   }
 

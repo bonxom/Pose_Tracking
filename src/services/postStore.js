@@ -9,7 +9,7 @@ import { getAuthSession } from "@/utils/session";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-const POSTS_STORAGE_KEY = "pose_tracking.posts.v2";
+const POSTS_STORAGE_KEY = "pose_tracking.posts.v4";
 const CREATE_DRAFT_STORAGE_KEY = "pose_tracking.post_draft.v1";
 const COMMENT_DRAFT_STORAGE_KEY = "pose_tracking.comment_drafts.v1";
 
@@ -149,6 +149,7 @@ function normalizePost(post = {}) {
     exerciseTitle: post.exerciseTitle || "",
     hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
     scoreSummary: normalizeScoreSummary(post.scoreSummary),
+    reports: Array.isArray(post.reports) ? post.reports : [],
     comments,
   };
 }
@@ -279,6 +280,60 @@ export async function createPost({
   const nextPosts = [newPost, ...posts];
   await persistPosts(nextPosts);
   return newPost;
+}
+
+export async function updatePost(postId, params = {}) {
+  const posts = await getOrSeedPosts();
+  let updatedPost = null;
+
+  const nextPosts = posts.map((post) => {
+    const normalized = normalizePost(post);
+    if (normalized.id !== postId) return normalized;
+
+    updatedPost = normalizePost({
+      ...normalized,
+      ...params,
+      content: params.content ?? params.described ?? normalized.content,
+      described: params.described ?? params.content ?? normalized.described,
+      videos: params.videos ?? normalized.videos,
+    });
+    return updatedPost;
+  });
+
+  await persistPosts(nextPosts);
+  return updatedPost;
+}
+
+export async function deletePost(postId) {
+  const posts = await getOrSeedPosts();
+  const nextPosts = posts
+    .filter((post) => post.id !== postId)
+    .map(normalizePost);
+  await persistPosts(nextPosts);
+  return true;
+}
+
+export async function reportPost(postId, reason = "") {
+  const posts = await getOrSeedPosts();
+  const nextPosts = posts.map((post) => {
+    const normalized = normalizePost(post);
+    if (normalized.id !== postId) return normalized;
+
+    return {
+      ...normalized,
+      reports: [
+        ...(Array.isArray(normalized.reports) ? normalized.reports : []),
+        {
+          id: createId("report"),
+          reason,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
+  });
+
+  await persistPosts(nextPosts);
+  return true;
 }
 
 function buildScoringComment(scoreTemplate = DEMO_SCORING_TEMPLATES[0]) {

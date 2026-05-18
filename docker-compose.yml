@@ -3,10 +3,14 @@ services:
     build:
       context: .
     working_dir: /app
-    command: npm run web:docker
+    command: >
+      sh -lc 'export EXPO_PUBLIC_API_TYPE="${EXPO_PUBLIC_API_TYPE:-${API_TYPE:-backend}}";
+      npm run web:docker'
     environment:
       EXPO_NO_TELEMETRY: "1"
       WEB_HOST: "0.0.0.0"
+      API_TYPE: "${API_TYPE:-}"
+      EXPO_PUBLIC_API_TYPE: "${EXPO_PUBLIC_API_TYPE:-}"
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
     ports:

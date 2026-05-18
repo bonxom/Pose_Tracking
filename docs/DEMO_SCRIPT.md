@@ -1,59 +1,59 @@
-# Server Demo And Developer Fallback Script
+# Kịch Bản Demo
 
-Use this script to run the IT4788 marching/parade pose-training social app through Docker. The normal product path is server-backed; the old demo shortcut is kept only as developer fallback.
+Tài liệu này dành cho demo nhanh khi cần chạy web bằng Docker. Luồng chính hiện tại là backend mode; mock mode chỉ là backup khi backend không ổn định.
 
-## 1. Start Expo Web
-
-From the repository root:
+## Chuẩn bị
 
 ```bash
 docker compose build
-docker compose up
+EXPO_PUBLIC_API_TYPE=backend docker compose up
 ```
 
-Open:
+Mở:
 
 ```text
 http://localhost:8081
 ```
 
-## 2. Real Server Path
+Nếu cần backup demo không gọi backend:
 
-1. Open `http://localhost:8081`.
-2. Register a new account through the signup flow or log in with a valid backend account.
-3. Complete verification and profile completion if the backend accepts the account.
-4. Confirm the app opens Home with `Nguồn dữ liệu: Server`.
-5. Open a post, comments, courses, notifications, settings, blocks, and conversations.
-6. Submit an exercise with two real videos; demo placeholders are not valid server uploads.
-7. Verify server errors are shown safely instead of silently converting to local success.
-
-Current blocker: no valid backend token/account was available in this environment, so the real path is frontend-complete but not fully verified end-to-end.
-
-## 3. Developer Local Fallback Path
-
-Use only when backend accounts/contracts are unavailable.
-
-Visible buttons:
-
-```text
-Student HV: 0900000001 / 123456
-Teacher GV: 0900000002 / 123456
+```bash
+EXPO_PUBLIC_API_TYPE=mock docker compose up
 ```
 
-Fallback flow:
+## Credential
 
-1. Click `Use demo student account`.
-2. Confirm the Home feed opens.
-3. Open a teacher exercise post.
-4. Click `Nộp bài`.
-5. Use `Use demo video 1` and `Use demo video 2`.
-6. Submit and confirm the local scoring comment appears.
-7. Test local like/comment/search/courses/notifications/profile/logout.
+Không ghi credential thật vào repo. Khi demo backend thật, nhập credential do team cung cấp trực tiếp trong UI hoặc truyền qua env var cho E2E script.
 
-## 4. Limitations To State Clearly
+Mock mode có tài khoản seed nội bộ cho UI demo. Tài khoản này chỉ chứng minh mock mode, không chứng minh backend.
 
-- Demo buttons are local-only and do not prove backend login.
-- Local scoring comments are not authoritative backend scoring.
-- `/it4788/like` and `/it4788/delete_post` returned 404 in deployed probing.
-- Most authenticated APIs require a valid backend token and remain unverified for success payload shape.
-- Chat compose remains local-only because no send-message API appears in the 40-API list.
+## Luồng click đề xuất
+
+1. Mở `http://localhost:8081`.
+2. Login bằng account backend thật nếu backend đang ổn định.
+3. Vào Home.
+4. Kiểm tra feed/empty state/load-more/refresh.
+5. Mở post detail nếu backend có post thật.
+6. Thử comment/like/report; nếu backend trả mismatch thì UI phải hiển thị lỗi an toàn.
+7. Mở Notifications.
+8. Mở Profile.
+9. Từ Profile hoặc action search, mở `/search` nếu UI đang expose.
+10. Mở `/courses` nếu UI đang expose.
+11. Kiểm tra Settings/Blocks/Chat nếu có link trong Profile.
+12. Logout.
+
+## Luồng backup bằng mock mode
+
+1. Chạy `EXPO_PUBLIC_API_TYPE=mock docker compose up`.
+2. Login bằng mock/demo path nếu UI expose developer fallback.
+3. Kiểm tra Home feed có post teacher/student.
+4. Tạo post/submission local với placeholder/video metadata.
+5. Like/comment/report local.
+6. Search, Notifications, Profile, Blocks, Conversations hoạt động bằng mock data.
+
+## Giới hạn cần nói rõ khi demo
+
+- Mock mode không gọi backend.
+- Backend mode không fake thành công nếu server trả 404 hoặc mismatch.
+- Backend team nói `course_id` bằng GV/teacher id và không có exercise entity riêng, nhưng deployed upload vẫn có mismatch về `exercise_id` và multipart field name.
+- Friend APIs từ slide mới hiện chưa confirmed trên deployed backend; Friends UI có thể dùng search/user/block fallback.

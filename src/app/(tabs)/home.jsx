@@ -19,7 +19,6 @@ import {
 
 export default function HomeScreen() {
   const [posts, setPosts] = useState([]);
-  const [sourceLabel, setSourceLabel] = useState("Nguồn dữ liệu: Demo local");
   const [errorText, setErrorText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -38,14 +37,12 @@ export default function HomeScreen() {
       setErrorText("");
       const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
       setPosts(result.items || []);
-      setSourceLabel(result.sourceLabel || "Nguồn dữ liệu: Demo local");
       setHasMore(Boolean(result.hasMore));
       setLastId(result.lastId || "");
       setNewItemsCount(Number(result.newItems || 0));
     } catch (error) {
       console.warn("Failed to load posts:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setSourceLabel("Nguồn dữ liệu: Server lỗi");
       setErrorText(error.message || "Không thể tải dữ liệu backend.");
     } finally {
       setIsLoading(false);
@@ -162,7 +159,12 @@ export default function HomeScreen() {
             />
           }
           ListHeaderComponent={
-            newItemsCount > 0 ? (
+            newItemsCount > 0 || errorText ? (
+              <View>
+                {errorText ? (
+                  <Text style={homeStyles.errorText}>{errorText}</Text>
+                ) : null}
+                {newItemsCount > 0 ? (
               <Pressable
                 style={homeStyles.newItemsButton}
                 onPress={() => loadPosts({ refresh: true })}
@@ -171,6 +173,8 @@ export default function HomeScreen() {
                   {newItemsCount} bài mới - tải lại
                 </Text>
               </Pressable>
+                ) : null}
+              </View>
             ) : null
           }
           renderItem={({ item }) => (

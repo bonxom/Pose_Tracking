@@ -10,6 +10,10 @@ web-build/
 # local env
 .env
 .env.*
+!.env.example
+
+# local media fixtures
+video/*.mp4
 
 # logs
 npm-debug.*
@@ -26,3 +30,5 @@ Thumbs.db
 
 android/
 ios/
+test/
+cam/

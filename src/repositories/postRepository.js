@@ -1,5 +1,6 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
+import { DEMO_SAVED_SEARCHES } from "@/constants/demo";
 import * as localPosts from "@/services/postStore";
 import {
   extractList,
@@ -15,6 +16,8 @@ import {
   isServerPost,
   shouldUseServer,
 } from "@/repositories/source";
+
+let localSavedSearches = DEMO_SAVED_SEARCHES.map((item) => ({ ...item }));
 
 function localResult(value, fallback = false) {
   if (value == null) return value;
@@ -82,6 +85,35 @@ function durationMs(video = {}) {
   const value = Number(video.durationMs || video.duration || 0);
   if (!Number.isFinite(value) || value <= 0) return 0;
   return value > 1000 ? value : value * 1000;
+}
+
+function rememberLocalSearch(query = "") {
+  const keyword = query.trim();
+  if (!keyword) return;
+
+  localSavedSearches = [
+    {
+      id: `saved_search_${Date.now()}`,
+      keyword,
+      createdAt: new Date().toISOString(),
+    },
+    ...localSavedSearches.filter((item) => item.keyword.toLowerCase() !== keyword.toLowerCase()),
+  ].slice(0, 20);
+}
+
+function buildAddPostFields(session, params = {}) {
+  const fields = {
+    token: session.token,
+    described: params.content || "",
+    course_id: params.courseId || "",
+    device_slave: DEFAULT_DEVICE_TOKEN,
+  };
+
+  if (params.exerciseId) {
+    fields.exercise_id = params.exerciseId;
+  }
+
+  return fields;
 }
 
 export function validateTwoVideos(videos = []) {
@@ -205,6 +237,9 @@ export async function searchPosts(query = "", options = {}) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session) || !query.trim()) {
+    if (!shouldUseServer(session)) {
+      rememberLocalSearch(query);
+    }
     return localPosts.searchPosts(query);
   }
 
@@ -236,7 +271,7 @@ export async function getSavedSearches() {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return [];
+    return localSavedSearches;
   }
 
   try {
@@ -267,6 +302,12 @@ export async function getSavedSearches() {
 
 export async function deleteSavedSearch(searchId) {
   const session = await getCurrentSession();
+
+  if (!shouldUseServer(session)) {
+    localSavedSearches = localSavedSearches.filter((item) => item.id !== searchId);
+    return true;
+  }
+
   assertServerSession(session);
 
   const response = await backendApi.delSavedSearch({
@@ -281,11 +322,7 @@ export async function deleteSavedSearch(searchId) {
 
 export async function editPost(post, params = {}) {
   if (!isServerPost(post)) {
-    return localPosts.createPost({
-      ...post,
-      ...params,
-      id: post.id,
-    });
+    return localPosts.updatePost(post.id, params);
   }
 
   const session = await getCurrentSession();
@@ -318,6 +355,7 @@ export async function editPost(post, params = {}) {
 
 export async function deletePost(post) {
   if (!isServerPost(post)) {
+    await localPosts.deletePost(post.id);
     return { deleted: true, source: ACTIVE_SOURCES.LOCAL };
   }
 
@@ -335,6 +373,7 @@ export async function deletePost(post) {
 
 export async function reportPost(post, reason = "") {
   if (!isServerPost(post)) {
+    await localPosts.reportPost(post.id, reason);
     return { reported: true, source: ACTIVE_SOURCES.LOCAL };
   }
 
@@ -356,7 +395,8 @@ export async function checkNewItems(lastId = "") {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return { hasNew: false, source: ACTIVE_SOURCES.LOCAL };
+    const count = await localPosts.getNewItemsCount(lastId);
+    return { hasNew: count > 0, count, source: ACTIVE_SOURCES.LOCAL };
   }
 
   assertServerSession(session);
@@ -401,13 +441,7 @@ export async function createPost(params) {
     assertServerSession(session);
     validateTwoVideos(videos);
     const response = await backendApi.addPost(
-      {
-        token: session.token,
-        described: params.content || "",
-        course_id: params.courseId || "",
-        exercise_id: params.exerciseId || "",
-        device_slave: DEFAULT_DEVICE_TOKEN,
-      },
+      buildAddPostFields(session, params),
       videos.map((video, index) => ({
         ...video,
         fieldName: index === 0 ? "video1" : "video2",
@@ -464,13 +498,7 @@ export async function createExerciseSubmission(params) {
     assertServerSession(session);
     validateTwoVideos(videos);
     const response = await backendApi.addPost(
-      {
-        token: session.token,
-        described: params.content || "",
-        course_id: params.courseId || "",
-        exercise_id: params.exerciseId || "",
-        device_slave: DEFAULT_DEVICE_TOKEN,
-      },
+      buildAddPostFields(session, params),
       videos.map((video, index) => ({
         ...video,
         fieldName: index === 0 ? "video1" : "video2",

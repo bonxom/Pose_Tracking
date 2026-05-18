@@ -110,9 +110,9 @@ export const DEFAULT_POSTS = [
     author: studentAuthor,
     createdAt: "2026-05-05T13:20:00.000Z",
     content:
-      "#course_marching_101 #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.",
+      `${DEMO_COURSE.hashtag} #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.`,
     described:
-      "#course_marching_101 #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.",
+      `${DEMO_COURSE.hashtag} #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.`,
     videos: [
       {
         id: "video_seed_left_002",

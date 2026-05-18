@@ -9,6 +9,8 @@ import {
   shouldUseServer,
 } from "@/repositories/source";
 
+let localNotifications = DEMO_NOTIFICATIONS.map((item) => ({ ...item }));
+
 function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   const type = raw.type || raw.notification_type || "info";
   const objectId = raw.object_id || raw.objectId || raw.target_id || raw.post_id || raw.course_id || "";
@@ -39,11 +41,14 @@ function normalizeNotificationPage(response, source) {
   const items = extractList(response).map((item) => normalizeNotification(item, source));
   const data = response?.data && !Array.isArray(response.data) ? response.data : {};
 
+  const unreadCount = Number(data.badge || data.unread || response?.badge || items.filter((item) => item.unread).length);
+
   return {
     items,
     hasMore: Boolean(data.has_more || response?.has_more || items.length >= 20),
     lastUpdate: data.last_update || response?.last_update || items[0]?.lastUpdate || "",
-    unreadCount: Number(data.badge || data.unread || response?.badge || items.filter((item) => item.unread).length),
+    unreadCount,
+    badgeLabel: unreadCount > 99 ? "99+" : String(unreadCount),
     source,
   };
 }
@@ -57,7 +62,15 @@ export async function getNotificationPage(params = {}) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
-    return normalizeNotificationPage({ data: DEMO_NOTIFICATIONS }, ACTIVE_SOURCES.LOCAL);
+    const index = Math.max(0, Number(params.index) || 0);
+    const count = Math.max(1, Number(params.count) || 20);
+    const items = localNotifications.slice(index, index + count);
+    return normalizeNotificationPage({
+      data: items,
+      has_more: index + count < localNotifications.length,
+      badge: localNotifications.filter((item) => item.unread).length,
+      last_update: localNotifications[0]?.last_update || "",
+    }, ACTIVE_SOURCES.LOCAL);
   }
 
   try {
@@ -95,6 +108,11 @@ export async function markNotificationRead(notificationId) {
   const session = await getCurrentSession();
 
   if (!shouldUseServer(session)) {
+    localNotifications = localNotifications.map((item) =>
+      item.id === notificationId || item.notification_id === notificationId
+        ? { ...item, unread: false, read: 1, badge: 0 }
+        : item,
+    );
     return { read: true, source: ACTIVE_SOURCES.LOCAL };
   }
 

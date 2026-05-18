@@ -1,5 +1,7 @@
 import { isBackendOk } from "@/repositories/normalizers";
 import { clearAuthSession } from "@/utils/session";
+import { router } from "expo-router";
+import { Alert } from "react-native";
 
 export class SessionExpiredError extends Error {
   constructor(message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.") {
@@ -26,6 +28,9 @@ export function isInvalidSessionResponse(response) {
 export async function assertBackendOk(response, options = {}) {
   if (isInvalidSessionResponse(response)) {
     await clearAuthSession();
+    Alert.alert("Lỗi", "Vui lòng đăng nhập lại");
+    router.replace("/(auth)/login");
+    
     throw new SessionExpiredError(response?.message || undefined);
   }
 
