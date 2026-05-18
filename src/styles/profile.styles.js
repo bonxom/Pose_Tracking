@@ -73,7 +73,7 @@ const profileStyles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.28)",
   },
-  bottomSheet: {
+  bottomMenu: {
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,

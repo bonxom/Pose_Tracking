@@ -29,7 +29,7 @@ export default function ProfileOptionsSheet({
       <View style={profileStyles.modalRoot}>
         <Pressable style={profileStyles.backdrop} onPress={onClose} />
 
-        <View style={profileStyles.bottomSheet}>
+        <View style={profileStyles.bottomMenu}>
           <View style={profileStyles.sheetHandle} />
 
           <OptionRow

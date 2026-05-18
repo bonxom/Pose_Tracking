@@ -1,6 +1,7 @@
+import colors from "@/constants/colors";
 import Svg, { Path } from "react-native-svg";
 
-export default function BackIcon({ color = "#050505", size = 24 }) {
+export default function BackIcon({ color = colors.text, size = 24 }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path

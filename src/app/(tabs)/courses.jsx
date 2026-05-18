@@ -1,521 +1,67 @@
-import EnrollmentCard from "@/components/courses/EnrollmentCard";
-import SectionHeader from "@/components/courses/SectionHeader";
-import StudentCard from "@/components/courses/StudentCard";
-import SubViewNavBar from "@/components/courses/SubViewNavBar";
-import BlockIcon from "@/components/icons/BlockIcon";
-import SearchIcon from "@/components/icons/SearchIcon";
-import ActionBottomSheet from "@/components/modals/ActionBottomSheet";
-import ModalConfirm from "@/components/modals/ModalConfirm";
-import { setBlock } from "@/repositories/blockRepository";
-import {
-  approveEnrollment,
-  getCourseStudents,
-  getRequestedEnrollments,
-} from "@/repositories/courseRepository";
-import coursesStyles from "@/styles/courses.styles";
-import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
-} from "react-native";
-
-const INK = "#050505";
-
-// Helpers
-
-function sortByCreatedDesc(items) {
-  return [...items].sort(
-    (a, b) => new Date(b.request.created) - new Date(a.request.created),
-  );
-}
-
-// ══════════════════════════════════════════════
-// Main Screen
-// ══════════════════════════════════════════════
+import AllRequestsView from "@/components/courses/views/AllRequestsView";
+import AllStudentsView from "@/components/courses/views/AllStudentsView";
+import RequestsView from "@/components/courses/views/RequestsView";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 
 export default function CoursesScreen() {
   // View state: 'requests' | 'allStudents' | 'allRequests'
   const [currentView, setCurrentView] = useState("requests");
 
-  // Data
-  const [enrollments, setEnrollments] = useState([]);
-  const [allEnrollments, setAllEnrollments] = useState([]);
-  const [students, setStudents] = useState({ students: [], total: "0" });
+  // Cache state
+  const [requestsCache, setRequestsCache] = useState(null);
+  const [allRequestsCache, setAllRequestsCache] = useState(null);
+  const [allStudentsCache, setAllStudentsCache] = useState(null);
 
-  // UI state
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [errorText, setErrorText] = useState("");
-
-  // Action statuses (accept/reject)
-  // { [requestId]: "accepted" | "rejected" }
-  const [actionStatuses, setActionStatuses] = useState({});
-
-  // Modal confirm state
-  const [confirmState, setConfirmState] = useState({
-    visible: false,
-    type: "accept",
-    requestId: null,
-    userName: "",
-  });
-  const [isProcessingAction, setIsProcessingAction] = useState(false);
-
-  // Action Bottom Sheet state
-  const [bottomSheetState, setBottomSheetState] = useState({
-    visible: false,
-    userId: null,
-    userName: "",
-  });
-
-  // Track whether sub-view data has been fetched
-  const allEnrollmentsFetched = useRef(false);
-  const studentsFetched = useRef(false);
-
-  // Action Handlers
-  const promptAccept = useCallback((id, name) => {
-    setConfirmState({
-      visible: true,
-      type: "accept",
-      requestId: id,
-      userName: name,
-    });
-  }, []);
-
-  const promptReject = useCallback((id, name) => {
-    setConfirmState({
-      visible: true,
-      type: "reject",
-      requestId: id,
-      userName: name,
-    });
-  }, []);
-
-  const openBottomSheet = useCallback((id, name) => {
-    setBottomSheetState({
-      visible: true,
-      userId: id,
-      userName: name,
-    });
-  }, []);
-
-  const closeBottomSheet = useCallback(() => {
-    setBottomSheetState((prev) => ({ ...prev, visible: false }));
-  }, []);
-
-  const closeConfirm = useCallback(() => {
-    if (!isProcessingAction) {
-      setConfirmState((prev) => ({ ...prev, visible: false }));
-    }
-  }, [isProcessingAction]);
-
-  const confirmAction = useCallback(async () => {
-    const { requestId, type } = confirmState;
-    if (!requestId) return;
-
-    try {
-      setIsProcessingAction(true);
-      const isApproved = type === "accept";
-      await approveEnrollment(requestId, isApproved);
-
-      // Update local status so the UI reflects "Đã chấp nhận yêu cầu" / "Đã từ chối yêu cầu"
-      setActionStatuses((prev) => ({
-        ...prev,
-        [requestId]: isApproved ? "accepted" : "rejected",
-      }));
-      setConfirmState((prev) => ({ ...prev, visible: false }));
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(
-        error.message ||
-          `Không thể ${type === "accept" ? "chấp nhận" : "từ chối"}.`,
-      );
-      setConfirmState((prev) => ({ ...prev, visible: false }));
-    } finally {
-      setIsProcessingAction(false);
-    }
-  }, [confirmState]);
-
-  // Fetch main data (only requests)
-  const fetchRequestsData = useCallback(async ({ refresh = false } = {}) => {
-    try {
-      if (refresh) {
-        setIsRefreshing(true);
-        setActionStatuses({}); // Clear statuses on refresh
-      } else {
-        setIsLoading(true);
-      }
-      setErrorText("");
-
-      const enrollRes = await getRequestedEnrollments(0, 50);
-      setEnrollments(sortByCreatedDesc(enrollRes));
-
-      if (refresh) {
-        allEnrollmentsFetched.current = false;
-        studentsFetched.current = false;
-      }
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể tải dữ liệu.");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  // Fetch students (for "Tất cả học viên")
-  const fetchStudentsData = useCallback(async () => {
-    if (studentsFetched.current && students.students?.length > 0) return;
-
-    try {
-      setIsLoading(true);
-      const res = await getCourseStudents();
-      setStudents(res);
-      studentsFetched.current = true;
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể tải dữ liệu.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [students.students?.length]);
-
-  // Fetch all enrollments (for "Xem tất cả")
-  const fetchAllEnrollments = useCallback(async () => {
-    if (allEnrollmentsFetched.current && allEnrollments.length > 0) return;
-
-    try {
-      setIsLoading(true);
-      const res = await getRequestedEnrollments(0, 500);
-      setAllEnrollments(sortByCreatedDesc(res));
-      allEnrollmentsFetched.current = true;
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể tải dữ liệu.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [allEnrollments.length]);
-
-  // Refresh for sub-views
-  const refreshAllEnrollments = useCallback(async () => {
-    try {
-      setIsRefreshing(true);
-      setActionStatuses({});
-      const res = await getRequestedEnrollments(0, 500);
-      setAllEnrollments(sortByCreatedDesc(res));
-      allEnrollmentsFetched.current = true;
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể tải dữ liệu.");
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  const refreshStudents = useCallback(async () => {
-    try {
-      setIsRefreshing(true);
-      setActionStatuses({});
-      const res = await getCourseStudents();
-      setStudents(res);
-      studentsFetched.current = true;
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể tải dữ liệu.");
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  // Load on tab focus
   useFocusEffect(
     useCallback(() => {
+      // Clear all caches and reset view when focusing the tab from another page
       setCurrentView("requests");
-      // Reset caches when focusing from another page
-      studentsFetched.current = false;
-      allEnrollmentsFetched.current = false;
-      fetchRequestsData();
-    }, [fetchRequestsData]),
+      setRequestsCache(null);
+      setAllRequestsCache(null);
+      setAllStudentsCache(null);
+    }, []),
   );
 
-  // Navigation handlers
-  const goToAllStudents = useCallback(() => {
-    setCurrentView("allStudents");
-    fetchStudentsData();
-  }, [fetchStudentsData]);
-
-  const goToAllRequests = useCallback(() => {
-    setCurrentView("allRequests");
-    fetchAllEnrollments();
-  }, [fetchAllEnrollments]);
-
   const goBack = useCallback(() => setCurrentView("requests"), []);
+  const goToAllStudents = useCallback(() => setCurrentView("allStudents"), []);
+  const goToAllRequests = useCallback(() => setCurrentView("allRequests"), []);
 
-  // Loading state
-  if (isLoading && !isRefreshing && currentView === "requests") {
-    return (
-      <View style={coursesStyles.centerBox}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+  const disableCache = useCallback(() => {
+    setRequestsCache(null);
+    setAllRequestsCache(null);
+    setAllStudentsCache(null);
+  }, []);
 
-  const renderModalConfirm = () => {
-    const actionText = confirmState.type === "accept" ? "chấp nhận" : "từ chối";
-    const customMessage = (
-      <>
-        Bạn có chắc chắn muốn {actionText}{" "}
-        <Text style={{ fontWeight: "700", color: "#111827" }}>
-          {confirmState.userName}
-        </Text>{" "}
-        vào khoá học?
-      </>
-    );
-
-    return (
-      <ModalConfirm
-        visible={confirmState.visible}
-        message={customMessage}
-        onConfirm={confirmAction}
-        onCancel={closeConfirm}
-        isProcessing={isProcessingAction}
-      />
-    );
-  };
-
-  const renderActionBottomSheet = () => {
-    const { visible, userName, userId } = bottomSheetState;
-    const buttons = [
-      {
-        icon: <BlockIcon size={28} />,
-        title: `Chặn trang cá nhân của ${userName}`,
-        description: `${userName} sẽ không thể nhìn thấy bạn hoặc liên hệ với bạn`,
-        onPress: async () => {
-          if (!userId) return;
-          console.log("Block userId: ", userId);
-          try {
-            setIsLoading(true);
-            await setBlock(userId, "block");
-
-            // Update local status to reflect "Đã từ chối yêu cầu và chặn"
-            setActionStatuses((prev) => ({
-              ...prev,
-              [userId]: "blocked",
-            }));
-          } catch (error) {
-            // Can't await redirect in render method directly, but onPress is async so it's fine
-            redirectIfSessionExpired(error, router).then((expired) => {
-              if (!expired)
-                setErrorText(error.message || "Không thể chặn người dùng này.");
-            });
-          } finally {
-            setIsLoading(false);
-          }
-        },
-      },
-    ];
-
-    return (
-      <ActionBottomSheet
-        visible={visible}
-        onClose={closeBottomSheet}
-        buttons={buttons}
-      />
-    );
-  };
-
-  // ══════════════════════════════════════════
-  // VIEW: All Students ("Tất cả học viên")
-  // ══════════════════════════════════════════
   if (currentView === "allStudents") {
     return (
-      <View style={coursesStyles.container}>
-        <SubViewNavBar title="Tất cả học viên" onBack={goBack} />
-        <FlatList
-          data={students.students}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={coursesStyles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={refreshStudents}
-            />
-          }
-          ListHeaderComponent={
-            <>
-              <SectionHeader
-                count={students.total}
-                rightLabel="Sắp xếp"
-                onRightPress={() => console.log("Sort pressed")}
-              />
-              {errorText ? (
-                <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-                  <Text style={coursesStyles.errorText}>{errorText}</Text>
-                </View>
-              ) : null}
-            </>
-          }
-          renderItem={({ item }) => (
-            <StudentCard
-              item={item}
-              actionStatus={actionStatuses[item.id]}
-              onPressCard={() => {}}
-              onPressBlock={openBottomSheet}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={coursesStyles.centerBox}>
-              <Text style={coursesStyles.emptyText}>Chưa có học viên nào.</Text>
-            </View>
-          }
-        />
-        {renderModalConfirm()}
-      </View>
-    );
-  }
-
-  // ══════════════════════════════════════════
-  // VIEW: All Requests ("Xem tất cả")
-  // ══════════════════════════════════════════
-  if (currentView === "allRequests") {
-    if (isLoading && !isRefreshing) {
-      return (
-        <View style={coursesStyles.container}>
-          <SubViewNavBar title="Yêu cầu học" onBack={goBack} />
-          <View style={coursesStyles.centerBox}>
-            <ActivityIndicator size="large" />
-          </View>
-        </View>
-      );
-    }
-
-    return (
-      <View style={coursesStyles.container}>
-        <SubViewNavBar title="Yêu cầu học" onBack={goBack} />
-        <FlatList
-          data={allEnrollments}
-          keyExtractor={(item) => item.request.id}
-          contentContainerStyle={coursesStyles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={refreshAllEnrollments}
-            />
-          }
-          ListHeaderComponent={
-            <>
-              <SectionHeader
-                count={allEnrollments.length}
-                rightLabel="Sắp xếp"
-                onRightPress={() => console.log("Sort pressed")}
-              />
-              {errorText ? (
-                <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-                  <Text style={coursesStyles.errorText}>{errorText}</Text>
-                </View>
-              ) : null}
-            </>
-          }
-          renderItem={({ item }) => (
-            <EnrollmentCard
-              item={item}
-              actionStatus={actionStatuses[item.request.id]}
-              onAccept={promptAccept}
-              onReject={promptReject}
-              onPressCard={openBottomSheet}
-              onPressBlock={openBottomSheet}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={coursesStyles.centerBox}>
-              <Text style={coursesStyles.emptyText}>Không có yêu cầu nào.</Text>
-            </View>
-          }
-        />
-        {renderModalConfirm()}
-      </View>
-    );
-  }
-
-  // ══════════════════════════════════════════
-  // VIEW: Main Requests
-  // ══════════════════════════════════════════
-  return (
-    <View style={coursesStyles.container}>
-      <FlatList
-        data={enrollments}
-        keyExtractor={(item) => item.request.id}
-        contentContainerStyle={coursesStyles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => fetchRequestsData({ refresh: true })}
-          />
-        }
-        ListHeaderComponent={
-          <>
-            {/* Header */}
-            <View style={coursesStyles.header}>
-              <Text style={coursesStyles.headerTitle}>Khoá học</Text>
-              <Pressable style={coursesStyles.searchBtn} hitSlop={8}>
-                <SearchIcon color={INK} size={24} />
-              </Pressable>
-            </View>
-
-            {/* Tab Pills */}
-            <View style={coursesStyles.tabPills}>
-              <Pressable
-                style={coursesStyles.tabPill}
-                onPress={goToAllStudents}
-              >
-                <Text style={coursesStyles.tabPillText}>Tất cả học viên</Text>
-              </Pressable>
-            </View>
-
-            {/* Divider */}
-            <View style={coursesStyles.divider} />
-
-            {/* Section Header */}
-            <SectionHeader
-              count={enrollments.length}
-              rightLabel="Xem tất cả"
-              onRightPress={goToAllRequests}
-            />
-
-            {/* Error */}
-            {errorText ? (
-              <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-                <Text style={coursesStyles.errorText}>{errorText}</Text>
-              </View>
-            ) : null}
-          </>
-        }
-        renderItem={({ item }) => (
-          <EnrollmentCard
-            item={item}
-            actionStatus={actionStatuses[item.request.id]}
-            onAccept={promptAccept}
-            onReject={promptReject}
-            onPressCard={openBottomSheet}
-            onPressBlock={openBottomSheet}
-          />
-        )}
-        ListEmptyComponent={
-          !isLoading ? (
-            <View style={coursesStyles.centerBox}>
-              <Text style={coursesStyles.emptyText}>Không có yêu cầu nào.</Text>
-            </View>
-          ) : null
-        }
+      <AllStudentsView
+        onBack={goBack}
+        cache={allStudentsCache}
+        setCache={setAllStudentsCache}
+        onActionSuccess={disableCache}
       />
-      {renderModalConfirm()}
-      {renderActionBottomSheet()}
-    </View>
+    );
+  }
+
+  if (currentView === "allRequests") {
+    return (
+      <AllRequestsView
+        onBack={goBack}
+        cache={allRequestsCache}
+        setCache={setAllRequestsCache}
+        onActionSuccess={disableCache}
+      />
+    );
+  }
+
+  return (
+    <RequestsView
+      onGoToAllStudents={goToAllStudents}
+      onGoToAllRequests={goToAllRequests}
+      cache={requestsCache}
+      setCache={setRequestsCache}
+      onActionSuccess={disableCache}
+    />
   );
 }

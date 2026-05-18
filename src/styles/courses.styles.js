@@ -1,17 +1,14 @@
+import colors from "@/constants/colors";
 import { StyleSheet } from "react-native";
 
-const FB_BLUE = "#0866ff";
-const INK = "#050505";
 const GRAY_BG = "#e4e6eb";
-const GRAY_TEXT = "#65676b";
-const RED = "#e41e3f";
 const DIVIDER = "#CED0D4";
 
 const coursesStyles = StyleSheet.create({
   // ── Layout ──
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
   },
 
   // ── Main Header ──
@@ -26,7 +23,7 @@ const coursesStyles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: INK,
+    color: colors.text,
   },
   searchBtn: {
     width: 36,
@@ -52,7 +49,7 @@ const coursesStyles = StyleSheet.create({
   tabPillText: {
     fontSize: 14,
     fontWeight: "600",
-    color: INK,
+    color: colors.text,
   },
 
   // ── Divider ──
@@ -80,17 +77,17 @@ const coursesStyles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: INK,
+    color: colors.text,
   },
   sectionCount: {
     fontSize: 20,
     fontWeight: "700",
-    color: RED,
+    color: colors.error,
   },
   sectionLink: {
     fontSize: 14,
     fontWeight: "500",
-    color: FB_BLUE,
+    color: colors.primary,
   },
 
   // ── User Card ──
@@ -117,7 +114,7 @@ const coursesStyles = StyleSheet.create({
   avatarPlaceholderText: {
     fontSize: 28,
     fontWeight: "700",
-    color: GRAY_TEXT,
+    color: colors.subtext,
   },
   cardBody: {
     flex: 1,
@@ -132,18 +129,18 @@ const coursesStyles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: "700",
-    color: INK,
+    color: colors.text,
     flex: 1,
   },
   biggerUserName: {
     fontSize: 20,
     fontWeight: "700",
-    color: INK,
+    color: colors.text,
     flex: 1,
   },
   timeText: {
     fontSize: 12,
-    color: GRAY_TEXT,
+    color: colors.subtext,
     marginLeft: 8,
   },
   cardButtons: {
@@ -152,7 +149,7 @@ const coursesStyles = StyleSheet.create({
   },
   btnAccept: {
     flex: 1,
-    backgroundColor: FB_BLUE,
+    backgroundColor: colors.primary,
     paddingVertical: 8,
     borderRadius: 6,
     alignItems: "center",
@@ -170,7 +167,7 @@ const coursesStyles = StyleSheet.create({
     alignItems: "center",
   },
   btnRejectText: {
-    color: INK,
+    color: colors.text,
     fontSize: 14,
     fontWeight: "600",
   },
@@ -201,7 +198,7 @@ const coursesStyles = StyleSheet.create({
   navTitle: {
     fontSize: 18,
     fontWeight: "400",
-    color: INK,
+    color: colors.text,
   },
 
   // ── Empty / Error ──
@@ -213,12 +210,12 @@ const coursesStyles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: RED,
+    color: colors.error,
     textAlign: "center",
   },
   emptyText: {
     fontSize: 14,
-    color: GRAY_TEXT,
+    color: colors.subtext,
     textAlign: "center",
   },
 
@@ -237,12 +234,12 @@ const coursesStyles = StyleSheet.create({
   actionStatusText: {
     fontSize: 14,
     fontWeight: "600",
-    color: GRAY_TEXT,
+    color: colors.subtext,
   },
   actionLink: {
     fontSize: 14,
     fontWeight: "600",
-    color: FB_BLUE,
+    color: colors.primary,
   },
 });
 

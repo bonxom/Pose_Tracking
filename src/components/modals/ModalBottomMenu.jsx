@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 
-export default function ActionBottomSheet({ visible, onClose, buttons = [] }) {
+export default function ModalBottomMenu({ visible, onClose, buttons = [] }) {
   const slideAnim = useRef(
     new Animated.Value(Dimensions.get("window").height),
   ).current;
