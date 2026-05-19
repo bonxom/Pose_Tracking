@@ -113,7 +113,7 @@ export default function ProfileSearchScreen() {
               key={post.id}
               post={post}
               onPress={() => router.push(`/post/${post.id}`)}
-              onPressComment={() => router.push(`/comment/${post.id}`)}
+              onPressComment={() => router.push(`/post/comment/${post.id}`)}
             />
           ))
         ) : (

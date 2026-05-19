@@ -6,7 +6,7 @@ import {
 } from "@/repositories/postRepository";
 import homeStyles from "@/styles/home.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -78,11 +78,9 @@ export default function HomeScreen() {
     }
   }, [lastId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadPosts();
-    }, [loadPosts]),
-  );
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
 
   useEffect(() => {
     const timer = setInterval(checkForNewItems, 60_000);
@@ -106,7 +104,7 @@ export default function HomeScreen() {
   };
 
   const handleCommentPress = (postId) => {
-    router.push(`/comment/${postId}`);
+    router.push(`/post/comment/${postId}`);
   };
 
   const handleSubmitExercise = (post) => {

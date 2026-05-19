@@ -1,5 +1,6 @@
 import Screen from "@/components/common/Screen";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
+import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
 import colors from "@/constants/colors";
 import { DEMO_COURSE, DEMO_EXERCISES } from "@/constants/demo";
 import {
@@ -273,6 +274,11 @@ export default function CreatePostScreen() {
     setSelectedVideos((current) => [...current, video].slice(0, 2));
   };
 
+  const removeSelectedVideo = (index) => {
+    setSelectedVideos((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setActiveVideoUri("");
+  };
+
   const handleCreatePost = async () => {
     if (isStudent && !isSubmissionMode) {
       Alert.alert("Không được phép", "Tài khoản học viên chỉ được nộp bài.");
@@ -439,6 +445,13 @@ export default function CreatePostScreen() {
                 if (!video?.uri) return null;
                 return (
                   <View key={video.id} style={createStyles.videoCard}>
+                    <Pressable
+                      style={createStyles.videoRemoveButton}
+                      onPress={() => removeSelectedVideo(index)}
+                      hitSlop={8}
+                    >
+                      <CircleWithCrossIcon />
+                    </Pressable>
                     <VideoThumbnail
                       video={video}
                       fallbackSource={

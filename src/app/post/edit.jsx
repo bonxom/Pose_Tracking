@@ -1,5 +1,6 @@
 import Screen from "@/components/common/Screen";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
+import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
 import colors from "@/constants/colors";
 import {
   editPost,
@@ -281,6 +282,23 @@ export default function EditPostScreen() {
     setReplacementVideos((current) => [...current, video].slice(0, 2));
   };
 
+  const removeSelectedVideo = (index) => {
+    setActiveVideoUri("");
+
+    if (isReplacingVideos) {
+      setReplacementVideos((current) =>
+        current.filter((_, itemIndex) => itemIndex !== index),
+      );
+      return;
+    }
+
+    const seededVideos = existingVideos.slice(0, 2).filter(Boolean);
+    setIsReplacingVideos(true);
+    setReplacementVideos(
+      seededVideos.filter((_, itemIndex) => itemIndex !== index),
+    );
+  };
+
   const handleSaveEdit = async () => {
     if (!post) return;
 
@@ -447,6 +465,13 @@ export default function EditPostScreen() {
                 if (!video?.uri) return null;
                 return (
                   <View key={video.id} style={createStyles.videoCard}>
+                    <Pressable
+                      style={createStyles.videoRemoveButton}
+                      onPress={() => removeSelectedVideo(index)}
+                      hitSlop={8}
+                    >
+                      <CircleWithCrossIcon />
+                    </Pressable>
                     <VideoThumbnail
                       video={video}
                       fallbackSource={

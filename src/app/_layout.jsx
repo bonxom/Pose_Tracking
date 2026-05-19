@@ -68,7 +68,6 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="post" />
-        <Stack.Screen name="comment" />
         <Stack.Screen name="courses" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="chat" />

@@ -229,7 +229,7 @@ export default function PostDetailScreen() {
           post={post}
           detail={true}
           onToggleLike={handleToggleLike}
-          onPressComment={() => router.push(`/comment/${post.id}`)}
+          onPressComment={() => router.push(`/post/comment/${post.id}`)}
           onSubmitExercise={handleSubmitExercise}
           onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
         />
