@@ -159,31 +159,7 @@ export async function getCourseStudents() {
     message: "Backend get_list_students failed",
   });
 
-  const students = Array.isArray(response?.data?.students)
-    ? response.data.students
-    : extractList(response);
-  return buildStudentCollection(
-    students,
-    response?.data?.total,
-    ACTIVE_SOURCES.SERVER,
-  );
-}
-
-export async function getRequestedEnrollments() {
-  const session = await getCurrentSession();
-
-  const response = await backendApi.getRequestedEnrollment({
-    token: session.token,
-    index: "0",
-    count: "50",
-  });
-
-  await assertBackendOk(response, {
-    allowNoData: true,
-    message: "Backend get_requested_enrollment failed",
-  });
-
-  return extractList(response);
+  return response.data;
 }
 
 export async function requestCourse(courseId) {
