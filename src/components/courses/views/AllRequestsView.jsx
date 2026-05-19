@@ -3,7 +3,7 @@ import SectionHeader from "@/components/courses/SectionHeader";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
 import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
-import { getRequestedEnrollments } from "@/repositories/courseRepository";
+import { getRequestedEnrollment } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
@@ -56,7 +56,7 @@ export default function AllRequestsView({
   const fetchAllEnrollments = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await getRequestedEnrollments(0, 500);
+      const res = await getRequestedEnrollment(0, 500);
       const sorted = sortByCreatedDesc(res);
       setAllEnrollments(sorted);
       setCache(sorted);
@@ -81,7 +81,7 @@ export default function AllRequestsView({
   const refreshAllEnrollments = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const res = await getRequestedEnrollments(0, 500);
+      const res = await getRequestedEnrollment(0, 500);
       const sorted = sortByCreatedDesc(res);
       setAllEnrollments(sorted);
       setCache(sorted);

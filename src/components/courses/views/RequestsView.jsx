@@ -3,7 +3,7 @@ import SectionHeader from "@/components/courses/SectionHeader";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
-import { getRequestedEnrollments } from "@/repositories/courseRepository";
+import { getRequestedEnrollment } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
@@ -54,7 +54,7 @@ export default function RequestsView({
         }
         setErrorText("");
 
-        const enrollRes = await getRequestedEnrollments(0, 50);
+        const enrollRes = await getRequestedEnrollment(0, 50);
         const sorted = sortByCreatedDesc(enrollRes);
         setEnrollments(sorted);
         setCache(sorted);

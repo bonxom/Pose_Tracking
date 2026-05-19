@@ -58,31 +58,6 @@ function emptyServerCourse() {
   };
 }
 
-function normalizeStudent(item = {}, source = ACTIVE_SOURCES.SERVER) {
-  return {
-    id: String(item.id || item.user_id || item.student_id || ""),
-    username: item.username || item.name || item.fullname || "Học viên",
-    name: item.name || item.username || item.fullname || "Học viên",
-    avatar: item.avatar || "",
-    role: item.role || "HV",
-    phonenumber: item.phonenumber || item.phone || "",
-    source,
-    raw: item,
-  };
-}
-
-function buildStudentCollection(
-  items = [],
-  total = items.length,
-  source = ACTIVE_SOURCES.SERVER,
-) {
-  const students = items.map((item) => normalizeStudent(item, source));
-  return Object.assign(students, {
-    students,
-    total: String(total ?? students.length),
-  });
-}
-
 export async function getCurrentCourse() {
   const session = await getCurrentSession();
 
@@ -160,6 +135,23 @@ export async function getCourseStudents() {
   });
 
   return response.data;
+}
+
+export async function getRequestedEnrollment() {
+  const session = await getCurrentSession();
+
+  const response = await backendApi.getRequestedEnrollment({
+    token: session.token,
+    index: "0",
+    count: "50",
+  });
+
+  await assertBackendOk(response, {
+    allowNoData: true,
+    message: "Backend get_requested_enrollment failed",
+  });
+
+  return extractList(response);
 }
 
 export async function requestCourse(courseId) {
