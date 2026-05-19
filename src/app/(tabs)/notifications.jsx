@@ -1,9 +1,12 @@
 import {
-  getNotificationsPage,
+  getNotificationCache,
+  getNotificationPage,
   markNotificationRead,
+  markNotificationReadLocal,
   setNotificationBadge,
-} from "@/services/notificationStore";
+} from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -19,26 +22,20 @@ import Svg, { Path } from "react-native-svg";
 
 const PAGE_SIZE = 20;
 
-const FILTERS = [
-  { key: "all", label: "Tất cả" },
-  { key: "unread", label: "Chưa đọc" },
-];
-
-function getInitial(title = "") {
-  const trimmed = title.trim();
-  return trimmed ? trimmed.charAt(0).toUpperCase() : "N";
+function isUnread(item) {
+  if (item?.unread !== undefined) return Boolean(item.unread);
+  if (item?.read !== undefined) return !Boolean(item.read);
+  return true;
 }
 
-function formatTime(value) {
-  if (!value) return "Vừa xong";
+function formatTimeAgo(value) {
+  const time = new Date(value).getTime();
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
+  if (!Number.isFinite(time)) {
+    return "";
   }
 
-  const diffMs = Date.now() - date.getTime();
+  const diffMs = Date.now() - time;
   const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
 
   if (diffMinutes < 1) return "Vừa xong";
@@ -50,45 +47,12 @@ function formatTime(value) {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays} ngày`;
 
-  return date.toLocaleDateString("vi-VN");
+  return new Date(value).toLocaleDateString("vi-VN");
 }
 
-function navigateFromNotification(item) {
-  const type = String(item.type || "").toLowerCase();
-  const objectId = item.objectId;
-
-  if (!objectId) return;
-
-  if (type.includes("comment")) {
-    router.push({
-      pathname: "/mock-post/[id]",
-      params: {
-        id: objectId,
-        source: "comment",
-        comment_id: item.commentId || "",
-      },
-    });
-    return;
-  }
-
-  if (type.includes("like")) {
-    router.push({
-      pathname: "/mock-post/[id]",
-      params: {
-        id: objectId,
-        source: "like",
-      },
-    });
-    return;
-  }
-
-  router.push({
-    pathname: "/mock-post/[id]",
-    params: {
-      id: objectId,
-      source: "post",
-    },
-  });
+function getInitial(title = "") {
+  const trimmed = String(title).trim();
+  return trimmed ? trimmed[0].toUpperCase() : "N";
 }
 
 function NotificationTypeBadge({ type = "" }) {
@@ -104,7 +68,7 @@ function NotificationTypeBadge({ type = "" }) {
 
   return (
     <View style={styles.avatarBadge}>
-      <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
         {icon === "like" ? (
           <Path
             d="M9.2 20H6.5A2.5 2.5 0 0 1 4 17.5v-5A2.5 2.5 0 0 1 6.5 10h2.1l2.14-5.02A1.7 1.7 0 0 1 12.3 4c1.18 0 2.02 1.16 1.65 2.28L13.4 8h4.1A2.5 2.5 0 0 1 20 10.5c0 .25-.04.5-.11.74l-1.67 5.5A4.5 4.5 0 0 1 13.91 20H9.2Z"
@@ -127,13 +91,15 @@ function NotificationTypeBadge({ type = "" }) {
 }
 
 function NotificationItem({ item, onPress }) {
+  const unread = isUnread(item);
+
   return (
     <Pressable
       onPress={() => onPress(item)}
       style={({ pressed }) => [
-        styles.card,
-        !item.read && styles.cardUnread,
-        pressed && { opacity: 0.82 },
+        styles.notificationItem,
+        unread && styles.notificationItemUnread,
+        pressed && styles.notificationItemPressed,
       ]}
     >
       <View style={styles.avatarWrap}>
@@ -146,165 +112,179 @@ function NotificationItem({ item, onPress }) {
         <NotificationTypeBadge type={item.type} />
       </View>
 
-      <View style={styles.body}>
+      <View style={styles.notificationBody}>
         <Text
-          style={[styles.message, !item.read && styles.messageUnread]}
-          numberOfLines={3}
+          numberOfLines={2}
+          style={[
+            styles.notificationTitle,
+            unread && styles.notificationTitleUnread,
+          ]}
         >
           {item.title}
         </Text>
 
-        <View style={styles.metaRow}>
-          <Text style={[styles.meta, item.read && styles.metaRead]}>
-            {formatTime(item.created)}
-          </Text>
-        </View>
+        <Text style={styles.notificationTime}>
+          {formatTimeAgo(item.created || item.createdAt)}
+        </Text>
       </View>
 
-      {!item.read ? <View style={styles.unreadDot} /> : null}
+      {unread ? <View style={styles.unreadDot} /> : null}
     </Pressable>
   );
 }
 
-export default function NotificationsScreen() {
-  const [items, setItems] = useState([]);
-  const [badge, setBadge] = useState(0);
-  const [activeFilter, setActiveFilter] = useState("all");
+function EmptyState() {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
+      <Text style={styles.emptyText}>
+        Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ xuất
+        hiện ở đây.
+      </Text>
+    </View>
+  );
+}
 
-  const [isLoading, setIsLoading] = useState(true);
+export default function NotificationsScreen() {
+  const initialCache = getNotificationCache();
+
+  const [items, setItems] = useState(initialCache.items);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [badge, setBadge] = useState(initialCache.unreadCount);
+  const [hasMore, setHasMore] = useState(initialCache.hasMore);
+  const [isLoading, setIsLoading] = useState(!initialCache.hasLoaded);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
+  const [lastUpdate, setLastUpdate] = useState(initialCache.lastUpdate);
 
   const visibleItems = useMemo(() => {
     if (activeFilter === "unread") {
-      return items.filter((item) => !item.read);
+      return items.filter((item) => isUnread(item));
     }
 
     return items;
   }, [activeFilter, items]);
 
-  const loadPage = useCallback(
-    async ({ refresh = false, silent = false } = {}) => {
-      try {
-        setError("");
+  const loadPage = useCallback(async ({ refresh = false } = {}) => {
+    try {
+      setError("");
+      const cache = getNotificationCache();
 
-        if (!silent && refresh) {
-          setIsRefreshing(true);
-        }
-
-        if (!silent && !refresh) {
-          setIsLoading(true);
-        }
-
-        const result = await getNotificationsPage({
-          index: 0,
-          count: PAGE_SIZE,
-        });
-
-        setItems(result.items);
-        setBadge(result.badge);
-        setNotificationBadge(result.badge);
-        setHasMore(result.hasMore);
-      } catch (err) {
-        setError(err?.message || "Không tải được thông báo.");
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+      if (refresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
       }
-    },
-    [],
-  );
+
+      const page = await getNotificationPage({
+        index: 0,
+        count: PAGE_SIZE,
+        lastUpdate: refresh ? cache.lastUpdate : "",
+      });
+
+      setItems(page.items);
+      setBadge(page.unreadCount);
+      setNotificationBadge(page.unreadCount);
+      setHasMore(page.hasMore);
+      setLastUpdate(page.lastUpdate);
+    } catch (err) {
+      if (await redirectIfSessionExpired(err, router)) return;
+      setError(err?.message || "Không tải được thông báo.");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || isLoading || !hasMore) {
+    if (isLoadingMore || isLoading || isRefreshing || !hasMore) {
       return;
     }
 
     try {
       setIsLoadingMore(true);
 
-      const result = await getNotificationsPage({
+      const page = await getNotificationPage({
         index: items.length,
         count: PAGE_SIZE,
       });
 
-      setItems((prev) => [...prev, ...result.items]);
-      setBadge(result.badge);
-      setHasMore(result.hasMore);
+      setItems(page.items);
+      setBadge(page.unreadCount);
+      setNotificationBadge(page.unreadCount);
+      setHasMore(page.hasMore);
+      setLastUpdate(page.lastUpdate);
     } catch (err) {
+      if (await redirectIfSessionExpired(err, router)) return;
       setError(err?.message || "Không tải thêm được thông báo.");
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoading, isLoadingMore, items.length]);
+  }, [hasMore, isLoading, isRefreshing, isLoadingMore, items.length]);
 
   useFocusEffect(
     useCallback(() => {
-      loadPage({
-        refresh: true,
-        silent: items.length > 0,
-      });
-    }, [items.length, loadPage]),
-  );
+      const cache = getNotificationCache();
 
-  const handlePressNotification = useCallback(
-    async (item) => {
-      if (!item.read) {
-        const nextBadge = Math.max(0, badge - 1);
-
-        setItems((prev) =>
-          prev.map((current) =>
-            current.id === item.id ? { ...current, read: true } : current,
-          ),
-        );
-
-        setBadge(nextBadge);
-        setNotificationBadge(nextBadge);
-
-        try {
-          const result = await markNotificationRead(item.notificationId);
-
-          if (Number.isFinite(Number(result.badge))) {
-            const serverBadge = Number(result.badge);
-            setBadge(serverBadge);
-            setNotificationBadge(serverBadge);
-          }
-        } catch (err) {
-          console.warn("Failed to mark notification read:", err);
-        }
+      if (cache.hasLoaded) {
+        setItems(cache.items);
+        setBadge(cache.unreadCount);
+        setNotificationBadge(cache.unreadCount);
+        setHasMore(cache.hasMore);
+        setLastUpdate(cache.lastUpdate);
+        setIsLoading(false);
+        return;
       }
 
-      navigateFromNotification(item);
-    },
-    [badge],
+      loadPage({
+        refresh: true,
+      });
+    }, [loadPage]),
   );
+
+  const handlePressNotification = useCallback(async (item) => {
+    const notificationId = item.notificationId || item.id;
+    const unread = isUnread(item);
+
+    if (unread) {
+      const cache = markNotificationReadLocal(notificationId);
+
+      setItems(cache.items);
+      setBadge(cache.unreadCount);
+      setNotificationBadge(cache.unreadCount);
+
+      try {
+        await markNotificationRead(notificationId);
+      } catch (err) {
+        console.warn("Failed to mark notification read:", err);
+      }
+    }
+
+    const type = String(item.type || "").toLowerCase();
+    const postId = item.objectId || item.targetId;
+
+    if (!postId) {
+      return;
+    }
+
+    if (type.includes("comment")) {
+      router.push(`/comment/${postId}`);
+      return;
+    }
+
+    if (type.includes("like") || type.includes("post")) {
+      router.push(`/post/${postId}`);
+      return;
+    }
+
+    router.push(`/post/${postId}`);
+  }, []);
 
   if (isLoading && items.length === 0) {
     return (
-      <View style={styles.container}>
-        <View style={styles.center}>
-          <ActivityIndicator />
-        </View>
-      </View>
-    );
-  }
-
-  if (error && items.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-
-          <Pressable
-            style={styles.retryButton}
-            onPress={() => loadPage({ refresh: true })}
-          >
-            <Text style={styles.retryText}>Thử lại</Text>
-          </Pressable>
-        </View>
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator />
       </View>
     );
   }
@@ -312,63 +292,84 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Thông báo</Text>
-        </View>
+        <Text style={styles.title}>Thông báo</Text>
 
         <View style={styles.filterRow}>
-          {FILTERS.map((filter) => {
-            const active = activeFilter === filter.key;
+          <Pressable
+            onPress={() => setActiveFilter("all")}
+            style={[
+              styles.filterChip,
+              activeFilter === "all" && styles.filterChipActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                activeFilter === "all" && styles.filterTextActive,
+              ]}
+            >
+              Tất cả
+            </Text>
+          </Pressable>
 
-            return (
-              <Pressable
-                key={filter.key}
-                onPress={() => setActiveFilter(filter.key)}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-              >
-                <Text
-                  style={[styles.filterText, active && styles.filterTextActive]}
-                >
-                  {filter.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          <Pressable
+            onPress={() => setActiveFilter("unread")}
+            style={[
+              styles.filterChip,
+              activeFilter === "unread" && styles.filterChipActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                activeFilter === "unread" && styles.filterTextActive,
+              ]}
+            >
+              Chưa đọc
+            </Text>
+          </Pressable>
         </View>
       </View>
 
-      <FlatList
-        data={visibleItems}
-        keyExtractor={(item, index) => item.id || `notification-${index}`}
-        renderItem={({ item }) => (
-          <NotificationItem item={item} onPress={handlePressNotification} />
-        )}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => loadPage({ refresh: true })}
-          />
-        }
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.35}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
-            <Text style={styles.emptyText}>
-              Khi có lượt thích, bình luận, tin nhắn hoặc cập nhật mới, chúng sẽ
-              xuất hiện ở đây.
-            </Text>
-          </View>
-        }
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={styles.footerLoading}>
-              <ActivityIndicator />
-            </View>
-          ) : null
-        }
-      />
+      {error ? (
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={() => loadPage()}>
+            <Text style={styles.retryButtonText}>Thử lại</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={visibleItems}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <NotificationItem item={item} onPress={handlePressNotification} />
+          )}
+          contentContainerStyle={[
+            styles.listContent,
+            visibleItems.length === 0 && { flexGrow: 1 },
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => loadPage({ refresh: true })}
+            />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.35}
+          ListEmptyComponent={<EmptyState />}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator />
+                <Text style={styles.footerLoaderText}>Đang tải thêm...</Text>
+              </View>
+            ) : !hasMore && items.length > 0 ? (
+              <Text style={styles.endText}>Không còn thông báo cũ hơn</Text>
+            ) : null
+          }
+        />
+      )}
     </View>
   );
 }

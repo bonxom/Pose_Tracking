@@ -1,26 +1,35 @@
-import colors from "@/constants/colors";
 import { StyleSheet } from "react-native";
 
-const notificationStyles = StyleSheet.create({
+const colors = {
+  white: "#FFFFFF",
+  background: "#F0F2F5",
+  text: "#1C1E21",
+  muted: "#65676B",
+  border: "#E4E6EB",
+  primary: "#0866FF",
+  primaryLight: "#E7F3FF",
+  unread: "#EAF3FF",
+};
+
+export default StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     backgroundColor: colors.white,
   },
 
-  titleRow: {
-    flexDirection: "row",
+  center: {
+    flex: 1,
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
+    justifyContent: "center",
+  },
+
+  header: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 12,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
 
   title: {
@@ -28,44 +37,30 @@ const notificationStyles = StyleSheet.create({
     lineHeight: 34,
     fontWeight: "800",
     color: colors.text,
-  },
-
-  badge: {
-    minWidth: 28,
-    height: 24,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.error,
-  },
-
-  badgeText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: "800",
+    marginBottom: 12,
   },
 
   filterRow: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
 
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: colors.surface,
+    backgroundColor: "#F0F2F5",
   },
 
   filterChipActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: "#E7F3FF",
   },
 
   filterText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
-    color: colors.subtext,
+    color: colors.muted,
   },
 
   filterTextActive: {
@@ -76,18 +71,23 @@ const notificationStyles = StyleSheet.create({
     paddingBottom: 24,
   },
 
-  card: {
+  notificationItem: {
+    minHeight: 88,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
+    paddingHorizontal: 18,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F7",
     backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F2F5",
   },
 
-  cardUnread: {
-    backgroundColor: "#F0F6FF",
+  notificationItemUnread: {
+    backgroundColor: colors.unread,
+  },
+
+  notificationItemPressed: {
+    opacity: 0.75,
   },
 
   avatarWrap: {
@@ -99,20 +99,6 @@ const notificationStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
-  },
-
-  avatarBadge: {
-    position: "absolute",
-    right: -2,
-    bottom: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    backgroundColor: "#1877F2",
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   avatar: {
@@ -127,50 +113,54 @@ const notificationStyles = StyleSheet.create({
     color: colors.primary,
   },
 
-  body: {
-    flex: 1,
-    minHeight: 58,
+  avatarBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.white,
+    backgroundColor: "#1877F2",
+    alignItems: "center",
     justifyContent: "center",
   },
 
-  message: {
+  notificationBody: {
+    flex: 1,
+    paddingRight: 8,
+  },
+
+  notificationTitle: {
     fontSize: 15,
     lineHeight: 20,
     color: colors.text,
+    fontWeight: "500",
   },
 
-  messageUnread: {
-    fontWeight: "700",
+  notificationTitleUnread: {
+    fontWeight: "800",
   },
 
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 5,
-  },
-
-  meta: {
-    color: colors.primary,
+  notificationTime: {
+    marginTop: 4,
     fontSize: 13,
     fontWeight: "700",
-  },
-
-  metaRead: {
-    color: colors.subtext,
-    fontWeight: "500",
+    color: colors.primary,
   },
 
   unreadDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginLeft: 10,
-    backgroundColor: colors.primary,
+    backgroundColor: "#2F6FED",
+    marginLeft: 6,
   },
 
-  empty: {
-    paddingHorizontal: 24,
-    paddingTop: 80,
+  emptyState: {
+    paddingTop: 90,
+    paddingHorizontal: 28,
     alignItems: "center",
   },
 
@@ -182,42 +172,41 @@ const notificationStyles = StyleSheet.create({
   },
 
   emptyText: {
-    fontSize: 14,
-    color: colors.subtext,
+    fontSize: 15,
+    lineHeight: 21,
     textAlign: "center",
-    lineHeight: 20,
+    color: colors.muted,
   },
 
-  center: {
-    flex: 1,
+  footerLoader: {
+    paddingVertical: 18,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
+  },
+
+  footerLoaderText: {
+    marginTop: 6,
+    fontSize: 13,
+    color: colors.muted,
+  },
+
+  endText: {
+    paddingVertical: 18,
+    textAlign: "center",
+    fontSize: 13,
+    color: colors.muted,
   },
 
   errorText: {
     fontSize: 15,
-    color: colors.error,
-    textAlign: "center",
-    lineHeight: 22,
+    color: "#E41E3F",
     marginBottom: 12,
   },
 
   retryButton: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
     backgroundColor: colors.primary,
   },
-
-  retryText: {
-    color: colors.white,
-    fontWeight: "800",
-  },
-
-  footerLoading: {
-    paddingVertical: 20,
-  },
 });
-
-export default notificationStyles;

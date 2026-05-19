@@ -10,8 +10,8 @@ import {
   ACTIVE_SOURCES,
   getCurrentSession,
   getSourceLabel,
+  isMockMode,
   isServerPost,
-  shouldUseServer,
 } from "@/repositories/source";
 import * as localPosts from "@/services/postStore";
 
@@ -32,6 +32,10 @@ function assertServerSession(session) {
 }
 
 async function withServerFallback(serverFn, localFn) {
+  if (isMockMode()) {
+    return localFn();
+  }
+
   const session = await getCurrentSession();
   const allowServer = shouldUseServer(session);
 
@@ -49,16 +53,7 @@ async function withServerFallback(serverFn, localFn) {
     return serverResult(await serverFn(session));
   } catch (error) {
     console.info("[DATA] Server post repository fallback", error.message);
-    if (canFallbackToLocal()) {
-      const localValue = await localFn(session);
-      return {
-        ...localValue,
-        source: ACTIVE_SOURCES.LOCAL_FALLBACK,
-        sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL_FALLBACK),
-      };
-    }
-
-    throw error;
+    return localFn();
   }
 }
 
@@ -391,6 +386,15 @@ export async function reportPost(post, reason = "") {
 }
 
 export async function checkNewItems(lastId = "") {
+  if (isMockMode()) {
+    return {
+      hasNew: false,
+      count: 0,
+      source: ACTIVE_SOURCES.LOCAL,
+      raw: null,
+    };
+  }
+
   const session = await getCurrentSession();
 
   assertServerSession(session);

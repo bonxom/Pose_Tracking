@@ -6,29 +6,17 @@ import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
 import {
+  formatNotificationBadge,
   getNotificationBadge,
-  getNotificationsPage,
+  getNotificationPage,
   subscribeNotificationBadge,
-} from "@/services/notificationStore";
+} from "@/repositories/notificationRepository";
 import { getAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, Tabs, usePathname } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const LayoutBellIcon = ({ focused, badge = 0 }) => (
-  <View style={styles.notificationIconWrap}>
-    <BellIcon focused={focused} size={24} />
-    {badge > 0 ? (
-      <View style={styles.notificationBadge}>
-        <Text style={styles.notificationBadgeText}>
-          {badge > 99 ? "99+" : badge}
-        </Text>
-      </View>
-    ) : null}
-  </View>
-);
 
 function HomeTopSection() {
   const [session, setSession] = useState(null);
@@ -75,14 +63,10 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const isHome = pathname === "/home" || pathname === "/";
 
-  const [notificationBadge, setTabNotificationBadge] = useState(
-    getNotificationBadge(),
-  );
-
   useEffect(() => {
     const unsubscribe = subscribeNotificationBadge(setTabNotificationBadge);
 
-    getNotificationsPage({
+    getNotificationPage({
       index: 0,
       count: 20,
     }).catch((error) => {
@@ -91,6 +75,10 @@ export default function TabsLayout() {
 
     return unsubscribe;
   }, []);
+
+  const [notificationBadge, setTabNotificationBadge] = useState(
+    getNotificationBadge(),
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -143,7 +131,17 @@ export default function TabsLayout() {
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => (
-              <LayoutBellIcon focused={focused} badge={notificationBadge} />
+              <View style={styles.notificationTabIcon}>
+                <BellIcon focused={focused} />
+
+                {notificationBadge > 0 ? (
+                  <View style={styles.notificationTabBadge}>
+                    <Text style={styles.notificationTabBadgeText}>
+                      {formatNotificationBadge(notificationBadge)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             ),
           }}
         />
@@ -215,6 +213,34 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  notificationTabIcon: {
+    width: 36,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  notificationTabBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: "#E41E3F",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationTabBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: "800",
   },
   indicator: {
     position: "absolute",
