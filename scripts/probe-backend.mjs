@@ -323,7 +323,6 @@ const endpointSpecs = [
       token: MUTATION_ENABLED ? token : "__probe_invalid_token__",
       notification_on: "1",
       like_comment: "1",
-      from_friends: "1",
     }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,

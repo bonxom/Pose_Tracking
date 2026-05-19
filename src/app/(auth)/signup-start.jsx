@@ -45,7 +45,7 @@ export default function SignupStartScreen() {
           <View style={styles.welcomeButtonWrap}>
             <AppButton
               title="Tiếp"
-              onPress={() => router.push("/(auth)/signup-profile")}
+              onPress={() => router.push("/(auth)/signup")}
               style={styles.ctaButton}
               textStyle={styles.ctaText}
             />

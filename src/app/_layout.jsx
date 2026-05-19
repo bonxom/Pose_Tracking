@@ -72,6 +72,7 @@ export default function RootLayout() {
         <Stack.Screen name="courses" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="chat" />
+        <Stack.Screen name="profile" />
       </Stack>
     </SafeAreaProvider>
   );

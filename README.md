@@ -7,7 +7,7 @@ Frontend React Native / Expo cho ứng dụng xã hội học tập và luyện 
 ## Trạng thái hiện tại
 
 - Expo Router + React Native, chạy được trên Expo Web bằng Docker.
-- Điều hướng theo hướng Facebook-like do leader chọn: Home, Friends, Notifications, Profile.
+- Điều hướng chính: Home, Courses, Notifications, Profile, Menu.
 - API owner branch cung cấp repository/API layer cho auth, feed/posts/comments/search/courses/notifications/profile/settings/blocks/conversations.
 - Có Postman assets cho backend team và UI team.
 - Có script probe backend và E2E server để kiểm tra contract thực tế.
@@ -60,13 +60,35 @@ EXPO_PUBLIC_DATA_SOURCE=local  # map sang mock
 EXPO_PUBLIC_DATA_SOURCE=auto   # tương thích cũ, không khuyến nghị cho luồng mới
 ```
 
+Chạy mock bằng PowerShell:
+
+```powershell
+$env:EXPO_PUBLIC_API_TYPE="mock"
+npm.cmd run web
+```
+
+Chạy backend thật bằng PowerShell:
+
+```powershell
+$env:EXPO_PUBLIC_API_TYPE="backend"
+$env:EXPO_PUBLIC_API_BASE_URL="https://group1.it4788.sukkaito.id.vn/it4788"
+npm.cmd run web
+```
+
+Chạy với Docker:
+
+```bash
+docker compose run --rm -e EXPO_PUBLIC_API_TYPE=mock expo npm run web
+docker compose run --rm -e EXPO_PUBLIC_API_TYPE=backend -e EXPO_PUBLIC_API_BASE_URL=https://group1.it4788.sukkaito.id.vn/it4788 expo npm run web
+```
+
 ## Cấu trúc chính
 
 ```text
 src/
   app/
     (auth)/               # login/signup/verify/change-info
-    (tabs)/               # Home, Friends, Notifications, Profile
+    (tabs)/               # Home, Courses, Notifications, Profile, Menu
     post/                 # post detail, create/upload
     search.jsx            # route non-tab cho search
     courses.jsx           # route non-tab cho course/enrollment
@@ -84,17 +106,17 @@ scripts/                  # backend probe, server E2E harness
 
 ## Luồng UI hiện tại
 
-Top navigator có 4 section:
+Top navigator có các section:
 
 - `/(tabs)/home`
-- `/(tabs)/friends`
+- `/(tabs)/courses`
 - `/(tabs)/notifications`
 - `/(tabs)/profile`
+- `/(tabs)/menu`
 
-Search và Courses không phải tab top-level nữa. UI team có thể mở bằng route non-tab:
+Search là route hỗ trợ ngoài tab:
 
 - `/search`
-- `/courses`
 
 Các route hỗ trợ khác:
 
@@ -169,4 +191,3 @@ docker compose run --rm expo sh -lc '
 - Backend team nói `course_id` là teacher/GV id.
 - Backend team nói không có entity `exercise` riêng.
 - Runtime deployed vẫn còn mismatch: upload HV metadata-only vẫn báo cần `exercise_id`; multipart upload thật đang bị `Unexpected field` do chưa rõ field name file.
-- Các endpoint friend/user-social từ slide mới như `get_user_friends`, `get_list_friends`, `get_friends` hiện trả 404 khi probe deployed backend.

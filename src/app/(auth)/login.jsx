@@ -10,26 +10,27 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
-
 export default function LoginScreen() {
+  const dataSourceMode = getDataSourceMode();
+  const isServerMode = dataSourceMode === "server";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [phoneNumberError, setPhoneNumberError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showDevFallback, setShowDevFallback] = useState(getDataSourceMode() !== "server");
+  const [showDevFallback, setShowDevFallback] = useState(!isServerMode);
 
   const persistAndNavigate = async (data) => {
     try {
@@ -58,9 +59,9 @@ export default function LoginScreen() {
     router.replace("/(tabs)/home");
   };
 
-  const handleDemoLogin = async (loginFn, phone, password) => {
+  const handleDemoLogin = async (loginFn, phone, nextPassword) => {
     setPhoneNumber(phone);
-    setPassword(password);
+    setPassword(nextPassword);
     setPhoneNumberError("");
     setPasswordError("");
     const response = await loginFn();
@@ -84,11 +85,12 @@ export default function LoginScreen() {
 
     setPhoneNumberError("");
     setPasswordError("");
-
-    // Gọi Mock API
     setIsLoading(true);
+
     try {
-      const response = await loginWithPassword(normalizedPhone, normalizedPassword);
+      const response = await loginWithPassword(normalizedPhone, normalizedPassword, {
+        allowKnownMockFallback: true,
+      });
 
       switch (response.code) {
         case "1000": {
@@ -102,15 +104,12 @@ export default function LoginScreen() {
           break;
         }
         case "9995":
-          // Chưa được đăng ký
           setPhoneNumberError("Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.");
           break;
         case "1004":
-          // Format sai hoặc mật khẩu sai
           setPhoneNumberError("Số điện thoại hoặc mật khẩu không chính xác.");
           break;
         case "1002":
-          // Không đủ dữ liệu
           setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
           break;
         default:
@@ -131,7 +130,6 @@ export default function LoginScreen() {
         <Text style={styles.languageText}>English · 中文(台灣) ·</Text>
         <Text style={styles.languageLink}>Xem thêm...</Text>
       </View>
-
       <View style={styles.inputRow}>
         <TextInput
           placeholder="Số điện thoại"
@@ -139,7 +137,9 @@ export default function LoginScreen() {
           value={phoneNumber}
           onChangeText={(text) => {
             setPhoneNumber(text);
-            if (phoneNumberError) setPhoneNumberError("");
+            if (phoneNumberError) {
+              setPhoneNumberError("");
+            }
           }}
           keyboardType="phone-pad"
           autoCapitalize="none"
@@ -148,9 +148,7 @@ export default function LoginScreen() {
           editable={!isLoading}
         />
       </View>
-      {!!phoneNumberError && (
-        <Text style={styles.errorText}>{phoneNumberError}</Text>
-      )}
+      {!!phoneNumberError && <Text style={styles.errorText}>{phoneNumberError}</Text>}
 
       <View style={styles.inputRow}>
         <TextInput
@@ -159,7 +157,9 @@ export default function LoginScreen() {
           value={password}
           onChangeText={(text) => {
             setPassword(text);
-            if (passwordError) setPasswordError("");
+            if (passwordError) {
+              setPasswordError("");
+            }
           }}
           secureTextEntry={!showPassword}
           style={[styles.input, { flex: 1 }]}
