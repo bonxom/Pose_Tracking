@@ -19,7 +19,6 @@ import {
 
 export default function HomeScreen() {
   const [posts, setPosts] = useState([]);
-  const [errorText, setErrorText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -34,7 +33,6 @@ export default function HomeScreen() {
       } else {
         setIsLoading(true);
       }
-      setErrorText("");
       const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
       setPosts(result.items || []);
       setHasMore(Boolean(result.hasMore));
@@ -43,7 +41,6 @@ export default function HomeScreen() {
     } catch (error) {
       console.warn("Failed to load posts:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể tải dữ liệu backend.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -66,7 +63,6 @@ export default function HomeScreen() {
     } catch (error) {
       console.warn("Failed to load more posts:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể tải thêm bài viết.");
     } finally {
       setIsLoadingMore(false);
     }
@@ -102,7 +98,6 @@ export default function HomeScreen() {
     } catch (error) {
       console.warn("Failed to toggle like:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể cập nhật lượt thích.");
     }
   };
 
@@ -159,12 +154,7 @@ export default function HomeScreen() {
             />
           }
           ListHeaderComponent={
-            newItemsCount > 0 || errorText ? (
-              <View>
-                {errorText ? (
-                  <Text style={homeStyles.errorText}>{errorText}</Text>
-                ) : null}
-                {newItemsCount > 0 ? (
+            newItemsCount > 0 ? (
               <Pressable
                 style={homeStyles.newItemsButton}
                 onPress={() => loadPosts({ refresh: true })}
@@ -173,20 +163,19 @@ export default function HomeScreen() {
                   {newItemsCount} bài mới - tải lại
                 </Text>
               </Pressable>
-                ) : null}
-              </View>
             ) : null
           }
           renderItem={({ item }) => (
             <PostCard
               post={item}
+              flat
               onPress={() => handlePostPress(item.id)}
               onToggleLike={() => handleToggleLike(item)}
               onPressComment={() => handleCommentPress(item.id)}
               onSubmitExercise={() => handleSubmitExercise(item)}
             />
           )}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={() => <View style={homeStyles.postDivider} />}
           ListEmptyComponent={
             <Text style={homeStyles.subtitle}>Không có bài viết nào</Text>
           }

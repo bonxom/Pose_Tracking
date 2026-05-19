@@ -1,6 +1,7 @@
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 function OptionRow({ iconName, label, onPress, destructive }) {
@@ -39,7 +40,22 @@ export default function PostOptionsSheet({
   onDeletePost,
   onEditPost,
   onReportPost,
+  postId,
 }) {
+  const handleEditPost = () => {
+    if (onEditPost) {
+      onEditPost();
+      return;
+    }
+
+    if (!postId) return;
+    onClose?.();
+    router.push({
+      pathname: "/post/edit",
+      params: { id: postId },
+    });
+  };
+
   return (
     <Modal
       transparent
@@ -63,7 +79,7 @@ export default function PostOptionsSheet({
               <OptionRow
                 iconName="pencil-outline"
                 label="Chỉnh sửa bài viết này"
-                onPress={onEditPost}
+                onPress={handleEditPost}
               />
               <OptionRow
                 iconName="trash-outline"

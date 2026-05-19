@@ -1,10 +1,8 @@
 import Screen from "@/components/common/Screen";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
 import colors from "@/constants/colors";
-import { DEMO_COURSE, DEMO_EXERCISES } from "@/constants/demo";
 import {
-  createExerciseSubmission,
-  createPost,
+  editPost,
   getPostById,
 } from "@/repositories/postRepository";
 import { getUserInfo } from "@/repositories/userRepository";
@@ -134,84 +132,89 @@ function FullscreenVideoModal({ visible, uri, onClose }) {
   );
 }
 
-export default function CreatePostScreen() {
+export default function EditPostScreen() {
   const params = useLocalSearchParams();
-  const isSubmissionMode = params.mode === "submission";
+  const postId = String(params.id || "");
 
+  const [post, setPost] = useState(null);
   const [content, setContent] = useState("");
-  const [sourcePost, setSourcePost] = useState(null);
-  const [selectedVideos, setSelectedVideos] = useState([]);
+  const [initialContent, setInitialContent] = useState("");
+  const [replacementVideos, setReplacementVideos] = useState([]);
+  const [isReplacingVideos, setIsReplacingVideos] = useState(false);
   const [session, setSession] = useState(null);
   const [profileUser, setProfileUser] = useState(null);
   const [statusText, setStatusText] = useState("");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [textAreaHeight, setTextAreaHeight] = useState(26);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
 
-  const selectedVideoCount = selectedVideos.filter(Boolean).length;
-  const role = String(session?.role || session?.user?.role || "").toUpperCase();
-  const isStudent = role === "HV";
-  const isTeacher = role === "GV";
-
-  const exercise = useMemo(() => {
-    return (
-      DEMO_EXERCISES.find((item) => item.id === params.exerciseId) ||
-      DEMO_EXERCISES[0]
-    );
-  }, [params.exerciseId]);
+  const existingVideos = useMemo(() => post?.videos || [], [post?.videos]);
+  const displayedVideos = isReplacingVideos ? replacementVideos : existingVideos;
+  const selectedVideoCount = displayedVideos.filter(Boolean).length;
+  const replacementVideoCount = replacementVideos.filter(Boolean).length;
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadSourcePost = async () => {
-      const authSession = await getAuthSession();
-      if (isMounted) {
-        setSession(authSession);
+    const loadData = async () => {
+      if (!postId) {
+        setStatusText("Không tìm thấy bài viết để chỉnh sửa.");
+        setIsLoading(false);
+        return;
       }
 
       try {
+        setIsLoading(true);
+        const authSession = await getAuthSession();
+        if (isMounted) {
+          setSession(authSession);
+        }
+
         const user = await getUserInfo();
         if (isMounted) {
           setProfileUser(user);
         }
+
+        const loadedPost = await getPostById(postId);
+        if (!loadedPost) {
+          throw new Error("Bài viết không tồn tại.");
+        }
+
+        const initialText = loadedPost.content || loadedPost.described || "";
+
+        if (isMounted) {
+          setPost(loadedPost);
+          setContent(initialText);
+          setInitialContent(initialText);
+          setStatusText("");
+        }
       } catch (error) {
         if (await redirectIfSessionExpired(error, router)) return;
-        console.warn("Failed to load current user profile:", error);
-      }
-
-      if (!params.sourcePostId) return;
-      const post = await getPostById(params.sourcePostId);
-      if (isMounted) {
-        setSourcePost(post);
+        console.warn("Failed to load edit post data:", error);
+        if (isMounted) {
+          setStatusText(error.message || "Không thể tải dữ liệu bài viết.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadSourcePost();
+    loadData();
     return () => {
       isMounted = false;
     };
-  }, [params.sourcePostId]);
+  }, [postId]);
 
   useEffect(() => {
-    if (!role) return;
-
-    if (isStudent && !isSubmissionMode) {
-      Alert.alert("Không được phép", "Tài khoản học viên chỉ được nộp bài.");
-      router.replace("/(tabs)/home");
-      return;
-    }
-
-    if (isTeacher && isSubmissionMode) {
-      Alert.alert("Không được phép", "Tài khoản giảng viên chỉ được tạo bài viết.");
-      router.replace("/(tabs)/home");
-    }
-  }, [isStudent, isSubmissionMode, isTeacher, role]);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const showSub = Keyboard.addListener(showEvent, (event) => {
       setKeyboardOffset(event.endCoordinates?.height || 0);
@@ -242,10 +245,10 @@ export default function CreatePostScreen() {
   const buildVideoItem = async (asset, slotIndex) => {
     const duration = await readVideoDuration(asset);
     return {
-      id: `real_video_${slotIndex}_${Date.now()}`,
+      id: `edit_video_${slotIndex}_${Date.now()}`,
       uri: asset.uri,
       file: asset.file,
-      name: asset.fileName || `real-video-${slotIndex + 1}.mp4`,
+      name: asset.fileName || `edit-video-${slotIndex + 1}.mp4`,
       mimeType: asset.mimeType || "video/mp4",
       angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
       duration,
@@ -253,8 +256,13 @@ export default function CreatePostScreen() {
     };
   };
 
-  const pickCreateVideo = async () => {
-    if (selectedVideoCount >= 2) {
+  const pickVideo = async () => {
+    if (!isReplacingVideos) {
+      setIsReplacingVideos(true);
+      setReplacementVideos([]);
+    }
+
+    if (replacementVideoCount >= 2) {
       Alert.alert("Giới hạn video", "Bạn chỉ có thể chọn tối đa 2 video.");
       return;
     }
@@ -269,60 +277,47 @@ export default function CreatePostScreen() {
       return;
     }
 
-    const video = await buildVideoItem(result.assets[0], selectedVideoCount);
-    setSelectedVideos((current) => [...current, video].slice(0, 2));
+    const video = await buildVideoItem(result.assets[0], replacementVideoCount);
+    setReplacementVideos((current) => [...current, video].slice(0, 2));
   };
 
-  const handleCreatePost = async () => {
-    if (isStudent && !isSubmissionMode) {
-      Alert.alert("Không được phép", "Tài khoản học viên chỉ được nộp bài.");
+  const handleSaveEdit = async () => {
+    if (!post) return;
+
+    const trimmedContent = content.trim();
+    if (!trimmedContent) {
+      setStatusText("Nội dung bài viết không được để trống.");
       return;
     }
 
-    if (isTeacher && isSubmissionMode) {
-      Alert.alert("Không được phép", "Tài khoản giảng viên chỉ được tạo bài viết.");
+    if (isReplacingVideos && replacementVideoCount !== 2) {
+      Alert.alert("Thiếu video", "Nếu thay video, cần chọn đúng 2 video.");
       return;
     }
-
-    const completeVideos = selectedVideos.filter(Boolean);
-
-    if (isSubmissionMode && completeVideos.length !== 2) {
-      Alert.alert("Thiếu video", "Bài nộp cần đúng 2 video.");
-      return;
-    }
-
 
     try {
       setIsSubmitting(true);
-      const newPost = isSubmissionMode
-        ? await createExerciseSubmission({
-            content,
-            videos: completeVideos,
-            courseId: params.courseId || DEMO_COURSE.id,
-            exerciseId: params.exerciseId || exercise.id,
-            sourcePostId: params.sourcePostId || sourcePost?.id || "",
-          })
-        : await createPost({
-            content: content.trim(),
-            videos: completeVideos,
-          });
+      await editPost(post, {
+        content: trimmedContent,
+        videos: isReplacingVideos ? replacementVideos : undefined,
+      });
 
-      if (newPost) {
-        router.replace("/(tabs)/home");
-      }
+      Alert.alert("Thành công", "Bài viết đã được cập nhật.");
+      router.replace("/(tabs)/home");
     } catch (error) {
-      console.warn("Failed to create post:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(
-        error.message || "Không thể tạo bài viết. Vui lòng thử lại.",
-      );
+      console.warn("Failed to update post:", error);
+      setStatusText(error.message || "Không thể cập nhật bài viết.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const hasContentChanged = content.trim() !== initialContent.trim();
+  const hasDraftChanges = hasContentChanged || replacementVideoCount > 0;
+
   const handleBack = () => {
-    if (content.trim() || selectedVideoCount > 0) {
+    if (hasDraftChanges) {
       setShowDraftSheet(true);
     } else {
       router.back();
@@ -331,7 +326,7 @@ export default function CreatePostScreen() {
 
   const handleSaveDraft = () => {
     setShowDraftSheet(false);
-    Alert.alert("Đã lưu bản nháp", "Bản nháp của bạn đã được lưu cục bộ.");
+    Alert.alert("Đã lưu bản nháp", "Bản nháp chỉnh sửa đã được lưu cục bộ.");
     router.back();
   };
 
@@ -340,20 +335,43 @@ export default function CreatePostScreen() {
     router.back();
   };
 
-  const isSubmitDisabled = isSubmitting || selectedVideoCount !== 2;
+  const isSubmitDisabled =
+    isSubmitting ||
+    !content.trim() ||
+    (isReplacingVideos && replacementVideoCount !== 2);
+
   const bottomToolbarInset = 56 + keyboardOffset;
+
+  if (isLoading) {
+    return (
+      <Screen style={postStyles.screen}>
+        <View style={createStyles.createBody}>
+          <ActivityIndicator size="large" />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!post) {
+    return (
+      <Screen style={postStyles.screen}>
+        <View style={createStyles.createBody}>
+          <Text style={postStyles.title}>Bài viết không tồn tại</Text>
+          {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen style={postStyles.screen}>
       <View style={createStyles.header}>
         <Pressable onPress={handleBack} style={createStyles.backButton}>
-          <Ionicons name="arrow-back-sharp" size={24} color="black" />
+          <Ionicons name="arrow-back-sharp" size={24} color={colors.text} />
         </Pressable>
-        <Text style={createStyles.headerTitle}>
-          {isSubmissionMode ? "Nộp bài tập" : "Tạo bài viết"}
-        </Text>
+        <Text style={createStyles.headerTitle}>Chỉnh sửa bài viết</Text>
         <Pressable
-          onPress={handleCreatePost}
+          onPress={handleSaveEdit}
           disabled={isSubmitDisabled}
           style={createStyles.submitButton}
         >
@@ -363,7 +381,7 @@ export default function CreatePostScreen() {
               isSubmitDisabled && createStyles.submitTextDisabled,
             ]}
           >
-            {isSubmitting ? "ĐANG XL..." : isSubmissionMode ? "NỘP" : "ĐĂNG"}
+            {isSubmitting ? "ĐANG XL..." : "LƯU"}
           </Text>
         </Pressable>
       </View>
@@ -405,20 +423,10 @@ export default function CreatePostScreen() {
             </View>
           </View>
 
-          {isSubmissionMode ? (
-            <Text style={createStyles.modeHint}>
-              Nộp 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương nhau.
-            </Text>
-          ) : null}
-
           {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
 
           <TextInput
-            placeholder={
-              isSubmissionMode
-                ? "Ví dụ: Em nộp bài với 2 góc quay theo hướng dẫn..."
-                : "Viết nội dung bài viết của bạn..."
-            }
+            placeholder="Viết nội dung bài viết của bạn..."
             placeholderTextColor={colors.placeholder}
             value={content}
             onChangeText={setContent}
@@ -435,7 +443,7 @@ export default function CreatePostScreen() {
 
           {selectedVideoCount > 0 ? (
             <View style={createStyles.videoGrid}>
-              {selectedVideos.map((video, index) => {
+              {displayedVideos.slice(0, 2).map((video, index) => {
                 if (!video?.uri) return null;
                 return (
                   <View key={video.id} style={createStyles.videoCard}>
@@ -454,17 +462,8 @@ export default function CreatePostScreen() {
           ) : null}
         </ScrollView>
 
-        <View
-          style={[
-            createStyles.bottomToolbar,
-            { bottom: keyboardOffset },
-          ]}
-        >
-          <Pressable
-            onPress={pickCreateVideo}
-            style={createStyles.libraryButton}
-            hitSlop={8}
-          >
+        <View style={[createStyles.bottomToolbar, { bottom: keyboardOffset }]}> 
+          <Pressable onPress={pickVideo} style={createStyles.libraryButton} hitSlop={8}>
             <MaterialIcons name="photo-library" size={30} color={colors.subtext} />
             <Text style={createStyles.libraryText}>Video ({selectedVideoCount}/2)</Text>
           </Pressable>

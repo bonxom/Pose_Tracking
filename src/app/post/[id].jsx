@@ -74,6 +74,16 @@ export default function PostDetailScreen() {
     });
   };
 
+  const handleNavigateEdit = () => {
+    if (!post?.id) return;
+    router.push({
+      pathname: "/post/edit",
+      params: {
+        id: post.id,
+      },
+    });
+  };
+
   const handleAddComment = async () => {
     const normalizedComment = commentText.trim().replace(/[\u0000-\u001F\u007F]/g, " ");
     if (!normalizedComment) {
@@ -221,6 +231,7 @@ export default function PostDetailScreen() {
           onToggleLike={handleToggleLike}
           onPressComment={() => router.push(`/comment/${post.id}`)}
           onSubmitExercise={handleSubmitExercise}
+          onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
         />
 
         {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}

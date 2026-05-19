@@ -1,5 +1,7 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { router, Tabs, usePathname } from "expo-router";
+import { useEffect, useState } from "react";
+import { getAuthSession } from "@/utils/session";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -61,17 +63,28 @@ const SearchIcon = ({ color = INK, size = 28 }) => (
 );
 
 function HomeTopSection() {
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    getAuthSession().then(setSession).catch(console.warn);
+  }, []);
+
+  const role = String(session?.role || session?.user?.role || "").toUpperCase();
+  const canCreatePost = role === "GV";
+
   return (
     <View style={styles.homeHeader}>
       <Text style={styles.homeTitle}>Pose Tracking</Text>
       <View style={styles.headerActions}>
-        <Pressable
-          style={styles.actionBtn}
-          hitSlop={8}
-          onPress={() => router.push("/post/create")}
-        >
-          <FontAwesome name="plus-square-o" size={24} color={INK} />
-        </Pressable>
+        {canCreatePost ? (
+          <Pressable
+            style={styles.actionBtn}
+            hitSlop={8}
+            onPress={() => router.push("/post/create")}
+          >
+            <FontAwesome name="plus-square-o" size={24} color={INK} />
+          </Pressable>
+        ) : null}
         <Pressable style={styles.searchBtn} hitSlop={8}>
           <SearchIcon />
         </Pressable>

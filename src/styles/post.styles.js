@@ -140,7 +140,7 @@ const postStyles = StyleSheet.create({
   },
   selectedMediaCard: {
     borderColor: colors.primary,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: colors.primaryLight,
   },
   mediaTitle: {
     fontSize: 14,
@@ -174,9 +174,9 @@ const postStyles = StyleSheet.create({
     alignItems: "center",
     gap: sizes.md,
     borderWidth: sizes.borderWidth,
-    borderColor: "#BFDBFE",
+    borderColor: colors.primaryLight,
     borderRadius: sizes.radiusMd,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: colors.primaryLight,
     padding: sizes.md,
   },
   scoreSummaryNumber: {
@@ -295,7 +295,7 @@ const postStyles = StyleSheet.create({
   scoreCommentCard: {
     borderWidth: sizes.borderWidth,
     borderColor: colors.primaryLight,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: colors.primaryLight,
   },
   commentAuthor: {
     fontSize: 14,
@@ -357,7 +357,7 @@ const postStyles = StyleSheet.create({
   draftBanner: {
     borderWidth: sizes.borderWidth,
     borderColor: colors.primaryLight,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: colors.primaryLight,
     borderRadius: sizes.radiusMd,
     padding: sizes.md,
     gap: sizes.xs,
