@@ -5,6 +5,7 @@ import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { getUserInfo } from "@/repositories/userRepository";
 import { clearAuthSession } from "@/utils/session";
+import { initials } from "@/utils/profile";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -20,11 +21,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-function initials(name = "") {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
-}
 
 function HeaderAvatar({ profile }) {
   return (
