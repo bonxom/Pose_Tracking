@@ -6,6 +6,7 @@ import {
   API_TYPES,
 } from "@/config/env";
 import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
+import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -197,7 +198,10 @@ export const backendApi = {
   getListBlocks: (params) => post("/get_list_blocks", params),
   setBlock: (params) => post("/set_block", params),
   setApproveEnrollment: (params) => post("/set_approve_enrollment", params),
-  getRequestedEnrollment: (params) => post("/get_requested_enrollment", params),
+  getRequestedEnrollment: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(MOCK_REQUESTED_ENROLLMENT)
+      : post("/get_requested_enrollment", params),
   setRequestCourse: (params) => post("/set_request_course", params),
   getPushSettings: (params) => post("/get_push_settings", params),
   setPushSettings: (params) => post("/set_push_settings", params),
