@@ -29,6 +29,7 @@ export function extractList(response) {
 
 export function extractObject(response) {
   if (!response) return null;
+  if (Array.isArray(response.data)) return response.data[0] || null;
   if (response.data && !Array.isArray(response.data)) return response.data;
   if (response.post) return response.post;
   if (response.item) return response.item;
@@ -63,11 +64,13 @@ export function normalizeSession(raw = {}) {
 
 export function normalizeVideo(raw = {}, index = 0) {
   const uri = firstValue(raw.uri, raw.url, raw.video_url, raw.file_url, raw.path, raw);
+  const thumb = firstValue(raw.thumb, raw.thumbnail, raw.thumbnail_url, raw.poster, "");
 
   return {
     id: String(firstValue(raw.id, raw.video_id, `server_video_${index + 1}`)),
     name: firstValue(raw.name, raw.file_name, raw.filename, `video-${index + 1}.mp4`),
     uri: typeof uri === "string" ? uri : "",
+    thumb: typeof thumb === "string" ? thumb : "",
     angle: firstValue(raw.angle, raw.camera, index === 0 ? "Góc quay trái" : "Góc quay phải"),
     duration: toNumber(raw.duration, 0),
     fileSize: toNumber(raw.fileSize || raw.file_size, 0),

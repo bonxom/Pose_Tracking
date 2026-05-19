@@ -20,6 +20,8 @@ const colors = {
   black: "#000000",
   gray: "#e2e5ea",
   divider: "#838689",
+  overlayBlack40: "rgba(0, 0, 0, 0.4)",
+  overlayBlack65: "rgba(0, 0, 0, 0.65)",
 };
 
 export default colors;

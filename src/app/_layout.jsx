@@ -1,8 +1,8 @@
-import { getAuthSession } from '@/utils/session';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { getAuthSession } from "@/utils/session";
+import { Stack, useRouter, useSegments } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RootLayout() {
   const router = useRouter();
@@ -19,17 +19,17 @@ export default function RootLayout() {
 
         const currentGroup = segments[0];
         const isAuthenticated = Boolean(session);
-        const isAuthGroup = currentGroup === '(auth)';
+        const isAuthGroup = currentGroup === "(auth)";
         const isSignupSuccess =
-          currentGroup === '(auth)' && segments[1] === 'signup-success';
+          currentGroup === "(auth)" && segments[1] === "signup-success";
 
         if (!isAuthenticated && !isAuthGroup) {
-          router.replace('/(auth)/login');
+          router.replace("/(auth)/login");
           return;
         }
 
         if (isAuthenticated && isAuthGroup && !isSignupSuccess) {
-          router.replace('/(tabs)/home');
+          router.replace("/(tabs)/home");
         }
       } finally {
         if (isMounted) {
@@ -51,9 +51,9 @@ export default function RootLayout() {
         <View
           style={{
             flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#FFFFFF',
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#FFFFFF",
           }}
         >
           <ActivityIndicator />
@@ -69,6 +69,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="post" />
         <Stack.Screen name="comment" />
+        <Stack.Screen name="courses" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="chat" />
       </Stack>

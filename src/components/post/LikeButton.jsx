@@ -1,20 +1,60 @@
-import AppButton from "@/components/common/AppButton";
 import postStyles from "@/styles/post.styles";
+import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, Text } from "react-native";
 
-export default function LikeButton({ isLiked, likeCount, onPress }) {
+const FACEBOOK_BLUE = "#1877F2";
+const FACEBOOK_GRAY = "#65676B";
+
+export function ThumbUpIcon({
+  size = 20,
+  color = FACEBOOK_GRAY,
+  filled = false,
+}) {
+  if (filled) {
+    return <MaterialIcons name="thumb-up" size={size} color={color} />;
+  }
+
   return (
-    <AppButton
-      title={`${isLiked ? "Đã thích" : "Thích"} • ${likeCount}`}
-      onPress={onPress}
-      style={[
-        postStyles.actionButton,
-        postStyles.secondaryButton,
-        isLiked && postStyles.likeButtonActive,
-      ]}
-      textStyle={[
-        postStyles.secondaryButtonText,
-        isLiked && postStyles.likeButtonActiveText,
-      ]}
-    />
+    <MaterialCommunityIcons name="thumb-up-outline" size={size} color={color} />
   );
 }
+
+export default function LikeButton({ isLiked, onPress, style }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.button,
+        pressed && styles.buttonPressed,
+        style,
+      ]}
+      hitSlop={8}
+    >
+      <ThumbUpIcon
+        size={20}
+        color={isLiked ? FACEBOOK_BLUE : FACEBOOK_GRAY}
+        filled={isLiked}
+      />
+      <Text
+        style={[postStyles.secondaryButtonText, isLiked && styles.activeText]}
+      >
+        Thích
+      </Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+  },
+  buttonPressed: {
+    opacity: 0.7,
+  },
+  activeText: {
+    color: FACEBOOK_BLUE,
+  },
+});

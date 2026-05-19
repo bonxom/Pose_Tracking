@@ -5,8 +5,7 @@ import sizes from "../constants/sizes";
 const homeStyles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: sizes.md,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
   },
   headerCard: {
     backgroundColor: colors.white,
@@ -60,6 +59,10 @@ const homeStyles = StyleSheet.create({
   },
   buttonSpacing: {
     height: sizes.md,
+  },
+  postDivider: {
+    height: sizes.dividerWidth,
+    backgroundColor: colors.border,
   },
 });
 

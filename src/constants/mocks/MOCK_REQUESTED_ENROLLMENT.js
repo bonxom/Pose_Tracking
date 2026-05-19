@@ -95,7 +95,8 @@ const MOCK_REQUESTED_ENROLLMENT = {
         request: {
           id: "c23e4567-e89b-12d3-a456-42661417400b",
           user_name: "Vinh Nguyễn",
-          avatar: "https://api.dicebear.com/9.x/adventurer/png?seed=vinh_nguyen",
+          avatar:
+            "https://api.dicebear.com/9.x/adventurer/png?seed=vinh_nguyen",
           created: "2026-05-18T10:15:00.000Z",
         },
       },

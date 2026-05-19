@@ -58,6 +58,31 @@ function emptyServerCourse() {
   };
 }
 
+function normalizeStudent(item = {}, source = ACTIVE_SOURCES.SERVER) {
+  return {
+    id: String(item.id || item.user_id || item.student_id || ""),
+    username: item.username || item.name || item.fullname || "Học viên",
+    name: item.name || item.username || item.fullname || "Học viên",
+    avatar: item.avatar || "",
+    role: item.role || "HV",
+    phonenumber: item.phonenumber || item.phone || "",
+    source,
+    raw: item,
+  };
+}
+
+function buildStudentCollection(
+  items = [],
+  total = items.length,
+  source = ACTIVE_SOURCES.SERVER,
+) {
+  const students = items.map((item) => normalizeStudent(item, source));
+  return Object.assign(students, {
+    students,
+    total: String(total ?? students.length),
+  });
+}
+
 export async function getCurrentCourse() {
   const session = await getCurrentSession();
 

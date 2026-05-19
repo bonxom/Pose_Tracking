@@ -3,11 +3,14 @@ import {
     Pressable,
     StyleSheet,
     Text,
+    View,
 } from 'react-native';
 import colors from '../../constants/colors';
 import sizes from '../../constants/sizes';
 
 export default function AppButton({
+  children,
+  contentStyle,
   title,
   onPress,
   disabled = false,
@@ -31,7 +34,9 @@ export default function AppButton({
       {loading ? (
         <ActivityIndicator color={colors.white} />
       ) : (
-        <Text style={[styles.text, textStyle]}>{title}</Text>
+        <View style={[styles.content, contentStyle]}>
+          {children ?? <Text style={[styles.text, textStyle]}>{title}</Text>}
+        </View>
       )}
     </Pressable>
   );
@@ -50,6 +55,12 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     backgroundColor: colors.disabled,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: sizes.sm,
   },
   text: {
     color: colors.white,

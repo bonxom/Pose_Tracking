@@ -1,4 +1,3 @@
-import AppButton from "@/components/common/AppButton";
 import PostCard from "@/components/post/PostCard";
 import {
   checkNewItems,
@@ -20,8 +19,6 @@ import {
 
 export default function HomeScreen() {
   const [posts, setPosts] = useState([]);
-  const [sourceLabel, setSourceLabel] = useState("Nguồn dữ liệu: Demo local");
-  const [errorText, setErrorText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -36,18 +33,14 @@ export default function HomeScreen() {
       } else {
         setIsLoading(true);
       }
-      setErrorText("");
       const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
       setPosts(result.items || []);
-      setSourceLabel(result.sourceLabel || "Nguồn dữ liệu: Demo local");
       setHasMore(Boolean(result.hasMore));
       setLastId(result.lastId || "");
       setNewItemsCount(Number(result.newItems || 0));
     } catch (error) {
       console.warn("Failed to load posts:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setSourceLabel("Nguồn dữ liệu: Server lỗi");
-      setErrorText(error.message || "Không thể tải dữ liệu backend.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -70,7 +63,6 @@ export default function HomeScreen() {
     } catch (error) {
       console.warn("Failed to load more posts:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể tải thêm bài viết.");
     } finally {
       setIsLoadingMore(false);
     }
@@ -106,7 +98,6 @@ export default function HomeScreen() {
     } catch (error) {
       console.warn("Failed to toggle like:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setErrorText(error.message || "Không thể cập nhật lượt thích.");
     }
   };
 
@@ -177,13 +168,14 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <PostCard
               post={item}
+              flat
               onPress={() => handlePostPress(item.id)}
               onToggleLike={() => handleToggleLike(item)}
               onPressComment={() => handleCommentPress(item.id)}
               onSubmitExercise={() => handleSubmitExercise(item)}
             />
           )}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={() => <View style={homeStyles.postDivider} />}
           ListEmptyComponent={
             <Text style={homeStyles.subtitle}>Không có bài viết nào</Text>
           }
@@ -196,13 +188,6 @@ export default function HomeScreen() {
           }
           onEndReached={loadMore}
           onEndReachedThreshold={0.35}
-        />
-
-        <View style={homeStyles.buttonSpacing} />
-
-        <AppButton
-          title="Tạo bài viết"
-          onPress={() => router.push("/post/create")}
         />
       </View>
     </View>

@@ -1,6 +1,5 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
-import { DEMO_SAVED_SEARCHES } from "@/constants/demo";
 import {
   extractList,
   extractObject,
@@ -12,10 +11,9 @@ import {
   getCurrentSession,
   getSourceLabel,
   isServerPost,
+  shouldUseServer,
 } from "@/repositories/source";
 import * as localPosts from "@/services/postStore";
-
-let localSavedSearches = DEMO_SAVED_SEARCHES.map((item) => ({ ...item }));
 
 function serverResult(value) {
   if (value == null) return value;
@@ -35,12 +33,30 @@ function assertServerSession(session) {
 
 async function withServerFallback(serverFn, localFn) {
   const session = await getCurrentSession();
+  const allowServer = shouldUseServer(session);
+
+  if (!allowServer) {
+    const localValue = await localFn(session);
+    return {
+      ...localValue,
+      source: ACTIVE_SOURCES.LOCAL,
+      sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL),
+    };
+  }
 
   try {
     assertServerSession(session);
     return serverResult(await serverFn(session));
   } catch (error) {
     console.info("[DATA] Server post repository fallback", error.message);
+    if (canFallbackToLocal()) {
+      const localValue = await localFn(session);
+      return {
+        ...localValue,
+        source: ACTIVE_SOURCES.LOCAL_FALLBACK,
+        sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL_FALLBACK),
+      };
+    }
 
     throw error;
   }
@@ -69,22 +85,6 @@ function durationMs(video = {}) {
   const value = Number(video.durationMs || video.duration || 0);
   if (!Number.isFinite(value) || value <= 0) return 0;
   return value > 1000 ? value : value * 1000;
-}
-
-function rememberLocalSearch(query = "") {
-  const keyword = query.trim();
-  if (!keyword) return;
-
-  localSavedSearches = [
-    {
-      id: `saved_search_${Date.now()}`,
-      keyword,
-      createdAt: new Date().toISOString(),
-    },
-    ...localSavedSearches.filter(
-      (item) => item.keyword.toLowerCase() !== keyword.toLowerCase(),
-    ),
-  ].slice(0, 20);
 }
 
 function buildAddPostFields(session, params = {}) {
@@ -436,6 +436,17 @@ export async function getExercisePosts() {
 export async function createPost(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
+  const allowServer = shouldUseServer(session);
+
+  if (!allowServer) {
+    return localPosts.createPost({
+      content: params.content || "",
+      videos,
+      courseId: params.courseId || "",
+      exerciseId: params.exerciseId || "",
+      sourcePostId: params.sourcePostId || "",
+    });
+  }
 
   try {
     assertServerSession(session);
@@ -482,6 +493,17 @@ export async function createLocalPost(params) {
 export async function createExerciseSubmission(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
+  const allowServer = shouldUseServer(session);
+
+  if (!allowServer) {
+    return localPosts.createExerciseSubmission({
+      content: params.content || "",
+      videos,
+      courseId: params.courseId || "",
+      exerciseId: params.exerciseId || "",
+      sourcePostId: params.sourcePostId || "",
+    });
+  }
 
   try {
     assertServerSession(session);

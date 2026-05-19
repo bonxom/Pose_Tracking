@@ -13,6 +13,8 @@ const sizes = {
   inputHeight: 48,
   buttonHeight: 48,
   borderWidth: 1,
+
+  dividerWidth: 4,
 };
 
 export default sizes;

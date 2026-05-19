@@ -1,4 +1,7 @@
-import { Tabs, usePathname } from "expo-router";
+import { getAuthSession } from "@/utils/session";
+import { FontAwesome } from "@expo/vector-icons";
+import { router, Tabs, usePathname } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, G, Path } from "react-native-svg";
@@ -84,12 +87,32 @@ const SearchIcon = ({ color = INK, size = 28 }) => (
 );
 
 function HomeTopSection() {
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    getAuthSession().then(setSession).catch(console.warn);
+  }, []);
+
+  const role = String(session?.role || session?.user?.role || "").toUpperCase();
+  const canCreatePost = role === "GV";
+
   return (
     <View style={styles.homeHeader}>
       <Text style={styles.homeTitle}>Pose Tracking</Text>
-      <Pressable style={styles.searchBtn} hitSlop={8}>
-        <SearchIcon />
-      </Pressable>
+      <View style={styles.headerActions}>
+        {canCreatePost ? (
+          <Pressable
+            style={styles.actionBtn}
+            hitSlop={8}
+            onPress={() => router.push("/post/create")}
+          >
+            <FontAwesome name="plus-square-o" size={24} color={INK} />
+          </Pressable>
+        ) : null}
+        <Pressable style={styles.searchBtn} hitSlop={8}>
+          <SearchIcon />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -172,6 +195,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.4,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
   tabBar: {
     backgroundColor: "#fff",
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -186,6 +214,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   indicator: {
     position: "absolute",
