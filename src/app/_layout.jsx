@@ -69,7 +69,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="post" />
         <Stack.Screen name="comment" />
-        <Stack.Screen name="courses" />
+        <Stack.Screen name="courses/index" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="chat" />
         <Stack.Screen name="profile" />

@@ -30,8 +30,8 @@ import {
 } from "react-native";
 
 const VIDEO_FALLBACK_SOURCES = [
-  require("../../../assets/vid_first.mp4"),
-  require("../../../assets/vid_second.mp4"),
+  require("../../../assets/cam1.mp4"),
+  require("../../../assets/cam2.mp4"),
 ];
 
 function VideoThumbnail({ video, fallbackSource, onPress }) {
