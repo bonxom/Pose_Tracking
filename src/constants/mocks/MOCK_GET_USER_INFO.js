@@ -9,7 +9,7 @@ const MOCK_GET_USER_INFO = {
       username: DEMO_STUDENT.username,
       phonenumber: DEMO_STUDENT.phonenumber,
       created: "2026-05-01T08:00:00.000Z",
-      avatar: DEMO_STUDENT.avatar,
+      avatar: "https://api.dicebear.com/9.x/adventurer/png?seed=phuong_ly",
       cover_image: "",
       is_related: "1",
       listing: "6",

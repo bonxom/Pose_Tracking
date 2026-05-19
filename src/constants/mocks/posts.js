@@ -55,6 +55,7 @@ const FIRST_POST_COMMENTS = [
     authorName: "Chu Đức Nghính",
     content: "Các em nộp đủ 2 góc quay để hệ thống chấm tư thế chính xác hơn.",
     createdAt: "2026-05-06T00:40:00.000Z",
+    avatar: "https://api.dicebear.com/9.x/adventurer/png?seed=phuong_ly",
   },
   {
     id: "comment_student_001",
@@ -109,10 +110,8 @@ export const DEFAULT_POSTS = [
     type: "submission",
     author: studentAuthor,
     createdAt: "2026-05-05T13:20:00.000Z",
-    content:
-      `${DEMO_COURSE.hashtag} #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.`,
-    described:
-      `${DEMO_COURSE.hashtag} #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.`,
+    content: `${DEMO_COURSE.hashtag} #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.`,
+    described: `${DEMO_COURSE.hashtag} #exercise_chao_dieu_lenh Em nộp bài luyện tập với đủ 2 góc quay. Hệ thống đã tự chấm và gợi ý đoạn cần sửa.`,
     videos: [
       {
         id: "video_seed_left_002",

@@ -9,6 +9,7 @@ import MOCK_ADD_POST from "@/constants/mocks/MOCK_ADD_POST";
 import MOCK_GET_LIST_POSTS from "@/constants/mocks/MOCK_GET_LIST_POSTS";
 import MOCK_GET_POST from "@/constants/mocks/MOCK_GET_POST";
 import MOCK_GET_USER_INFO from "@/constants/mocks/MOCK_GET_USER_INFO";
+import MOCK_LIST_COURSES from "@/constants/mocks/MOCK_LIST_COURSES";
 import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
 import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
 
@@ -292,6 +293,10 @@ export const backendApi = {
       ? Promise.resolve(MOCK_REQUESTED_ENROLLMENT)
       : post("/get_requested_enrollment", params),
   setRequestCourse: (params) => post("/set_request_course", params),
+  getListCourses: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(MOCK_LIST_COURSES)
+      : post("/get_list_courses", params),
   getPushSettings: (params) => post("/get_push_settings", params),
   setPushSettings: (params) => post("/set_push_settings", params),
   changePassword: (params) => post("/change_password", params),

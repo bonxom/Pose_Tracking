@@ -1,10 +1,10 @@
 import SectionHeader from "@/components/courses/SectionHeader";
 import StudentCard from "@/components/courses/StudentCard";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
-import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import BoltIcon from "@/components/icons/BoltIcon";
 import SortAtoZIcon from "@/components/icons/SortAtoZIcon";
 import SortZtoAIcon from "@/components/icons/SortZtoAIcon";
+import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import colors from "@/constants/colors";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
 import { getCourseStudents } from "@/repositories/courseRepository";
@@ -37,15 +37,15 @@ export default function AllStudentsView({
   const [sortModalVisible, setSortModalVisible] = useState(false);
 
   const displayedStudents = useMemo(() => {
-    if (sortOrder === "default") return students.students;
-    return [...students.students].sort((a, b) => {
+    if (sortOrder === "default") return students?.students;
+    return [...students?.students].sort((a, b) => {
       const nameA = (a.name || "").toLowerCase();
       const nameB = (b.name || "").toLowerCase();
       if (nameA < nameB) return sortOrder === "asc" ? -1 : 1;
       if (nameA > nameB) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-  }, [students.students, sortOrder]);
+  }, [students?.students, sortOrder]);
 
   const { actionStatuses, setActionStatuses, openBottomMenu, renderModals } =
     useEnrollmentActions(setErrorText, setIsLoading, onActionSuccess);
@@ -77,7 +77,7 @@ export default function AllStudentsView({
   const refreshStudents = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const res = await getCourseStudents();
+      const res = await getCourseStudents(0, 500);
       setStudents(res);
       setCache(res);
       setActionStatuses({});
@@ -116,7 +116,7 @@ export default function AllStudentsView({
         ListHeaderComponent={
           <>
             <SectionHeader
-              count={students.total}
+              count={students?.total}
               rightLabel="Sắp xếp"
               onRightPress={() => setSortModalVisible(true)}
             />
@@ -149,7 +149,13 @@ export default function AllStudentsView({
           {
             title: "Tên (A-Z)",
             icon: (
-              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
+              <View
+                style={{
+                  backgroundColor: colors.gray,
+                  borderRadius: 999,
+                  padding: 8,
+                }}
+              >
                 <SortAtoZIcon color={colors.text} size={24} />
               </View>
             ),
@@ -158,7 +164,13 @@ export default function AllStudentsView({
           {
             title: "Tên (Z-A)",
             icon: (
-              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
+              <View
+                style={{
+                  backgroundColor: colors.gray,
+                  borderRadius: 999,
+                  padding: 8,
+                }}
+              >
                 <SortZtoAIcon color={colors.text} size={24} />
               </View>
             ),
@@ -167,7 +179,13 @@ export default function AllStudentsView({
           {
             title: "Mặc định",
             icon: (
-              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
+              <View
+                style={{
+                  backgroundColor: colors.gray,
+                  borderRadius: 999,
+                  padding: 8,
+                }}
+              >
                 <BoltIcon color={colors.text} size={24} />
               </View>
             ),

@@ -145,13 +145,13 @@ export async function getStudentCourses(params = {}) {
   }
 }
 
-export async function getCourseStudents() {
+export async function getCourseStudents(index = 0, count = 50) {
   const session = await getCurrentSession();
 
   const response = await backendApi.getListStudents({
     token: session.token,
-    index: "0",
-    count: "50",
+    index: String(index),
+    count: String(count),
   });
 
   await assertBackendOk(response, {
@@ -162,18 +162,36 @@ export async function getCourseStudents() {
   return response.data;
 }
 
-export async function getRequestedEnrollment() {
+export async function getRequestedEnrollment(index = 0, count = 50) {
   const session = await getCurrentSession();
+  console.log(session.token);
 
   const response = await backendApi.getRequestedEnrollment({
     token: session.token,
-    index: "0",
-    count: "50",
+    index: String(index),
+    count: String(count),
   });
 
   await assertBackendOk(response, {
     allowNoData: true,
     message: "Backend get_requested_enrollment failed",
+  });
+
+  return extractList(response);
+}
+
+export async function getListCourses(index = 0, count = 20) {
+  const session = await getCurrentSession();
+
+  const response = await backendApi.getListCourses({
+    token: session.token,
+    index: String(index),
+    count: String(count),
+  });
+
+  await assertBackendOk(response, {
+    allowNoData: true,
+    message: "Backend get_list_courses failed",
   });
 
   return extractList(response);
