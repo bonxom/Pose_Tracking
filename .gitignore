@@ -10,10 +10,17 @@ web-build/
 # local env
 .env
 .env.*
-!.env.example
 
-# local media fixtures
-video/*.mp4
+# repo-local artifacts not tracked by the app team
+docs/
+postman/
+Dockerfile
+docker-compose.yml
+.dockerignore
+video/
+*.mp4
+*.mov
+*.m4v
 
 # logs
 npm-debug.*
@@ -31,4 +38,3 @@ Thumbs.db
 android/
 ios/
 test/
-cam/
