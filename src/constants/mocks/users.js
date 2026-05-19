@@ -1,4 +1,5 @@
 import { DEMO_STUDENT, DEMO_TEACHER } from "@/constants/demo";
+import { getMockProfileById } from "@/constants/mocks/profiles";
 
 export const MOCK_USERS = [
   {
@@ -7,11 +8,8 @@ export const MOCK_USERS = [
     role: DEMO_STUDENT.role,
     verified: true,
     data: {
-      id: DEMO_STUDENT.id,
-      username: DEMO_STUDENT.username,
-      displayName: DEMO_STUDENT.displayName,
+      ...getMockProfileById(DEMO_STUDENT.id),
       token: "demo_student_token",
-      avatar: DEMO_STUDENT.avatar,
       active: 1,
       role: DEMO_STUDENT.role,
       phonenumber: DEMO_STUDENT.phonenumber,
@@ -27,11 +25,8 @@ export const MOCK_USERS = [
     role: DEMO_TEACHER.role,
     verified: true,
     data: {
-      id: DEMO_TEACHER.id,
-      username: DEMO_TEACHER.displayName,
-      displayName: DEMO_TEACHER.displayName,
+      ...getMockProfileById(DEMO_TEACHER.id),
       token: "demo_teacher_token",
-      avatar: DEMO_TEACHER.avatar,
       active: 1,
       role: DEMO_TEACHER.role,
       phonenumber: DEMO_TEACHER.phonenumber,
@@ -47,10 +42,8 @@ export const MOCK_USERS = [
     role: "HV",
     verified: true,
     data: {
-      id: "user_001",
-      username: "Nguyen Van A",
+      ...getMockProfileById("user_001"),
       token: "token_001",
-      avatar: "",
       active: 1,
       role: "HV",
       phonenumber: "0900000098",
@@ -63,10 +56,8 @@ export const MOCK_USERS = [
     role: "GV",
     verified: true,
     data: {
-      id: "user_002",
-      username: "Tran Thi B",
+      ...getMockProfileById("user_002"),
       token: "token_002",
-      avatar: "",
       active: 1,
       role: "GV",
       phonenumber: "0900000099",

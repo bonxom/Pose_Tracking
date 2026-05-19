@@ -2,10 +2,29 @@ import { StyleSheet } from "react-native";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 
+const profileColors = {
+  page: colors.page,
+  brand: colors.brand,
+  ink: colors.ink,
+  inkMuted: colors.inkMuted,
+  inkSoft: colors.inkSoft,
+  inkStrong: colors.inkStrong,
+  borderStrong: colors.borderStrong,
+  borderMuted: colors.borderMuted,
+  surfaceMuted: colors.surfaceMuted,
+  surfaceSoft: colors.surfaceSoft,
+  surfaceAccent: colors.surfaceAccent,
+  surfaceSubtle: colors.surfaceSubtle,
+  surfaceIcon: colors.surfaceIcon,
+  surfaceOverlay: colors.surfaceOverlay,
+  overlay: colors.overlay,
+  overlayLight: colors.overlayLight,
+};
+
 const profileStyles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: profileColors.page,
   },
   topSection: {
     flex: 1,
@@ -14,7 +33,7 @@ const profileStyles = StyleSheet.create({
   coverBlock: {
     width: "100%",
     height: 190,
-    backgroundColor: "#D8DEE8",
+    backgroundColor: profileColors.surfaceSoft,
   },
   avatarBox: {
     marginTop: -120,
@@ -31,7 +50,7 @@ const profileStyles = StyleSheet.create({
     borderColor: colors.white,
     borderRadius: 125,
     overflow: "hidden",
-    backgroundColor: "#D8DEE8",
+    backgroundColor: profileColors.surfaceSoft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -48,7 +67,7 @@ const profileStyles = StyleSheet.create({
     width: 66,
     height: 66,
     borderRadius: 33,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
     borderWidth: 2,
     borderColor: colors.white,
     alignItems: "center",
@@ -68,12 +87,12 @@ const profileStyles = StyleSheet.create({
   hero: {
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#CED0D4",
+    borderBottomColor: profileColors.borderStrong,
   },
   cover: {
     width: "100%",
     height: 178,
-    backgroundColor: "#D8DEE8",
+    backgroundColor: profileColors.surfaceSoft,
   },
   coverImage: {
     width: "100%",
@@ -83,7 +102,7 @@ const profileStyles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#D8DEE8",
+    backgroundColor: profileColors.surfaceSoft,
   },
   heroBody: {
     paddingHorizontal: sizes.lg,
@@ -101,12 +120,12 @@ const profileStyles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarImage: {
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
   },
   avatarFallback: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#DDE7F8",
+    backgroundColor: profileColors.surfaceAccent,
   },
   avatarFallbackText: {
     color: colors.primary,
@@ -115,7 +134,7 @@ const profileStyles = StyleSheet.create({
   fbHero: {
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#CED0D4",
+    borderBottomColor: profileColors.borderStrong,
   },
   fbCover: {
     height: 178,
@@ -123,13 +142,13 @@ const profileStyles = StyleSheet.create({
     borderBottomLeftRadius: 10,
     borderBottomRightRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#DADDE1",
+    backgroundColor: profileColors.borderMuted,
   },
   fbCoverFallback: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#DADDE1",
+    backgroundColor: profileColors.borderMuted,
   },
   fbCoverCamera: {
     position: "absolute",
@@ -138,7 +157,7 @@ const profileStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -163,7 +182,7 @@ const profileStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -174,45 +193,20 @@ const profileStyles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
     fontWeight: "900",
-    color: "#050505",
+    color: profileColors.ink,
     textAlign: "center",
   },
   fbUsername: {
     fontSize: 15,
     lineHeight: 20,
     fontWeight: "800",
-    color: "#050505",
-  },
-  fbFriendLine: {
-    marginTop: 3,
-    minHeight: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: sizes.sm,
-  },
-  fbFriendCount: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#65676B",
-  },
-  fbMiniFriendStack: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  fbMiniFriend: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.white,
-    overflow: "hidden",
-    backgroundColor: colors.white,
+    color: profileColors.ink,
   },
   fbBio: {
     marginTop: sizes.xs,
     fontSize: 15,
     lineHeight: 20,
-    color: "#050505",
+    color: profileColors.ink,
     textAlign: "center",
   },
   fbActionRow: {
@@ -228,7 +222,7 @@ const profileStyles = StyleSheet.create({
     marginTop: sizes.sm,
     paddingTop: sizes.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#DADDE1",
+    borderTopColor: profileColors.borderMuted,
     gap: 8,
   },
   fbProfileDetailRow: {
@@ -241,11 +235,11 @@ const profileStyles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-    color: "#4B5563",
+    color: profileColors.inkSoft,
   },
   fbProfileDetailStrong: {
     fontWeight: "900",
-    color: "#050505",
+    color: profileColors.ink,
   },
   fbButton: {
     flex: 1,
@@ -256,20 +250,20 @@ const profileStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
-    backgroundColor: "#0866FF",
+    backgroundColor: profileColors.brand,
   },
   fbButtonCompact: {
     flex: 0,
   },
   fbButtonSecondary: {
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
   },
   fbIconButton: {
     flex: 0,
     width: 44,
     minHeight: 38,
     paddingHorizontal: 0,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
   },
   fbButtonIconSlot: {
     width: 20,
@@ -289,12 +283,12 @@ const profileStyles = StyleSheet.create({
     flexShrink: 1,
   },
   fbButtonTextDark: {
-    color: "#050505",
+    color: profileColors.ink,
   },
   fbTabs: {
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#CED0D4",
+    borderBottomColor: profileColors.borderStrong,
   },
   fbTabsContent: {
     paddingHorizontal: sizes.md,
@@ -310,15 +304,15 @@ const profileStyles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   fbTabActive: {
-    borderBottomColor: "#0866FF",
+    borderBottomColor: profileColors.brand,
   },
   fbTabText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#65676B",
+    color: profileColors.inkMuted,
   },
   fbTabTextActive: {
-    color: "#0866FF",
+    color: profileColors.brand,
   },
   fbTabMore: {
     width: 48,
@@ -326,7 +320,7 @@ const profileStyles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
     marginLeft: sizes.xs,
   },
   fbBody: {
@@ -339,7 +333,7 @@ const profileStyles = StyleSheet.create({
     padding: sizes.md,
     gap: sizes.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E4E6EB",
+    borderColor: profileColors.surfaceMuted,
   },
   fbCardHeader: {
     flexDirection: "row",
@@ -350,15 +344,15 @@ const profileStyles = StyleSheet.create({
   fbCardTitle: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#050505",
+    color: profileColors.ink,
   },
   fbCardSubtitle: {
     marginTop: 2,
     fontSize: 14,
-    color: "#65676B",
+    color: profileColors.inkMuted,
   },
   fbBlueText: {
-    color: "#0866FF",
+    color: profileColors.brand,
     fontSize: 15,
     fontWeight: "700",
   },
@@ -366,10 +360,10 @@ const profileStyles = StyleSheet.create({
     paddingBottom: sizes.sm,
     fontSize: 15,
     lineHeight: 20,
-    color: "#050505",
+    color: profileColors.ink,
     textAlign: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#CED0D4",
+    borderBottomColor: profileColors.borderStrong,
   },
   fbIntroRow: {
     minHeight: 32,
@@ -381,23 +375,23 @@ const profileStyles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
-    color: "#050505",
+    color: profileColors.ink,
   },
   fbIntroLink: {
-    color: "#0866FF",
+    color: profileColors.brand,
     fontWeight: "700",
   },
   fbWideGrayButton: {
     minHeight: 40,
     borderRadius: 7,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
   fbWideGrayButtonText: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#050505",
+    color: profileColors.ink,
   },
   fbAboutPills: {
     gap: sizes.sm,
@@ -408,44 +402,28 @@ const profileStyles = StyleSheet.create({
     paddingHorizontal: sizes.md,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F0F2F5",
+    backgroundColor: profileColors.page,
   },
   fbAboutPillActive: {
-    backgroundColor: "#E7F3FF",
+    backgroundColor: colors.primaryLight,
   },
   fbAboutPillText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#65676B",
+    color: profileColors.inkMuted,
   },
   fbAboutPillTextActive: {
-    color: "#0866FF",
+    color: profileColors.brand,
   },
   fbSubheading: {
     fontSize: 17,
     fontWeight: "900",
-    color: "#050505",
+    color: profileColors.ink,
   },
   fbBioLine: {
     flexDirection: "row",
     alignItems: "center",
     gap: sizes.sm,
-  },
-  fbFriendGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: sizes.sm,
-  },
-  fbFriendTile: {
-    width: "31.5%",
-    minWidth: 96,
-    gap: sizes.xs,
-  },
-  fbFriendName: {
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: "800",
-    color: "#050505",
   },
   fbComposerRow: {
     flexDirection: "row",
@@ -459,16 +437,16 @@ const profileStyles = StyleSheet.create({
     paddingHorizontal: sizes.md,
     alignItems: "flex-start",
     justifyContent: "center",
-    backgroundColor: "#F0F2F5",
+    backgroundColor: profileColors.page,
   },
   fbComposerText: {
     fontSize: 15,
-    color: "#65676B",
+    color: profileColors.inkMuted,
   },
   fbComposerActions: {
     paddingTop: sizes.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#CED0D4",
+    borderTopColor: profileColors.borderStrong,
     flexDirection: "row",
   },
   fbComposerAction: {
@@ -482,7 +460,7 @@ const profileStyles = StyleSheet.create({
   fbComposerActionText: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#65676B",
+    color: profileColors.inkMuted,
   },
   fbSmallGrayButton: {
     minHeight: 34,
@@ -491,10 +469,10 @@ const profileStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
   },
   fbSmallGrayButtonText: {
-    color: "#050505",
+    color: profileColors.ink,
     fontSize: 13,
     fontWeight: "800",
   },
@@ -505,7 +483,7 @@ const profileStyles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -514,13 +492,13 @@ const profileStyles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 34,
     fontWeight: "900",
-    color: "#050505",
+    color: profileColors.ink,
   },
   description: {
     marginTop: sizes.xs,
     fontSize: 15,
     lineHeight: 21,
-    color: "#1C1E21",
+    color: colors.text,
   },
   metaList: {
     marginTop: sizes.md,
@@ -557,10 +535,10 @@ const profileStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: sizes.xs,
-    backgroundColor: "#0866FF",
+    backgroundColor: profileColors.brand,
   },
   pillButtonSecondary: {
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
   },
   pillButtonGhost: {
     backgroundColor: "transparent",
@@ -577,7 +555,7 @@ const profileStyles = StyleSheet.create({
     fontWeight: "800",
   },
   pillButtonTextDark: {
-    color: "#111827",
+    color: profileColors.inkStrong,
   },
   section: {
     marginHorizontal: sizes.md,
@@ -586,7 +564,7 @@ const profileStyles = StyleSheet.create({
     padding: sizes.md,
     gap: sizes.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E4E6EB",
+    borderColor: profileColors.surfaceMuted,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -597,7 +575,7 @@ const profileStyles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#050505",
+    color: profileColors.ink,
   },
   sectionSubtitle: {
     marginTop: 2,
@@ -607,23 +585,7 @@ const profileStyles = StyleSheet.create({
   sectionLink: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#0866FF",
-  },
-  friendGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: sizes.sm,
-  },
-  friendTile: {
-    width: "31.5%",
-    minWidth: 92,
-    gap: sizes.xs,
-  },
-  friendName: {
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: "800",
-    color: "#050505",
+    color: profileColors.brand,
   },
   postList: {
     gap: sizes.md,
@@ -634,7 +596,7 @@ const profileStyles = StyleSheet.create({
   emptyState: {
     minHeight: 110,
     borderRadius: 8,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: profileColors.surfaceSubtle,
     alignItems: "center",
     justifyContent: "center",
     padding: sizes.lg,
@@ -681,7 +643,7 @@ const profileStyles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.32)",
+    backgroundColor: profileColors.overlay,
   },
   menuSheet: {
     backgroundColor: colors.white,
@@ -692,7 +654,7 @@ const profileStyles = StyleSheet.create({
     paddingBottom: 34,
   },
   bottomSheet: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.white,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     paddingHorizontal: sizes.lg,
@@ -704,7 +666,7 @@ const profileStyles = StyleSheet.create({
     width: 74,
     height: 5,
     borderRadius: 999,
-    backgroundColor: "#D1D5DB",
+    backgroundColor: profileColors.surfaceOverlay,
     marginBottom: sizes.md,
   },
   menuRow: {
@@ -717,7 +679,7 @@ const profileStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: profileColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -725,13 +687,13 @@ const profileStyles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: "800",
-    color: "#111827",
+    color: profileColors.inkStrong,
   },
   imagePreviewRoot: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#000000",
+    backgroundColor: colors.black,
   },
   imagePreviewClose: {
     position: "absolute",
@@ -743,7 +705,7 @@ const profileStyles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: profileColors.overlayLight,
   },
   imagePreview: {
     width: "100%",
@@ -759,13 +721,13 @@ const profileStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#EEF1F5",
+    backgroundColor: profileColors.surfaceIcon,
     alignItems: "center",
     justifyContent: "center",
   },
   optionText: {
     fontSize: 16,
-    color: "#111827",
+    color: profileColors.inkStrong,
     fontWeight: "700",
     flexShrink: 1,
   },

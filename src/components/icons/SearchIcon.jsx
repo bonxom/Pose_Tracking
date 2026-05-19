@@ -1,6 +1,7 @@
+import colors from "@/constants/colors";
 import Svg, { Circle, Path } from "react-native-svg";
 
-export default function SearchIcon({ color, size = 24 }) {
+export default function SearchIcon({ color = colors.text, size = 24 }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx={11} cy={11} r={7} stroke={color} strokeWidth={2} />

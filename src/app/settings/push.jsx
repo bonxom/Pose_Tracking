@@ -6,7 +6,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
-const PUSH_KEYS = ["notification_on", "like_comment", "from_friends", "requested_friend", "video", "sound_on"];
+const PUSH_KEYS = ["notification_on", "like_comment", "video", "sound_on"];
 
 export default function PushSettingsScreen() {
   const [settings, setSettings] = useState({});

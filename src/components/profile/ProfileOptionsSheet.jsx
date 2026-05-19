@@ -1,12 +1,13 @@
+import ProfileIcon from "@/components/icons/ProfileIcon";
+import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { Ionicons } from "@expo/vector-icons";
 import { Modal, Pressable, Text, View } from "react-native";
 
 function OptionRow({ iconName, label, onPress }) {
   return (
     <Pressable style={profileStyles.optionRow} onPress={onPress}>
       <View style={profileStyles.iconCircle}>
-        <Ionicons name={iconName} size={22} color="#111827" />
+        <ProfileIcon name={iconName} size={22} color={colors.inkStrong} />
       </View>
       <Text style={profileStyles.optionText}>{label}</Text>
     </Pressable>

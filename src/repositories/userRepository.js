@@ -1,6 +1,11 @@
 import { backendApi } from "@/api/client";
 import { API_BASE_URL } from "@/config/env";
-import { DEMO_STUDENT, DEMO_TEACHER } from "@/constants/demo";
+import { DEMO_STUDENT } from "@/constants/demo";
+import {
+  getMockProfileById,
+  resolveMockProfile,
+  saveMockProfile,
+} from "@/constants/mocks/profiles";
 import * as localPosts from "@/services/postStore";
 import {
   extractList,
@@ -22,106 +27,6 @@ import {
   shouldUseServer,
 } from "@/repositories/source";
 import { saveAuthSession } from "@/utils/session";
-
-const FALLBACK_FRIENDS = [
-  {
-    id: DEMO_TEACHER.id,
-    username: DEMO_TEACHER.username,
-    displayName: DEMO_TEACHER.displayName,
-    avatar: DEMO_TEACHER.avatar,
-    city: "Hà Nội",
-    country: "Việt Nam",
-    relationStatus: "friend",
-    createdAt: "2026-05-12T09:00:00.000Z",
-  },
-  {
-    id: "demo_student_002",
-    username: "Tran Thi B",
-    displayName: "Tran Thi B",
-    avatar: "",
-    city: "Đà Nẵng",
-    country: "Việt Nam",
-    relationStatus: "friend",
-    createdAt: "2026-05-11T09:00:00.000Z",
-  },
-  {
-    id: "demo_student_003",
-    username: "Le Minh C",
-    displayName: "Le Minh C",
-    avatar: "",
-    city: "TP. Hồ Chí Minh",
-    country: "Việt Nam",
-    relationStatus: "friend",
-    createdAt: "2026-05-10T09:00:00.000Z",
-  },
-  {
-    id: "demo_student_004",
-    username: "Pham Quoc D",
-    displayName: "Pham Quoc D",
-    avatar: "",
-    city: "Cần Thơ",
-    country: "Việt Nam",
-    relationStatus: "friend",
-    createdAt: "2026-05-09T09:00:00.000Z",
-  },
-  {
-    id: "demo_student_005",
-    username: "Hoang Thu E",
-    displayName: "Hoang Thu E",
-    avatar: "",
-    city: "Hải Phòng",
-    country: "Việt Nam",
-    relationStatus: "friend",
-    createdAt: "2026-05-08T09:00:00.000Z",
-  },
-  {
-    id: "demo_student_006",
-    username: "Do Anh F",
-    displayName: "Do Anh F",
-    avatar: "",
-    city: "Huế",
-    country: "Việt Nam",
-    relationStatus: "friend",
-    createdAt: "2026-05-07T09:00:00.000Z",
-  },
-  {
-    id: "demo_student_007",
-    username: "Bui Khanh G",
-    displayName: "Bui Khanh G",
-    avatar: "",
-    city: "Nha Trang",
-    country: "Việt Nam",
-    relationStatus: "friend",
-    createdAt: "2026-05-06T09:00:00.000Z",
-  },
-];
-
-function normalizeRelation(raw = {}, isOwnProfile = false) {
-  if (isOwnProfile) return "self";
-
-  const value = firstValue(
-    raw.relationStatus,
-    raw.relation_status,
-    raw.friend_status,
-    raw.is_related,
-    raw.relationship,
-    raw.status,
-    "none",
-  );
-  const normalized = String(value).toLowerCase();
-
-  if (["1", "true", "friend", "friends", "accepted"].includes(normalized)) {
-    return "friend";
-  }
-  if (["sent", "requested", "pending_sent", "requesting", "2"].includes(normalized)) {
-    return "sent";
-  }
-  if (["received", "pending_received", "incoming", "3"].includes(normalized)) {
-    return "received";
-  }
-
-  return "none";
-}
 
 export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options = {}) {
   const sessionLike = normalizeSession({ data: raw });
@@ -159,6 +64,8 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
       raw.is_locked,
   );
 
+  const normalizedOnline = String(firstValue(raw.online, raw.is_online, "0")).toLowerCase();
+
   return {
     ...sessionLike,
     id: String(id),
@@ -173,11 +80,10 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
     city: firstValue(raw.city, raw.province, ""),
     country: firstValue(raw.country, ""),
     profileLink: firstValue(raw.link, raw.profile_link, raw.website, raw.url, ""),
-    friendCount: toNumber(firstValue(raw.friend_count, raw.friends_count, raw.total_friends), 0),
     postCount: toNumber(firstValue(raw.post_count, raw.posts_count, raw.total_posts), 0),
-    online: Boolean(firstValue(raw.online, raw.is_online, false)),
+    online: ["1", "true", "online", "yes"].includes(normalizedOnline),
     listing: firstValue(raw.listing, raw.is_listing, true),
-    relationStatus: normalizeRelation(raw, isOwnProfile),
+    createdAt: firstValue(raw.createdAt, raw.created_at, raw.created, raw.create_time, ""),
     isOwnProfile,
     unavailable: isBlocked,
     unavailableReason: isBlocked ? "Tài khoản không tồn tại hoặc bạn không thể xem hồ sơ này." : "",
@@ -187,7 +93,10 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
 }
 
 function localUser(session) {
-  return normalizeUser(session || DEMO_STUDENT, ACTIVE_SOURCES.LOCAL, {
+  const mockProfile = resolveMockProfile(session);
+  const localProfile = buildLocalProfileShape(session, mockProfile);
+
+  return normalizeUser(localProfile || DEMO_STUDENT, ACTIVE_SOURCES.LOCAL, {
     session,
     isOwnProfile: true,
   });
@@ -229,31 +138,9 @@ function mapForbiddenNameError(error) {
   return error;
 }
 
-function normalizeFriend(raw = {}, source = ACTIVE_SOURCES.SERVER) {
-  const id = String(firstValue(raw.id, raw.user_id, raw.friend_id, raw._id, ""));
-  const username = firstValue(raw.user_name, raw.username, raw.name, raw.fullname, "Người dùng");
-
-  return {
-    id,
-    username,
-    displayName: firstValue(raw.displayName, raw.fullname, raw.fullName, raw.name, username),
-    avatar: normalizeMediaUrl(firstValue(raw.avatar, raw.avatar_url, raw.image, "")),
-    city: firstValue(raw.city, raw.province, raw.address, ""),
-    country: firstValue(raw.country, ""),
-    relationStatus: normalizeRelation(raw),
-    createdAt: firstValue(raw.createdAt, raw.created_at, raw.time, new Date().toISOString()),
-    source,
-    raw,
-  };
-}
-
-function fallbackFriends(source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  return FALLBACK_FRIENDS.map((item) => normalizeFriend(item, source)).filter((item) => item.id);
-}
-
 function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  const friend = fallbackFriends(source).find((item) => isSameUser(item.id, userId));
-  return normalizeUser(friend || {}, source, { isOwnProfile: false });
+  const mockProfile = getMockProfileById(userId);
+  return normalizeUser(mockProfile || { id: userId }, source, { isOwnProfile: false });
 }
 
 function isSameUser(left, right) {
@@ -282,6 +169,51 @@ function hasOwnValue(object = {}, key) {
 function firstParamValue(params = {}, keys = [], fallback = "") {
   const key = keys.find((item) => hasOwnValue(params, item));
   return key ? params[key] : fallback;
+}
+
+function buildLocalProfileShape(session = {}, mockProfile = {}) {
+  return {
+    ...(mockProfile || {}),
+    ...(session || {}),
+    id: firstValue(
+      session?.id,
+      session?.user_id,
+      session?.identifier,
+      mockProfile?.id,
+      mockProfile?.identifier,
+      DEMO_STUDENT.id,
+    ),
+    username: firstValue(
+      session?.username,
+      session?.displayName,
+      mockProfile?.username,
+      mockProfile?.displayName,
+      DEMO_STUDENT.username,
+    ),
+    displayName: firstValue(
+      session?.displayName,
+      session?.username,
+      mockProfile?.displayName,
+      mockProfile?.username,
+      DEMO_STUDENT.displayName,
+    ),
+    avatar: firstValue(session?.avatar, mockProfile?.avatar, ""),
+    coverImage: firstValue(session?.coverImage, mockProfile?.coverImage, ""),
+    description: firstValue(session?.description, mockProfile?.description, ""),
+    address: firstValue(session?.address, mockProfile?.address, ""),
+    city: firstValue(session?.city, mockProfile?.city, ""),
+    country: firstValue(session?.country, mockProfile?.country, ""),
+    profileLink: firstValue(session?.profileLink, mockProfile?.profileLink, ""),
+    postCount: firstValue(session?.postCount, mockProfile?.postCount, 0),
+    online: firstValue(session?.online, mockProfile?.online, false),
+    listing: firstValue(session?.listing, mockProfile?.listing, true),
+    role: firstValue(session?.role, mockProfile?.role, "HV"),
+    phonenumber: firstValue(session?.phonenumber, mockProfile?.phonenumber, ""),
+    identifier: firstValue(session?.identifier, mockProfile?.identifier, session?.phonenumber, ""),
+    handle: firstValue(session?.handle, mockProfile?.handle, ""),
+    height: firstValue(session?.height, mockProfile?.height, ""),
+    demoMode: true,
+  };
 }
 
 function shouldFallbackProfileSave(error) {
@@ -412,6 +344,7 @@ async function setUserInfoWithCompatibility(session, params, userName) {
 }
 
 function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOURCES.LOCAL) {
+  const currentProfile = buildLocalProfileShape(session, resolveMockProfile(session));
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(params, ["coverImage", "cover_image"], session?.coverImage || "");
   const description = String(firstParamValue(params, ["description"], session?.description || "")).slice(0, 150);
@@ -419,16 +352,24 @@ function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOUR
   const profileLink = firstParamValue(params, ["profileLink", "link"], session?.profileLink || "");
 
   return {
+    ...currentProfile,
     ...session,
     ...params,
-    username: userName || session?.username || "",
-    displayName: userName || session?.displayName || session?.username || "",
+    id: firstValue(session?.id, currentProfile?.id, session?.identifier, session?.phonenumber, ""),
+    username: userName || session?.username || currentProfile?.username || "",
+    displayName: userName || session?.displayName || session?.username || currentProfile?.displayName || "",
     avatar,
     coverImage,
     description,
     address,
     profileLink,
+    phonenumber: firstValue(session?.phonenumber, currentProfile?.phonenumber, ""),
+    identifier: firstValue(session?.identifier, currentProfile?.identifier, session?.phonenumber, ""),
+    role: firstValue(session?.role, currentProfile?.role, "HV"),
+    handle: firstValue(session?.handle, currentProfile?.handle, ""),
+    height: firstValue(session?.height, currentProfile?.height, ""),
     source,
+    demoMode: true,
     profileSavedLocally: source !== ACTIVE_SOURCES.SERVER,
   };
 }
@@ -496,6 +437,7 @@ export async function updateUserInfo(params = {}) {
 
   if (!shouldUseServer(session)) {
     const updated = buildLocalProfileUpdate(session, params, userName, ACTIVE_SOURCES.LOCAL);
+    saveMockProfile(updated);
     await saveAuthSession(updated);
     return updated;
   }
@@ -542,6 +484,7 @@ export async function updateUserInfo(params = {}) {
 
     console.info("[DATA] Server set_user_info fallback", error.message);
     const updated = buildLocalProfileUpdate(session, params, userName, ACTIVE_SOURCES.LOCAL_FALLBACK);
+    saveMockProfile(updated);
     await saveAuthSession(updated);
     return updated;
   }
@@ -593,49 +536,6 @@ export async function getUserPosts(userId = "", paging = {}) {
   }
 }
 
-export async function getUserFriends(userId = "", options = {}) {
-  const session = await getCurrentSession();
-  const targetUserId = String(userId || session?.id || session?.user_id || session?.identifier || "");
-
-  if (!shouldUseServer(session)) {
-    const friends = fallbackFriends(ACTIVE_SOURCES.LOCAL);
-    return options.sort === "abc"
-      ? friends.sort((left, right) => left.displayName.localeCompare(right.displayName))
-      : friends;
-  }
-
-  try {
-    const response = await backendApi.getUserFriends({
-      token: session.token,
-      user_id: targetUserId,
-      index: String(options.index || 0),
-      count: String(options.count || 50),
-    });
-
-    await assertBackendOk(response, { allowNoData: true, message: "Backend get_user_friends failed" });
-
-    const friends = extractList(response)
-      .map((item) => normalizeFriend(item, ACTIVE_SOURCES.SERVER))
-      .filter((item) => item.id);
-
-    return options.sort === "abc"
-      ? friends.sort((left, right) => left.displayName.localeCompare(right.displayName))
-      : friends;
-  } catch (error) {
-    console.info("[DATA] User friends fallback", error.message);
-    throwIfExpiredFromApiError(error);
-
-    if (!error.sessionExpired) {
-      const friends = fallbackFriends(ACTIVE_SOURCES.LOCAL_FALLBACK);
-      return options.sort === "abc"
-        ? friends.sort((left, right) => left.displayName.localeCompare(right.displayName))
-        : friends;
-    }
-
-    throw error;
-  }
-}
-
 export async function searchUserProfile(userId = "", keyword = "") {
   const session = await getCurrentSession();
   const normalizedKeyword = String(keyword || "").trim();
@@ -679,25 +579,4 @@ export async function searchUserProfile(userId = "", keyword = "") {
 export async function blockUser(userId) {
   const { setBlock } = await import("@/repositories/blockRepository");
   return setBlock(userId, "block");
-}
-
-export async function unfriendUser(userId) {
-  const session = await getCurrentSession();
-
-  if (!shouldUseServer(session) || typeof backendApi.unfriendUser !== "function") {
-    return {
-      ok: true,
-      userId,
-      source: shouldUseServer(session) ? ACTIVE_SOURCES.LOCAL_FALLBACK : ACTIVE_SOURCES.LOCAL,
-      placeholder: true,
-      message: "Project chưa có API hủy bạn bè, thao tác đang dùng fallback an toàn.",
-    };
-  }
-
-  const response = await backendApi.unfriendUser({
-    token: session.token,
-    user_id: userId,
-  });
-  await assertBackendOk(response, { message: "Backend unfriend failed" });
-  return { ok: true, source: ACTIVE_SOURCES.SERVER };
 }

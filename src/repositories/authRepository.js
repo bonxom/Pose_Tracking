@@ -48,13 +48,25 @@ function localLogin(phonenumber, password) {
   };
 }
 
+function isKnownMockCredential(phonenumber, password) {
+  return MOCK_USERS.some(
+    (item) => item.phonenumber === phonenumber && item.password === password,
+  );
+}
+
 export async function loginWithPassword(phonenumber, password, options = {}) {
   const normalizedPhone = phonenumber?.trim();
   const normalizedPassword = password?.trim();
   const mode = getDataSourceMode();
   const serverPreferred = shouldUseServer({ token: "pending", source: ACTIVE_SOURCES.SERVER });
+  const knownMockCredential = isKnownMockCredential(normalizedPhone, normalizedPassword);
 
   if (!serverPreferred) {
+    return localLogin(normalizedPhone, normalizedPassword);
+  }
+
+  if (options.allowKnownMockFallback && knownMockCredential) {
+    console.info("[DATA] Known mock credential detected, using local demo login");
     return localLogin(normalizedPhone, normalizedPassword);
   }
 

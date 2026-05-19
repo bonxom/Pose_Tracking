@@ -210,33 +210,6 @@ export const DEMO_CONVERSATIONS = [
   },
 ];
 
-export const DEMO_FRIENDS = [
-  {
-    id: DEMO_TEACHER.id,
-    username: DEMO_TEACHER.displayName,
-    displayName: DEMO_TEACHER.displayName,
-    role: DEMO_TEACHER.role,
-    phonenumber: DEMO_TEACHER.phonenumber,
-    avatar: DEMO_TEACHER.avatar,
-  },
-  {
-    id: "demo_student_002",
-    username: "Tran Thi B",
-    displayName: "Tran Thi B",
-    role: "HV",
-    phonenumber: "0900000012",
-    avatar: "",
-  },
-  {
-    id: "demo_teacher_002",
-    username: "Trung doi truong Cuong",
-    displayName: "Trung đội trưởng Cường",
-    role: "GV",
-    phonenumber: "0900000022",
-    avatar: "",
-  },
-];
-
 export const DEMO_SAVED_SEARCHES = [
   {
     id: "saved_search_salute",
@@ -277,9 +250,6 @@ export const DEMO_ENROLLMENT_REQUESTS = [
 
 export const DEMO_PUSH_SETTINGS = {
   like_comment: true,
-  from_friends: true,
-  requested_friend: true,
-  suggested_friend: true,
   birthday: true,
   video: true,
   report: true,

@@ -1,14 +1,14 @@
 import AppButton from "@/components/common/AppButton";
+import ProfileIcon from "@/components/icons/ProfileIcon";
 import PostCard from "@/components/post/PostCard";
 import {
-  getUserFriends,
   getUserInfo,
   getUserPosts,
   updateUserInfo,
 } from "@/repositories/userRepository";
+import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
-import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
@@ -25,8 +25,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-const PROFILE_TABS = ["Bài viết", "Bạn bè"];
 
 function initials(name = "") {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -69,7 +67,7 @@ function Avatar({ uri, name, size = 72, bordered = false }) {
 function FbButton({ title, icon, variant = "primary", onPress, disabled, compact }) {
   const isIconOnly = variant === "icon";
   const iconSize = isIconOnly ? 22 : icon === "pencil" ? 17 : 18;
-  const iconColor = variant === "primary" ? "#FFFFFF" : "#050505";
+  const iconColor = variant === "primary" ? colors.white : colors.ink;
 
   return (
     <Pressable
@@ -91,7 +89,7 @@ function FbButton({ title, icon, variant = "primary", onPress, disabled, compact
             isIconOnly && profileStyles.fbIconButtonSlot,
           ]}
         >
-          <Ionicons name={icon} size={iconSize} color={iconColor} />
+          <ProfileIcon name={icon} size={iconSize} color={iconColor} />
         </View>
       ) : null}
       {!isIconOnly ? (
@@ -112,7 +110,7 @@ function FbButton({ title, icon, variant = "primary", onPress, disabled, compact
 function EmptyState({ icon, title, body }) {
   return (
     <View style={profileStyles.emptyState}>
-      <Ionicons name={icon} size={30} color="#65676B" />
+      <ProfileIcon name={icon} size={30} color={colors.inkMuted} />
       <Text style={profileStyles.emptyTitle}>{title}</Text>
       {body ? <Text style={profileStyles.emptyBody}>{body}</Text> : null}
     </View>
@@ -142,7 +140,7 @@ function ProfileMenu({ visible, onClose, onEdit, onSearch, onCopyLink }) {
               }}
             >
               <View style={profileStyles.menuIcon}>
-                <Ionicons name={row.icon} size={21} color="#050505" />
+                <ProfileIcon name={row.icon} size={21} color={colors.ink} />
               </View>
               <Text style={profileStyles.menuText}>{row.label}</Text>
             </Pressable>
@@ -170,7 +168,7 @@ function MediaActionSheet({ visible, onClose, rows }) {
               }}
             >
               <View style={profileStyles.menuIcon}>
-                <Ionicons name={row.icon} size={21} color="#050505" />
+                <ProfileIcon name={row.icon} size={21} color={colors.ink} />
               </View>
               <Text style={profileStyles.menuText}>{row.label}</Text>
             </Pressable>
@@ -186,7 +184,7 @@ function ImagePreviewModal({ uri, visible, onClose }) {
     <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={profileStyles.imagePreviewRoot}>
         <Pressable style={profileStyles.imagePreviewClose} onPress={onClose}>
-          <Ionicons name="close" size={24} color="#FFFFFF" />
+          <ProfileIcon name="close" size={24} color={colors.white} />
         </Pressable>
         {uri ? (
           <Image source={{ uri }} style={profileStyles.imagePreview} resizeMode="contain" />
@@ -204,7 +202,7 @@ function ProfileDetails({ profile }) {
   return (
     <View style={profileStyles.fbProfileDetails}>
       <View style={profileStyles.fbProfileDetailRow}>
-        <Ionicons name="home" size={18} color="#8A8D91" />
+        <ProfileIcon name="home" size={18} color={colors.subtext} />
         <Text style={profileStyles.fbProfileDetailText} numberOfLines={1}>
           Sống tại <Text style={profileStyles.fbProfileDetailStrong}>{city}</Text>
         </Text>
@@ -219,7 +217,6 @@ function ProfileHero({
   onOpenMenu,
   onOpenCoverMenu,
   onOpenAvatarMenu,
-  onAddFriend,
   onMessage,
 }) {
   const displayName = profile.displayName || profile.username;
@@ -233,12 +230,12 @@ function ProfileHero({
           <Image source={{ uri: profile.coverImage }} style={profileStyles.coverImage} />
         ) : (
           <View style={profileStyles.fbCoverFallback}>
-            <Ionicons name="image-outline" size={38} color="#8A8D91" />
+            <ProfileIcon name="image-outline" size={38} color={colors.subtext} />
           </View>
         )}
         {isOwnProfile ? (
           <Pressable style={profileStyles.fbCoverCamera} onPress={onOpenCoverMenu}>
-            <Ionicons name="camera" size={18} color="#050505" />
+            <ProfileIcon name="camera" size={18} color={colors.ink} />
           </Pressable>
         ) : null}
       </View>
@@ -249,7 +246,7 @@ function ProfileHero({
             <Avatar uri={profile.avatar} name={profile.displayName} size={132} bordered />
             {isOwnProfile ? (
               <Pressable style={profileStyles.fbAvatarCamera} onPress={onOpenAvatarMenu}>
-                <Ionicons name="camera" size={19} color="#050505" />
+                <ProfileIcon name="camera" size={19} color={colors.ink} />
               </Pressable>
             ) : null}
           </View>
@@ -267,96 +264,13 @@ function ProfileHero({
           </Text>
         ) : null}
         <View style={[profileStyles.fbActionRow, isOwnProfile && profileStyles.fbOwnActionRow]}>
-          {isOwnProfile ? null : profile.relationStatus === "sent" ? (
-            <FbButton title="Đã gửi yêu cầu" icon="time-outline" variant="secondary" disabled />
-          ) : profile.relationStatus === "received" ? (
-            <>
-              <FbButton title="Trả lời" icon="person-add" onPress={onAddFriend} />
-              <FbButton title="Nhắn tin" icon="chatbubble" variant="secondary" onPress={onMessage} />
-            </>
-          ) : (
-            <>
-              <FbButton title="Thêm bạn bè" icon="person-add" onPress={onAddFriend} />
-              <FbButton title="Nhắn tin" icon="chatbubble" variant="secondary" onPress={onMessage} />
-            </>
-          )}
+          {!isOwnProfile ? (
+            <FbButton title="Nhắn tin" icon="chatbubble" variant="secondary" onPress={onMessage} />
+          ) : null}
           <FbButton icon="ellipsis-horizontal" variant="icon" onPress={onOpenMenu} compact />
         </View>
         <ProfileDetails profile={profile} />
       </View>
-    </View>
-  );
-}
-
-function ProfileTabs({ activeTab, onChangeTab }) {
-  return (
-    <View style={profileStyles.fbTabs}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={profileStyles.fbTabsContent}
-      >
-        {PROFILE_TABS.map((tab) => (
-          <Pressable
-            key={tab}
-            style={[profileStyles.fbTab, activeTab === tab && profileStyles.fbTabActive]}
-            onPress={() => onChangeTab(tab)}
-          >
-            <Text
-              style={[
-                profileStyles.fbTabText,
-                activeTab === tab && profileStyles.fbTabTextActive,
-              ]}
-            >
-              {tab}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
-function FriendsCard({ friends, total, userId, full = false }) {
-  const items = full ? friends : friends.slice(0, 6);
-
-  return (
-    <View style={profileStyles.fbCard}>
-      <View style={profileStyles.fbCardHeader}>
-        <View>
-          <Text style={profileStyles.fbCardTitle}>Bạn bè</Text>
-          <Text style={profileStyles.fbCardSubtitle}>{total || friends.length} người bạn</Text>
-        </View>
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/friends",
-              params: { userId: userId || "", source: "profile" },
-            })
-          }
-        >
-          <Text style={profileStyles.fbBlueText}>Xem tất cả</Text>
-        </Pressable>
-      </View>
-
-      {items.length ? (
-        <View style={profileStyles.fbFriendGrid}>
-          {items.map((friend) => (
-            <Pressable
-              key={friend.id}
-              style={profileStyles.fbFriendTile}
-              onPress={() => router.push(`/profile/${friend.id}`)}
-            >
-              <Avatar uri={friend.avatar} name={friend.displayName} size={96} />
-              <Text style={profileStyles.fbFriendName} numberOfLines={2}>
-                {friend.displayName}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : (
-        <EmptyState icon="people-outline" title="Chưa có bạn bè" body="Danh sách bạn bè sẽ hiển thị tại đây." />
-      )}
     </View>
   );
 }
@@ -404,22 +318,12 @@ function PostsSection({ profile, posts, loading }) {
   );
 }
 
-function ProfileBody({ tab, profile, friends, posts, loading }) {
-  if (tab === "Bạn bè") {
-    return <FriendsCard friends={friends} total={profile.friendCount} userId={profile.id} full />;
-  }
-
-  return (
-    <>
-      <FriendsCard friends={friends} total={profile.friendCount} userId={profile.id} />
-      <PostsSection profile={profile} posts={posts} loading={loading} />
-    </>
-  );
+function ProfileBody({ profile, posts, loading }) {
+  return <PostsSection profile={profile} posts={posts} loading={loading} />;
 }
 
 export default function ProfileScreenContent({ userId = "" }) {
   const [profile, setProfile] = useState(null);
-  const [friends, setFriends] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -428,7 +332,6 @@ export default function ProfileScreenContent({ userId = "" }) {
   const [coverMenuVisible, setCoverMenuVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
-  const [activeTab, setActiveTab] = useState("Bài viết");
 
   const loadProfile = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -450,18 +353,17 @@ export default function ProfileScreenContent({ userId = "" }) {
 
       if (user.unavailable) {
         setProfile(user);
-        setFriends([]);
         setPosts([]);
         return;
       }
 
-      const [friendList, postPage] = await Promise.all([
-        getUserFriends(user.id),
-        getUserPosts(user.id, { index: 0, count: 20, includeLocked: isOwnProfile }),
-      ]);
+      const postPage = await getUserPosts(user.id, {
+        index: 0,
+        count: 20,
+        includeLocked: isOwnProfile,
+      });
 
-      setProfile({ ...user, isOwnProfile, friendCount: user.friendCount || friendList.length });
-      setFriends(friendList);
+      setProfile({ ...user, isOwnProfile });
       setPosts(postPage.items || []);
     } catch (loadError) {
       if (loadError.sessionExpired) {
@@ -543,14 +445,10 @@ export default function ProfileScreenContent({ userId = "" }) {
     setPreviewImage(profile.coverImage);
   };
 
-  const handleAddFriend = () => {
-    Alert.alert("Thông báo", "API kết bạn chưa có trong project. Nút đã sẵn sàng để nối API thật.");
-  };
-
   if (loading && !profile) {
     return (
       <View style={profileStyles.centerState}>
-        <ActivityIndicator size="large" color="#0866FF" />
+        <ActivityIndicator size="large" color={colors.brand} />
         <Text style={profileStyles.centerText}>Đang tải hồ sơ...</Text>
       </View>
     );
@@ -559,7 +457,7 @@ export default function ProfileScreenContent({ userId = "" }) {
   if (error) {
     return (
       <View style={profileStyles.centerState}>
-        <Ionicons name="alert-circle-outline" size={42} color="#DC2626" />
+        <ProfileIcon name="alert-circle-outline" size={42} color={colors.error} />
         <Text style={profileStyles.centerTitle}>Không thể tải hồ sơ</Text>
         <Text style={profileStyles.centerText}>{error}</Text>
         <AppButton title="Thử lại" onPress={() => loadProfile(false)} style={profileStyles.retryButton} />
@@ -570,7 +468,7 @@ export default function ProfileScreenContent({ userId = "" }) {
   if (!profile || profile.unavailable) {
     return (
       <View style={profileStyles.centerState}>
-        <Ionicons name="person-circle-outline" size={48} color="#65676B" />
+        <ProfileIcon name="person-circle-outline" size={48} color={colors.inkMuted} />
         <Text style={profileStyles.centerTitle}>Tài khoản không tồn tại</Text>
         <Text style={profileStyles.centerText}>
           {profile?.unavailableReason || "Hồ sơ này không khả dụng hoặc bạn không có quyền xem."}
@@ -583,7 +481,7 @@ export default function ProfileScreenContent({ userId = "" }) {
     <View style={profileStyles.screen}>
       <ScrollView
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => loadProfile(true)} tintColor="#0866FF" />
+          <RefreshControl refreshing={refreshing} onRefresh={() => loadProfile(true)} tintColor={colors.brand} />
         }
         contentContainerStyle={profileStyles.scrollContent}
       >
@@ -597,17 +495,12 @@ export default function ProfileScreenContent({ userId = "" }) {
               ? router.push("/profile/settings")
               : setMenuVisible(true)
           }
-          onAddFriend={handleAddFriend}
           onMessage={() => router.push("/chat")}
         />
 
-        <ProfileTabs activeTab={activeTab} onChangeTab={setActiveTab} />
-
         <View style={profileStyles.fbBody}>
           <ProfileBody
-            tab={activeTab}
             profile={profile}
-            friends={friends}
             posts={posts}
             loading={loading}
           />

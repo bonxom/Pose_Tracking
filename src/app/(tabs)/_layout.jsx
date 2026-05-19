@@ -209,8 +209,8 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="courses"
           options={{
-            title: "Bạn bè",
-            tabBarLabel: "Bạn bè",
+            title: "Khóa học",
+            tabBarLabel: "Khóa học",
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => <CoursesIcon focused={focused} />,
           }}

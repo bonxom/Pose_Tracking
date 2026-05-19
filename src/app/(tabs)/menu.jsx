@@ -117,7 +117,6 @@ export default function MenuScreen() {
         </Pressable>
 
         <View style={styles.shortcutGrid}>
-          <MenuShortcut icon="people" label="Bạn bè" color="#1877F2" onPress={() => router.push("/(tabs)/friends")} />
           <MenuShortcut icon="notifications" label="Thông báo" color="#F59E0B" onPress={() => router.push("/(tabs)/notifications")} />
           <MenuShortcut icon="bookmark" label="Đã lưu" color="#A855F7" onPress={() => goPlaceholder("Đã lưu")} />
           <MenuShortcut icon="flag" label="Trang" color="#F97316" onPress={() => goPlaceholder("Trang")} />

@@ -23,6 +23,26 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: "600",
   },
+  modeBanner: {
+    minHeight: 36,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+    justifyContent: "center",
+  },
+  modeBannerBackend: {
+    backgroundColor: COLORS.primaryLight,
+  },
+  modeBannerMock: {
+    backgroundColor: "#DCFCE7",
+  },
+  modeBannerText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: COLORS.text,
+    fontWeight: "600",
+  },
   inputRow: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,

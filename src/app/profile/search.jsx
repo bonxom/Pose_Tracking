@@ -1,9 +1,11 @@
+import BackIcon from "@/components/icons/BackIcon";
+import ProfileIcon from "@/components/icons/ProfileIcon";
+import SearchIcon from "@/components/icons/SearchIcon";
 import PostCard from "@/components/post/PostCard";
 import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { clearAuthSession } from "@/utils/session";
-import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -76,10 +78,10 @@ export default function ProfileSearchScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconButton}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
+          <BackIcon size={22} color={colors.text} />
         </Pressable>
         <View style={styles.inputWrap}>
-          <Ionicons name="search-outline" size={20} color={colors.subtext} />
+          <SearchIcon size={20} color={colors.subtext} />
           <TextInput
             value={keyword}
             onChangeText={setKeyword}
@@ -93,9 +95,9 @@ export default function ProfileSearchScreen() {
         </View>
         <Pressable style={styles.searchSubmit} onPress={runSearch} disabled={loading}>
           {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
-            <Ionicons name="search" size={19} color="#FFFFFF" />
+            <ProfileIcon name="search" size={19} color={colors.white} />
           )}
         </Pressable>
       </View>
@@ -104,7 +106,7 @@ export default function ProfileSearchScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
-          <ActivityIndicator color="#0866FF" />
+          <ActivityIndicator color={colors.brand} />
         ) : results.length ? (
           results.map((post) => (
             <PostCard
@@ -141,7 +143,7 @@ export default function ProfileSearchScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: colors.page,
   },
   header: {
     minHeight: 54,
@@ -151,7 +153,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#CED0D4",
+    borderBottomColor: colors.borderStrong,
   },
   iconButton: {
     width: 34,
@@ -168,7 +170,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: sizes.xs,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: colors.page,
   },
   input: {
     flex: 1,
@@ -181,7 +183,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0866FF",
+    backgroundColor: colors.brand,
   },
   errorText: {
     paddingHorizontal: sizes.md,
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#DDE7F8",
+    backgroundColor: colors.surfaceAccent,
     marginBottom: sizes.lg,
   },
   avatarImage: {
@@ -216,7 +218,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   avatarText: {
-    color: "#0866FF",
+    color: colors.brand,
     fontSize: 26,
     fontWeight: "900",
   },
@@ -231,7 +233,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 13,
     lineHeight: 18,
-    color: "#1C1E21",
+    color: colors.ink,
     textAlign: "center",
   },
 });

@@ -1,4 +1,6 @@
 import AppButton from "@/components/common/AppButton";
+import BackIcon from "@/components/icons/BackIcon";
+import ProfileIcon from "@/components/icons/ProfileIcon";
 import AppInput from "@/components/common/AppInput";
 import {
   getUserInfo,
@@ -8,7 +10,6 @@ import {
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { clearAuthSession } from "@/utils/session";
-import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -59,7 +60,7 @@ function AvatarPreview({ uri, name, onPick }) {
         )}
       </View>
       <Pressable style={styles.cameraFab} onPress={onPick}>
-        <Ionicons name="camera" size={20} color="#050505" />
+        <ProfileIcon name="camera" size={20} color={colors.ink} />
       </Pressable>
     </View>
   );
@@ -72,11 +73,11 @@ function CoverPreview({ uri, onPick }) {
         <Image source={{ uri }} style={styles.previewImage} />
       ) : (
         <View style={styles.coverFallback}>
-          <Ionicons name="image-outline" size={34} color="#8A8D91" />
+          <ProfileIcon name="image-outline" size={34} color={colors.subtext} />
         </View>
       )}
       <Pressable style={styles.coverCameraButton} onPress={onPick}>
-        <Ionicons name="camera" size={18} color="#050505" />
+        <ProfileIcon name="camera" size={18} color={colors.ink} />
         <Text style={styles.coverCameraText}>Chỉnh sửa ảnh bìa</Text>
       </Pressable>
     </View>
@@ -197,7 +198,7 @@ export default function ProfileEditScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={26} color="#050505" />
+          <BackIcon size={24} color={colors.ink} />
         </Pressable>
         <Text style={styles.headerTitle}>Chỉnh sửa trang cá nhân</Text>
         <View style={styles.headerSpacer} />
@@ -205,7 +206,7 @@ export default function ProfileEditScreen() {
 
       {loading ? (
         <View style={styles.centerState}>
-          <ActivityIndicator color="#0866FF" />
+          <ActivityIndicator color={colors.brand} />
           <Text style={styles.mutedText}>Đang tải hồ sơ...</Text>
         </View>
       ) : (
@@ -294,7 +295,7 @@ export default function ProfileEditScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: colors.page,
   },
   header: {
     minHeight: 56,
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#DADDE1",
+    borderBottomColor: colors.borderMuted,
   },
   backButton: {
     width: 40,
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E4E6EB",
+    backgroundColor: colors.surfaceMuted,
   },
   headerTitle: {
     flex: 1,
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 24,
     fontWeight: "900",
-    color: "#050505",
+    color: colors.ink,
   },
   headerSpacer: {
     width: 40,
@@ -346,7 +347,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 26,
     fontWeight: "900",
-    color: "#050505",
+    color: colors.ink,
   },
   sectionAction: {
     minHeight: 32,
@@ -358,14 +359,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     fontWeight: "800",
-    color: "#0866FF",
+    color: colors.brand,
   },
   sectionHint: {
     marginTop: sizes.xs,
     marginBottom: sizes.sm,
     fontSize: 13,
     lineHeight: 18,
-    color: "#65676B",
+    color: colors.inkMuted,
   },
   avatarPreviewWrap: {
     alignSelf: "center",
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
     height: 148,
     borderRadius: 74,
     overflow: "hidden",
-    backgroundColor: "#E4E6EB",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 4,
     borderColor: colors.white,
   },
@@ -390,12 +391,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#DDE7F8",
+    backgroundColor: colors.surfaceAccent,
   },
   avatarFallbackText: {
     fontSize: 42,
     fontWeight: "900",
-    color: "#0866FF",
+    color: colors.brand,
   },
   cameraFab: {
     position: "absolute",
@@ -406,7 +407,7 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E4E6EB",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 3,
     borderColor: colors.white,
   },
@@ -416,13 +417,13 @@ const styles = StyleSheet.create({
     aspectRatio: 16 / 9,
     borderRadius: 8,
     overflow: "hidden",
-    backgroundColor: "#E4E6EB",
+    backgroundColor: colors.surfaceMuted,
   },
   coverFallback: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#DADDE1",
+    backgroundColor: colors.borderMuted,
   },
   coverCameraButton: {
     position: "absolute",
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
     fontWeight: "900",
-    color: "#050505",
+    color: colors.ink,
   },
   inputGroup: {
     marginTop: sizes.md,
@@ -448,10 +449,10 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 48,
     borderRadius: 12,
-    borderColor: "#CCD0D5",
+    borderColor: colors.borderInput,
     backgroundColor: colors.white,
     fontSize: 16,
-    color: "#050505",
+    color: colors.ink,
   },
   multilineInput: {
     minHeight: 96,
@@ -468,12 +469,12 @@ const styles = StyleSheet.create({
     paddingBottom: sizes.md,
     backgroundColor: colors.white,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#DADDE1",
+    borderTopColor: colors.borderMuted,
   },
   saveButton: {
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#0866FF",
+    backgroundColor: colors.brand,
   },
   saveButtonText: {
     fontSize: 15,

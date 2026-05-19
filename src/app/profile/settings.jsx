@@ -1,9 +1,10 @@
 import AppButton from "@/components/common/AppButton";
+import BackIcon from "@/components/icons/BackIcon";
+import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { getUserInfo } from "@/repositories/userRepository";
 import { clearAuthSession } from "@/utils/session";
-import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -36,7 +37,7 @@ function HeaderAvatar({ profile }) {
         </View>
       )}
       <View style={styles.headerAvatarBadge}>
-        <Ionicons name="chevron-down" size={12} color="#050505" />
+        <ProfileIcon name="chevron-down" size={12} color={colors.ink} />
       </View>
     </View>
   );
@@ -46,7 +47,7 @@ function SettingsRow({ icon, label, onPress }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <View style={styles.rowIcon}>
-        <Ionicons name={icon} size={30} color="#050505" />
+        <ProfileIcon name={icon} size={30} color={colors.ink} />
       </View>
       <Text style={styles.rowText}>{label}</Text>
     </Pressable>
@@ -116,7 +117,7 @@ export default function ProfileSettingsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={34} color="#050505" />
+          <BackIcon size={28} color={colors.ink} />
         </Pressable>
         <Text style={styles.headerTitle}>Cài đặt trang cá nhân</Text>
         <HeaderAvatar profile={profile} />
@@ -124,7 +125,7 @@ export default function ProfileSettingsScreen() {
 
       {loading ? (
         <View style={styles.centerState}>
-          <ActivityIndicator color="#0866FF" />
+          <ActivityIndicator color={colors.brand} />
           <Text style={styles.mutedText}>Đang tải hồ sơ...</Text>
         </View>
       ) : (
@@ -153,7 +154,7 @@ export default function ProfileSettingsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#D8DDE2",
+    backgroundColor: colors.surfaceSoft,
   },
   header: {
     minHeight: 72,
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
     fontWeight: "900",
-    color: "#050505",
+    color: colors.ink,
   },
   headerAvatarWrap: {
     width: 48,
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: colors.surfaceMuted,
   },
   headerAvatarFallback: {
     width: 38,
@@ -194,10 +195,10 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#DDE7F8",
+    backgroundColor: colors.surfaceAccent,
   },
   headerAvatarText: {
-    color: "#0866FF",
+    color: colors.brand,
     fontSize: 13,
     fontWeight: "900",
   },
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: colors.white,
-    backgroundColor: "#E4E6EB",
+    backgroundColor: colors.surfaceMuted,
   },
   content: {
     paddingTop: 10,
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#DADDE1",
+    borderBottomColor: colors.borderMuted,
   },
   rowIcon: {
     width: 50,
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 24,
     lineHeight: 30,
-    color: "#050505",
+    color: colors.ink,
   },
   linkSection: {
     marginTop: 10,
@@ -251,25 +252,25 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 31,
     fontWeight: "900",
-    color: "#050505",
+    color: colors.ink,
   },
   linkSubtitle: {
     marginTop: sizes.xs,
     fontSize: 21,
     lineHeight: 27,
-    color: "#65676B",
+    color: colors.inkMuted,
   },
   divider: {
     marginTop: sizes.lg,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "#DADDE1",
+    backgroundColor: colors.borderMuted,
   },
   linkValue: {
     marginTop: sizes.lg,
     fontSize: 19,
     lineHeight: 25,
     fontWeight: "900",
-    color: "#050505",
+    color: colors.ink,
   },
   shareButton: {
     marginTop: sizes.lg,
