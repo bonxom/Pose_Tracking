@@ -1,4 +1,11 @@
+import {
+    formatNotificationBadge,
+    getNotificationBadge,
+    getNotificationPage,
+    subscribeNotificationBadge,
+} from "@/repositories/notificationRepository";
 import { Tabs, usePathname } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -83,6 +90,22 @@ function TabButton({ onPress, accessibilityState, children }) {
 export default function TabsLayout() {
   const pathname = usePathname();
   const isHome = pathname === "/home" || pathname === "/";
+  const [notificationBadge, setTabNotificationBadge] = useState(
+    getNotificationBadge(),
+  );
+
+  useEffect(() => {
+    const unsubscribe = subscribeNotificationBadge(setTabNotificationBadge);
+
+    getNotificationPage({
+      index: 0,
+      count: 20,
+    }).catch((error) => {
+      console.log("LOAD_NOTIFICATION_BADGE_ERROR", error?.message);
+    });
+
+    return unsubscribe;
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -114,7 +137,19 @@ export default function TabsLayout() {
           name="notifications"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <BellIcon focused={focused} />,
+            tabBarIcon: ({ focused }) => (
+              <View style={styles.notificationTabIcon}>
+                <BellIcon focused={focused} />
+
+                {notificationBadge > 0 ? (
+                  <View style={styles.notificationTabBadge}>
+                    <Text style={styles.notificationTabBadgeText}>
+                      {formatNotificationBadge(notificationBadge)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ),
           }}
         />
         <Tabs.Screen
@@ -162,6 +197,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
+  },
+  notificationTabIcon: {
+    width: 36,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  notificationTabBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: "#E41E3F",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationTabBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: "800",
   },
   indicator: {
     position: "absolute",

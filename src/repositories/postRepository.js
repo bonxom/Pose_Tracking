@@ -2,16 +2,17 @@ import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { DEMO_SAVED_SEARCHES } from "@/constants/demo";
 import {
-  extractList,
-  extractObject,
-  normalizePost,
+    extractList,
+    extractObject,
+    normalizePost,
 } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import {
-  ACTIVE_SOURCES,
-  getCurrentSession,
-  getSourceLabel,
-  isServerPost,
+    ACTIVE_SOURCES,
+    getCurrentSession,
+    getSourceLabel,
+    isMockMode,
+    isServerPost,
 } from "@/repositories/source";
 import * as localPosts from "@/services/postStore";
 
@@ -34,6 +35,10 @@ function assertServerSession(session) {
 }
 
 async function withServerFallback(serverFn, localFn) {
+  if (isMockMode()) {
+    return localFn();
+  }
+
   const session = await getCurrentSession();
 
   try {
@@ -41,8 +46,7 @@ async function withServerFallback(serverFn, localFn) {
     return serverResult(await serverFn(session));
   } catch (error) {
     console.info("[DATA] Server post repository fallback", error.message);
-
-    throw error;
+    return localFn();
   }
 }
 
@@ -391,6 +395,15 @@ export async function reportPost(post, reason = "") {
 }
 
 export async function checkNewItems(lastId = "") {
+  if (isMockMode()) {
+    return {
+      hasNew: false,
+      count: 0,
+      source: ACTIVE_SOURCES.LOCAL,
+      raw: null,
+    };
+  }
+
   const session = await getCurrentSession();
 
   assertServerSession(session);

@@ -6,6 +6,10 @@ import {
   API_TYPES,
 } from "@/config/env";
 import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
+import {
+  getMockNotificationResponse,
+  setMockNotificationRead,
+} from "@/constants/mocks/MOCK_NOTIFICATION";
 import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
 
 export class ApiError extends Error {
@@ -213,7 +217,13 @@ export const backendApi = {
   getListConversation: (params) => post("/get_list_conversation", params),
   deleteConversation: (params) => post("/delete_conversation", params),
   checkNewItem: (params) => post("/check_new_item", params),
-  getNotification: (params) => post("/get_notification", params),
+  getNotification: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(getMockNotificationResponse(params))
+      : post("/get_notification", params),
   setReadMessage: (params) => post("/set_read_message", params),
-  setReadNotification: (params) => post("/set_read_notification", params),
+  setReadNotification: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(setMockNotificationRead(params?.notification_id))
+      : post("/set_read_notification", params),
 };

@@ -1,159 +1,377 @@
 import {
+  getNotificationCache,
   getNotificationPage,
   markNotificationRead,
+  markNotificationReadLocal,
+  setNotificationBadge,
 } from "@/repositories/notificationRepository";
-import demoStyles from "@/styles/demo.styles";
+import styles from "@/styles/notifications.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  FlatList,
+  Image,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 
-function formatBadge(value = 0) {
-  const count = Number(value || 0);
-  if (!Number.isFinite(count) || count <= 0) return "";
-  return count > 99 ? "99+" : String(count);
+const PAGE_SIZE = 20;
+
+function isUnread(item) {
+  if (item?.unread !== undefined) return Boolean(item.unread);
+  if (item?.read !== undefined) return !Boolean(item.read);
+  return true;
+}
+
+function formatTimeAgo(value) {
+  const time = new Date(value).getTime();
+
+  if (!Number.isFinite(time)) {
+    return "";
+  }
+
+  const diffMs = Date.now() - time;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return "Vừa xong";
+  if (diffMinutes < 60) return `${diffMinutes} phút`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} giờ`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} ngày`;
+
+  return new Date(value).toLocaleDateString("vi-VN");
+}
+
+function getInitial(title = "") {
+  const trimmed = String(title).trim();
+  return trimmed ? trimmed[0].toUpperCase() : "N";
+}
+
+function NotificationTypeBadge({ type = "" }) {
+  const normalizedType = String(type).toLowerCase();
+
+  let icon = "notification";
+
+  if (normalizedType.includes("like")) {
+    icon = "like";
+  } else if (normalizedType.includes("comment")) {
+    icon = "comment";
+  }
+
+  return (
+    <View style={styles.avatarBadge}>
+      <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+        {icon === "like" ? (
+          <Path
+            d="M9.2 20H6.5A2.5 2.5 0 0 1 4 17.5v-5A2.5 2.5 0 0 1 6.5 10h2.1l2.14-5.02A1.7 1.7 0 0 1 12.3 4c1.18 0 2.02 1.16 1.65 2.28L13.4 8h4.1A2.5 2.5 0 0 1 20 10.5c0 .25-.04.5-.11.74l-1.67 5.5A4.5 4.5 0 0 1 13.91 20H9.2Z"
+            fill="#FFFFFF"
+          />
+        ) : icon === "comment" ? (
+          <Path
+            d="M4 11.5C4 7.91 7.58 5 12 5s8 2.91 8 6.5S16.42 18 12 18c-.76 0-1.49-.09-2.18-.26L6.5 19.5c-.65.34-1.4-.31-1.14-1l1.05-2.82C4.9 14.56 4 13.09 4 11.5Z"
+            fill="#FFFFFF"
+          />
+        ) : (
+          <Path
+            d="M12 3.5C8.7 3.5 6 6.2 6 9.5v3.15c0 .83-.26 1.64-.75 2.31l-.8 1.1A1.7 1.7 0 0 0 5.82 18.75h12.36a1.7 1.7 0 0 0 1.37-2.69l-.8-1.1A3.95 3.95 0 0 1 18 12.65V9.5c0-3.3-2.7-6-6-6Zm-2.25 16.25a2.25 2.25 0 0 0 4.5 0h-4.5Z"
+            fill="#FFFFFF"
+          />
+        )}
+      </Svg>
+    </View>
+  );
+}
+
+function NotificationItem({ item, onPress }) {
+  const unread = isUnread(item);
+
+  return (
+    <Pressable
+      onPress={() => onPress(item)}
+      style={({ pressed }) => [
+        styles.notificationItem,
+        unread && styles.notificationItemUnread,
+        pressed && styles.notificationItemPressed,
+      ]}
+    >
+      <View style={styles.avatarWrap}>
+        {item.avatar ? (
+          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        ) : (
+          <Text style={styles.avatarFallback}>{getInitial(item.title)}</Text>
+        )}
+
+        <NotificationTypeBadge type={item.type} />
+      </View>
+
+      <View style={styles.notificationBody}>
+        <Text
+          numberOfLines={2}
+          style={[
+            styles.notificationTitle,
+            unread && styles.notificationTitleUnread,
+          ]}
+        >
+          {item.title}
+        </Text>
+
+        <Text style={styles.notificationTime}>
+          {formatTimeAgo(item.created || item.createdAt)}
+        </Text>
+      </View>
+
+      {unread ? <View style={styles.unreadDot} /> : null}
+    </Pressable>
+  );
+}
+
+function EmptyState() {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
+      <Text style={styles.emptyText}>
+        Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ xuất hiện ở đây.
+      </Text>
+    </View>
+  );
 }
 
 export default function NotificationsScreen() {
-  const [items, setItems] = useState([]);
-  const [lastUpdate, setLastUpdate] = useState("");
-  const [hasMore, setHasMore] = useState(false);
+  const initialCache = getNotificationCache();
+
+  const [items, setItems] = useState(initialCache.items);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [badge, setBadge] = useState(initialCache.unreadCount);
+  const [hasMore, setHasMore] = useState(initialCache.hasMore);
+  const [isLoading, setIsLoading] = useState(!initialCache.hasLoaded);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [statusText, setStatusText] = useState("");
-  const unreadCount = useMemo(
-    () => items.filter((item) => item.unread).length,
-    [items],
-  );
-  const unreadBadge = formatBadge(unreadCount);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState("");
+  const [lastUpdate, setLastUpdate] = useState(initialCache.lastUpdate);
 
-  const loadNotifications = useCallback(
-    async ({ refresh = false, append = false, index = 0 } = {}) => {
-      try {
-        setIsRefreshing(refresh);
-        const page = await getNotificationPage({
-          index: append ? index : 0,
-          count: 20,
-          lastUpdate: refresh ? "" : lastUpdate,
-        });
-        setItems((current) =>
-          append ? [...current, ...page.items] : page.items,
-        );
-        setLastUpdate(page.lastUpdate || lastUpdate);
-        setHasMore(Boolean(page.hasMore));
-      } catch (error) {
-        if (await redirectIfSessionExpired(error, router)) return;
-        setStatusText(error.message || "Không thể tải thông báo.");
-      } finally {
-        setIsRefreshing(false);
-      }
-    },
-    [lastUpdate],
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      loadNotifications();
-    }, [loadNotifications]),
-  );
-
-  const openNotification = async (item) => {
-    setItems((current) =>
-      current.map((notification) =>
-        notification.id === item.id
-          ? { ...notification, unread: false }
-          : notification,
-      ),
-    );
-
-    try {
-      await markNotificationRead(item.notificationId || item.id);
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      console.warn("Failed to mark notification as read:", error);
+  const visibleItems = useMemo(() => {
+    if (activeFilter === "unread") {
+      return items.filter((item) => isUnread(item));
     }
 
-    if (item.targetType === "post") {
-      router.push(`/post/${item.targetId}`);
+    return items;
+  }, [activeFilter, items]);
+
+  const loadPage = useCallback(async ({ refresh = false } = {}) => {
+    try {
+      setError("");
+      const cache = getNotificationCache();
+
+      if (refresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      const page = await getNotificationPage({
+        index: 0,
+        count: PAGE_SIZE,
+        lastUpdate: refresh ? cache.lastUpdate : "",
+      });
+
+      setItems(page.items);
+      setBadge(page.unreadCount);
+      setNotificationBadge(page.unreadCount);
+      setHasMore(page.hasMore);
+      setLastUpdate(page.lastUpdate);
+    } catch (err) {
+      if (await redirectIfSessionExpired(err, router)) return;
+      setError(err?.message || "Không tải được thông báo.");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || isLoading || isRefreshing || !hasMore) {
       return;
     }
 
-    if (item.targetType === "course") {
-      router.push("/(tabs)/courses");
+    try {
+      setIsLoadingMore(true);
+
+      const page = await getNotificationPage({
+        index: items.length,
+        count: PAGE_SIZE,
+      });
+
+      setItems(page.items);
+      setBadge(page.unreadCount);
+      setNotificationBadge(page.unreadCount);
+      setHasMore(page.hasMore);
+      setLastUpdate(page.lastUpdate);
+    } catch (err) {
+      if (await redirectIfSessionExpired(err, router)) return;
+      setError(err?.message || "Không tải thêm được thông báo.");
+    } finally {
+      setIsLoadingMore(false);
     }
-  };
+  }, [hasMore, isLoading, isRefreshing, isLoadingMore, items.length]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const cache = getNotificationCache();
+
+      if (cache.hasLoaded) {
+        setItems(cache.items);
+        setBadge(cache.unreadCount);
+        setNotificationBadge(cache.unreadCount);
+        setHasMore(cache.hasMore);
+        setLastUpdate(cache.lastUpdate);
+        setIsLoading(false);
+        return;
+      }
+
+      loadPage({
+        refresh: true,
+      });
+    }, [loadPage]),
+  );
+
+  const handlePressNotification = useCallback(
+    async (item) => {
+      const notificationId = item.notificationId || item.id;
+      const unread = isUnread(item);
+
+      if (unread) {
+        const cache = markNotificationReadLocal(notificationId);
+
+        setItems(cache.items);
+        setBadge(cache.unreadCount);
+        setNotificationBadge(cache.unreadCount);
+
+        try {
+          await markNotificationRead(notificationId);
+        } catch (err) {
+          console.warn("Failed to mark notification read:", err);
+        }
+      }
+
+      const type = String(item.type || "").toLowerCase();
+      const postId = item.objectId || item.targetId;
+
+      if (!postId) {
+        return;
+      }
+
+      if (type.includes("comment")) {
+        router.push(`/comment/${postId}`);
+        return;
+      }
+
+      if (type.includes("like") || type.includes("post")) {
+        router.push(`/post/${postId}`);
+        return;
+      }
+
+      router.push(`/post/${postId}`);
+    },
+    [],
+  );
+
+  if (isLoading && items.length === 0) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   return (
-    <View style={demoStyles.screen}>
-      <ScrollView
-        contentContainerStyle={demoStyles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => loadNotifications({ refresh: true })}
-          />
-        }
-      >
-        <View style={demoStyles.header}>
-          <Text style={demoStyles.title}>Thông báo</Text>
-          <Text style={demoStyles.subtitle}>
-            {unreadBadge || "0"} thông báo chưa đọc · last_update:{" "}
-            {lastUpdate || "none"}
-          </Text>
-          {statusText ? (
-            <Text style={demoStyles.cardText}>{statusText}</Text>
-          ) : null}
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Thông báo</Text>
 
-        {items.map((item) => (
-          <Pressable key={item.id} onPress={() => openNotification(item)}>
-            <View style={demoStyles.card}>
-              <View style={demoStyles.rowBetween}>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={demoStyles.cardTitle}>{item.title}</Text>
-                  <Text style={demoStyles.cardText}>{item.body}</Text>
-                  <Text style={demoStyles.statLabel}>
-                    {item.type} · object_id:{" "}
-                    {item.objectId || item.targetId || "none"}
-                    {formatBadge(item.badge)
-                      ? ` · badge: ${formatBadge(item.badge)}`
-                      : ""}
-                  </Text>
-                  <Text style={demoStyles.statLabel}>
-                    {new Date(item.createdAt).toLocaleString("vi-VN")}
-                  </Text>
-                </View>
-                {item.unread ? (
-                  formatBadge(item.badge) ? (
-                    <View style={demoStyles.notificationBadge}>
-                      <Text style={demoStyles.notificationBadgeText}>
-                        {formatBadge(item.badge)}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={demoStyles.unreadDot} />
-                  )
-                ) : null}
-              </View>
-            </View>
-          </Pressable>
-        ))}
-        {hasMore ? (
+        <View style={styles.filterRow}>
           <Pressable
-            style={demoStyles.card}
-            onPress={() =>
-              loadNotifications({ append: true, index: items.length })
-            }
+            onPress={() => setActiveFilter("all")}
+            style={[
+              styles.filterChip,
+              activeFilter === "all" && styles.filterChipActive,
+            ]}
           >
-            <Text style={demoStyles.cardTitle}>Tải thêm thông báo</Text>
+            <Text
+              style={[
+                styles.filterText,
+                activeFilter === "all" && styles.filterTextActive,
+              ]}
+            >
+              Tất cả
+            </Text>
           </Pressable>
-        ) : null}
-      </ScrollView>
+
+          <Pressable
+            onPress={() => setActiveFilter("unread")}
+            style={[
+              styles.filterChip,
+              activeFilter === "unread" && styles.filterChipActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                activeFilter === "unread" && styles.filterTextActive,
+              ]}
+            >
+              Chưa đọc
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {error ? (
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={() => loadPage()}>
+            <Text style={styles.retryButtonText}>Thử lại</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={visibleItems}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <NotificationItem item={item} onPress={handlePressNotification} />
+          )}
+          contentContainerStyle={[
+            styles.listContent,
+            visibleItems.length === 0 && { flexGrow: 1 },
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => loadPage({ refresh: true })}
+            />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.35}
+          ListEmptyComponent={<EmptyState />}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator />
+                <Text style={styles.footerLoaderText}>Đang tải thêm...</Text>
+              </View>
+            ) : !hasMore && items.length > 0 ? (
+              <Text style={styles.endText}>Không còn thông báo cũ hơn</Text>
+            ) : null
+          }
+        />
+      )}
     </View>
   );
 }
