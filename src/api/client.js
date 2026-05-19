@@ -1,5 +1,11 @@
-import { API_BASE_URL, API_DEBUG, API_TIMEOUT_MS, API_TYPE, API_TYPES } from "@/config/env";
-import { DEMO_LIST_STUDENTS_RESPONSE } from "@/constants/demo";
+import {
+  API_BASE_URL,
+  API_DEBUG,
+  API_TIMEOUT_MS,
+  API_TYPE,
+  API_TYPES,
+} from "@/config/env";
+import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -42,7 +48,10 @@ async function request(path, body = {}, options = {}) {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout || API_TIMEOUT_MS);
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    options.timeout || API_TIMEOUT_MS,
+  );
   const transport = options.transport || "json";
   const headers = {
     Accept: "application/json",
@@ -86,9 +95,14 @@ async function request(path, body = {}, options = {}) {
       throw error;
     }
 
-    throw new ApiError(error.name === "AbortError" ? "Backend request timed out" : "Backend unreachable", {
-      code: error.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR",
-    });
+    throw new ApiError(
+      error.name === "AbortError"
+        ? "Backend request timed out"
+        : "Backend unreachable",
+      {
+        code: error.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR",
+      },
+    );
   } finally {
     clearTimeout(timeoutId);
   }
@@ -100,12 +114,20 @@ export async function post(path, body = {}, options = {}) {
 
 export async function postForm(path, body = {}, options = {}) {
   const normalizedBody = Object.fromEntries(
-    Object.entries(body).map(([key, value]) => [key, value == null ? "" : String(value)]),
+    Object.entries(body).map(([key, value]) => [
+      key,
+      value == null ? "" : String(value),
+    ]),
   );
   return request(path, normalizedBody, { ...options, transport: "form" });
 }
 
-export async function postMultipart(path, fields = {}, files = [], options = {}) {
+export async function postMultipart(
+  path,
+  fields = {},
+  files = [],
+  options = {},
+) {
   const formData = new FormData();
 
   Object.entries(fields).forEach(([key, value]) => {
@@ -143,16 +165,6 @@ export async function postMultipart(path, fields = {}, files = [], options = {})
   return request(path, formData, { ...options, transport: "multipart" });
 }
 
-function getMockListStudentsResponse() {
-  return {
-    ...DEMO_LIST_STUDENTS_RESPONSE,
-    data: {
-      ...DEMO_LIST_STUDENTS_RESPONSE.data,
-      students: DEMO_LIST_STUDENTS_RESPONSE.data.students.map((student) => ({ ...student })),
-    },
-  };
-}
-
 export const backendApi = {
   login: (params) => post("/login", params),
   logout: (params) => post("/logout", params),
@@ -164,7 +176,8 @@ export const backendApi = {
   getPost: (params) => post("/get_post", params),
   addPost: (fields, files) => postMultipart("/add_post", fields, files),
   editPost: (params) => post("/edit_post", params),
-  editPostMultipart: (fields, files) => postMultipart("/edit_post", fields, files),
+  editPostMultipart: (fields, files) =>
+    postMultipart("/edit_post", fields, files),
   deletePost: (params) => post("/delete_post", params),
   reportPost: (params) => post("/report_post", params),
   like: (params) => post("/like", params),
@@ -173,12 +186,12 @@ export const backendApi = {
   search: (params) => post("/search", params),
   getSavedSearch: (params) => post("/get_saved_search", params),
   delSavedSearch: (params) => post("/del_saved_search", params),
-  getListStudents: (params) => (
+  getListStudents: (params) =>
     API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(getMockListStudentsResponse())
-      : post("/get_list_students", params)
-  ),
-  getListCoursesOfStudent: (params) => post("/get_list_courses_of_student", params),
+      ? Promise.resolve(MOCK_LIST_STUDENTS)
+      : post("/get_list_students", params),
+  getListCoursesOfStudent: (params) =>
+    post("/get_list_courses_of_student", params),
   getUserInfo: (params) => post("/get_user_info", params),
   setUserInfo: (params) => post("/set_user_info", params),
   getListBlocks: (params) => post("/get_list_blocks", params),

@@ -1,3 +1,4 @@
+import { getCourseStudents } from "@/repositories/courseRepository";
 import demoStyles from "@/styles/demo.styles";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -17,12 +18,20 @@ const SearchIcon = ({ color = INK, size = 26 }) => (
 );
 
 export default function FriendsScreen() {
+  async function fetchCourseStudents() {
+    try {
+      const response = await getCourseStudents();
+      console.log(response);
+    } catch (error) {
+      console.error("Error fetching course students:", error);
+    }
+  }
   return (
     <View style={demoStyles.screen}>
       <ScrollView contentContainerStyle={demoStyles.scrollContent}>
         <View style={styles.searchContainer}>
           <Text style={styles.searchTitle}>Bạn bè</Text>
-          <Pressable hitSlop={8}>
+          <Pressable hitSlop={8} onPress={fetchCourseStudents}>
             <SearchIcon />
           </Pressable>
         </View>
