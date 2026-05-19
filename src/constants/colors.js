@@ -18,6 +18,8 @@ const colors = {
 
   white: "#FFFFFF",
   black: "#000000",
+  gray: "#e2e5ea",
+  divider: "#838689",
 };
 
 export default colors;

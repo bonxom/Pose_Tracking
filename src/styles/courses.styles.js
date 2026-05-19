@@ -1,9 +1,6 @@
 import colors from "@/constants/colors";
 import { StyleSheet } from "react-native";
 
-const GRAY_BG = "#e4e6eb";
-const DIVIDER = "#CED0D4";
-
 const coursesStyles = StyleSheet.create({
   // ── Layout ──
   container: {
@@ -41,7 +38,7 @@ const coursesStyles = StyleSheet.create({
     marginTop: 12,
   },
   tabPill: {
-    backgroundColor: GRAY_BG,
+    backgroundColor: colors.gray,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
@@ -55,7 +52,7 @@ const coursesStyles = StyleSheet.create({
   // ── Divider ──
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: DIVIDER,
+    backgroundColor: colors.divider,
     marginHorizontal: 16,
     marginVertical: 10,
   },
@@ -107,7 +104,7 @@ const coursesStyles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: GRAY_BG,
+    backgroundColor: colors.gray,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -161,7 +158,7 @@ const coursesStyles = StyleSheet.create({
   },
   btnReject: {
     flex: 1,
-    backgroundColor: GRAY_BG,
+    backgroundColor: colors.gray,
     paddingVertical: 8,
     borderRadius: 6,
     alignItems: "center",
@@ -180,7 +177,7 @@ const coursesStyles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DIVIDER,
+    borderBottomColor: colors.divider,
     backgroundColor: "#fff",
   },
   navLeft: {

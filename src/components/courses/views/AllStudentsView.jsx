@@ -2,6 +2,10 @@ import SectionHeader from "@/components/courses/SectionHeader";
 import StudentCard from "@/components/courses/StudentCard";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
 import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
+import BoltIcon from "@/components/icons/BoltIcon";
+import SortAtoZIcon from "@/components/icons/SortAtoZIcon";
+import SortZtoAIcon from "@/components/icons/SortZtoAIcon";
+import colors from "@/constants/colors";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
 import { getCourseStudents } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
@@ -144,17 +148,29 @@ export default function AllStudentsView({
         buttons={[
           {
             title: "Tên (A-Z)",
-            icon: null,
+            icon: (
+              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
+                <SortAtoZIcon color={colors.text} size={24} />
+              </View>
+            ),
             onPress: () => setSortOrder("asc"),
           },
           {
             title: "Tên (Z-A)",
-            icon: null,
+            icon: (
+              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
+                <SortZtoAIcon color={colors.text} size={24} />
+              </View>
+            ),
             onPress: () => setSortOrder("desc"),
           },
           {
             title: "Mặc định",
-            icon: null,
+            icon: (
+              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
+                <BoltIcon color={colors.text} size={24} />
+              </View>
+            ),
             onPress: () => setSortOrder("default"),
           },
         ]}
