@@ -1,9 +1,0 @@
-.git
-.idea
-.vscode
-node_modules
-dist
-.expo
-npm-debug.log*
-Dockerfile
-docker-compose.yml

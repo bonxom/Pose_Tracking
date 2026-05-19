@@ -7,7 +7,7 @@ import { Tabs, usePathname } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, G, Path } from "react-native-svg";
 
 const FB_BLUE = "#0866ff";
 const INK = "#050505";
@@ -25,12 +25,36 @@ const HomeIcon = ({ focused }) => (
   </Svg>
 );
 
-const FriendsIcon = ({ focused }) => (
-  <Svg width={24} height={24} viewBox="0 0 20 20" fill="none">
-    <Path
-      d="M13.762 1a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5zM6.25 5a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5zm-1.667 7.5A4.083 4.083 0 0 0 .5 16.583 2.417 2.417 0 0 0 2.917 19h6.666A2.417 2.417 0 0 0 12 16.583 4.083 4.083 0 0 0 7.917 12.5H4.583zm7.512-4-.098.001c-.625.015-1.03.487-1.148.943a4.712 4.712 0 0 1-.299.827 1.326 1.326 0 0 0 .46 1.664 5.61 5.61 0 0 1 1.982 2.316c.198.431.634.749 1.154.749h2.949a2.417 2.417 0 0 0 2.417-2.417A4.083 4.083 0 0 0 15.428 8.5h-3.333z"
-      fill={focused ? FB_BLUE : INK}
-    />
+const CoursesIcon = ({ focused }) => (
+  <Svg
+    width={28}
+    height={28}
+    viewBox="0 0 24 24"
+    fill={focused ? FB_BLUE : INK}
+  >
+    {focused ? (
+      <G
+        clipRule="evenodd"
+        fillRule="evenodd"
+        strokeLinejoin="round"
+        strokeMiterlimit={2}
+      >
+        <Path d="m16.25 19.492v1.258c0 .414-.336.75-.75.75s-.75-.336-.75-.75v-1.25h1.25c.084 0 .167-.003.25-.008z" />
+        <Path d="m14.75 19.5h-6.75c-2.071 0-3.75-1.679-3.75-3.75v-3.082l5.714 3.157c1.238.684 2.834.684 4.072 0l.714-.394zm1.5-4.898 3.5-1.934v3.082c0 1.987-1.545 3.613-3.5 3.742z" />
+        <Path d="m14.75 14.288-1.198.662c-.944.522-2.16.522-3.104 0l-8.314-4.594c-.566-.313-.884-.861-.884-1.434 0-.574.318-1.122.884-1.434l8.314-4.595c.944-.521 2.16-.521 3.104 0l8.314 4.595c.566.312.884.86.884 1.434 0 .573-.318 1.121-.884 1.434l-5.616 3.103v-.709c0-.199-.079-.39-.22-.53l-3.5-3.5c-.292-.293-.768-.293-1.06 0-.293.292-.293.768 0 1.06l3.28 3.281z" />
+      </G>
+    ) : (
+      <G
+        clipRule="evenodd"
+        fillRule="evenodd"
+        strokeLinejoin="round"
+        strokeMiterlimit={2}
+      >
+        <Path d="m2.134 10.356c-.566-.313-.884-.861-.884-1.434 0-.574.318-1.122.884-1.434l8.314-4.595c.944-.521 2.16-.521 3.104 0l8.314 4.595c.566.312.884.86.884 1.434 0 .573-.318 1.121-.884 1.434l-8.314 4.594c-.944.522-2.16.522-3.104 0zm.725-1.313 8.314 4.594c.503.278 1.151.278 1.654 0l8.314-4.594c.055-.03.109-.066.109-.121 0-.056-.054-.091-.109-.122l-8.314-4.594c-.503-.278-1.151-.278-1.654 0l-8.314 4.594c-.055.031-.109.066-.109.122 0 .055.054.091.109.121z" />
+        <Path d="m18.25 11.25c0-.414.336-.75.75-.75s.75.336.75.75v4.5c0 2.071-1.679 3.75-3.75 3.75h-8c-2.071 0-3.75-1.679-3.75-3.75v-4.5c0-.414.336-.75.75-.75s.75.336.75.75v4.5c0 1.243 1.007 2.25 2.25 2.25h8c1.243 0 2.25-1.007 2.25-2.25z" />
+        <Path d="m11.47 9.78c-.293-.292-.293-.768 0-1.06.292-.293.768-.293 1.06 0l3.5 3.5c.141.14.22.331.22.53v8c0 .414-.336.75-.75.75s-.75-.336-.75-.75v-7.689z" />
+      </G>
+    )}
   </Svg>
 );
 
@@ -183,12 +207,12 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="friends"
+          name="courses"
           options={{
             title: "Bạn bè",
             tabBarLabel: "Bạn bè",
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <FriendsIcon focused={focused} />,
+            tabBarIcon: ({ focused }) => <CoursesIcon focused={focused} />,
           }}
         />
         <Tabs.Screen

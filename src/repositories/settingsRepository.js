@@ -2,47 +2,25 @@ import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import {
-  ACTIVE_SOURCES,
-  canFallbackToLocal,
-  getCurrentSession,
-  shouldUseServer,
-} from "@/repositories/source";
-
-const LOCAL_PUSH_SETTINGS = {
-  like_comment: true,
-  from_friends: true,
-  requested_friend: true,
-  suggested_friend: true,
-  birthday: true,
-  video: true,
-  report: true,
-  sound_on: true,
-  notification_on: true,
-  vibrant_on: true,
-  led_on: true,
-};
+import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 export async function getPushSettings() {
   const session = await getCurrentSession();
 
-  if (!shouldUseServer(session)) {
-    return { ...LOCAL_PUSH_SETTINGS, source: ACTIVE_SOURCES.LOCAL };
-  }
-
   try {
     const response = await backendApi.getPushSettings({ token: session.token });
 
-    await assertBackendOk(response, { message: "Backend get_push_settings failed" });
+    await assertBackendOk(response, {
+      message: "Backend get_push_settings failed",
+    });
 
-    return { ...LOCAL_PUSH_SETTINGS, ...extractObject(response), source: ACTIVE_SOURCES.SERVER };
+    return {
+      ...localPushSettings,
+      ...extractObject(response),
+      source: ACTIVE_SOURCES.SERVER,
+    };
   } catch (error) {
     console.info("[DATA] Server push settings fallback", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return { ...LOCAL_PUSH_SETTINGS, source: ACTIVE_SOURCES.LOCAL_FALLBACK };
-    }
-
     throw error;
   }
 }
@@ -50,26 +28,20 @@ export async function getPushSettings() {
 export async function setPushSettings(settings = {}) {
   const session = await getCurrentSession();
 
-  if (!shouldUseServer(session)) {
-    return { ...LOCAL_PUSH_SETTINGS, ...settings, source: ACTIVE_SOURCES.LOCAL };
-  }
-
   const response = await backendApi.setPushSettings({
     token: session.token,
     ...settings,
   });
 
-  await assertBackendOk(response, { message: "Backend set_push_settings failed" });
+  await assertBackendOk(response, {
+    message: "Backend set_push_settings failed",
+  });
 
-  return { ...LOCAL_PUSH_SETTINGS, ...settings, source: ACTIVE_SOURCES.SERVER };
+  return { ...localPushSettings, ...settings, source: ACTIVE_SOURCES.SERVER };
 }
 
 export async function changePassword(oldPassword, newPassword) {
   const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return { changed: true, source: ACTIVE_SOURCES.LOCAL };
-  }
 
   const response = await backendApi.changePassword({
     token: session.token,
@@ -77,37 +49,44 @@ export async function changePassword(oldPassword, newPassword) {
     new_password: newPassword,
   });
 
-  await assertBackendOk(response, { message: "Backend change_password failed" });
+  await assertBackendOk(response, {
+    message: "Backend change_password failed",
+  });
 
   return { changed: true, source: ACTIVE_SOURCES.SERVER };
 }
 
 export async function checkNewVersion() {
   const session = await getCurrentSession();
+
   let response = await backendApi.checkNewVersion({
     token: session?.token || "",
     last_update: "2026-05-10T00:00:00.000Z",
   });
 
-  if (String(response?.message || "").includes("property last_update should not exist")) {
-    console.info("[DATA] check_new_version deployed compatibility: retrying with lastUpdate");
+  if (
+    String(response?.message || "").includes(
+      "property last_update should not exist",
+    )
+  ) {
+    console.info(
+      "[DATA] check_new_version deployed compatibility: retrying with lastUpdate",
+    );
     response = await backendApi.checkNewVersion({
       token: session?.token || "",
       lastUpdate: "2026-05-10T00:00:00.000Z",
     });
   }
 
-  await assertBackendOk(response, { message: "Backend check_new_version failed" });
+  await assertBackendOk(response, {
+    message: "Backend check_new_version failed",
+  });
 
   return extractObject(response);
 }
 
 export async function setDeviceToken(devtoken = DEFAULT_DEVICE_TOKEN) {
   const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return { registered: true, devtoken, source: ACTIVE_SOURCES.LOCAL };
-  }
 
   const response = await backendApi.setDevtoken({
     token: session.token,

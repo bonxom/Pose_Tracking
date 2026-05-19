@@ -692,7 +692,7 @@ const profileStyles = StyleSheet.create({
     paddingBottom: 34,
   },
   bottomSheet: {
-    backgroundColor: colors.white,
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     paddingHorizontal: sizes.lg,

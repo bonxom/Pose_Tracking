@@ -1,4 +1,12 @@
-import { API_BASE_URL, API_DEBUG, API_TIMEOUT_MS } from "@/config/env";
+import {
+  API_BASE_URL,
+  API_DEBUG,
+  API_TIMEOUT_MS,
+  API_TYPE,
+  API_TYPES,
+} from "@/config/env";
+import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
+import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -34,8 +42,17 @@ async function safeJson(response) {
 }
 
 async function request(path, body = {}, options = {}) {
+  if (API_TYPE === API_TYPES.MOCK) {
+    throw new ApiError("Backend requests are disabled in mock mode", {
+      code: "MOCK_MODE_BACKEND_DISABLED",
+    });
+  }
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout || API_TIMEOUT_MS);
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    options.timeout || API_TIMEOUT_MS,
+  );
   const transport = options.transport || "json";
   const headers = {
     Accept: "application/json",
@@ -79,9 +96,14 @@ async function request(path, body = {}, options = {}) {
       throw error;
     }
 
-    throw new ApiError(error.name === "AbortError" ? "Backend request timed out" : "Backend unreachable", {
-      code: error.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR",
-    });
+    throw new ApiError(
+      error.name === "AbortError"
+        ? "Backend request timed out"
+        : "Backend unreachable",
+      {
+        code: error.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR",
+      },
+    );
   } finally {
     clearTimeout(timeoutId);
   }
@@ -93,12 +115,20 @@ export async function post(path, body = {}, options = {}) {
 
 export async function postForm(path, body = {}, options = {}) {
   const normalizedBody = Object.fromEntries(
-    Object.entries(body).map(([key, value]) => [key, value == null ? "" : String(value)]),
+    Object.entries(body).map(([key, value]) => [
+      key,
+      value == null ? "" : String(value),
+    ]),
   );
   return request(path, normalizedBody, { ...options, transport: "form" });
 }
 
-export async function postMultipart(path, fields = {}, files = [], options = {}) {
+export async function postMultipart(
+  path,
+  fields = {},
+  files = [],
+  options = {},
+) {
   const formData = new FormData();
 
   Object.entries(fields).forEach(([key, value]) => {
@@ -147,7 +177,8 @@ export const backendApi = {
   getPost: (params) => post("/get_post", params),
   addPost: (fields, files) => postMultipart("/add_post", fields, files),
   editPost: (params) => post("/edit_post", params),
-  editPostMultipart: (fields, files) => postMultipart("/edit_post", fields, files),
+  editPostMultipart: (fields, files) =>
+    postMultipart("/edit_post", fields, files),
   deletePost: (params) => post("/delete_post", params),
   reportPost: (params) => post("/report_post", params),
   like: (params) => post("/like", params),
@@ -158,13 +189,15 @@ export const backendApi = {
   delSavedSearch: (params) => post("/del_saved_search", params),
   getListStudents: (params) => post("/get_list_students", params),
   getListCoursesOfStudent: (params) => post("/get_list_courses_of_student", params),
-  getUserFriends: (params) => post("/get_user_friends", params),
   getUserInfo: (params) => post("/get_user_info", params),
   setUserInfo: (params) => post("/set_user_info", params),
   getListBlocks: (params) => post("/get_list_blocks", params),
   setBlock: (params) => post("/set_block", params),
   setApproveEnrollment: (params) => post("/set_approve_enrollment", params),
-  getRequestedEnrollment: (params) => post("/get_requested_enrollment", params),
+  getRequestedEnrollment: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(MOCK_REQUESTED_ENROLLMENT)
+      : post("/get_requested_enrollment", params),
   setRequestCourse: (params) => post("/set_request_course", params),
   getPushSettings: (params) => post("/get_push_settings", params),
   setPushSettings: (params) => post("/set_push_settings", params),
