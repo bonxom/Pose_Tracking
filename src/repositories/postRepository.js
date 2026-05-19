@@ -1,6 +1,6 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
-import * as localPosts from "@/services/postStore";
+import { DEMO_SAVED_SEARCHES } from "@/constants/demo";
 import {
   extractList,
   extractObject,
@@ -9,22 +9,13 @@ import {
 import { assertBackendOk } from "@/repositories/serverResponse";
 import {
   ACTIVE_SOURCES,
-  canFallbackToLocal,
   getCurrentSession,
   getSourceLabel,
   isServerPost,
-  shouldUseServer,
 } from "@/repositories/source";
+import * as localPosts from "@/services/postStore";
 
-function localResult(value, fallback = false) {
-  if (value == null) return value;
-
-  return {
-    ...value,
-    source: fallback ? ACTIVE_SOURCES.LOCAL_FALLBACK : ACTIVE_SOURCES.LOCAL,
-    sourceLabel: getSourceLabel(fallback ? ACTIVE_SOURCES.LOCAL_FALLBACK : ACTIVE_SOURCES.LOCAL),
-  };
-}
+let localSavedSearches = DEMO_SAVED_SEARCHES.map((item) => ({ ...item }));
 
 function serverResult(value) {
   if (value == null) return value;
@@ -45,19 +36,11 @@ function assertServerSession(session) {
 async function withServerFallback(serverFn, localFn) {
   const session = await getCurrentSession();
 
-  if (!shouldUseServer(session)) {
-    return localResult(await localFn(), false);
-  }
-
   try {
     assertServerSession(session);
     return serverResult(await serverFn(session));
   } catch (error) {
     console.info("[DATA] Server post repository fallback", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return localResult(await localFn(), true);
-    }
 
     throw error;
   }
@@ -75,13 +58,48 @@ function normalizeServerPostObject(response) {
 }
 
 function isDemoVideo(video) {
-  return !video?.uri || video.uri.startsWith("demo://") || video.uri.startsWith("mock://");
+  return (
+    !video?.uri ||
+    video.uri.startsWith("demo://") ||
+    video.uri.startsWith("mock://")
+  );
 }
 
 function durationMs(video = {}) {
   const value = Number(video.durationMs || video.duration || 0);
   if (!Number.isFinite(value) || value <= 0) return 0;
   return value > 1000 ? value : value * 1000;
+}
+
+function rememberLocalSearch(query = "") {
+  const keyword = query.trim();
+  if (!keyword) return;
+
+  localSavedSearches = [
+    {
+      id: `saved_search_${Date.now()}`,
+      keyword,
+      createdAt: new Date().toISOString(),
+    },
+    ...localSavedSearches.filter(
+      (item) => item.keyword.toLowerCase() !== keyword.toLowerCase(),
+    ),
+  ].slice(0, 20);
+}
+
+function buildAddPostFields(session, params = {}) {
+  const fields = {
+    token: session.token,
+    described: params.content || "",
+    course_id: params.courseId || "",
+    device_slave: DEFAULT_DEVICE_TOKEN,
+  };
+
+  if (params.exerciseId) {
+    fields.exercise_id = params.exerciseId;
+  }
+
+  return fields;
 }
 
 export function validateTwoVideos(videos = []) {
@@ -118,12 +136,24 @@ export function validateTwoVideos(videos = []) {
 }
 
 function extractFeedMeta(response, params, itemCount) {
-  const data = response?.data && !Array.isArray(response.data) ? response.data : {};
+  const data =
+    response?.data && !Array.isArray(response.data) ? response.data : {};
   const requestedCount = Number(params.count || 20);
-  const rawLastId = data.last_id || data.lastId || response?.last_id || response?.lastId || "";
+  const rawLastId =
+    data.last_id || data.lastId || response?.last_id || response?.lastId || "";
   const hasMore =
-    data.has_more ?? data.hasMore ?? response?.has_more ?? response?.hasMore ?? (Boolean(rawLastId) && itemCount >= requestedCount);
-  const newItems = Number(data.new_items || data.newItems || response?.new_items || response?.newItems || 0);
+    data.has_more ??
+    data.hasMore ??
+    response?.has_more ??
+    response?.hasMore ??
+    (Boolean(rawLastId) && itemCount >= requestedCount);
+  const newItems = Number(
+    data.new_items ||
+      data.newItems ||
+      response?.new_items ||
+      response?.newItems ||
+      0,
+  );
 
   return {
     lastId: String(rawLastId || params.lastId || params.last_id || ""),
@@ -144,7 +174,10 @@ export async function getFeedPage(params = {}) {
         category_id: params.categoryId || params.category_id || "",
       });
 
-      await assertBackendOk(response, { allowNoData: true, message: "Backend feed failed" });
+      await assertBackendOk(response, {
+        allowNoData: true,
+        message: "Backend feed failed",
+      });
 
       const items = normalizeServerPostList(response);
       const meta = extractFeedMeta(response, params, items.length);
@@ -168,7 +201,9 @@ export async function getPostById(postId) {
         id: postId,
       });
 
-      await assertBackendOk(response, { message: "Backend post detail failed" });
+      await assertBackendOk(response, {
+        message: "Backend post detail failed",
+      });
 
       return normalizeServerPostObject(response);
     },
@@ -177,7 +212,8 @@ export async function getPostById(postId) {
 }
 
 export async function toggleLike(post) {
-  const targetPost = typeof post === "string" ? await localPosts.getPostById(post) : post;
+  const targetPost =
+    typeof post === "string" ? await localPosts.getPostById(post) : post;
 
   if (!isServerPost(targetPost)) {
     return localPosts.toggleLike(targetPost?.id || post);
@@ -204,16 +240,18 @@ export async function toggleLike(post) {
 export async function searchPosts(query = "", options = {}) {
   const session = await getCurrentSession();
 
-  if (!shouldUseServer(session) || !query.trim()) {
-    return localPosts.searchPosts(query);
-  }
-
   try {
     assertServerSession(session);
     const response = await backendApi.search({
       token: session.token,
       keyword: query,
-      user_id: options.userId || options.user_id || session.id || session.user_id || session.identifier || "",
+      user_id:
+        options.userId ||
+        options.user_id ||
+        session.id ||
+        session.user_id ||
+        session.identifier ||
+        "",
       index: "0",
       count: "20",
     });
@@ -223,21 +261,12 @@ export async function searchPosts(query = "", options = {}) {
     return normalizeServerPostList(response);
   } catch (error) {
     console.info("[DATA] Server search fallback", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return localPosts.searchPosts(query);
-    }
-
     throw error;
   }
 }
 
 export async function getSavedSearches() {
   const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return [];
-  }
 
   try {
     assertServerSession(session);
@@ -247,7 +276,10 @@ export async function getSavedSearches() {
       count: "20",
     });
 
-    await assertBackendOk(response, { allowNoData: true, message: "Backend saved search failed" });
+    await assertBackendOk(response, {
+      allowNoData: true,
+      message: "Backend saved search failed",
+    });
 
     return extractList(response).map((item) => ({
       id: String(item.id || item.search_id || item.keyword || Date.now()),
@@ -256,17 +288,13 @@ export async function getSavedSearches() {
     }));
   } catch (error) {
     console.info("[DATA] Server saved search unavailable", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return [];
-    }
-
     throw error;
   }
 }
 
 export async function deleteSavedSearch(searchId) {
   const session = await getCurrentSession();
+
   assertServerSession(session);
 
   const response = await backendApi.delSavedSearch({
@@ -274,18 +302,16 @@ export async function deleteSavedSearch(searchId) {
     id: searchId,
   });
 
-  await assertBackendOk(response, { message: "Backend del_saved_search failed" });
+  await assertBackendOk(response, {
+    message: "Backend del_saved_search failed",
+  });
 
   return true;
 }
 
 export async function editPost(post, params = {}) {
   if (!isServerPost(post)) {
-    return localPosts.createPost({
-      ...post,
-      ...params,
-      id: post.id,
-    });
+    return localPosts.updatePost(post.id, params);
   }
 
   const session = await getCurrentSession();
@@ -297,27 +323,38 @@ export async function editPost(post, params = {}) {
   const fields = {
     token: session.token,
     id: post.id,
-    described: params.content || params.described || post.described || post.content || "",
+    described:
+      params.content ||
+      params.described ||
+      post.described ||
+      post.content ||
+      "",
   };
 
   const response = params.videos?.length
-    ? await backendApi.editPostMultipart(fields, params.videos.map((video, index) => ({
-        ...video,
-        fieldName: index === 0 ? "video1" : "video2",
-      })))
+    ? await backendApi.editPostMultipart(
+        fields,
+        params.videos.map((video, index) => ({
+          ...video,
+          fieldName: index === 0 ? "video1" : "video2",
+        })),
+      )
     : await backendApi.editPost(fields);
 
   await assertBackendOk(response, { message: "Backend edit_post failed" });
 
-  return normalizeServerPostObject(response) || {
-    ...post,
-    content: params.content || post.content,
-    described: params.described || params.content || post.described,
-  };
+  return (
+    normalizeServerPostObject(response) || {
+      ...post,
+      content: params.content || post.content,
+      described: params.described || params.content || post.described,
+    }
+  );
 }
 
 export async function deletePost(post) {
   if (!isServerPost(post)) {
+    await localPosts.deletePost(post.id);
     return { deleted: true, source: ACTIVE_SOURCES.LOCAL };
   }
 
@@ -335,6 +372,7 @@ export async function deletePost(post) {
 
 export async function reportPost(post, reason = "") {
   if (!isServerPost(post)) {
+    await localPosts.reportPost(post.id, reason);
     return { reported: true, source: ACTIVE_SOURCES.LOCAL };
   }
 
@@ -355,10 +393,6 @@ export async function reportPost(post, reason = "") {
 export async function checkNewItems(lastId = "") {
   const session = await getCurrentSession();
 
-  if (!shouldUseServer(session)) {
-    return { hasNew: false, source: ACTIVE_SOURCES.LOCAL };
-  }
-
   assertServerSession(session);
   let response = await backendApi.checkNewItem({
     token: session.token,
@@ -366,8 +400,12 @@ export async function checkNewItems(lastId = "") {
     category_id: "",
   });
 
-  if (String(response?.message || "").includes("property token should not exist")) {
-    console.info("[DATA] check_new_item deployed compatibility: retrying without token");
+  if (
+    String(response?.message || "").includes("property token should not exist")
+  ) {
+    console.info(
+      "[DATA] check_new_item deployed compatibility: retrying without token",
+    );
     response = await backendApi.checkNewItem({
       last_id: lastId,
       category_id: "",
@@ -377,8 +415,12 @@ export async function checkNewItems(lastId = "") {
   await assertBackendOk(response, { message: "Backend check_new_item failed" });
 
   return {
-    hasNew: Boolean(response.data?.new_items || response.data?.has_new || response.has_new),
-    count: Number(response.data?.new_items || response.data?.count || response.count || 0),
+    hasNew: Boolean(
+      response.data?.new_items || response.data?.has_new || response.has_new,
+    ),
+    count: Number(
+      response.data?.new_items || response.data?.count || response.count || 0,
+    ),
     source: ACTIVE_SOURCES.SERVER,
     raw: response,
   };
@@ -386,28 +428,20 @@ export async function checkNewItems(lastId = "") {
 
 export async function getExercisePosts() {
   const result = await getFeedPage({ index: 0, count: 20 });
-  return result.items.filter((post) => post.type === "exercise" || post.canSubmit);
+  return result.items.filter(
+    (post) => post.type === "exercise" || post.canSubmit,
+  );
 }
 
 export async function createPost(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
 
-  if (!shouldUseServer(session)) {
-    return localPosts.createPost(params);
-  }
-
   try {
     assertServerSession(session);
     validateTwoVideos(videos);
     const response = await backendApi.addPost(
-      {
-        token: session.token,
-        described: params.content || "",
-        course_id: params.courseId || "",
-        exercise_id: params.exerciseId || "",
-        device_slave: DEFAULT_DEVICE_TOKEN,
-      },
+      buildAddPostFields(session, params),
       videos.map((video, index) => ({
         ...video,
         fieldName: index === 0 ? "video1" : "video2",
@@ -415,30 +449,28 @@ export async function createPost(params) {
     );
 
     await assertBackendOk(response, { message: "Backend add_post failed" });
-    return normalizeServerPostObject(response) || {
-      id: String(response?.data?.id || response?.data?.post_id || Date.now()),
-      source: ACTIVE_SOURCES.SERVER,
-      content: params.content || "",
-      described: params.content || "",
-      videos,
-      author: {
-        id: session.id,
-        name: session.displayName || session.username,
-        role: session.role || "HV",
-      },
-      createdAt: new Date().toISOString(),
-      likeCount: 0,
-      commentCount: 0,
-      canComment: true,
-      canSubmit: false,
-      courseId: params.courseId || "",
-      exerciseId: params.exerciseId || "",
-    };
+    return (
+      normalizeServerPostObject(response) || {
+        id: String(response?.data?.id || response?.data?.post_id || Date.now()),
+        source: ACTIVE_SOURCES.SERVER,
+        content: params.content || "",
+        described: params.content || "",
+        videos,
+        author: {
+          id: session.id,
+          name: session.displayName || session.username,
+          role: session.role || "HV",
+        },
+        createdAt: new Date().toISOString(),
+        likeCount: 0,
+        commentCount: 0,
+        canComment: true,
+        canSubmit: false,
+        courseId: params.courseId || "",
+        exerciseId: params.exerciseId || "",
+      }
+    );
   } catch (error) {
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return localPosts.createPost(params);
-    }
-
     throw error;
   }
 }
@@ -450,27 +482,12 @@ export async function createLocalPost(params) {
 export async function createExerciseSubmission(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
-  const hasOnlyDemoVideos = videos.some(isDemoVideo);
-
-  if (!shouldUseServer(session) || hasOnlyDemoVideos) {
-    if (shouldUseServer(session) && hasOnlyDemoVideos && !canFallbackToLocal()) {
-      throw new Error("Server mode cần 2 video thật, không dùng placeholder demo.");
-    }
-
-    return localPosts.createExerciseSubmission(params);
-  }
 
   try {
     assertServerSession(session);
     validateTwoVideos(videos);
     const response = await backendApi.addPost(
-      {
-        token: session.token,
-        described: params.content || "",
-        course_id: params.courseId || "",
-        exercise_id: params.exerciseId || "",
-        device_slave: DEFAULT_DEVICE_TOKEN,
-      },
+      buildAddPostFields(session, params),
       videos.map((video, index) => ({
         ...video,
         fieldName: index === 0 ? "video1" : "video2",
@@ -479,32 +496,29 @@ export async function createExerciseSubmission(params) {
 
     await assertBackendOk(response, { message: "Backend add_post failed" });
 
-    return normalizeServerPostObject(response) || {
-      id: String(response?.data?.id || response?.data?.post_id || Date.now()),
-      source: ACTIVE_SOURCES.SERVER,
-      content: params.content || "",
-      described: params.content || "",
-      videos,
-      author: {
-        id: session.id,
-        name: session.displayName || session.username,
-        role: session.role || "HV",
-      },
-      createdAt: new Date().toISOString(),
-      likeCount: 0,
-      commentCount: 0,
-      canComment: true,
-      canSubmit: false,
-      courseId: params.courseId || "",
-      exerciseId: params.exerciseId || "",
-    };
+    return (
+      normalizeServerPostObject(response) || {
+        id: String(response?.data?.id || response?.data?.post_id || Date.now()),
+        source: ACTIVE_SOURCES.SERVER,
+        content: params.content || "",
+        described: params.content || "",
+        videos,
+        author: {
+          id: session.id,
+          name: session.displayName || session.username,
+          role: session.role || "HV",
+        },
+        createdAt: new Date().toISOString(),
+        likeCount: 0,
+        commentCount: 0,
+        canComment: true,
+        canSubmit: false,
+        courseId: params.courseId || "",
+        exerciseId: params.exerciseId || "",
+      }
+    );
   } catch (error) {
     console.info("[DATA] Server add_post failed", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return localPosts.createExerciseSubmission(params);
-    }
-
     throw error;
   }
 }

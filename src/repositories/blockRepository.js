@@ -1,19 +1,10 @@
 import { backendApi } from "@/api/client";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import {
-  ACTIVE_SOURCES,
-  canFallbackToLocal,
-  getCurrentSession,
-  shouldUseServer,
-} from "@/repositories/source";
+import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 export async function getBlocks() {
   const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return [];
-  }
 
   try {
     const response = await backendApi.getListBlocks({
@@ -48,21 +39,12 @@ export async function getBlocks() {
     return Array.from(deduped.values());
   } catch (error) {
     console.info("[DATA] Server blocks fallback", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return [];
-    }
-
     throw error;
   }
 }
 
 export async function setBlock(userId, type = "block") {
   const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return { blocked: type !== "unblock", source: ACTIVE_SOURCES.LOCAL };
-  }
 
   const response = await backendApi.setBlock({
     token: session.token,

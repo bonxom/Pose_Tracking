@@ -1,14 +1,8 @@
 import { backendApi } from "@/api/client";
-import { DEMO_COURSE, DEMO_STUDENT } from "@/constants/demo";
 import { extractList } from "@/repositories/normalizers";
 import { getExercisePosts } from "@/repositories/postRepository";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import {
-  ACTIVE_SOURCES,
-  canFallbackToLocal,
-  getCurrentSession,
-  shouldUseServer,
-} from "@/repositories/source";
+import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 function normalizeCourse(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   const requestStatus =
@@ -32,29 +26,18 @@ function normalizeCourse(raw = {}, source = ACTIVE_SOURCES.SERVER) {
       requestStatus === "requested");
 
   return {
-    id: String(raw.id || raw.course_id || DEMO_COURSE.id),
+    id: String(raw.id || raw.course_id),
     source,
-    title: raw.title || raw.name || raw.course_name || DEMO_COURSE.title,
-    teacherName:
-      raw.teacherName ||
-      raw.teacher_name ||
-      raw.teacher?.name ||
-      DEMO_COURSE.teacherName,
-    description: raw.description || raw.described || DEMO_COURSE.description,
+    title: raw.title || raw.name || raw.course_name,
+    teacherName: raw.teacherName || raw.teacher_name || raw.teacher?.name,
+    description: raw.description || raw.described,
     enrolled,
     requested,
     enrollmentStatus: enrolled ? "enrolled" : requested ? "requested" : "none",
-    studentCount: Number(
-      raw.studentCount || raw.student_count || DEMO_COURSE.studentCount,
-    ),
-    exerciseCount: Number(
-      raw.exerciseCount || raw.exercise_count || DEMO_COURSE.exerciseCount,
-    ),
-    latestExerciseId:
-      raw.latestExerciseId ||
-      raw.latest_exercise_id ||
-      DEMO_COURSE.latestExerciseId,
-    hashtag: raw.hashtag || DEMO_COURSE.hashtag,
+    studentCount: Number(raw.studentCount || raw.student_count),
+    exerciseCount: Number(raw.exerciseCount || raw.exercise_count),
+    latestExerciseId: raw.latestExerciseId || raw.latest_exercise_id,
+    hashtag: raw.hashtag,
   };
 }
 
@@ -75,12 +58,33 @@ function emptyServerCourse() {
   };
 }
 
+function normalizeStudent(item = {}, source = ACTIVE_SOURCES.SERVER) {
+  return {
+    id: String(item.id || item.user_id || item.student_id || ""),
+    username: item.username || item.name || item.fullname || "Học viên",
+    name: item.name || item.username || item.fullname || "Học viên",
+    avatar: item.avatar || "",
+    role: item.role || "HV",
+    phonenumber: item.phonenumber || item.phone || "",
+    source,
+    raw: item,
+  };
+}
+
+function buildStudentCollection(
+  items = [],
+  total = items.length,
+  source = ACTIVE_SOURCES.SERVER,
+) {
+  const students = items.map((item) => normalizeStudent(item, source));
+  return Object.assign(students, {
+    students,
+    total: String(total ?? students.length),
+  });
+}
+
 export async function getCurrentCourse() {
   const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL);
-  }
 
   try {
     const response = await backendApi.getListCoursesOfStudent({
@@ -101,11 +105,6 @@ export async function getCurrentCourse() {
       : emptyServerCourse();
   } catch (error) {
     console.info("[DATA] Server course fallback", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL_FALLBACK);
-    }
-
     throw error;
   }
 }
@@ -116,10 +115,6 @@ export async function getCourseExercises() {
 
 export async function getStudentCourses(params = {}) {
   const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return [normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL)];
-  }
 
   try {
     const response = await backendApi.getListCoursesOfStudent({
@@ -146,29 +141,12 @@ export async function getStudentCourses(params = {}) {
     return courses.length ? courses : [];
   } catch (error) {
     console.info("[DATA] Server student courses fallback", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      return [normalizeCourse(DEMO_COURSE, ACTIVE_SOURCES.LOCAL_FALLBACK)];
-    }
-
     throw error;
   }
 }
 
 export async function getCourseStudents() {
   const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return [
-      {
-        id: DEMO_STUDENT.id,
-        username: DEMO_STUDENT.displayName,
-        role: "HV",
-        phonenumber: DEMO_STUDENT.phonenumber,
-        source: ACTIVE_SOURCES.LOCAL,
-      },
-    ];
-  }
 
   const response = await backendApi.getListStudents({
     token: session.token,
@@ -184,34 +162,8 @@ export async function getCourseStudents() {
   return response.data;
 }
 
-export async function getRequestedEnrollments(index = 0, count = 50) {
+export async function requestCourse(courseId) {
   const session = await getCurrentSession();
-  console.log(session.token);
-
-  if (!shouldUseServer(session)) {
-    return [];
-  }
-
-  const response = await backendApi.getRequestedEnrollment({
-    token: session.token,
-    index: String(index),
-    count: String(count),
-  });
-
-  await assertBackendOk(response, {
-    allowNoData: true,
-    message: "Backend get_requested_enrollment failed",
-  });
-
-  return extractList(response);
-}
-
-export async function requestCourse(courseId = DEMO_COURSE.id) {
-  const session = await getCurrentSession();
-
-  if (!shouldUseServer(session)) {
-    return { requested: true, source: ACTIVE_SOURCES.LOCAL };
-  }
 
   const response = await backendApi.setRequestCourse({
     token: session.token,
@@ -233,6 +185,7 @@ export async function requestCourse(courseId = DEMO_COURSE.id) {
 
 export async function approveEnrollment(requestId, isApproved = true) {
   const session = await getCurrentSession();
+
   const response = await backendApi.setApproveEnrollment({
     token: session.token,
     user_id: requestId,

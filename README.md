@@ -1,238 +1,172 @@
-# Pose_Tracking
+# IT4788 Pose Tracking Frontend
 
-Ứng dụng React Native dùng Expo Router (file-based routing) cho social app luyện tập tư thế diễu hành trong học phần IT4788.
+Frontend React Native / Expo cho ứng dụng xã hội học tập và luyện tập tư thế diễu binh/diễu hành của môn IT4788.
 
-Backend chính thức cho các bước tích hợp sau:
+Ứng dụng hiện theo hướng **server-authoritative**: chế độ mặc định gọi backend thật, còn `mock mode` chỉ là phương án dự phòng cho phát triển UI và demo khi backend chưa ổn định.
 
-```text
-http://group1.it4788.sukkaito.id.vn
-```
+## Trạng thái hiện tại
 
-Định hướng hiện tại là server-authoritative: luồng sản phẩm mặc định dùng backend IT4788. Local/demo mode chỉ còn là đường dự phòng phát triển và phải được đánh dấu rõ.
+- Expo Router + React Native, chạy được trên Expo Web bằng Docker.
+- Điều hướng theo hướng Facebook-like do leader chọn: Home, Friends, Notifications, Profile.
+- API owner branch cung cấp repository/API layer cho auth, feed/posts/comments/search/courses/notifications/profile/settings/blocks/conversations.
+- Có Postman assets cho backend team và UI team.
+- Có script probe backend và E2E server để kiểm tra contract thực tế.
+- Backend mặc định: `https://group1.it4788.sukkaito.id.vn/it4788`.
+- HTTP fallback: `http://group1.it4788.sukkaito.id.vn/it4788`.
 
-## Công nghệ chính
+## Chạy bằng Docker
 
-- Expo SDK 55
-- React Native 0.83
-- Expo Router
-- React Navigation (tabs)
-- React Native Web
-
-## Cách chạy web demo bằng Docker
-
-Máy host không cần cài Node/npm. Docker sẽ cài dependencies trong container bằng `npm ci`.
+Máy host không cần cài `npm`.
 
 ```bash
 docker compose build
 docker compose up
 ```
 
-Mở web demo tại:
+Mở web demo:
 
 ```text
 http://localhost:8081
 ```
 
-Tài khoản demo nhanh chỉ dành cho developer/local fallback:
+Nếu cần chạy lệnh npm trong container:
+
+```bash
+docker compose run --rm expo npm run lint
+docker compose run --rm expo sh -lc 'npx expo-doctor'
+```
+
+## Chế độ API
+
+Biến khuyến nghị cho Expo runtime:
+
+```bash
+EXPO_PUBLIC_API_TYPE=backend # mặc định, gọi backend thật
+EXPO_PUBLIC_API_TYPE=mock    # chỉ dùng dữ liệu/mock repository, không gọi backend
+```
+
+Alias tiện cho Docker/dev script nếu môi trường hỗ trợ:
+
+```bash
+API_TYPE=backend
+API_TYPE=mock
+```
+
+Biến cũ vẫn được giữ để tương thích:
+
+```bash
+EXPO_PUBLIC_DATA_SOURCE=server # map sang backend
+EXPO_PUBLIC_DATA_SOURCE=local  # map sang mock
+EXPO_PUBLIC_DATA_SOURCE=auto   # tương thích cũ, không khuyến nghị cho luồng mới
+```
+
+## Cấu trúc chính
 
 ```text
-HV: 0900000001 / 123456
-GV: 0900000002 / 123456
+src/
+  app/
+    (auth)/               # login/signup/verify/change-info
+    (tabs)/               # Home, Friends, Notifications, Profile
+    post/                 # post detail, create/upload
+    search.jsx            # route non-tab cho search
+    courses.jsx           # route non-tab cho course/enrollment
+    chat/                 # conversation list/detail
+    settings/             # profile edit, push settings, blocks, password
+  api/                    # backend API client/wrappers
+  repositories/           # adapter dùng cho UI screens
+  constants/              # mock/demo seed data
+  services/               # session/storage helpers
+
+docs/                     # tài liệu dự án, API, E2E, mismatch
+postman/                  # Postman README và collection/environment trên feature branch
+scripts/                  # backend probe, server E2E harness
 ```
 
-Xem thêm hướng dẫn và troubleshooting trong [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Báo cáo kiểm thử server nằm ở [docs/FRONTEND_SERVER_TEST_REPORT.md](docs/FRONTEND_SERVER_TEST_REPORT.md).
+## Luồng UI hiện tại
 
-## Data source modes
-
-```bash
-EXPO_PUBLIC_DATA_SOURCE=server # mặc định: dùng backend, lỗi rõ ràng nếu backend/token không hợp lệ
-EXPO_PUBLIC_DATA_SOURCE=auto   # dev fallback: server khi có token thật, fallback local nếu backend lỗi
-EXPO_PUBLIC_DATA_SOURCE=local  # developer-only local fallback
-```
-
-Backend probe:
-
-```bash
-docker compose run --rm expo npm run backend:probe
-```
-
-Server E2E harness:
-
-```bash
-docker compose run --rm expo npm run e2e:server
-```
-
-Existing-account E2E uses credentials only from shell environment variables:
-
-```bash
-docker compose run --rm expo sh -lc '
-  E2E_USE_EXISTING_ACCOUNTS=1 \
-  E2E_HV_PHONE=<provided-hv-phone> \
-  E2E_GV_PHONE=<provided-gv-phone> \
-  E2E_PASSWORD=<provided-password> \
-  npm run e2e:server
-'
-```
-
-## Cách chạy nếu có npm trên host
-
-1. Cài dependencies:
-
-```bash
-npm install
-```
-
-2. Chạy app:
-
-```bash
-npm run start
-```
-
-3. Mở theo nền tảng:
-
-```bash
-npm run android
-npm run ios
-npm run web
-```
-
-Lệnh bổ sung:
-
-```bash
-npm run start:clear
-npm run web:docker
-```
-
-## Cấu trúc thư mục
-
-```text
-Pose_Tracking/
-├── assets/                        # ảnh, icon, splash
-├── src/
-│   ├── api/
-│   │   ├── auth.js                # server-backed signup/login helpers with local fallback mode
-│   │   ├── client.js              # 40-API backend client
-│   │   └── backendStatus.js       # backend availability helper
-│   ├── app/                       # routes (Expo Router)
-│   │   ├── _layout.jsx            # root stack
-│   │   ├── index.jsx              # redirect -> /(auth)/login
-│   │   ├── (auth)/                # flow đăng ký/đăng nhập
-│   │   ├── (tabs)/                # Home, Courses, Search, Notifications, Menu
-│   │   ├── post/                  # stack bài viết
-│   │   ├── comment/               # stack bình luận
-│   │   ├── settings/              # profile/push/password/blocks/device/version
-│   │   └── chat/                  # conversation list/detail
-│   ├── components/common/
-│   │   ├── AppButton.jsx
-│   │   ├── AppInput.jsx
-│   │   └── Screen.jsx
-│   ├── constants/
-│   │   ├── colors.js              # design tokens màu
-│   │   ├── demo.js                # demo users/course/exercises/notifications
-│   │   ├── sizes.js               # spacing/radius/size tokens
-│   │   └── mocks/users.js         # dữ liệu user giả lập
-│   ├── config/
-│   │   └── env.js                 # API base URL and timeout config
-│   ├── repositories/              # server-authoritative adapters plus local dev fallback
-│   ├── styles/
-│   │   ├── auth/                  # style cho từng màn auth
-│   │   ├── common/
-│   │   └── home.styles.js
-│   └── utils/
-│       └── validation.js          # validate phone/password
-├── example/                       # code mẫu từ template Expo
-├── app.json
-├── Dockerfile
-├── docker-compose.yml
-├── jsconfig.json                  # alias @/* -> src/*
-└── package.json
-```
-
-## Routing và điều hướng
-
-### Root stack
-
-- `src/app/_layout.jsx` khai báo 6 nhánh:
-  - `(auth)`
-  - `(tabs)`
-  - `post`
-  - `comment`
-  - `settings`
-  - `chat`
-
-### Route mặc định
-
-- `src/app/index.jsx` redirect thẳng tới `/(auth)/login`.
-
-### Auth flow hiện tại
-
-1. `/(auth)/login`
-2. `/(auth)/signup-start`
-3. `/(auth)/signup-profile`
-4. `/(auth)/signup-birthday`
-5. `/(auth)/signup`
-6. `/(auth)/signup-terms`
-7. `/(auth)/verify`
-8. `/(auth)/change-info-after-signup`
-9. `/(auth)/signup-success`
-10. `/(tabs)/home`
-
-Lưu ý: dữ liệu qua từng bước được truyền bằng `router.push({ pathname, params })`.
-
-### Tabs sau đăng nhập
+Top navigator có 4 section:
 
 - `/(tabs)/home`
-- `/(tabs)/courses`
-- `/(tabs)/search`
+- `/(tabs)/friends`
 - `/(tabs)/notifications`
 - `/(tabs)/profile`
 
-### Post/comment routes
+Search và Courses không phải tab top-level nữa. UI team có thể mở bằng route non-tab:
+
+- `/search`
+- `/courses`
+
+Các route hỗ trợ khác:
 
 - `/post/create`
 - `/post/[id]`
 - `/comment/[postId]`
-
-### Settings/chat routes
-
+- `/chat`
+- `/chat/[id]`
 - `/settings`
 - `/settings/profile-edit`
 - `/settings/push`
-- `/settings/change-password`
 - `/settings/blocks`
-- `/chat`
-- `/chat/[id]`
+- `/settings/change-password`
 
-## Kiến trúc code
+## Tài liệu nên đọc
 
-- `app/`: màn hình + điều hướng.
-- `components/common/`: component tái sử dụng.
-- `styles/`: style tách theo module màn hình.
-- `constants/`: token UI + mock data.
-- `api/`: lớp auth server-backed và backend API client an toàn.
-- `repositories/`: adapter server-authoritative cho các module chính, giữ local fallback cho phát triển.
-- `utils/`: tiện ích dùng chung (validation).
+- `docs/API_HANDOFF_FOR_UI_TEAM.md`: UI team nên gọi repository nào, input/output ra sao.
+- `docs/API_IMPLEMENTATION_MATRIX.md`: trạng thái từng API, phân biệt wrapper/repository/UI/verified server.
+- `docs/BACKEND_MISMATCHES.md`: danh sách mismatch gửi backend team.
+- `docs/BACKEND_CONTRACT_REPORT.md`: kết quả probe backend.
+- `docs/E2E_TEST_REPORT.md`: kết quả E2E với account thật qua env vars.
+- `docs/MOBILE_TESTING.md`: cách test trên điện thoại bằng browser LAN và Expo Go best-effort.
+- `postman/README.md`: cách import và dùng Postman assets.
 
-## Tài liệu
+## Postman
 
-- [docs/IT4788_SOURCE_OF_TRUTH.md](docs/IT4788_SOURCE_OF_TRUTH.md): source-of-truth summary for product rules and 40 APIs.
-- [docs/API_IMPLEMENTATION_MATRIX.md](docs/API_IMPLEMENTATION_MATRIX.md): 40-API wrapper/repository/screen/probe matrix.
-- [docs/SCREEN_FLOW_MATRIX.md](docs/SCREEN_FLOW_MATRIX.md): routes and server API usage by flow.
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): Docker workflow, web URL, data-source modes, troubleshooting.
-- [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md): exact morning demo runbook and click path.
-- [docs/DEMO_STATUS.md](docs/DEMO_STATUS.md): completed features, local/mock features, backend behavior, known gaps.
-- [docs/FRONTEND_BASELINE_AUDIT.md](docs/FRONTEND_BASELINE_AUDIT.md): tech stack, routes, implemented features, mock/local-only parts, risks.
-- [docs/FRONTEND_SERVER_TEST_REPORT.md](docs/FRONTEND_SERVER_TEST_REPORT.md): final server-mode frontend test matrix.
-- [docs/BACKEND_CONTRACT_REPORT.md](docs/BACKEND_CONTRACT_REPORT.md): deployed backend probe results.
-- [docs/BACKEND_MISMATCHES.md](docs/BACKEND_MISMATCHES.md): known deployed/backend-doc mismatches.
-- [docs/E2E_TEST_REPORT.md](docs/E2E_TEST_REPORT.md): Docker, backend, and real-account E2E results.
-- [docs/SERVER_E2E_RUNBOOK.md](docs/SERVER_E2E_RUNBOOK.md): real-account E2E commands with OTP continuation.
-- [docs/MOBILE_TESTING.md](docs/MOBILE_TESTING.md): physical phone browser and best-effort Expo Go instructions.
+Trên feature branch API owner có:
 
-## Ghi chú
+```text
+postman/IT4788.postman_collection.json
+postman/IT4788.local.postman_environment.json
+postman/README.md
+```
 
-- Import alias:
-  - `@/*` -> `src/*`
-  - `@/assets/*` -> `assets/*`
-- `example/` chỉ là code mẫu, không phải luồng chính của ứng dụng hiện tại.
-- Backend thật đã có wrapper cho toàn bộ 40 API và repository integration cho các module chính. Tài khoản HV/GV thật đã verified login/logout và một số read/lifecycle API; các flow theo object thật còn cần server seed dữ liệu course/exercise/post/notification/conversation.
+Import collection + environment, tự nhập credential thật trong Postman local. Không export credential thật ngược lại repo.
+
+## Quy tắc bảo mật
+
+- Không commit số điện thoại/mật khẩu thật.
+- Không commit `.env` local.
+- Không commit video fixture như `video/*.mp4`.
+- Credential E2E chỉ truyền qua biến môi trường.
+
+## Kiểm tra nhanh
+
+```bash
+docker compose build
+docker compose run --rm expo npm run lint
+docker compose run --rm expo sh -lc 'npx expo-doctor'
+```
+
+Probe backend:
+
+```bash
+docker compose run --rm expo sh -lc 'PROBE_COMPACT=1 npm run backend:probe'
+```
+
+E2E server dùng account thật qua env vars, không ghi credential vào repo:
+
+```bash
+docker compose run --rm expo sh -lc '
+  E2E_USE_EXISTING_ACCOUNTS=1 \
+  E2E_HV_PHONE=<hv-phone> \
+  E2E_GV_PHONE=<gv-phone> \
+  E2E_PASSWORD=<password> \
+  npm run e2e:server
+'
+```
+
+## Ghi chú backend mới nhất
+
+- Backend team nói `course_id` là teacher/GV id.
+- Backend team nói không có entity `exercise` riêng.
+- Runtime deployed vẫn còn mismatch: upload HV metadata-only vẫn báo cần `exercise_id`; multipart upload thật đang bị `Unexpected field` do chưa rõ field name file.
+- Các endpoint friend/user-social từ slide mới như `get_user_friends`, `get_list_friends`, `get_friends` hiện trả 404 khi probe deployed backend.
