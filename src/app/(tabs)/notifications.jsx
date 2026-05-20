@@ -297,24 +297,36 @@ export default function NotificationsScreen() {
         }
       }
 
-      const type = String(item.type || "").toLowerCase();
-      const postId = item.objectId || item.targetId;
+      const type = String(item.type || item.raw?.type || "").toLowerCase();
 
-      if (!postId) {
+      const postId = String(
+        item.objectId ||
+          item.targetId ||
+          item.postId ||
+          item.raw?.object_id ||
+          item.raw?.post_id ||
+          item.raw?.postId ||
+          item.raw?.id ||
+          "",
+      ).trim();
+
+      if (!postId || postId === "0" || postId === "undefined" || postId === "null") {
+        console.warn("Notification missing post id", item);
         return;
       }
 
       if (type.includes("comment")) {
-        router.push(`/comment/${postId}`);
+        router.push({
+          pathname: "/post/comment/[postId]",
+          params: { postId },
+        });
         return;
       }
 
-      if (type.includes("like") || type.includes("post")) {
-        router.push(`/post/${postId}`);
-        return;
-      }
-
-      router.push(`/post/${postId}`);
+      router.push({
+        pathname: "/post/[id]",
+        params: { id: postId },
+      });
     },
     [badge, items],
   );
