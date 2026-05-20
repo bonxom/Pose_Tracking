@@ -5,21 +5,21 @@ import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import {
-    formatRelativeTime,
-    getInitials,
-    isFreshPost,
+  formatRelativeTime,
+  getInitials,
+  isFreshPost,
 } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 const EXPAND_THRESHOLD = 180;
@@ -349,7 +349,7 @@ export default function PostCard({
 
       <View style={postStyles.actionRow}>
         <LikeButton
-          isLiked={post.isLiked}
+          isLiked={post.is_liked}
           onPress={onToggleLike}
           style={{ flex: 1, justifyContent: "center" }}
         />

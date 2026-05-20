@@ -272,7 +272,7 @@ export const backendApi = {
     postMultipart("/edit_post", fields, files),
   deletePost: (params) => post("/delete_post", params),
   reportPost: (params) => post("/report_post", params),
-  like: (params) => post("/like", params),
+  like: (params) => post("/like_post", params),
   getComment: (params) => post("/get_comment", params),
   setComment: (params) => postForm("/set_comment", params),
   search: (params) => post("/search", params),
