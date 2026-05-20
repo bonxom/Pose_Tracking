@@ -1,7 +1,28 @@
 import { backendApi } from "@/api/client";
+import { API_TYPE, API_TYPES } from "@/config/env";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
+import {
+    ACTIVE_SOURCES,
+    getCurrentSession,
+} from "@/repositories/source";
+
+function isNotificationSessionExpired(error) {
+  const code = String(
+    error?.code ||
+      error?.data?.code ||
+      error?.response?.data?.code ||
+      "",
+  );
+
+  const status = Number(error?.status || error?.response?.status || 0);
+
+  return code === "9998" || status === 401;
+}
+
+export function isNotificationAuthError(error) {
+  return isNotificationSessionExpired(error);
+}
 
 let notificationCache = {
   items: [],
@@ -52,9 +73,7 @@ function getNotificationCreatedTime(item) {
 }
 
 function sortNotifications(items = []) {
-  return [...items].sort(
-    (a, b) => getNotificationCreatedTime(b) - getNotificationCreatedTime(a),
-  );
+  return [...items].sort((a, b) => getNotificationCreatedTime(b) - getNotificationCreatedTime(a));
 }
 
 function mergeNotifications(oldItems = [], newItems = []) {
@@ -142,10 +161,19 @@ function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   const group = raw.group || raw.group_type || "";
   const readValue = raw.read ?? raw.is_read;
 
+  function buildNotificationId(raw = {}, index = 0) {
+    return String(
+      raw.notification_id ||
+        raw.id ||
+        (raw.object_id && `${raw.type || "notification"}_${raw.object_id}_${raw.created || index}`) ||
+        `notification_${raw.type || "unknown"}_${raw.title || ""}_${raw.created || index}_${index}`,
+    );
+  }
+
+  const id = buildNotificationId(raw, 0);
+
   return {
-    id: String(
-      raw.id || raw.notification_id || `${source}_notification_${Date.now()}`,
-    ),
+    id,
     notificationId: String(raw.notification_id || raw.id || ""),
     source,
     type,
@@ -182,8 +210,8 @@ function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
 }
 
 function normalizeNotificationPage(response, source) {
-  const items = extractList(response).map((item) =>
-    normalizeNotification(item, source),
+  const items = extractList(response).map((item, index) =>
+    normalizeNotification(item, index, source),
   );
   const data =
     response?.data && !Array.isArray(response.data) ? response.data : {};
@@ -212,29 +240,35 @@ export async function getNotifications() {
 }
 
 export async function getNotificationPage(params = {}) {
+  // Mock mode: allow last_update to simulate pull-to-refresh behavior
+  if (API_TYPE === API_TYPES.MOCK) {
+    const response = await backendApi.getNotification({
+      index: String(params.index || 0),
+      count: String(params.count || 20),
+      last_update: params.lastUpdate || params.last_update || "",
+    });
+
+    await assertBackendOk(response, {
+      allowNoData: true,
+      message: "Mock notification failed",
+    });
+
+    const page = normalizeNotificationPage(response, ACTIVE_SOURCES.LOCAL);
+
+    return saveNotificationCache(page, {
+      append: Number(params.index || 0) > 0,
+    });
+  }
+
+  // Backend mode: do not send last_update, only token/index/count
   const session = await getCurrentSession();
 
   try {
-    let response = await backendApi.getNotification({
+    const response = await backendApi.getNotification({
       token: session.token,
       index: String(params.index || 0),
       count: String(params.count || 20),
     });
-
-    if (
-      String(response?.message || "").includes(
-        "property last_update should not exist",
-      )
-    ) {
-      console.info(
-        "[DATA] get_notification deployed compatibility: retrying without last_update",
-      );
-      response = await backendApi.getNotification({
-        token: session.token,
-        index: String(params.index || 0),
-        count: String(params.count || 20),
-      });
-    }
 
     await assertBackendOk(response, {
       allowNoData: true,
@@ -246,7 +280,18 @@ export async function getNotificationPage(params = {}) {
       append: Number(params.index || 0) > 0,
     });
   } catch (error) {
-    console.info("[DATA] Server notification fallback", error.message);
+    console.info("[DATA] Server notification fallback", {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      data: error?.data,
+    });
+
+    if (isNotificationSessionExpired(error)) {
+      setNotificationBadge(0);
+      throw error;
+    }
+
     throw error;
   }
 }

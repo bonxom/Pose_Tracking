@@ -1,12 +1,14 @@
+import { API_TYPE, API_TYPES } from "@/config/env";
 import {
   getNotificationCache,
   getNotificationPage,
+  isNotificationAuthError,
   markNotificationRead,
   markNotificationReadLocal,
   setNotificationBadge,
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
-import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -138,8 +140,7 @@ function EmptyState() {
     <View style={styles.emptyState}>
       <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
       <Text style={styles.emptyText}>
-        Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ xuất
-        hiện ở đây.
+        Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ xuất hiện ở đây.
       </Text>
     </View>
   );
@@ -189,7 +190,15 @@ export default function NotificationsScreen() {
       setHasMore(page.hasMore);
       setLastUpdate(page.lastUpdate);
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
+      if (API_TYPE !== API_TYPES.MOCK) {
+        if (await handleNotificationAuthError(err)) {
+          setItems([]);
+          setBadge(0);
+          setHasMore(false);
+          return;
+        }
+      }
+
       setError(err?.message || "Không tải được thông báo.");
     } finally {
       setIsLoading(false);
@@ -216,7 +225,15 @@ export default function NotificationsScreen() {
       setHasMore(page.hasMore);
       setLastUpdate(page.lastUpdate);
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
+      if (API_TYPE !== API_TYPES.MOCK) {
+        if (await handleNotificationAuthError(err)) {
+          setItems([]);
+          setBadge(0);
+          setHasMore(false);
+          return;
+        }
+      }
+
       setError(err?.message || "Không tải thêm được thông báo.");
     } finally {
       setIsLoadingMore(false);
@@ -243,43 +260,64 @@ export default function NotificationsScreen() {
     }, [loadPage]),
   );
 
-  const handlePressNotification = useCallback(async (item) => {
-    const notificationId = item.notificationId || item.id;
-    const unread = isUnread(item);
+  async function handleNotificationAuthError(error) {
+    if (!isNotificationAuthError(error)) {
+      return false;
+    }
 
-    if (unread) {
-      const cache = markNotificationReadLocal(notificationId);
+    await clearAuthSession();
 
-      setItems(cache.items);
-      setBadge(cache.unreadCount);
-      setNotificationBadge(cache.unreadCount);
+    router.replace("/login");
 
-      try {
-        await markNotificationRead(notificationId);
-      } catch (err) {
-        console.warn("Failed to mark notification read:", err);
+    return true;
+  }
+
+  const handlePressNotification = useCallback(
+    async (item) => {
+      const notificationId = item.notificationId || item.id;
+      const unread = isUnread(item);
+
+      if (unread) {
+        const cache = markNotificationReadLocal(notificationId);
+
+        setItems(cache.items);
+        setBadge(cache.unreadCount);
+        setNotificationBadge(cache.unreadCount);
+
+        try {
+          await markNotificationRead(notificationId);
+        } catch (err) {
+          if (API_TYPE !== API_TYPES.MOCK) {
+            if (await handleNotificationAuthError(err)) {
+              return;
+            }
+          }
+
+          console.warn("Failed to mark notification read:", err);
+        }
       }
-    }
 
-    const type = String(item.type || "").toLowerCase();
-    const postId = item.objectId || item.targetId;
+      const type = String(item.type || "").toLowerCase();
+      const postId = item.objectId || item.targetId;
 
-    if (!postId) {
-      return;
-    }
+      if (!postId) {
+        return;
+      }
 
-    if (type.includes("comment")) {
-      router.push(`/post/comment/${postId}`);
-      return;
-    }
+      if (type.includes("comment")) {
+        router.push(`/comment/${postId}`);
+        return;
+      }
 
-    if (type.includes("like") || type.includes("post")) {
+      if (type.includes("like") || type.includes("post")) {
+        router.push(`/post/${postId}`);
+        return;
+      }
+
       router.push(`/post/${postId}`);
-      return;
-    }
-
-    router.push(`/post/${postId}`);
-  }, []);
+    },
+    [badge, items],
+  );
 
   if (isLoading && items.length === 0) {
     return (
