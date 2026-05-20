@@ -316,7 +316,7 @@ export const backendApi = {
       : post("/check_new_item", params),
   getNotification: (params) =>
     API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(getMockNotificationResponse(params))
+      ? getMockNotificationResponse(params)
       : post("/get_notification", params),
   setReadMessage: (params) => post("/set_read_message", params),
   setReadNotification: (params) =>
