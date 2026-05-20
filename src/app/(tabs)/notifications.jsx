@@ -1,22 +1,24 @@
+import { API_TYPE, API_TYPES } from "@/config/env";
 import {
-  getNotificationCache,
-  getNotificationPage,
-  markNotificationRead,
-  markNotificationReadLocal,
-  setNotificationBadge,
+    getNotificationCache,
+    getNotificationPage,
+    isNotificationAuthError,
+    markNotificationRead,
+    markNotificationReadLocal,
+    setNotificationBadge,
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
-import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Pressable,
+    RefreshControl,
+    Text,
+    View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -188,7 +190,15 @@ export default function NotificationsScreen() {
       setHasMore(page.hasMore);
       setLastUpdate(page.lastUpdate);
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
+      if (API_TYPE !== API_TYPES.MOCK) {
+        if (await handleNotificationAuthError(err)) {
+          setItems([]);
+          setBadge(0);
+          setHasMore(false);
+          return;
+        }
+      }
+
       setError(err?.message || "Không tải được thông báo.");
     } finally {
       setIsLoading(false);
@@ -215,7 +225,15 @@ export default function NotificationsScreen() {
       setHasMore(page.hasMore);
       setLastUpdate(page.lastUpdate);
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
+      if (API_TYPE !== API_TYPES.MOCK) {
+        if (await handleNotificationAuthError(err)) {
+          setItems([]);
+          setBadge(0);
+          setHasMore(false);
+          return;
+        }
+      }
+
       setError(err?.message || "Không tải thêm được thông báo.");
     } finally {
       setIsLoadingMore(false);
@@ -242,10 +260,28 @@ export default function NotificationsScreen() {
     }, [loadPage]),
   );
 
+<<<<<<< HEAD
   const handlePressNotification = useCallback(
     async (item) => {
       const notificationId = item.notificationId || item.id;
       const unread = isUnread(item);
+=======
+  async function handleNotificationAuthError(error) {
+    if (!isNotificationAuthError(error)) {
+      return false;
+    }
+
+    await clearAuthSession();
+
+    router.replace("/login");
+
+    return true;
+  }
+
+  const handlePressNotification = useCallback(async (item) => {
+    const notificationId = item.notificationId || item.id;
+    const unread = isUnread(item);
+>>>>>>> 4eb6859 (fix: handle backend notification session flow)
 
       if (unread) {
         const cache = markNotificationReadLocal(notificationId);
@@ -254,11 +290,24 @@ export default function NotificationsScreen() {
         setBadge(cache.unreadCount);
         setNotificationBadge(cache.unreadCount);
 
+<<<<<<< HEAD
         try {
           await markNotificationRead(notificationId);
         } catch (err) {
           console.warn("Failed to mark notification read:", err);
         }
+=======
+      try {
+        await markNotificationRead(notificationId);
+      } catch (err) {
+        if (API_TYPE !== API_TYPES.MOCK) {
+          if (await handleNotificationAuthError(err)) {
+            return;
+          }
+        }
+
+        console.warn("Failed to mark notification read:", err);
+>>>>>>> 4eb6859 (fix: handle backend notification session flow)
       }
 
       const type = String(item.type || "").toLowerCase();
