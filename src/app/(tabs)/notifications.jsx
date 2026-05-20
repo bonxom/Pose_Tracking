@@ -269,7 +269,7 @@ export default function NotificationsScreen() {
     }
 
     if (type.includes("comment")) {
-      router.push(`/comment/${postId}`);
+      router.push(`/post/comment/${postId}`);
       return;
     }
 

@@ -1,25 +1,25 @@
 import AppButton from "@/components/common/AppButton";
+import LikeButton from "@/components/icons/LikeButton";
 import CommentButton from "@/components/post/CommentButton";
-import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import {
-  formatRelativeTime,
-  getInitials,
-  isFreshPost,
+    formatRelativeTime,
+    getInitials,
+    isFreshPost,
 } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Modal,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 
 const EXPAND_THRESHOLD = 180;

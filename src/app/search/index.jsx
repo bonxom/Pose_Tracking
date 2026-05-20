@@ -146,7 +146,7 @@ export default function SearchScreen() {
             key={post.id}
             post={post}
             onPress={() => router.push(`/post/${post.id}`)}
-            onPressComment={() => router.push(`/comment/${post.id}`)}
+            onPressComment={() => router.push(`/post/comment/${post.id}`)}
             onToggleLike={() => handleToggleLike(post)}
             onSubmitExercise={() =>
               router.push({
