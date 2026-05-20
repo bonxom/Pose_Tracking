@@ -1,13 +1,13 @@
 import PostCard from "@/components/post/PostCard";
 import {
-  checkNewItems,
+  // checkNewItems,
   getFeedPage,
   toggleLike,
 } from "@/repositories/postRepository";
 import homeStyles from "@/styles/home.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -68,15 +68,15 @@ export default function HomeScreen() {
     }
   }, [hasMore, isLoadingMore, lastId, posts.length]);
 
-  const checkForNewItems = useCallback(async () => {
-    try {
-      const result = await checkNewItems(lastId);
-      setNewItemsCount(Number(result.count || 0));
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      console.warn("Failed to check new items:", error);
-    }
-  }, [lastId]);
+  // const checkForNewItems = useCallback(async () => {
+  //   try {
+  //     const result = await checkNewItems(lastId);
+  //     setNewItemsCount(Number(result.count || 0));
+  //   } catch (error) {
+  //     if (await redirectIfSessionExpired(error, router)) return;
+  //     console.warn("Failed to check new items:", error);
+  //   }
+  // }, [lastId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -84,10 +84,10 @@ export default function HomeScreen() {
     }, [loadPosts]),
   );
 
-  useEffect(() => {
-    const timer = setInterval(checkForNewItems, 60_000);
-    return () => clearInterval(timer);
-  }, [checkForNewItems]);
+  // useEffect(() => {
+  //   const timer = setInterval(checkForNewItems, 60_000);
+  //   return () => clearInterval(timer);
+  // }, [checkForNewItems]);
 
   const handleToggleLike = async (post) => {
     try {

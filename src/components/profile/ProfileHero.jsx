@@ -1,12 +1,8 @@
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
+import { initials } from "@/utils/profile";
 import { Image, Pressable, Text, View } from "react-native";
-
-function initials(name = "") {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
-}
 
 function Avatar({ uri, name, size = 72, bordered = false }) {
   const avatarStyle = {

@@ -24,8 +24,8 @@ import {
 
 const EXPAND_THRESHOLD = 180;
 const VIDEO_FALLBACK_SOURCES = [
-  require("../../../assets/vid_first.mp4"),
-  require("../../../assets/vid_second.mp4"),
+  require("../../../assets/cam1.mp4"),
+  require("../../../assets/cam2.mp4"),
 ];
 
 function formatCount(value = 0) {

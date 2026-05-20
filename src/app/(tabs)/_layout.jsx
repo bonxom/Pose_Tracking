@@ -1,10 +1,10 @@
-import AccountIcon from "@/components/icons/AccountIcon";
 import BellIcon from "@/components/icons/BellIcon";
 import CoursesIcon from "@/components/icons/CoursesIcon";
 import HomeIcon from "@/components/icons/HomeIcon";
 import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
+import { getInitials } from "@/utils/formatters";
 import {
   formatNotificationBadge,
   getNotificationBadge,
@@ -15,7 +15,7 @@ import { getAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, Tabs, usePathname } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function HomeTopSection() {
@@ -59,9 +59,31 @@ function TabButton({ onPress, accessibilityState, children }) {
   );
 }
 
+function ProfileTabAvatar({ focused, avatar, name }) {
+  const initials = getInitials(name || "Người dùng");
+
+  return (
+    <View
+      style={[
+        styles.profileAvatarWrap,
+        focused && styles.profileAvatarWrapActive,
+      ]}
+    >
+      {avatar ? (
+        <Image source={{ uri: avatar }} style={styles.profileAvatarImage} />
+      ) : (
+        <View style={styles.profileAvatarFallback}>
+          <Text style={styles.profileAvatarFallbackText}>{initials}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function TabsLayout() {
   const pathname = usePathname();
   const isHome = pathname === "/home" || pathname === "/";
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
     const unsubscribe = subscribeNotificationBadge(setTabNotificationBadge);
@@ -76,9 +98,15 @@ export default function TabsLayout() {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    getAuthSession().then(setSession).catch(console.warn);
+  }, []);
+
   const [notificationBadge, setTabNotificationBadge] = useState(
     getNotificationBadge(),
   );
+  const displayName = session?.displayName || session?.username || "Người dùng";
+  const avatar = session?.avatar || session?.user?.avatar || "";
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -86,21 +114,16 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{
           tabBarPosition: "top",
-          tabBarShowLabel: true,
+          tabBarShowLabel: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.text,
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: "600",
-            marginTop: 2,
-          },
           tabBarIconStyle: {
             marginBottom: 0,
           },
           tabBarStyle: {
-            height: 64,
-            paddingTop: 6,
-            paddingBottom: 6,
+            height: 56,
+            paddingTop: 4,
+            paddingBottom: 4,
             backgroundColor: "#FFFFFF",
             borderTopWidth: 0,
             borderBottomWidth: 1,
@@ -149,7 +172,13 @@ export default function TabsLayout() {
           name="profile"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <AccountIcon focused={focused} />,
+            tabBarIcon: ({ focused }) => (
+              <ProfileTabAvatar
+                focused={focused}
+                avatar={avatar}
+                name={displayName}
+              />
+            ),
           }}
         />
         <Tabs.Screen
@@ -257,6 +286,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
+  },
+  profileAvatarWrap: {
+    width: 29,
+    height: 29,
+    borderRadius: 14.5,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#D8DADF",
+    position: "relative",
+  },
+  profileAvatarWrapActive: {
+    borderColor: colors.primary,
+  },
+  profileAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12.5,
+  },
+  profileAvatarFallback: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8EEF9",
+  },
+  profileAvatarFallbackText: {
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: "900",
   },
   notificationBadge: {
     position: "absolute",

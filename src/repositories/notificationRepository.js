@@ -1,10 +1,7 @@
 import { backendApi } from "@/api/client";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import {
-  ACTIVE_SOURCES,
-  getCurrentSession,
-} from "@/repositories/source";
+import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 let notificationCache = {
   items: [],
@@ -55,7 +52,9 @@ function getNotificationCreatedTime(item) {
 }
 
 function sortNotifications(items = []) {
-  return [...items].sort((a, b) => getNotificationCreatedTime(b) - getNotificationCreatedTime(a));
+  return [...items].sort(
+    (a, b) => getNotificationCreatedTime(b) - getNotificationCreatedTime(a),
+  );
 }
 
 function mergeNotifications(oldItems = [], newItems = []) {
@@ -220,7 +219,6 @@ export async function getNotificationPage(params = {}) {
       token: session.token,
       index: String(params.index || 0),
       count: String(params.count || 20),
-      last_update: params.lastUpdate || params.last_update || "",
     });
 
     if (

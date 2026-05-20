@@ -34,12 +34,6 @@ const profileStyles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  coverFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: profileColors.surfaceSoft,
-  },
   avatarImage: {
     backgroundColor: profileColors.surfaceMuted,
   },
@@ -167,6 +161,24 @@ const profileStyles = StyleSheet.create({
     paddingHorizontal: 0,
     backgroundColor: profileColors.surfaceMuted,
   },
+  fbButtonCompact: {
+    minHeight: 32,
+    paddingHorizontal: 0,
+  },
+  fbButtonSecondary: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: profileColors.borderMuted,
+  },
+  fbIconButton: {
+    backgroundColor: "transparent",
+    minHeight: "auto",
+    height: 32,
+    width: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   fbButtonIconSlot: {
     width: 20,
     height: 20,
@@ -209,11 +221,6 @@ const profileStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "900",
     color: profileColors.ink,
-  },
-  fbCardSubtitle: {
-    marginTop: 2,
-    fontSize: 14,
-    color: profileColors.inkMuted,
   },
   fbComposerRow: {
     flexDirection: "row",
@@ -305,14 +312,6 @@ const profileStyles = StyleSheet.create({
     paddingTop: sizes.sm,
     paddingBottom: 34,
   },
-  bottomSheet: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    paddingHorizontal: sizes.lg,
-    paddingTop: sizes.sm,
-    paddingBottom: 34,
-  },
   sheetHandle: {
     alignSelf: "center",
     width: 74,
@@ -362,26 +361,6 @@ const profileStyles = StyleSheet.create({
   imagePreview: {
     width: "100%",
     height: "100%",
-  },
-  optionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: sizes.md,
-    marginBottom: sizes.lg,
-  },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: profileColors.surfaceIcon,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  optionText: {
-    fontSize: 16,
-    color: profileColors.inkStrong,
-    fontWeight: "700",
-    flexShrink: 1,
   },
 });
 
