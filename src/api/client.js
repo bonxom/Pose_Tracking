@@ -17,6 +17,8 @@ import {
 } from "@/constants/mocks/MOCK_NOTIFICATION";
 import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
 
+const ADD_POST_TIMEOUT_MS = 10 * 60 * 1000;
+
 export class ApiError extends Error {
   constructor(message, details = {}) {
     super(message);
@@ -266,7 +268,9 @@ export const backendApi = {
   addPost: (fields, files) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(MOCK_ADD_POST)
-      : postMultipart("/add_post", fields, files),
+      : postMultipart("/add_post", fields, files, {
+          timeout: ADD_POST_TIMEOUT_MS,
+        }),
   editPost: (params) => post("/edit_post", params),
   editPostMultipart: (fields, files) =>
     postMultipart("/edit_post", fields, files),

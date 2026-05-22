@@ -6,7 +6,6 @@ import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import {
   formatRelativeTime,
-  getInitials,
   isFreshPost,
 } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
@@ -14,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -23,6 +22,8 @@ import {
 } from "react-native";
 
 const EXPAND_THRESHOLD = 180;
+const DEFAULT_AVATAR_URL =
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5FBH-i9W2GYVsE4y3QPE9QT1JRImQD9QkPg&s";
 const VIDEO_FALLBACK_SOURCES = [
   require("../../../assets/cam1.mp4"),
   require("../../../assets/cam2.mp4"),
@@ -36,32 +37,31 @@ function formatCount(value = 0) {
 }
 
 function PostVideoTile({ video, index, fallbackSource }) {
-  const [isReady, setIsReady] = useState(false);
   const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
   const rawVideoUri = typeof video?.uri === "string" ? video.uri.trim() : "";
+  const rawThumbUri =
+    typeof video?.thumb === "string" && video.thumb.trim()
+      ? video.thumb.trim()
+      : typeof video?.thumbnail === "string" && video.thumbnail.trim()
+        ? video.thumbnail.trim()
+        : "";
   const [videoSource, setVideoSource] = useState(rawVideoUri || fallbackSource);
-
-  const previewPlayer = useVideoPlayer(videoSource, (player) => {
-    player.loop = true;
-    player.muted = true;
-    player.pause();
-  });
-
-  const fullscreenPlayer = useVideoPlayer(videoSource, (player) => {
+  const fullscreenPlayer = useVideoPlayer(
+    isFullscreenVisible ? videoSource : null,
+    (player) => {
     player.loop = true;
     player.muted = false;
     player.pause();
-  });
+    },
+  );
 
   useEffect(() => {
     setVideoSource(rawVideoUri || fallbackSource);
-    setIsReady(false);
   }, [rawVideoUri, fallbackSource]);
 
   useEffect(() => {
-    previewPlayer.pause();
     fullscreenPlayer.pause();
-  }, [videoSource, previewPlayer, fullscreenPlayer]);
+  }, [videoSource, fullscreenPlayer]);
 
   useEffect(() => {
     const applyFallback = () => {
@@ -76,20 +76,15 @@ function PostVideoTile({ video, index, fallbackSource }) {
       }
     };
 
-    const previewSub = previewPlayer.addListener(
-      "statusChange",
-      handleStatusChange,
-    );
     const fullscreenSub = fullscreenPlayer.addListener(
       "statusChange",
       handleStatusChange,
     );
 
     return () => {
-      previewSub.remove();
       fullscreenSub.remove();
     };
-  }, [fallbackSource, fullscreenPlayer, previewPlayer]);
+  }, [fallbackSource, fullscreenPlayer]);
 
   const openFullscreen = () => {
     setIsFullscreenVisible(true);
@@ -106,19 +101,16 @@ function PostVideoTile({ video, index, fallbackSource }) {
   return (
     <>
       <Pressable style={localStyles.videoCard} onPress={openFullscreen}>
-        <VideoView
-          player={previewPlayer}
-          style={localStyles.videoPreview}
-          contentFit="cover"
-          nativeControls={false}
-          onFirstFrameRender={() => setIsReady(true)}
-        />
-
-        {!isReady ? (
-          <View style={localStyles.videoLoadingOverlay}>
-            <ActivityIndicator size="small" color={colors.white} />
+        {rawThumbUri ? (
+          <Image source={{ uri: rawThumbUri }} style={localStyles.videoPreview} />
+        ) : (
+          <View style={localStyles.videoPreviewFallback}>
+            <Ionicons name="videocam-outline" size={24} color={colors.white} />
+            <Text style={localStyles.videoPreviewFallbackText}>
+              Chưa có thumbnail
+            </Text>
           </View>
-        ) : null}
+        )}
 
         <View style={localStyles.videoLabel}>
           <Text style={localStyles.videoLabelText}>
@@ -142,12 +134,14 @@ function PostVideoTile({ video, index, fallbackSource }) {
             <Ionicons name="close" size={28} color={colors.white} />
           </Pressable>
 
-          <VideoView
-            player={fullscreenPlayer}
-            style={localStyles.fullscreenVideo}
-            contentFit="contain"
-            nativeControls
-          />
+          {isFullscreenVisible && videoSource ? (
+            <VideoView
+              player={fullscreenPlayer}
+              style={localStyles.fullscreenVideo}
+              contentFit="contain"
+              nativeControls
+            />
+          ) : null}
         </View>
       </Modal>
     </>
@@ -201,15 +195,15 @@ export default function PostCard({
     if (post.exerciseId) values.add(`#${post.exerciseId}`);
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
+  const avatarUri =
+    typeof post.author?.avatar === "string" && post.author.avatar.trim()
+      ? post.author.avatar.trim()
+      : DEFAULT_AVATAR_URL;
 
   return (
     <View style={[postStyles.card, flat && localStyles.flatCard]}>
       <View style={postStyles.headerRow}>
-        <View style={postStyles.avatar}>
-          <Text style={postStyles.avatarText}>
-            {getInitials(post.author?.name || "Người dùng")}
-          </Text>
-        </View>
+        <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
 
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={postStyles.authorName}>
@@ -349,7 +343,7 @@ export default function PostCard({
 
       <View style={postStyles.actionRow}>
         <LikeButton
-          isLiked={post.is_liked}
+          isLiked={post.isLiked}
           onPress={onToggleLike}
           style={{ flex: 1, justifyContent: "center" }}
         />
@@ -427,11 +421,18 @@ const localStyles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  videoLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  videoPreviewFallback: {
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.overlayBlack40,
+    backgroundColor: colors.overlayBlack65,
+    gap: 8,
+  },
+  videoPreviewFallbackText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "600",
   },
   videoLabel: {
     position: "absolute",

@@ -7,7 +7,13 @@ import {
   createExerciseSubmission,
   createPost,
   getPostById,
+  validateTwoVideos,
 } from "@/repositories/postRepository";
+import {
+  enqueuePostUploading,
+  rejectPostUploading,
+  resolvePostUploading,
+} from "@/services/postUploadingStore";
 import { getUserInfo } from "@/repositories/userRepository";
 import createStyles from "@/styles/post/create.styles";
 import postStyles from "@/styles/post.styles";
@@ -19,7 +25,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Keyboard,
@@ -32,62 +37,26 @@ import {
   View,
 } from "react-native";
 
-const VIDEO_FALLBACK_SOURCES = [
-  require("../../../assets/cam1.mp4"),
-  require("../../../assets/cam2.mp4"),
-];
-
-function VideoThumbnail({ video, fallbackSource, onPress }) {
-  const [isReady, setIsReady] = useState(false);
-  const rawVideoUri = typeof video?.uri === "string" ? video.uri.trim() : "";
-  const [videoSource, setVideoSource] = useState(rawVideoUri || fallbackSource);
-  const previewPlayer = useVideoPlayer(videoSource, (videoPlayer) => {
-    videoPlayer.loop = true;
-    videoPlayer.muted = true;
-    videoPlayer.pause();
-  });
-
-  useEffect(() => {
-    setVideoSource(rawVideoUri || fallbackSource);
-    setIsReady(false);
-  }, [rawVideoUri, fallbackSource]);
-
-  useEffect(() => {
-    previewPlayer.pause();
-  }, [previewPlayer, videoSource]);
-
-  useEffect(() => {
-    const applyFallback = () => {
-      setVideoSource((current) =>
-        current === fallbackSource ? current : fallbackSource,
-      );
-    };
-
-    const sub = previewPlayer.addListener("statusChange", ({ status }) => {
-      if (status === "error") {
-        applyFallback();
-      }
-    });
-
-    return () => {
-      sub.remove();
-    };
-  }, [fallbackSource, previewPlayer]);
+function VideoThumbnail({ video, onPress }) {
+  const thumbnailUri =
+    typeof video?.thumb === "string" && video.thumb.trim()
+      ? video.thumb.trim()
+      : typeof video?.thumbnail === "string" && video.thumbnail.trim()
+        ? video.thumbnail.trim()
+        : "";
 
   return (
     <Pressable style={createStyles.videoPreviewFrame} onPress={onPress}>
-      <VideoView
-        player={previewPlayer}
-        style={createStyles.videoPreview}
-        contentFit="cover"
-        nativeControls={false}
-        onFirstFrameRender={() => setIsReady(true)}
-      />
-      {!isReady ? (
-        <View style={createStyles.videoLoadingOverlay}>
-          <ActivityIndicator size="small" color={colors.white} />
+      {thumbnailUri ? (
+        <Image source={{ uri: thumbnailUri }} style={createStyles.videoPreview} />
+      ) : (
+        <View style={createStyles.videoPreviewFallback}>
+          <Ionicons name="videocam-outline" size={24} color={colors.white} />
+          <Text style={createStyles.videoPreviewFallbackText}>
+            Chưa có thumbnail
+          </Text>
         </View>
-      ) : null}
+      )}
       <View style={createStyles.videoPlayBadge}>
         <Text style={createStyles.videoPlayText}>Xem video</Text>
       </View>
@@ -96,7 +65,7 @@ function VideoThumbnail({ video, fallbackSource, onPress }) {
 }
 
 function FullscreenVideoModal({ visible, uri, onClose }) {
-  const player = useVideoPlayer(uri || null, (videoPlayer) => {
+  const player = useVideoPlayer(visible ? uri || null : null, (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = false;
     videoPlayer.pause();
@@ -144,10 +113,8 @@ export default function CreatePostScreen() {
   const [selectedVideos, setSelectedVideos] = useState([]);
   const [session, setSession] = useState(null);
   const [profileUser, setProfileUser] = useState(null);
-  const [statusText, setStatusText] = useState("");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [textAreaHeight, setTextAreaHeight] = useState(26);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
 
@@ -291,40 +258,58 @@ export default function CreatePostScreen() {
     }
 
     const completeVideos = selectedVideos.filter(Boolean);
+    const trimmedContent = content.trim();
 
     if (isSubmissionMode && completeVideos.length !== 2) {
       Alert.alert("Thiếu video", "Bài nộp cần đúng 2 video.");
       return;
     }
 
-
     try {
-      setIsSubmitting(true);
-      const newPost = isSubmissionMode
-        ? await createExerciseSubmission({
-            content,
-            videos: completeVideos,
-            courseId: params.courseId || DEMO_COURSE.id,
-            exerciseId: params.exerciseId || exercise.id,
-            sourcePostId: params.sourcePostId || sourcePost?.id || "",
-          })
-        : await createPost({
-            content: content.trim(),
-            videos: completeVideos,
-          });
-
-      if (newPost) {
-        router.replace("/(tabs)/home");
-      }
+      validateTwoVideos(completeVideos);
     } catch (error) {
-      console.warn("Failed to create post:", error);
-      if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(
-        error.message || "Không thể tạo bài viết. Vui lòng thử lại.",
+      Alert.alert(
+        "Video chưa hợp lệ",
+        error?.message || "Vui lòng kiểm tra lại video trước khi đăng.",
       );
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
+
+    const avatarUri =
+      profileUser?.avatar ||
+      session?.avatar ||
+      session?.user?.avatar ||
+      "https://ui-avatars.com/api/?name=User&background=random";
+    const uploadingId = enqueuePostUploading({ avatarUri });
+
+    router.replace("/(tabs)/home");
+
+    void (async () => {
+      try {
+        const newPost = isSubmissionMode
+          ? await createExerciseSubmission({
+              content: trimmedContent,
+              videos: completeVideos,
+              courseId: params.courseId || DEMO_COURSE.id,
+              exerciseId: params.exerciseId || exercise.id,
+              sourcePostId: params.sourcePostId || sourcePost?.id || "",
+            })
+          : await createPost({
+              content: trimmedContent,
+              videos: completeVideos,
+            });
+
+        resolvePostUploading(uploadingId, newPost || null);
+      } catch (error) {
+        rejectPostUploading(uploadingId);
+        if (await redirectIfSessionExpired(error, router)) return;
+        console.warn("Failed to create post:", error);
+        Alert.alert(
+          "Đăng bài thất bại",
+          error.message || "Không thể tạo bài viết. Vui lòng thử lại.",
+        );
+      }
+    })();
   };
 
   const handleBack = () => {
@@ -346,7 +331,7 @@ export default function CreatePostScreen() {
     router.back();
   };
 
-  const isSubmitDisabled = isSubmitting || selectedVideoCount !== 2;
+  const isSubmitDisabled = selectedVideoCount !== 2;
   const bottomToolbarInset = 56 + keyboardOffset;
 
   return (
@@ -369,7 +354,7 @@ export default function CreatePostScreen() {
               isSubmitDisabled && createStyles.submitTextDisabled,
             ]}
           >
-            {isSubmitting ? "ĐANG XL..." : isSubmissionMode ? "NỘP" : "ĐĂNG"}
+            {isSubmissionMode ? "NỘP" : "ĐĂNG"}
           </Text>
         </Pressable>
       </View>
@@ -417,8 +402,6 @@ export default function CreatePostScreen() {
             </Text>
           ) : null}
 
-          {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
-
           <TextInput
             placeholder={
               isSubmissionMode
@@ -454,10 +437,6 @@ export default function CreatePostScreen() {
                     </Pressable>
                     <VideoThumbnail
                       video={video}
-                      fallbackSource={
-                        VIDEO_FALLBACK_SOURCES[index] ||
-                        VIDEO_FALLBACK_SOURCES[VIDEO_FALLBACK_SOURCES.length - 1]
-                      }
                       onPress={() => setActiveVideoUri(video.uri)}
                     />
                   </View>

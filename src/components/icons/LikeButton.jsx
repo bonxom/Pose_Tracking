@@ -1,13 +1,11 @@
+import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text } from "react-native";
 
-const FACEBOOK_BLUE = "#1877F2";
-const FACEBOOK_GRAY = "#65676B";
-
 export function ThumbUpIcon({
   size = 20,
-  color = FACEBOOK_GRAY,
+  color = colors.grey,
   filled = false,
 }) {
   if (filled) {
@@ -32,7 +30,7 @@ export default function LikeButton({ isLiked, onPress, style }) {
     >
       <ThumbUpIcon
         size={20}
-        color={isLiked ? FACEBOOK_BLUE : FACEBOOK_GRAY}
+        color={isLiked ? colors.primary : colors.grey}
         filled={isLiked}
       />
       <Text
@@ -55,6 +53,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   activeText: {
-    color: FACEBOOK_BLUE,
+    color: colors.primary,
   },
 });

@@ -1,15 +1,21 @@
 import PostCard from "@/components/post/PostCard";
+import PostUploadingCard from "@/components/post/PostUploadingCard";
 import {
   // checkNewItems,
   getFeedPage,
   toggleLike,
 } from "@/repositories/postRepository";
+import {
+  consumeFinishedUploadedPosts,
+  subscribePostUploading,
+} from "@/services/postUploadingStore";
 import homeStyles from "@/styles/home.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -18,6 +24,7 @@ import {
 } from "react-native";
 
 export default function HomeScreen() {
+  const uploadSuccessAlertLock = useRef(false);
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -25,6 +32,7 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [lastId, setLastId] = useState("");
   const [newItemsCount, setNewItemsCount] = useState(0);
+  const [uploadingCards, setUploadingCards] = useState([]);
 
   const loadPosts = useCallback(async ({ refresh = false } = {}) => {
     try {
@@ -82,6 +90,54 @@ export default function HomeScreen() {
     loadPosts();
   }, [loadPosts]);
 
+  const showUploadSuccessAlert = useCallback(() => {
+    if (uploadSuccessAlertLock.current) return;
+
+    uploadSuccessAlertLock.current = true;
+    Alert.alert("Thông báo", "Bài viết đã được đăng", [
+      {
+        text: "OK",
+        onPress: () => {
+          uploadSuccessAlertLock.current = false;
+          void loadPosts({ refresh: true });
+        },
+        // cứ tắt alert là refresh
+        onDismiss: () => {
+          uploadSuccessAlertLock.current = false;
+          void loadPosts({ refresh: true });
+        },
+      },
+    ]);
+  }, [loadPosts]);
+
+  useEffect(() => {
+    return subscribePostUploading((nextState) => {
+      setUploadingCards(nextState.uploadingCards || []);
+
+      if (!nextState.finishedPosts?.length) {
+        return;
+      }
+
+      const completedPosts = consumeFinishedUploadedPosts();
+      if (!completedPosts.length) {
+        return;
+      }
+
+      setPosts((current) => {
+        const existingIds = new Set(current.map((item) => item.id));
+        const uniqueNewPosts = completedPosts.filter(
+          (item) => item?.id && !existingIds.has(item.id),
+        );
+
+        return uniqueNewPosts.length
+          ? [...uniqueNewPosts, ...current]
+          : current;
+      });
+
+      showUploadSuccessAlert();
+    });
+  }, [showUploadSuccessAlert]);
+
   // useEffect(() => {
   //   const timer = setInterval(checkForNewItems, 60_000);
   //   return () => clearInterval(timer);
@@ -120,6 +176,16 @@ export default function HomeScreen() {
     });
   };
 
+  const feedItems = useMemo(() => {
+    const uploadingItems = uploadingCards.map((item) => ({
+      id: item.id,
+      __uploading: true,
+      avatarUri: item.avatarUri,
+    }));
+
+    return [...uploadingItems, ...posts];
+  }, [posts, uploadingCards]);
+
   if (isLoading) {
     return (
       <View style={[homeStyles.container, { flex: 1 }]}>
@@ -143,7 +209,7 @@ export default function HomeScreen() {
         </View> */}
 
         <FlatList
-          data={posts}
+          data={feedItems}
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl
@@ -163,16 +229,20 @@ export default function HomeScreen() {
               </Pressable>
             ) : null
           }
-          renderItem={({ item }) => (
-            <PostCard
-              post={item}
-              flat
-              onPress={() => handlePostPress(item.id)}
-              onToggleLike={() => handleToggleLike(item)}
-              onPressComment={() => handleCommentPress(item.id)}
-              onSubmitExercise={() => handleSubmitExercise(item)}
-            />
-          )}
+          renderItem={({ item }) =>
+            item.__uploading ? (
+              <PostUploadingCard avatarUri={item.avatarUri} />
+            ) : (
+              <PostCard
+                post={item}
+                flat
+                onPress={() => handlePostPress(item.id)}
+                onToggleLike={() => handleToggleLike(item)}
+                onPressComment={() => handleCommentPress(item.id)}
+                onSubmitExercise={() => handleSubmitExercise(item)}
+              />
+            )
+          }
           ItemSeparatorComponent={() => <View style={homeStyles.postDivider} />}
           ListEmptyComponent={
             <Text style={homeStyles.subtitle}>Không có bài viết nào</Text>

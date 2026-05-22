@@ -57,6 +57,7 @@ const postStyles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primaryLight,

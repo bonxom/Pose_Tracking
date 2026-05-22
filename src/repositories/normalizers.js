@@ -86,6 +86,20 @@ function normalizeCanComment(value) {
   return ![false, 0, "0", "false", "False"].includes(value);
 }
 
+function normalizeLiked(value) {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes"].includes(normalized)) return true;
+    if (["0", "false", "no", ""].includes(normalized)) return false;
+  }
+
+  if (typeof value === "number") {
+    return value === 1;
+  }
+
+  return Boolean(value);
+}
+
 export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   const user = raw.author || raw.user || raw.poster || raw.owner || {};
   const rawVideos = extractList(raw.videos || raw.video || raw.video_url || raw.images || raw.media);
@@ -117,7 +131,7 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     videos,
     likeCount: toNumber(firstValue(raw.likeCount, raw.like_count, raw.feel, raw.likes), 0),
     commentCount: toNumber(firstValue(raw.commentCount, raw.comment_count, raw.comment_mark, raw.comments_count), 0),
-    isLiked: Boolean(firstValue(raw.isLiked, raw.is_liked, raw.liked, false)),
+    isLiked: normalizeLiked(firstValue(raw.isLiked, raw.is_liked, raw.liked, false)),
     canComment: normalizeCanComment(canCommentValue),
     canEdit: Boolean(firstValue(raw.canEdit, raw.can_edit, false)),
     canSubmit: Boolean(firstValue(raw.canSubmit, raw.can_submit, isTeacherExerciseLikePost)),
