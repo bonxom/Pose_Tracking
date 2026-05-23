@@ -12,6 +12,7 @@ import {
   getSourceLabel,
   isMockMode,
   isServerPost,
+  shouldUseServer,
 } from "@/repositories/source";
 import * as localPosts from "@/services/postStore";
 

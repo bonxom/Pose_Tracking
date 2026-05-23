@@ -220,7 +220,7 @@ export async function getNotificationPage(params = {}) {
       token: session.token,
       index: String(params.index || 0),
       count: String(params.count || 20),
-      last_update: params.lastUpdate || params.last_update || "",
+      // last_update: params.lastUpdate || params.last_update || "",
     });
 
     if (
