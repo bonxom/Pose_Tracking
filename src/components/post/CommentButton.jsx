@@ -1,10 +1,10 @@
+import CommentIcon from "@/components/icons/CommentIcon";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
-import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 export default function CommentButton({ disabled = false, onPress, style }) {
-  const iconColor = disabled ? colors.placeholder : colors.text;
+  const iconColor = disabled ? colors.placeholder : colors.button_unactive;
 
   return (
     <Pressable
@@ -18,17 +18,12 @@ export default function CommentButton({ disabled = false, onPress, style }) {
       ]}
       hitSlop={8}
     >
-      <View style={styles.iconWrap}>
-        <Ionicons
-          name="chatbubble-outline"
-          size={20}
-          color={iconColor}
-          style={styles.icon}
-        />
-      </View>
+      <CommentIcon size={20} color={iconColor} />
       <Text
         style={[
           postStyles.secondaryButtonText,
+          styles.labelText,
+          !disabled && styles.textInactive,
           disabled && styles.textDisabled,
         ]}
       >
@@ -43,7 +38,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 6,
+    paddingVertical: 0,
   },
   buttonPressed: {
     opacity: 0.7,
@@ -51,13 +46,13 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.5,
   },
-  iconWrap: {
-    transform: [{ scaleX: -1 }],
-  },
-  icon: {
-    textAlignVertical: "center",
-  },
   textDisabled: {
     color: colors.placeholder,
+  },
+  textInactive: {
+    color: colors.button_unactive,
+  },
+  labelText: {
+    fontWeight: "500",
   },
 });

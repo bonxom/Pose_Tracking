@@ -1,15 +1,15 @@
 import AppInput from "@/components/common/AppInput";
-import { ThumbUpIcon } from "@/components/icons/LikeButton";
 import SendIcon from "@/components/icons/SendIcon";
 import SmileIcon from "@/components/icons/SmileIcon";
+import ThumbUpWithCircleIcon from "@/components/icons/ThumbUpWithCircleIcon";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import SkeletonComment from "@/components/post/SkeletonComment";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { addComment, getComments } from "@/repositories/commentRepository";
 import { getPostById } from "@/repositories/postRepository";
-import commentOverlayStyles from "@/styles/post/comment-overlay.styles";
 import postStyles from "@/styles/post.styles";
+import commentOverlayStyles from "@/styles/post/comment-overlay.styles";
 import { getInitials } from "@/utils/formatters";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
@@ -21,6 +21,7 @@ import {
   Animated,
   Easing,
   FlatList,
+  Image,
   Keyboard,
   PanResponder,
   Platform,
@@ -40,6 +41,21 @@ const COMMENT_INPUT_MIN_HEIGHT = 48;
 const COMMENT_INPUT_MAX_HEIGHT = 132;
 const COMMENT_INPUT_VERTICAL_PADDING = 0;
 const COMPOSER_ICON_COLOR = colors.subtext;
+const DEFAULT_COMMENT_COUNT = 20;
+
+function dedupeCommentsById(commentList = []) {
+  const seen = new Set();
+  const deduped = [];
+
+  commentList.forEach((item) => {
+    const id = String(item?.id || "");
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    deduped.push(item);
+  });
+
+  return deduped;
+}
 
 export default function CommentScreen() {
   const { postId } = useLocalSearchParams();
@@ -50,8 +66,12 @@ export default function CommentScreen() {
   const [post, setPost] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
+  const [commentIndex, setCommentIndex] = useState(0);
+  const [commentCount] = useState(DEFAULT_COMMENT_COUNT);
+  const [isLoadingOlderComments, setIsLoadingOlderComments] = useState(false);
+  const [hasMoreOlderComments, setHasMoreOlderComments] = useState(false);
+  const [commentError, setCommentError] = useState("");
+  const [isCommentBlocked, setIsCommentBlocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [commentInputHeight, setCommentInputHeight] = useState(
@@ -59,6 +79,12 @@ export default function CommentScreen() {
   );
   const [isReactionPickerVisible, setIsReactionPickerVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const sheetBottomPadding = useMemo(
+    () =>
+      Math.max(insets.bottom, sizes.md) +
+      (keyboardHeight > 0 ? keyboardHeight + sizes.xs : 0),
+    [insets.bottom, keyboardHeight],
+  );
 
   useEffect(() => {
     getAuthSession().then(setCurrentUser).catch(console.warn);
@@ -99,43 +125,74 @@ export default function CommentScreen() {
     });
   }, [postId, translateY]);
 
-  const COUNT = 20;
-
   const loadComments = useCallback(async () => {
     try {
       setIsLoading(true);
+      setCommentError("");
+      setIsCommentBlocked(false);
+      setCommentIndex(0);
+      setHasMoreOlderComments(false);
       const loadedPost = await getPostById(postId);
       setPost(loadedPost);
       const result = await getComments(loadedPost || postId, {
         index: 0,
-        count: COUNT,
+        count: commentCount,
       });
-      const loadedComments = result.comments || [];
+      const loadedComments = dedupeCommentsById(result.comments || []);
+      const receivedCount = Number(
+        result?.receivedCount ?? loadedComments.length,
+      );
+      const blocked = result?.isBlocked === true;
       setComments(loadedComments);
-      setHasMore(loadedComments.length === COUNT);
+      setCommentIndex(0);
+      setIsCommentBlocked(blocked);
+      setHasMoreOlderComments(
+        !blocked && (result?.hasOlder ?? receivedCount >= commentCount),
+      );
     } catch (error) {
       console.warn("Failed to load comments:", error);
       await redirectIfSessionExpired(error, router);
     } finally {
       setIsLoading(false);
     }
-  }, [postId]);
+  }, [commentCount, postId]);
 
   const handleLoadMore = async () => {
-    if (isLoadingMore || !hasMore) return;
+    if (isLoadingOlderComments || !hasMoreOlderComments || isCommentBlocked) {
+      return;
+    }
+
     try {
-      setIsLoadingMore(true);
+      setIsLoadingOlderComments(true);
+      setCommentError("");
+      const nextIndex = commentIndex + 1;
       const result = await getComments(post || postId, {
-        index: comments.length,
-        count: COUNT,
+        index: nextIndex,
+        count: commentCount,
       });
-      const newComments = result.comments || [];
-      setComments((prev) => [...newComments, ...prev]);
-      setHasMore(newComments.length === COUNT);
+      const newComments = dedupeCommentsById(result.comments || []);
+      const receivedCount = Number(result?.receivedCount ?? newComments.length);
+      const blocked = result?.isBlocked === true;
+
+      if (blocked) {
+        setIsCommentBlocked(true);
+      }
+
+      if (newComments.length > 0) {
+        setComments((prev) => dedupeCommentsById([...newComments, ...prev]));
+      }
+
+      setCommentIndex(nextIndex);
+      setHasMoreOlderComments(
+        !blocked &&
+          newComments.length > 0 &&
+          (result?.hasOlder ?? receivedCount >= commentCount),
+      );
     } catch (error) {
       console.warn("Failed to load more comments:", error);
+      setCommentError("Không thể tải thêm bình luận. Vui lòng thử lại.");
     } finally {
-      setIsLoadingMore(false);
+      setIsLoadingOlderComments(false);
     }
   };
 
@@ -170,10 +227,7 @@ export default function CommentScreen() {
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const handleShow = (event) => {
-      const nextHeight = Math.max(
-        0,
-        (event?.endCoordinates?.height || 0) - insets.bottom,
-      );
+      const nextHeight = Math.max(0, event?.endCoordinates?.height || 0);
       setKeyboardHeight(nextHeight);
     };
 
@@ -188,7 +242,7 @@ export default function CommentScreen() {
       showSubscription.remove();
       hideSubscription.remove();
     };
-  }, [insets.bottom]);
+  }, []);
 
   const panResponder = useMemo(
     () =>
@@ -248,7 +302,9 @@ export default function CommentScreen() {
       setIsSubmitting(true);
       const result = await addComment(post || postId, sanitizedComment);
       if (result.comment) {
-        setComments((prevComments) => [result.comment, ...prevComments]);
+        setComments((prevComments) =>
+          dedupeCommentsById([result.comment, ...prevComments]),
+        );
         setCommentText("");
         setCommentInputHeight(COMMENT_INPUT_MIN_HEIGHT);
         setIsReactionPickerVisible(false);
@@ -275,6 +331,22 @@ export default function CommentScreen() {
     inputRef.current?.focus();
   };
 
+  const likeCount = Number(post?.likeCount) || 0;
+  const isCommentComposerDisabled =
+    post?.canComment === false || isCommentBlocked;
+  const likeSummaryText = post?.isLiked
+    ? likeCount <= 1
+      ? "Bạn đã thích"
+      : `Bạn và ${likeCount - 1} người khác`
+    : likeCount > 0
+      ? String(likeCount)
+      : "";
+  const composerAvatarUri =
+    (typeof currentUser?.avatar === "string" && currentUser.avatar.trim()) ||
+    (typeof currentUser?.user?.avatar === "string" &&
+      currentUser.user.avatar.trim()) ||
+    "";
+
   return (
     <View style={styles.modalRoot}>
       <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
@@ -286,7 +358,7 @@ export default function CommentScreen() {
           styles.sheet,
           {
             paddingTop: Math.max(insets.top, sizes.md),
-            paddingBottom: Math.max(insets.bottom, sizes.md) + keyboardHeight,
+            paddingBottom: sheetBottomPadding,
             transform: [{ translateY }],
           },
         ]}
@@ -294,16 +366,12 @@ export default function CommentScreen() {
         <View {...panResponder.panHandlers} style={styles.dragZone}>
           <View style={styles.sheetHandle} />
           <View style={styles.headerMetaRow}>
-            <View style={styles.likeSummary}>
-              <Text style={styles.likeSummaryCount}>
-                {Number(post?.likeCount) || 0}
-              </Text>
-              <View style={styles.likeIconBadge}>
-                <View style={styles.likeIconScale}>
-                  <ThumbUpIcon size={14} color={colors.white} filled />
-                </View>
+            {likeCount > 0 && (
+              <View style={styles.likeSummary}>
+                <ThumbUpWithCircleIcon />
+                <Text style={postStyles.statText}>{likeSummaryText}</Text>
               </View>
-            </View>
+            )}
           </View>
         </View>
 
@@ -322,30 +390,48 @@ export default function CommentScreen() {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <View style={postStyles.commentCard}>
-                  {item.isScoreComment ? (
-                    <View
-                      style={[
-                        postStyles.scoreCommentCard,
-                        styles.scoreCommentCard,
-                      ]}
-                    >
+                  <View style={localStyles.commentRow}>
+                    <View style={styles.composerAvatar}>
+                      {typeof item?.author?.avatar === "string" &&
+                      item.author.avatar.trim() ? (
+                        <Image
+                          source={{ uri: item.author.avatar.trim() }}
+                          style={localStyles.commentAvatarImage}
+                        />
+                      ) : (
+                        <Text style={styles.composerAvatarText}>
+                          {getInitials(item.authorName || "U")}
+                        </Text>
+                      )}
+                    </View>
+
+                    <View style={localStyles.commentBody}>
+                      {item.isScoreComment ? (
+                        <View
+                          style={[
+                            postStyles.scoreCommentCard,
+                            styles.scoreCommentCard,
+                          ]}
+                        >
+                          <Text style={postStyles.commentAuthor}>
+                            {item.authorName}
+                          </Text>
+                          {item.score ? (
+                            <Text style={styles.scoreCommentText}>
+                              Điểm: {item.score}/100
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : null}
                       <Text style={postStyles.commentAuthor}>
                         {item.authorName}
                       </Text>
-                      {item.score ? (
-                        <Text style={styles.scoreCommentText}>
-                          Điểm: {item.score}/100
-                        </Text>
-                      ) : null}
+                      <Text style={postStyles.commentText}>{item.content}</Text>
+                      <Text style={postStyles.commentMeta}>
+                        {new Date(item.createdAt).toLocaleDateString("vi-VN")}
+                      </Text>
                     </View>
-                  ) : null}
-                  <Text style={postStyles.commentAuthor}>
-                    {item.authorName}
-                  </Text>
-                  <Text style={postStyles.commentText}>{item.content}</Text>
-                  <Text style={postStyles.commentMeta}>
-                    {new Date(item.createdAt).toLocaleDateString("vi-VN")}
-                  </Text>
+                  </View>
                 </View>
               )}
               style={styles.commentList}
@@ -356,28 +442,38 @@ export default function CommentScreen() {
                 <Text style={postStyles.subtitle}>Chưa có bình luận nào</Text>
               }
               ListHeaderComponent={
-                hasMore ? (
-                  <Pressable
-                    style={styles.loadMoreButton}
-                    onPress={handleLoadMore}
-                  >
-                    {isLoadingMore ? (
-                      <ActivityIndicator size="small" color={colors.text} />
-                    ) : (
-                      <Text style={styles.loadMoreText}>
-                        Xem các bình luận trước...
+                hasMoreOlderComments || commentError ? (
+                  <View>
+                    {hasMoreOlderComments ? (
+                      <Pressable
+                        style={styles.loadMoreButton}
+                        onPress={handleLoadMore}
+                        disabled={isLoadingOlderComments}
+                      >
+                        <Text style={styles.loadMoreText}>
+                          {isLoadingOlderComments
+                            ? "Đang tải..."
+                            : "Xem các bình luận trước..."}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    {commentError ? (
+                      <Text style={styles.commentErrorText}>
+                        {commentError}
                       </Text>
-                    )}
-                  </Pressable>
+                    ) : null}
+                  </View>
                 ) : null
               }
             />
           )}
 
           <View style={styles.composer}>
-            {post?.canComment === false ? (
+            {isCommentComposerDisabled ? (
               <Text style={postStyles.subtitle}>
-                Bài viết này đang tắt bình luận.
+                {isCommentBlocked
+                  ? "Bài viết này hiện không thể bình luận."
+                  : "Bài viết này đang tắt bình luận."}
               </Text>
             ) : (
               <>
@@ -388,13 +484,20 @@ export default function CommentScreen() {
                 ) : null}
                 <View style={styles.composerRow}>
                   <View style={styles.composerAvatar}>
-                    <Text style={styles.composerAvatarText}>
-                      {getInitials(
-                        currentUser?.username ||
-                          currentUser?.identifier ||
-                          "Tôi",
-                      )}
-                    </Text>
+                    {composerAvatarUri ? (
+                      <Image
+                        source={{ uri: composerAvatarUri }}
+                        style={localStyles.composerAvatarImage}
+                      />
+                    ) : (
+                      <Text style={styles.composerAvatarText}>
+                        {getInitials(
+                          currentUser?.username ||
+                            currentUser?.identifier ||
+                            "Tôi",
+                        )}
+                      </Text>
+                    )}
                   </View>
                   <AppInput
                     ref={inputRef}
@@ -474,3 +577,23 @@ export default function CommentScreen() {
 }
 
 const styles = commentOverlayStyles;
+const localStyles = StyleSheet.create({
+  composerAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 999,
+  },
+  commentAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 999,
+  },
+  commentRow: {
+    flexDirection: "row",
+    gap: sizes.sm,
+  },
+  commentBody: {
+    flex: 1,
+    gap: sizes.xs,
+  },
+});

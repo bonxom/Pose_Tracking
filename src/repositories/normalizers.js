@@ -279,7 +279,8 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
 }
 
 export function normalizeComment(raw = {}, source = ACTIVE_SOURCES.SERVER) {
-  const author = raw.author || raw.user || {};
+  const author = raw.author || raw.user || raw.poster || raw.owner || {};
+  const poster = raw.poster || {};
   const content = firstValue(
     raw.content,
     raw.comment,
@@ -302,19 +303,31 @@ export function normalizeComment(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     author: {
       id: String(firstValue(author.id, author.user_id, raw.user_id, "")),
       name: firstValue(
+        poster.name,
         author.name,
         author.username,
         raw.authorName,
         raw.author_name,
+        raw.username,
         "Người dùng",
       ),
-      avatar: firstValue(author.avatar, author.avatar_url, raw.avatar, ""),
+      avatar: firstValue(
+        poster.avatar,
+        author.avatar,
+        author.avatar_url,
+        raw.poster_avatar,
+        raw.author_avatar,
+        raw.avatar,
+        "",
+      ),
     },
     authorName: firstValue(
+      poster.name,
       author.name,
       author.username,
       raw.authorName,
       raw.author_name,
+      raw.username,
       "Người dùng",
     ),
     content,

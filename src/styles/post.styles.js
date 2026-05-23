@@ -46,7 +46,8 @@ const postStyles = StyleSheet.create({
     borderWidth: sizes.borderWidth,
     borderColor: colors.border,
     padding: sizes.lg,
-    gap: sizes.md,
+    gap: sizes.ssm,
+    paddingBottom: sizes.md,
   },
   headerRow: {
     flexDirection: "row",
@@ -207,8 +208,10 @@ const postStyles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: sizes.sm,
+    flexWrap: "nowrap",
+    gap: sizes.lg,
+    alignItems: "center",
+    marginVertical: -2,
   },
   actionButton: {
     minWidth: 96,

@@ -2,8 +2,6 @@ import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { StyleSheet } from "react-native";
 
-const FACEBOOK_BLUE = "#1877F2";
-
 const commentOverlayStyles = StyleSheet.create({
   modalRoot: {
     flex: 1,
@@ -38,17 +36,6 @@ const commentOverlayStyles = StyleSheet.create({
     alignItems: "center",
     gap: sizes.xs,
   },
-  likeIconBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: FACEBOOK_BLUE,
-  },
-  likeIconScale: {
-    transform: [{ scale: 0.9 }],
-  },
   likeSummaryCount: {
     fontSize: 15,
     fontWeight: "700",
@@ -76,6 +63,12 @@ const commentOverlayStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: colors.text,
+  },
+  commentErrorText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.error,
+    paddingBottom: sizes.xs,
   },
   loadingState: {
     flex: 1,

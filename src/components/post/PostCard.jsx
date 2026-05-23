@@ -2,10 +2,10 @@ import AppButton from "@/components/common/AppButton";
 import CloseIcon from "@/components/icons/CloseIcon";
 import EarthIcon from "@/components/icons/EarthIcon";
 import EllipsisHorizontalIcon from "@/components/icons/EllipsisHorizontalIcon";
-import LikeButton from "@/components/icons/LikeButton";
 import PlayVideoIcon from "@/components/icons/PlayVideoIcon";
 import VideoCamOutlineIcon from "@/components/icons/VideoCamOutlineIcon";
 import CommentButton from "@/components/post/CommentButton";
+import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
@@ -22,6 +22,7 @@ import {
   Text,
   View,
 } from "react-native";
+import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
 const DEFAULT_AVATAR_URL =
@@ -201,6 +202,15 @@ export default function PostCard({
   const isExercisePost = post.type === "exercise" || post.canSubmit;
   const canSubmitExercise = isExercisePost && currentRole === "HV";
   const isSubmissionPost = post.type === "submission";
+  const likeCount = Number(post?.likeCount) || 0;
+  const commentCount = Number(post?.commentCount) || 0;
+  const likeSummaryText = post?.isLiked
+    ? likeCount <= 1
+      ? "Bạn đã thích"
+      : `Bạn và ${likeCount - 1} người khác`
+    : likeCount > 0
+      ? formatCount(likeCount)
+      : "";
   const hashtags = useMemo(() => {
     const values = new Set(post.hashtags || []);
     if (post.courseId) values.add(`#${post.courseId}`);
@@ -230,7 +240,7 @@ export default function PostCard({
     });
   };
 
-  // console.log("token: ", currentUser?.token);
+  console.log("token: ", currentUser?.token);
 
   return (
     <Animated.View
@@ -338,14 +348,14 @@ export default function PostCard({
         </View>
       ) : null}
 
-      {post.timeSeriesPoses ? (
+      {/* {post.timeSeriesPoses ? (
         <View style={postStyles.exerciseBanner}>
           <Text style={postStyles.exerciseBannerTitle}>time_series_poses</Text>
           <Text style={postStyles.exerciseBannerMeta}>
             Backend có dữ liệu tư thế theo thời gian cho bài này.
           </Text>
         </View>
-      ) : null}
+      ) : null} */}
 
       {isSubmissionPost && post.scoreSummary ? (
         <View style={postStyles.scoreSummaryCard}>
@@ -364,14 +374,15 @@ export default function PostCard({
       ) : null}
 
       <View style={postStyles.statsRow}>
-        {post.likeCount > 0 && (
-          <Text style={postStyles.statText}>
-            {formatCount(post.likeCount)} lượt thích
-          </Text>
+        {likeCount > 0 && (
+          <View style={localStyles.likeSummaryInline}>
+            <ThumbUpWithCircleIcon />
+            <Text style={postStyles.statText}>{likeSummaryText}</Text>
+          </View>
         )}
-        {post.commentCount > 0 && (
+        {commentCount > 0 && (
           <Text style={[postStyles.statText, postStyles.statTextRight]}>
-            {formatCount(post.commentCount)} bình luận
+            {formatCount(commentCount)} bình luận
           </Text>
         )}
       </View>
@@ -494,6 +505,11 @@ const localStyles = StyleSheet.create({
     color: colors.white,
     fontSize: 11,
     fontWeight: "700",
+  },
+  likeSummaryInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   fullscreenBackdrop: {
     flex: 1,
