@@ -3,6 +3,7 @@ import CloseIcon from "@/components/icons/CloseIcon";
 import EarthIcon from "@/components/icons/EarthIcon";
 import EllipsisHorizontalIcon from "@/components/icons/EllipsisHorizontalIcon";
 import LikeButton from "@/components/icons/LikeButton";
+import PlayVideoIcon from "@/components/icons/PlayVideoIcon";
 import VideoCamOutlineIcon from "@/components/icons/VideoCamOutlineIcon";
 import CommentButton from "@/components/post/CommentButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
@@ -115,6 +116,11 @@ function PostVideoTile({ video, index, fallbackSource }) {
             </Text>
           </View>
         )}
+        {rawThumbUri ? (
+          <View pointerEvents="none" style={localStyles.playIconOverlay}>
+            <PlayVideoIcon size={42} />
+          </View>
+        ) : null}
 
         <View style={localStyles.videoLabel}>
           <Text style={localStyles.videoLabelText}>
@@ -459,6 +465,15 @@ const localStyles = StyleSheet.create({
     color: colors.white,
     fontSize: 12,
     fontWeight: "600",
+  },
+  playIconOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
   },
   videoLabel: {
     position: "absolute",

@@ -64,6 +64,29 @@ function normalizeServerPostList(response) {
     .filter((item) => item.id && item.isValidForFeed);
 }
 
+function isValidThumbnailUrl(url = "") {
+  const value = typeof url === "string" ? url.trim() : "";
+  if (!value) return false;
+  return /[?&]is_thumb=true(?:#.*)?$/i.test(value);
+}
+
+function hasInvalidThumbInPost(post) {
+  const thumbnails = (post?.videos || [])
+    .map((video) =>
+      typeof video?.thumb === "string" ? video.thumb.trim() : "",
+    )
+    .filter(Boolean);
+
+  if (!thumbnails.length) return false;
+  return thumbnails.some((thumb) => !isValidThumbnailUrl(thumb));
+}
+
+function normalizeServerFeedList(response) {
+  return normalizeServerPostList(response).filter(
+    (post) => !hasInvalidThumbInPost(post),
+  );
+}
+
 function normalizeServerPostObject(response) {
   const post = normalizePost(extractObject(response), ACTIVE_SOURCES.SERVER);
   return post.id ? post : null;
@@ -176,7 +199,7 @@ export async function getFeedPage(params = {}) {
         message: "Backend feed failed",
       });
 
-      const items = normalizeServerPostList(response);
+      const items = normalizeServerFeedList(response);
       const meta = extractFeedMeta(response, params, items.length);
       return {
         items,
@@ -334,7 +357,6 @@ export async function editPost(post, params = {}) {
   }));
 
   const response = await backendApi.editPostMultipart(fields, multipartVideos);
-
   await assertBackendOk(response, { message: "Backend edit_post failed" });
 
   return (
