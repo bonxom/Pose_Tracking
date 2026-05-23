@@ -40,7 +40,10 @@ export function formatRelativeTime(dateValue) {
   if (diffMs < 60 * 1000) {
     return "Vừa xong";
   }
-
+  const diffMin = Math.floor(diffMs / (1000 * 60));
+  if (diffMin < 60) {
+    return `${Math.max(1, diffMin)} phút trước`;
+  }
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   if (diffHours < 24) {
     return `${Math.max(1, diffHours)} giờ trước`;

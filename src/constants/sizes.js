@@ -1,4 +1,5 @@
 const sizes = {
+  xxs: 2,
   xs: 4,
   ssm: 6,
   sm: 8,

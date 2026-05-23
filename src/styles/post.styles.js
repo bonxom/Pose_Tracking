@@ -301,8 +301,8 @@ const postStyles = StyleSheet.create({
   commentCard: {
     backgroundColor: colors.surface,
     borderRadius: sizes.radiusMd,
-    padding: sizes.md,
-    gap: sizes.xs,
+    padding: sizes.xs,
+    gap: sizes.xxs,
   },
   scoreCommentCard: {
     borderWidth: sizes.borderWidth,
@@ -313,15 +313,18 @@ const postStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: colors.text,
+    paddingLeft: sizes.xs,
   },
   commentText: {
     fontSize: 14,
     lineHeight: 20,
     color: colors.text,
+    padding: sizes.xs,
   },
   commentMeta: {
     fontSize: 12,
     color: colors.subtext,
+    paddingLeft: 40,
   },
   lockedText: {
     fontSize: 13,

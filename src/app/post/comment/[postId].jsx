@@ -2,6 +2,7 @@ import AppInput from "@/components/common/AppInput";
 import SendIcon from "@/components/icons/SendIcon";
 import SmileIcon from "@/components/icons/SmileIcon";
 import ThumbUpWithCircleIcon from "@/components/icons/ThumbUpWithCircleIcon";
+import CommentComponent from "@/components/post/CommentComponent";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import SkeletonComment from "@/components/post/SkeletonComment";
 import colors from "@/constants/colors";
@@ -388,52 +389,7 @@ export default function CommentScreen() {
             <FlatList
               data={comments}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <View style={postStyles.commentCard}>
-                  <View style={localStyles.commentRow}>
-                    <View style={styles.composerAvatar}>
-                      {typeof item?.author?.avatar === "string" &&
-                      item.author.avatar.trim() ? (
-                        <Image
-                          source={{ uri: item.author.avatar.trim() }}
-                          style={localStyles.commentAvatarImage}
-                        />
-                      ) : (
-                        <Text style={styles.composerAvatarText}>
-                          {getInitials(item.authorName || "U")}
-                        </Text>
-                      )}
-                    </View>
-
-                    <View style={localStyles.commentBody}>
-                      {item.isScoreComment ? (
-                        <View
-                          style={[
-                            postStyles.scoreCommentCard,
-                            styles.scoreCommentCard,
-                          ]}
-                        >
-                          <Text style={postStyles.commentAuthor}>
-                            {item.authorName}
-                          </Text>
-                          {item.score ? (
-                            <Text style={styles.scoreCommentText}>
-                              Điểm: {item.score}/100
-                            </Text>
-                          ) : null}
-                        </View>
-                      ) : null}
-                      <Text style={postStyles.commentAuthor}>
-                        {item.authorName}
-                      </Text>
-                      <Text style={postStyles.commentText}>{item.content}</Text>
-                      <Text style={postStyles.commentMeta}>
-                        {new Date(item.createdAt).toLocaleDateString("vi-VN")}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              )}
+              renderItem={({ item }) => <CommentComponent comment={item} />}
               style={styles.commentList}
               contentContainerStyle={styles.commentListContent}
               keyboardShouldPersistTaps="handled"
@@ -582,18 +538,5 @@ const localStyles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 999,
-  },
-  commentAvatarImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 999,
-  },
-  commentRow: {
-    flexDirection: "row",
-    gap: sizes.sm,
-  },
-  commentBody: {
-    flex: 1,
-    gap: sizes.xs,
   },
 });
