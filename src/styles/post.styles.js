@@ -72,10 +72,14 @@ const postStyles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
   },
+  authorMetaGroup: {
+    flex: 1,
+    gap: 1,
+  },
   metaText: {
     fontSize: 13,
     color: colors.subtext,
-    marginTop: 2,
+    marginTop: 0,
   },
   freshMetaText: {
     color: colors.primary,

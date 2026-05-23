@@ -1,25 +1,18 @@
 import AppButton from "@/components/common/AppButton";
+import CloseIcon from "@/components/icons/CloseIcon";
+import EarthIcon from "@/components/icons/EarthIcon";
+import EllipsisHorizontalIcon from "@/components/icons/EllipsisHorizontalIcon";
 import LikeButton from "@/components/icons/LikeButton";
+import VideoCamOutlineIcon from "@/components/icons/VideoCamOutlineIcon";
 import CommentButton from "@/components/post/CommentButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
-import {
-  formatRelativeTime,
-  isFreshPost,
-} from "@/utils/formatters";
+import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
-import { Ionicons } from "@expo/vector-icons";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Image,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 const EXPAND_THRESHOLD = 180;
 const DEFAULT_AVATAR_URL =
@@ -49,9 +42,9 @@ function PostVideoTile({ video, index, fallbackSource }) {
   const fullscreenPlayer = useVideoPlayer(
     isFullscreenVisible ? videoSource : null,
     (player) => {
-    player.loop = true;
-    player.muted = false;
-    player.pause();
+      player.loop = true;
+      player.muted = false;
+      player.pause();
     },
   );
 
@@ -102,10 +95,13 @@ function PostVideoTile({ video, index, fallbackSource }) {
     <>
       <Pressable style={localStyles.videoCard} onPress={openFullscreen}>
         {rawThumbUri ? (
-          <Image source={{ uri: rawThumbUri }} style={localStyles.videoPreview} />
+          <Image
+            source={{ uri: rawThumbUri }}
+            style={localStyles.videoPreview}
+          />
         ) : (
           <View style={localStyles.videoPreviewFallback}>
-            <Ionicons name="videocam-outline" size={24} color={colors.white} />
+            <VideoCamOutlineIcon />
             <Text style={localStyles.videoPreviewFallbackText}>
               Chưa có thumbnail
             </Text>
@@ -131,7 +127,7 @@ function PostVideoTile({ video, index, fallbackSource }) {
             onPress={closeFullscreen}
             hitSlop={8}
           >
-            <Ionicons name="close" size={28} color={colors.white} />
+            <CloseIcon />
           </Pressable>
 
           {isFullscreenVisible && videoSource ? (
@@ -199,13 +195,14 @@ export default function PostCard({
     typeof post.author?.avatar === "string" && post.author.avatar.trim()
       ? post.author.avatar.trim()
       : DEFAULT_AVATAR_URL;
+  // console.log("post.created", post.createdAt);
 
   return (
     <View style={[postStyles.card, flat && localStyles.flatCard]}>
       <View style={postStyles.headerRow}>
         <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
 
-        <View style={{ flex: 1, gap: 4 }}>
+        <View style={postStyles.authorMetaGroup}>
           <Text style={postStyles.authorName}>
             {post.author?.name || "Người dùng"}
           </Text>
@@ -215,8 +212,7 @@ export default function PostCard({
               metaIsFresh && postStyles.freshMetaText,
             ]}
           >
-            {post.author?.handle || "@nguoidung"} ·{" "}
-            {formatRelativeTime(post.createdAt)}
+            {formatRelativeTime(post.createdAt)} · <EarthIcon />
           </Text>
         </View>
 
@@ -231,11 +227,7 @@ export default function PostCard({
           onPress={() => setIsOptionsVisible(true)}
           hitSlop={8}
         >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={20}
-            color={colors.subtext}
-          />
+          <EllipsisHorizontalIcon />
         </Pressable>
       </View>
 

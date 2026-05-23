@@ -1,6 +1,7 @@
 import Screen from "@/components/common/Screen";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
 import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
+import EarthIcon from "@/components/icons/EarthIcon";
 import colors from "@/constants/colors";
 import { DEMO_COURSE, DEMO_EXERCISES } from "@/constants/demo";
 import {
@@ -390,7 +391,7 @@ export default function CreatePostScreen() {
                   "Người dùng"}
               </Text>
               <View style={createStyles.privacyBadge}>
-                <Ionicons name="earth" size={14} color={colors.subtext} />
+                <EarthIcon />
                 <Text style={createStyles.privacyText}>Công khai</Text>
               </View>
             </View>

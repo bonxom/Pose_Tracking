@@ -1,11 +1,41 @@
-export function formatRelativeTime(dateValue) {
-  const date = new Date(dateValue);
+function toTimestampMs(dateValue) {
+  if (dateValue === undefined || dateValue === null) return NaN;
 
-  if (Number.isNaN(date.getTime())) {
+  if (dateValue instanceof Date) {
+    const time = dateValue.getTime();
+    return Number.isFinite(time) ? time : NaN;
+  }
+
+  if (typeof dateValue === "number" && Number.isFinite(dateValue)) {
+    return Math.abs(dateValue) < 1_000_000_000_000
+      ? dateValue * 1000
+      : dateValue;
+  }
+
+  if (typeof dateValue === "string") {
+    const raw = dateValue.trim();
+    if (!raw) return NaN;
+
+    // Support unix timestamp in seconds/milliseconds, including decimal seconds.
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) {
+      return Math.abs(numeric) < 1_000_000_000_000 ? numeric * 1000 : numeric;
+    }
+
+    const parsed = Date.parse(raw);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return NaN;
+}
+
+export function formatRelativeTime(dateValue) {
+  const timestampMs = toTimestampMs(dateValue);
+  if (!Number.isFinite(timestampMs)) {
     return "Vừa xong";
   }
 
-  const diffMs = Date.now() - date.getTime();
+  const diffMs = Date.now() - timestampMs;
 
   if (diffMs < 60 * 1000) {
     return "Vừa xong";
@@ -28,18 +58,14 @@ export function formatRelativeTime(dateValue) {
 export function isFreshPost(dateValue, isOnline = false) {
   if (!isOnline) return false;
 
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return false;
+  const timestampMs = toTimestampMs(dateValue);
+  if (!Number.isFinite(timestampMs)) return false;
 
-  return Date.now() - date.getTime() < 10 * 60 * 1000;
+  return Date.now() - timestampMs < 10 * 60 * 1000;
 }
 
 export function getInitials(name = "") {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
 
   if (parts.length === 0) return "U";
   return parts.map((part) => part[0]?.toUpperCase() || "").join("");
@@ -78,7 +104,10 @@ export function getUsernameValidationError(username = "", phoneNumber = "") {
     return "Tên hiển thị không được chỉ gồm chữ số.";
   }
 
-  if (phoneNumber && trimmed.replace(/\s+/g, "") === phoneNumber.replace(/\s+/g, "")) {
+  if (
+    phoneNumber &&
+    trimmed.replace(/\s+/g, "") === phoneNumber.replace(/\s+/g, "")
+  ) {
     return "Tên hiển thị không được trùng số điện thoại.";
   }
 
