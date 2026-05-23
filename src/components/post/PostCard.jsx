@@ -230,6 +230,8 @@ export default function PostCard({
     });
   };
 
+  // console.log("token: ", currentUser?.token);
+
   return (
     <Animated.View
       style={[
@@ -362,12 +364,16 @@ export default function PostCard({
       ) : null}
 
       <View style={postStyles.statsRow}>
-        <Text style={postStyles.statText}>
-          {formatCount(post.likeCount)} lượt thích
-        </Text>
-        <Text style={postStyles.statText}>
-          {formatCount(post.commentCount)} bình luận
-        </Text>
+        {post.likeCount > 0 && (
+          <Text style={postStyles.statText}>
+            {formatCount(post.likeCount)} lượt thích
+          </Text>
+        )}
+        {post.commentCount > 0 && (
+          <Text style={[postStyles.statText, postStyles.statTextRight]}>
+            {formatCount(post.commentCount)} bình luận
+          </Text>
+        )}
       </View>
 
       {post.canComment === false ? (

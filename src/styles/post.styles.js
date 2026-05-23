@@ -164,6 +164,10 @@ const postStyles = StyleSheet.create({
     fontSize: 13,
     color: colors.subtext,
   },
+  statTextRight: {
+    marginLeft: "auto",
+    textAlign: "right",
+  },
   hashtagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
