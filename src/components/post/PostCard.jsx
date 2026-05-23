@@ -1,6 +1,6 @@
 import AppButton from "@/components/common/AppButton";
+import LikeButton from "@/components/icons/LikeButton";
 import CommentButton from "@/components/post/CommentButton";
-import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
@@ -349,7 +349,7 @@ export default function PostCard({
 
       <View style={postStyles.actionRow}>
         <LikeButton
-          isLiked={post.isLiked}
+          isLiked={post.is_liked}
           onPress={onToggleLike}
           style={{ flex: 1, justifyContent: "center" }}
         />

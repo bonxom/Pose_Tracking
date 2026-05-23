@@ -101,6 +101,18 @@ const createStyles = StyleSheet.create({
     backgroundColor: colors.black,
     borderWidth: 0,
   },
+  videoRemoveButton: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    zIndex: 3,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: colors.overlayLight,
+  },
   videoPreviewFrame: {
     position: "relative",
     width: "100%",

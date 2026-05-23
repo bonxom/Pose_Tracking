@@ -89,6 +89,7 @@ function buildAddPostFields(session, params = {}) {
     described: params.content || "",
     course_id: params.courseId || "",
     device_slave: DEFAULT_DEVICE_TOKEN,
+    device_master: DEFAULT_DEVICE_TOKEN,
   };
 
   if (params.exerciseId) {
@@ -460,7 +461,7 @@ export async function createPost(params) {
       buildAddPostFields(session, params),
       videos.map((video, index) => ({
         ...video,
-        fieldName: index === 0 ? "video1" : "video2",
+        fieldName: index === 0 ? "left_video" : "right_video",
       })),
     );
 
@@ -517,7 +518,7 @@ export async function createExerciseSubmission(params) {
       buildAddPostFields(session, params),
       videos.map((video, index) => ({
         ...video,
-        fieldName: index === 0 ? "video1" : "video2",
+        fieldName: index === 0 ? "left_video" : "right_video",
       })),
     );
 

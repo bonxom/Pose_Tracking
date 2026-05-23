@@ -1,12 +1,12 @@
 import PostCard from "@/components/post/PostCard";
 import {
-  checkNewItems,
+  // checkNewItems,
   getFeedPage,
   toggleLike,
 } from "@/repositories/postRepository";
 import homeStyles from "@/styles/home.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -68,26 +68,24 @@ export default function HomeScreen() {
     }
   }, [hasMore, isLoadingMore, lastId, posts.length]);
 
-  const checkForNewItems = useCallback(async () => {
-    try {
-      const result = await checkNewItems(lastId);
-      setNewItemsCount(Number(result.count || 0));
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      console.warn("Failed to check new items:", error);
-    }
-  }, [lastId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadPosts();
-    }, [loadPosts]),
-  );
+  // const checkForNewItems = useCallback(async () => {
+  //   try {
+  //     const result = await checkNewItems(lastId);
+  //     setNewItemsCount(Number(result.count || 0));
+  //   } catch (error) {
+  //     if (await redirectIfSessionExpired(error, router)) return;
+  //     console.warn("Failed to check new items:", error);
+  //   }
+  // }, [lastId]);
 
   useEffect(() => {
-    const timer = setInterval(checkForNewItems, 60_000);
-    return () => clearInterval(timer);
-  }, [checkForNewItems]);
+    loadPosts();
+  }, [loadPosts]);
+
+  // useEffect(() => {
+  //   const timer = setInterval(checkForNewItems, 60_000);
+  //   return () => clearInterval(timer);
+  // }, [checkForNewItems]);
 
   const handleToggleLike = async (post) => {
     try {
@@ -106,7 +104,7 @@ export default function HomeScreen() {
   };
 
   const handleCommentPress = (postId) => {
-    router.push(`/comment/${postId}`);
+    router.push(`/post/comment/${postId}`);
   };
 
   const handleSubmitExercise = (post) => {
