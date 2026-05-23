@@ -6,7 +6,13 @@ import colors from "@/constants/colors";
 import {
   editPost,
   getPostById,
+  validateTwoVideos,
 } from "@/repositories/postRepository";
+import {
+  enqueuePostUploading,
+  rejectPostUploading,
+  resolvePostUploading,
+} from "@/services/postUploadingStore";
 import { getUserInfo } from "@/repositories/userRepository";
 import createStyles from "@/styles/post/create.styles";
 import postStyles from "@/styles/post.styles";
@@ -112,7 +118,7 @@ export default function EditPostScreen() {
   const [statusText, setStatusText] = useState("");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [textAreaHeight, setTextAreaHeight] = useState(26);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
@@ -278,22 +284,41 @@ export default function EditPostScreen() {
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      await editPost(post, {
-        content: trimmedContent,
-        videos: isReplacingVideos ? replacementVideos : undefined,
-      });
-
-      Alert.alert("Thành công", "Bài viết đã được cập nhật.");
-      router.replace("/(tabs)/home");
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      console.warn("Failed to update post:", error);
-      setStatusText(error.message || "Không thể cập nhật bài viết.");
-    } finally {
-      setIsSubmitting(false);
+    const nextVideos = isReplacingVideos ? replacementVideos : undefined;
+    if (nextVideos?.length) {
+      try {
+        validateTwoVideos(nextVideos);
+      } catch (error) {
+        Alert.alert(
+          "Video chưa hợp lệ",
+          error?.message || "Vui lòng kiểm tra lại video trước khi cập nhật.",
+        );
+        return;
+      }
     }
+
+    const avatarUri =
+      profileUser?.avatar ||
+      session?.avatar ||
+      session?.user?.avatar ||
+      "https://ui-avatars.com/api/?name=User&background=random";
+    const uploadingId = enqueuePostUploading({ avatarUri });
+    router.replace("/(tabs)/home");
+
+    void (async () => {
+      try {
+        await editPost(post, {
+          content: trimmedContent,
+          videos: nextVideos,
+        });
+        resolvePostUploading(uploadingId, null);
+      } catch (error) {
+        rejectPostUploading(uploadingId);
+        if (await redirectIfSessionExpired(error, router)) return;
+        console.warn("Failed to update post:", error);
+        Alert.alert("Lỗi", "Hệ thống đang lỗi, vui lòng thử lại sau");
+      }
+    })();
   };
 
   const hasContentChanged = content.trim() !== initialContent.trim();
@@ -462,6 +487,8 @@ export default function EditPostScreen() {
         onSaveDraft={handleSaveDraft}
         onDiscard={handleDiscard}
         onContinue={() => setShowDraftSheet(false)}
+        discardIconName="close-outline"
+        discardLabel="Bỏ thay đổi"
       />
       <FullscreenVideoModal
         visible={Boolean(activeVideoUri)}

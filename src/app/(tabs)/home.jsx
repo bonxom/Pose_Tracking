@@ -17,16 +17,21 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  LayoutAnimation,
+  Platform,
   Pressable,
   RefreshControl,
   Text,
+  UIManager,
   View,
 } from "react-native";
 
+let homeFeedCache = [];
+
 export default function HomeScreen() {
   const uploadSuccessAlertLock = useRef(false);
-  const [posts, setPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [posts, setPosts] = useState(homeFeedCache);
+  const [isLoading, setIsLoading] = useState(homeFeedCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -34,15 +39,23 @@ export default function HomeScreen() {
   const [newItemsCount, setNewItemsCount] = useState(0);
   const [uploadingCards, setUploadingCards] = useState([]);
 
+  useEffect(() => {
+    if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
   const loadPosts = useCallback(async ({ refresh = false } = {}) => {
     try {
       if (refresh) {
         setIsRefreshing(true);
-      } else {
+      } else if (!posts.length) {
         setIsLoading(true);
       }
       const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
-      setPosts(result.items || []);
+      const nextItems = result.items || [];
+      homeFeedCache = nextItems;
+      setPosts(nextItems);
       setHasMore(Boolean(result.hasMore));
       setLastId(result.lastId || "");
       setNewItemsCount(Number(result.newItems || 0));
@@ -53,7 +66,7 @@ export default function HomeScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [posts.length]);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore || !lastId) return;
@@ -65,7 +78,11 @@ export default function HomeScreen() {
         count: 20,
         lastId,
       });
-      setPosts((current) => [...current, ...(result.items || [])]);
+      setPosts((current) => {
+        const next = [...current, ...(result.items || [])];
+        homeFeedCache = next;
+        return next;
+      });
       setHasMore(Boolean(result.hasMore));
       setLastId(result.lastId || lastId);
     } catch (error) {
@@ -129,9 +146,11 @@ export default function HomeScreen() {
           (item) => item?.id && !existingIds.has(item.id),
         );
 
-        return uniqueNewPosts.length
+        const next = uniqueNewPosts.length
           ? [...uniqueNewPosts, ...current]
           : current;
+        homeFeedCache = next;
+        return next;
       });
 
       showUploadSuccessAlert();
@@ -175,6 +194,17 @@ export default function HomeScreen() {
       },
     });
   };
+
+  const handleDeletePost = useCallback((postId) => {
+    if (!postId) return;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPosts((current) => {
+      const next = current.filter((item) => item.id !== postId);
+      homeFeedCache = next;
+      return next;
+    });
+  }, []);
 
   const feedItems = useMemo(() => {
     const uploadingItems = uploadingCards.map((item) => ({
@@ -240,6 +270,9 @@ export default function HomeScreen() {
                 onToggleLike={() => handleToggleLike(item)}
                 onPressComment={() => handleCommentPress(item.id)}
                 onSubmitExercise={() => handleSubmitExercise(item)}
+                onDeletePost={(deletedPostId) =>
+                  handleDeletePost(deletedPostId || item.id)
+                }
               />
             )
           }

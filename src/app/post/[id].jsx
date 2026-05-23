@@ -178,7 +178,7 @@ export default function PostDetailScreen() {
       setStatusText("Đã cập nhật bài viết.");
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể sửa bài viết.");
+      setStatusText("Hệ thống đang lỗi, vui lòng thử lại sau");
     }
   };
 
@@ -188,7 +188,7 @@ export default function PostDetailScreen() {
       router.replace("/(tabs)/home");
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể xóa bài viết.");
+      setStatusText("Hệ thống đang lỗi, vui lòng thử lại sau");
     }
   };
 

@@ -9,6 +9,8 @@ export default function DraftActionSheet({
   onSaveDraft,
   onDiscard,
   onContinue,
+  discardIconName = "trash-outline",
+  discardLabel = "Bỏ bài viết",
 }) {
   return (
     <Modal
@@ -36,10 +38,10 @@ export default function DraftActionSheet({
 
           <Pressable style={({ pressed }) => [styles.optionRow, pressed && styles.optionRowPressed]} onPress={onDiscard}>
             <View style={styles.iconContainer}>
-              <Ionicons name="trash-outline" size={24} color={colors.text} />
+              <Ionicons name={discardIconName} size={24} color={colors.text} />
             </View>
             <View style={styles.textContainer}>
-              <Text style={styles.optionTitle}>Bỏ bài viết</Text>
+              <Text style={styles.optionTitle}>{discardLabel}</Text>
             </View>
           </Pressable>
 

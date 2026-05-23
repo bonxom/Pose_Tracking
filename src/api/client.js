@@ -18,6 +18,7 @@ import {
 import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
 
 const ADD_POST_TIMEOUT_MS = 10 * 60 * 1000;
+const EDIT_POST_TIMEOUT_MS = ADD_POST_TIMEOUT_MS;
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -65,6 +66,7 @@ async function request(path, body = {}, options = {}) {
     options.timeout || API_TIMEOUT_MS,
   );
   const transport = options.transport || "json";
+  const method = options.method || "POST";
   const headers = {
     Accept: "application/json",
     ...(options.headers || {}),
@@ -83,9 +85,9 @@ async function request(path, body = {}, options = {}) {
 
   try {
     const url = joinUrl(options.baseUrl || API_BASE_URL, path);
-    logApi("request", { url, transport });
+    logApi("request", { url, transport, method });
     const response = await fetch(url, {
-      method: "POST",
+      method,
       headers,
       body: payload,
       signal: controller.signal,
@@ -122,6 +124,14 @@ async function request(path, body = {}, options = {}) {
 
 export async function post(path, body = {}, options = {}) {
   return request(path, body, { ...options, transport: "json" });
+}
+
+export async function del(path, body = {}, options = {}) {
+  return request(path, body, {
+    ...options,
+    transport: "json",
+    method: "DELETE",
+  });
 }
 
 export async function postForm(path, body = {}, options = {}) {
@@ -271,10 +281,32 @@ export const backendApi = {
       : postMultipart("/add_post", fields, files, {
           timeout: ADD_POST_TIMEOUT_MS,
         }),
-  editPost: (params) => post("/edit_post", params),
+  editPost: (params) => post("/edit_post", params, {
+    timeout: EDIT_POST_TIMEOUT_MS,
+  }),
   editPostMultipart: (fields, files) =>
-    postMultipart("/edit_post", fields, files),
-  deletePost: (params) => post("/delete_post", params),
+    postMultipart("/edit_post", fields, files, {
+      timeout: EDIT_POST_TIMEOUT_MS,
+    }),
+  deletePost: (params = {}) => {
+    const payload = {
+      token: params.token || "",
+    };
+
+    const postId =
+      params.id !== undefined && params.id !== null ? String(params.id) : "";
+
+    const headers = {};
+    if (postId) {
+      headers.id = postId;
+    }
+
+    const endpoint = postId
+      ? `/delete_post/${encodeURIComponent(postId)}`
+      : "/delete_post";
+
+    return del(endpoint, payload, { headers });
+  },
   reportPost: (params) => post("/report_post", params),
   like: (params) => post("/like_post", params),
   getComment: (params) => post("/get_comment", params),

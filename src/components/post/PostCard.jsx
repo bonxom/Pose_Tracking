@@ -11,8 +11,16 @@ import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { useEffect, useMemo, useState } from "react";
-import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Image,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 const EXPAND_THRESHOLD = 180;
 const DEFAULT_AVATAR_URL =
@@ -159,6 +167,8 @@ export default function PostCard({
   const [isExpanded, setIsExpanded] = useState(detail);
   const [currentUser, setCurrentUser] = useState(null);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
+  const [isDeleteAnimating, setIsDeleteAnimating] = useState(false);
+  const removeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     getAuthSession().then(setCurrentUser).catch(console.warn);
@@ -195,10 +205,37 @@ export default function PostCard({
     typeof post.author?.avatar === "string" && post.author.avatar.trim()
       ? post.author.avatar.trim()
       : DEFAULT_AVATAR_URL;
-  // console.log("post.created", post.createdAt);
+  const cardScale = removeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.98, 1],
+  });
+
+  const handleDeleteSuccess = () => {
+    if (isDeleteAnimating) return;
+    setIsOptionsVisible(false);
+    setIsDeleteAnimating(true);
+
+    Animated.timing(removeAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onDeletePost?.(post?.id);
+    });
+  };
 
   return (
-    <View style={[postStyles.card, flat && localStyles.flatCard]}>
+    <Animated.View
+      style={[
+        postStyles.card,
+        flat && localStyles.flatCard,
+        {
+          opacity: removeAnim,
+          transform: [{ scale: cardScale }],
+        },
+      ]}
+      pointerEvents={isDeleteAnimating ? "none" : "auto"}
+    >
       <View style={postStyles.headerRow}>
         <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
 
@@ -367,10 +404,7 @@ export default function PostCard({
         postId={post?.id}
         onTurnOffNotifications={() => setIsOptionsVisible(false)}
         onTurnOnNotifications={() => setIsOptionsVisible(false)}
-        onDeletePost={() => {
-          setIsOptionsVisible(false);
-          onDeletePost?.();
-        }}
+        onDeletePost={handleDeleteSuccess}
         onEditPost={
           onEditPost
             ? () => {
@@ -384,7 +418,7 @@ export default function PostCard({
           onReportPost?.();
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 

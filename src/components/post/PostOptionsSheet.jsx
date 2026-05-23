@@ -1,17 +1,28 @@
+import { backendApi } from "@/api/client";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
+import { assertBackendOk } from "@/repositories/serverResponse";
+import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
-function OptionRow({ iconName, label, onPress, destructive }) {
+function OptionRow({
+  iconName,
+  label,
+  onPress,
+  destructive,
+  disabled = false,
+}) {
   return (
     <Pressable
       style={({ pressed }) => [
         styles.optionRow,
-        pressed && styles.optionRowPressed,
+        (pressed || disabled) && styles.optionRowPressed,
       ]}
       onPress={onPress}
+      disabled={disabled}
     >
       <View
         style={[styles.iconCircle, destructive && styles.iconCircleDestructive]}
@@ -42,6 +53,8 @@ export default function PostOptionsSheet({
   onReportPost,
   postId,
 }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleEditPost = () => {
     if (onEditPost) {
       onEditPost();
@@ -54,6 +67,32 @@ export default function PostOptionsSheet({
       pathname: "/post/edit",
       params: { id: postId },
     });
+  };
+
+  const handleDeletePost = async () => {
+    if (!postId || isDeleting) return;
+    try {
+      setIsDeleting(true);
+      const session = await getAuthSession();
+      if (!session?.token) {
+        throw new Error("Không tìm thấy phiên đăng nhập.");
+      }
+
+      const response = await backendApi.deletePost({
+        token: session.token,
+        id: postId,
+      });
+      await assertBackendOk(response, {
+        message: "Backend delete_post failed",
+      });
+
+      onClose?.();
+      onDeletePost?.(postId);
+    } catch (_error) {
+      Alert.alert("Lỗi", "Hệ thống đang lỗi, vui lòng thử lại sau");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -84,8 +123,9 @@ export default function PostOptionsSheet({
               <OptionRow
                 iconName="trash-outline"
                 label="Xóa bài viết này"
-                onPress={onDeletePost}
+                onPress={handleDeletePost}
                 destructive
+                disabled={isDeleting}
               />
             </>
           ) : (

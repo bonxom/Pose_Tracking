@@ -328,15 +328,12 @@ export async function editPost(post, params = {}) {
       "",
   };
 
-  const response = params.videos?.length
-    ? await backendApi.editPostMultipart(
-        fields,
-        params.videos.map((video, index) => ({
-          ...video,
-          fieldName: index === 0 ? "video1" : "video2",
-        })),
-      )
-    : await backendApi.editPost(fields);
+  const multipartVideos = (params.videos || []).map((video, index) => ({
+    ...video,
+    fieldName: index === 0 ? "left_video" : "right_video",
+  }));
+
+  const response = await backendApi.editPostMultipart(fields, multipartVideos);
 
   await assertBackendOk(response, { message: "Backend edit_post failed" });
 
