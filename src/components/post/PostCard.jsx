@@ -11,10 +11,12 @@ import {
 } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -195,6 +197,10 @@ export default function PostCard({
   const isExercisePost = post.type === "exercise" || post.canSubmit;
   const canSubmitExercise = isExercisePost && currentRole === "HV";
   const isSubmissionPost = post.type === "submission";
+  const authorId = String(post?.author?.id || "");
+  const isOwnAuthorProfile = Boolean(
+    authorId && currentUser?.id && String(currentUser.id) === authorId,
+  );
   const hashtags = useMemo(() => {
     const values = new Set(post.hashtags || []);
     if (post.courseId) values.add(`#${post.courseId}`);
@@ -202,29 +208,53 @@ export default function PostCard({
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
 
+  const handleOpenAuthorProfile = () => {
+    if (!authorId) return;
+
+    if (isOwnAuthorProfile) {
+      router.push("/(tabs)/profile");
+      return;
+    }
+
+    router.push({
+      pathname: "/profile/[userId]",
+      params: { userId: authorId },
+    });
+  };
+
   return (
     <View style={[postStyles.card, flat && localStyles.flatCard]}>
       <View style={postStyles.headerRow}>
-        <View style={postStyles.avatar}>
-          <Text style={postStyles.avatarText}>
-            {getInitials(post.author?.name || "Người dùng")}
-          </Text>
-        </View>
+        <Pressable
+          style={localStyles.authorPressable}
+          onPress={handleOpenAuthorProfile}
+          disabled={!authorId}
+        >
+          {post.author?.avatar ? (
+            <Image source={{ uri: post.author.avatar }} style={postStyles.avatar} />
+          ) : (
+            <View style={postStyles.avatar}>
+              <Text style={postStyles.avatarText}>
+                {getInitials(post.author?.name || "Người dùng")}
+              </Text>
+            </View>
+          )}
 
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={postStyles.authorName}>
-            {post.author?.name || "Người dùng"}
-          </Text>
-          <Text
-            style={[
-              postStyles.metaText,
-              metaIsFresh && postStyles.freshMetaText,
-            ]}
-          >
-            {post.author?.handle || "@nguoidung"} ·{" "}
-            {formatRelativeTime(post.createdAt)}
-          </Text>
-        </View>
+          <View style={localStyles.authorMeta}>
+            <Text style={postStyles.authorName}>
+              {post.author?.name || "Người dùng"}
+            </Text>
+            <Text
+              style={[
+                postStyles.metaText,
+                metaIsFresh && postStyles.freshMetaText,
+              ]}
+            >
+              {post.author?.handle || "@nguoidung"} ·{" "}
+              {formatRelativeTime(post.createdAt)}
+            </Text>
+          </View>
+        </Pressable>
 
         <View style={postStyles.roleBadge}>
           <Text style={postStyles.roleBadgeText}>
@@ -286,7 +316,7 @@ export default function PostCard({
         </View>
       ) : null}
 
-      {post.videos?.length ? (
+      {/*post.videos?.length ? (
         <View
           style={[
             localStyles.videoGrid,
@@ -305,7 +335,7 @@ export default function PostCard({
             />
           ))}
         </View>
-      ) : null}
+      ) : null*/}
 
       {post.timeSeriesPoses ? (
         <View style={postStyles.exerciseBanner}>
@@ -403,6 +433,16 @@ export default function PostCard({
 }
 
 const localStyles = StyleSheet.create({
+  authorPressable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  authorMeta: {
+    flex: 1,
+    gap: 4,
+  },
   flatCard: {
     borderRadius: 0,
     borderWidth: 0,

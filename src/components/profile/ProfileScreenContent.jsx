@@ -4,12 +4,12 @@ import ProfileActionSheet from "@/components/profile/ProfileActionSheet";
 import ProfileHero from "@/components/profile/ProfileHero";
 import ProfileImagePreviewModal from "@/components/profile/ProfileImagePreviewModal";
 import ProfilePostsSection from "@/components/profile/ProfilePostsSection";
+import colors from "@/constants/colors";
 import {
   getUserInfo,
   getUserPosts,
   updateUserInfo,
 } from "@/repositories/userRepository";
-import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import * as ImagePicker from "expo-image-picker";
@@ -25,7 +25,6 @@ import {
   Text,
   View,
 } from "react-native";
-
 
 export default function ProfileScreenContent({ userId = "" }) {
   const [profile, setProfile] = useState(null);
@@ -53,7 +52,8 @@ export default function ProfileScreenContent({ userId = "" }) {
       const isOwnProfile = Boolean(
         user.isOwnProfile ||
           !targetUserId ||
-          String(targetUserId) === String(session?.id || session?.user_id || session?.identifier || ""),
+          String(targetUserId) ===
+            String(session?.id || session?.user_id || session?.identifier || ""),
       );
 
       if (user.unavailable) {
@@ -91,7 +91,10 @@ export default function ProfileScreenContent({ userId = "" }) {
 
   const profileLink = useMemo(() => {
     const id = profile?.id || userId || "";
-    return profile?.profileLink || Linking.createURL(id ? `/profile/${id}` : "/(tabs)/profile");
+    return (
+      profile?.profileLink ||
+      Linking.createURL(id ? `/profile/${id}` : "/(tabs)/profile")
+    );
   }, [profile?.id, profile?.profileLink, userId]);
 
   const handleCopyLink = async () => {
@@ -137,8 +140,11 @@ export default function ProfileScreenContent({ userId = "" }) {
         avatar: nextProfile.avatar,
         coverImage: nextProfile.coverImage,
       });
-    } catch (error) {
-      Alert.alert("Không thể cập nhật ảnh", error.message || "Vui lòng thử lại.");
+    } catch (nextError) {
+      Alert.alert(
+        "Không thể cập nhật ảnh",
+        nextError.message || "Vui lòng thử lại.",
+      );
     }
   };
 
@@ -162,10 +168,18 @@ export default function ProfileScreenContent({ userId = "" }) {
   if (error) {
     return (
       <View style={profileStyles.centerState}>
-        <ProfileIcon name="alert-circle-outline" size={42} color={colors.error} />
+        <ProfileIcon
+          name="alert-circle-outline"
+          size={42}
+          color={colors.error}
+        />
         <Text style={profileStyles.centerTitle}>Không thể tải hồ sơ</Text>
         <Text style={profileStyles.centerText}>{error}</Text>
-        <AppButton title="Thử lại" onPress={() => loadProfile(false)} style={profileStyles.retryButton} />
+        <AppButton
+          title="Thử lại"
+          onPress={() => loadProfile(false)}
+          style={profileStyles.retryButton}
+        />
       </View>
     );
   }
@@ -173,10 +187,15 @@ export default function ProfileScreenContent({ userId = "" }) {
   if (!profile || profile.unavailable) {
     return (
       <View style={profileStyles.centerState}>
-        <ProfileIcon name="person-circle-outline" size={48} color={colors.inkMuted} />
+        <ProfileIcon
+          name="person-circle-outline"
+          size={48}
+          color={colors.inkMuted}
+        />
         <Text style={profileStyles.centerTitle}>Tài khoản không tồn tại</Text>
         <Text style={profileStyles.centerText}>
-          {profile?.unavailableReason || "Hồ sơ này không khả dụng hoặc bạn không có quyền xem."}
+          {profile?.unavailableReason ||
+            "Hồ sơ này không khả dụng hoặc bạn không có quyền xem."}
         </Text>
       </View>
     );
@@ -186,7 +205,11 @@ export default function ProfileScreenContent({ userId = "" }) {
     <View style={profileStyles.screen}>
       <ScrollView
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => loadProfile(true)} tintColor={colors.brand} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadProfile(true)}
+            tintColor={colors.brand}
+          />
         }
         contentContainerStyle={profileStyles.scrollContent}
       >
@@ -200,11 +223,14 @@ export default function ProfileScreenContent({ userId = "" }) {
               ? router.push("/profile/settings")
               : setMenuVisible(true)
           }
-          onMessage={() => router.push("/chat")}
         />
 
         <View style={profileStyles.fbBody}>
-          <ProfilePostsSection profile={profile} posts={posts} loading={loading} />
+          <ProfilePostsSection
+            profile={profile}
+            posts={posts}
+            loading={loading}
+          />
         </View>
       </ScrollView>
 
@@ -212,7 +238,6 @@ export default function ProfileScreenContent({ userId = "" }) {
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
         rows={[
-          { label: "Chỉnh sửa trang cá nhân", icon: "create-outline", onPress: () => router.push("/settings/profile-edit") },
           {
             label: "Tìm kiếm trên trang cá nhân",
             icon: "search-outline",
@@ -222,22 +247,38 @@ export default function ProfileScreenContent({ userId = "" }) {
                 params: { userId: profile.id },
               }),
           },
-          { label: "Sao chép liên kết trang cá nhân", icon: "link-outline", onPress: handleCopyLink },
+          {
+            label: "Sao chép liên kết trang cá nhân",
+            icon: "link-outline",
+            onPress: handleCopyLink,
+          },
         ]}
       />
       <ProfileActionSheet
         visible={coverMenuVisible}
         onClose={() => setCoverMenuVisible(false)}
         rows={[
-          { label: "Xem ảnh bìa", icon: "image-outline", onPress: handleViewCover },
-          { label: "Tải ảnh lên", icon: "cloud-upload-outline", onPress: () => pickProfileImage("cover") },
+          {
+            label: "Xem ảnh bìa",
+            icon: "image-outline",
+            onPress: handleViewCover,
+          },
+          {
+            label: "Tải ảnh lên",
+            icon: "cloud-upload-outline",
+            onPress: () => pickProfileImage("cover"),
+          },
         ]}
       />
       <ProfileActionSheet
         visible={avatarMenuVisible}
         onClose={() => setAvatarMenuVisible(false)}
         rows={[
-          { label: "Chọn ảnh đại diện", icon: "images-outline", onPress: () => pickProfileImage("avatar") },
+          {
+            label: "Chọn ảnh đại diện",
+            icon: "images-outline",
+            onPress: () => pickProfileImage("avatar"),
+          },
         ]}
       />
       <ProfileImagePreviewModal

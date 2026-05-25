@@ -166,6 +166,15 @@ function hasOwnValue(object = {}, key) {
   return Object.prototype.hasOwnProperty.call(object, key) && object[key] !== undefined && object[key] !== null;
 }
 
+function shouldRetryGetUserInfoWithoutUserId(error) {
+  const message = getBackendErrorMessage(error).toLowerCase();
+  return (
+    message.includes("property user_id should not exist") ||
+    rejectsField(error, "user_id") ||
+    error?.status === 400
+  );
+}
+
 function firstParamValue(params = {}, keys = [], fallback = "") {
   const key = keys.find((item) => hasOwnValue(params, item));
   return key ? params[key] : fallback;
@@ -374,6 +383,39 @@ function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOUR
   };
 }
 
+async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
+  const attempts = isOwnProfile
+    ? [{ token: session.token }]
+    : [
+        { token: session.token, user_id: targetUserId },
+        { token: session.token },
+      ];
+
+  let lastError = null;
+
+  for (let index = 0; index < attempts.length; index += 1) {
+    try {
+      const response = await backendApi.getUserInfo(attempts[index]);
+      await assertBackendOk(response, { message: "Backend get_user_info failed" });
+      return response;
+    } catch (error) {
+      throwIfExpiredFromApiError(error);
+      lastError = error;
+
+      const canRetry =
+        !isOwnProfile &&
+        index === 0 &&
+        shouldRetryGetUserInfoWithoutUserId(error);
+
+      if (!canRetry) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error("Backend get_user_info failed");
+}
+
 export async function getUserInfo(userId = "") {
   const session = await getCurrentSession();
   const targetUserId = String(userId || "");
@@ -388,12 +430,7 @@ export async function getUserInfo(userId = "") {
   }
 
   try {
-    const basePayload = { token: session.token };
-    const response = await backendApi.getUserInfo(
-      isOwnProfile ? basePayload : { ...basePayload, user_id: targetUserId },
-    );
-
-    await assertBackendOk(response, { message: "Backend get_user_info failed" });
+    const response = await getUserInfoFromBackend(session, targetUserId, isOwnProfile);
 
     const normalized = normalizeUser(extractObject(response), ACTIVE_SOURCES.SERVER, {
       session,
