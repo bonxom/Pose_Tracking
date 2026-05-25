@@ -5,6 +5,7 @@ import {
   API_TYPE,
   API_TYPES,
 } from "@/config/env";
+import MOCK_ACCOUNTS from "@/constants/mocks/MOCK_ACCOUNTS";
 import MOCK_ADD_POST from "@/constants/mocks/MOCK_ADD_POST";
 import MOCK_GET_LIST_POSTS from "@/constants/mocks/MOCK_GET_LIST_POSTS";
 import MOCK_GET_POST from "@/constants/mocks/MOCK_GET_POST";
@@ -248,8 +249,56 @@ function buildMockGetUserInfoResponse(params = {}) {
   };
 }
 
+function buildMockLoginResponse(params = {}) {
+  const { phonenumber, password } = params;
+
+  if (!phonenumber || !password) {
+    return {
+      code: "1002",
+      message: "Parameter is not enough",
+    };
+  }
+
+  const matchedUser = MOCK_ACCOUNTS.find(
+    (item) =>
+      item.phonenumber === String(phonenumber) &&
+      item.password === String(password),
+  );
+
+  if (matchedUser) {
+    return {
+      code: "1000",
+      message: "OK",
+      data: {
+        ...matchedUser,
+        token: `mock_${matchedUser.role?.toLowerCase() || "hv"}_token`,
+        active: "1",
+      },
+    };
+  }
+
+  const phoneExists = MOCK_ACCOUNTS.some(
+    (item) => item.phonenumber === String(phonenumber),
+  );
+
+  if (phoneExists) {
+    return {
+      code: "1004",
+      message: "Parameter value is invalid",
+    };
+  }
+
+  return {
+    code: "9995",
+    message: "User is not validated",
+  };
+}
+
 export const backendApi = {
-  login: (params) => post("/login", params),
+  login: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(buildMockLoginResponse(params))
+      : post("/login", params),
   logout: (params) => post("/logout", params),
   signup: (params) => post("/signup", params),
   getVerifyCode: (params) => post("/get_verify_code", params),
@@ -305,7 +354,10 @@ export const backendApi = {
   setPushSettings: (params) => post("/set_push_settings", params),
   changePassword: (params) => post("/change_password", params),
   checkNewVersion: (params) => post("/check_new_version", params),
-  setDevtoken: (params) => post("/set_devtoken", params),
+  setDevtoken: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve({ code: "1000", message: "OK" })
+      : post("/set_devtoken", params),
   getConversation: (params) => post("/get_conversation", params),
   deleteMessage: (params) => post("/delete_message", params),
   getListConversation: (params) => post("/get_list_conversation", params),

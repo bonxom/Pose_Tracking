@@ -1,7 +1,11 @@
 import Screen from "@/components/common/Screen";
-import { loginDemoStudent, loginDemoTeacher, loginWithPassword } from "@/repositories/authRepository";
-import { getDataSourceMode } from "@/repositories/source";
+import {
+  loginDemoStudent,
+  loginDemoTeacher,
+  loginWithPassword,
+} from "@/repositories/authRepository";
 import { setDeviceToken } from "@/repositories/settingsRepository";
+import { getDataSourceMode } from "@/repositories/source";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -50,7 +54,9 @@ export default function LoginScreen() {
         loggedInAt: new Date().toISOString(),
       });
       if (!data.demoMode) {
-        setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
+        setDeviceToken().catch((error) =>
+          console.warn("Cannot register device token:", error),
+        );
       }
     } catch (storageError) {
       console.warn("Cannot persist login session:", storageError);
@@ -88,9 +94,10 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      const response = await loginWithPassword(normalizedPhone, normalizedPassword, {
-        allowKnownMockFallback: true,
-      });
+      const response = await loginWithPassword(
+        normalizedPhone,
+        normalizedPassword,
+      );
 
       switch (response.code) {
         case "1000": {
@@ -104,7 +111,9 @@ export default function LoginScreen() {
           break;
         }
         case "9995":
-          setPhoneNumberError("Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.");
+          setPhoneNumberError(
+            "Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.",
+          );
           break;
         case "1004":
           setPhoneNumberError("Số điện thoại hoặc mật khẩu không chính xác.");
@@ -148,7 +157,9 @@ export default function LoginScreen() {
           editable={!isLoading}
         />
       </View>
-      {!!phoneNumberError && <Text style={styles.errorText}>{phoneNumberError}</Text>}
+      {!!phoneNumberError && (
+        <Text style={styles.errorText}>{phoneNumberError}</Text>
+      )}
 
       <View style={styles.inputRow}>
         <TextInput
@@ -206,7 +217,9 @@ export default function LoginScreen() {
             </Text>
             <Pressable
               style={[styles.createButton, { borderColor: "#2563EB" }]}
-              onPress={() => handleDemoLogin(loginDemoStudent, "0900000001", "123456")}
+              onPress={() =>
+                handleDemoLogin(loginDemoStudent, "0900000001", "123456")
+              }
               disabled={isLoading}
             >
               <Text style={styles.createText}>
@@ -215,7 +228,9 @@ export default function LoginScreen() {
             </Pressable>
             <Pressable
               style={[styles.createButton, { borderColor: "#94A3B8" }]}
-              onPress={() => handleDemoLogin(loginDemoTeacher, "0900000002", "123456")}
+              onPress={() =>
+                handleDemoLogin(loginDemoTeacher, "0900000002", "123456")
+              }
               disabled={isLoading}
             >
               <Text style={styles.createText}>
