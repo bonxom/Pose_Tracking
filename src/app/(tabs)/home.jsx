@@ -54,8 +54,12 @@ export default function HomeScreen() {
       }
       const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
       const nextItems = result.items || [];
-      homeFeedCache = nextItems;
-      setPosts(nextItems);
+      if (!refresh && nextItems.length === 0 && homeFeedCache.length > 0) {
+        setPosts(homeFeedCache);
+      } else {
+        homeFeedCache = nextItems;
+        setPosts(nextItems);
+      }
       setHasMore(Boolean(result.hasMore));
       setLastId(result.lastId || "");
       setNewItemsCount(Number(result.newItems || 0));
@@ -216,7 +220,7 @@ export default function HomeScreen() {
     return [...uploadingItems, ...posts];
   }, [posts, uploadingCards]);
 
-  if (isLoading) {
+  if (isLoading && posts.length === 0 && uploadingCards.length === 0) {
     return (
       <View style={[homeStyles.container, { flex: 1 }]}>
         <ActivityIndicator size="large" />

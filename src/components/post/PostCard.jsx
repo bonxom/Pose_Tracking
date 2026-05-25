@@ -14,6 +14,7 @@ import { getAuthSession } from "@/utils/session";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Image,
   Modal,
@@ -41,6 +42,7 @@ function formatCount(value = 0) {
 
 function PostVideoTile({ video, index, fallbackSource }) {
   const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
+  const [isFullscreenReady, setIsFullscreenReady] = useState(false);
   const rawVideoUri = typeof video?.uri === "string" ? video.uri.trim() : "";
   const rawThumbUri =
     typeof video?.thumb === "string" && video.thumb.trim()
@@ -60,6 +62,7 @@ function PostVideoTile({ video, index, fallbackSource }) {
 
   useEffect(() => {
     setVideoSource(rawVideoUri || fallbackSource);
+    setIsFullscreenReady(false);
   }, [rawVideoUri, fallbackSource]);
 
   useEffect(() => {
@@ -75,6 +78,7 @@ function PostVideoTile({ video, index, fallbackSource }) {
 
     const handleStatusChange = ({ status }) => {
       if (status === "error") {
+        setIsFullscreenReady(true);
         applyFallback();
       }
     };
@@ -91,6 +95,7 @@ function PostVideoTile({ video, index, fallbackSource }) {
 
   const openFullscreen = () => {
     setIsFullscreenVisible(true);
+    setIsFullscreenReady(false);
     fullscreenPlayer.pause();
   };
 
@@ -146,12 +151,20 @@ function PostVideoTile({ video, index, fallbackSource }) {
           </Pressable>
 
           {isFullscreenVisible && videoSource ? (
-            <VideoView
-              player={fullscreenPlayer}
-              style={localStyles.fullscreenVideo}
-              contentFit="contain"
-              nativeControls
-            />
+            <>
+              <VideoView
+                player={fullscreenPlayer}
+                style={localStyles.fullscreenVideo}
+                contentFit="contain"
+                nativeControls
+                onFirstFrameRender={() => setIsFullscreenReady(true)}
+              />
+              {!isFullscreenReady ? (
+                <View style={localStyles.videoLoadingOverlay}>
+                  <ActivityIndicator size="large" color={colors.white} />
+                </View>
+              ) : null}
+            </>
           ) : null}
         </View>
       </Modal>
@@ -491,6 +504,16 @@ const localStyles = StyleSheet.create({
     left: 0,
     alignItems: "center",
     justifyContent: "center",
+  },
+  videoLoadingOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.overlayBlack40,
   },
   videoLabel: {
     position: "absolute",

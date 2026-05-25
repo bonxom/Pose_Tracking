@@ -65,6 +65,7 @@ function VideoThumbnail({ video, onPress }) {
 }
 
 function FullscreenVideoModal({ visible, uri, onClose }) {
+  const [isReady, setIsReady] = useState(false);
   const player = useVideoPlayer(visible ? uri || null : null, (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = false;
@@ -74,6 +75,26 @@ function FullscreenVideoModal({ visible, uri, onClose }) {
   useEffect(() => {
     player.pause();
   }, [player, uri]);
+
+  useEffect(() => {
+    if (visible && uri) {
+      setIsReady(false);
+      return;
+    }
+    setIsReady(true);
+  }, [visible, uri]);
+
+  useEffect(() => {
+    const sub = player.addListener("statusChange", ({ status }) => {
+      if (status === "error") {
+        setIsReady(true);
+      }
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, [player]);
 
   return (
     <Modal
@@ -92,12 +113,20 @@ function FullscreenVideoModal({ visible, uri, onClose }) {
         </Pressable>
 
         {uri ? (
-          <VideoView
-            player={player}
-            style={createStyles.fullscreenVideo}
-            contentFit="contain"
-            nativeControls
-          />
+          <>
+            <VideoView
+              player={player}
+              style={createStyles.fullscreenVideo}
+              contentFit="contain"
+              nativeControls
+              onFirstFrameRender={() => setIsReady(true)}
+            />
+            {!isReady ? (
+              <View style={createStyles.videoLoadingOverlay}>
+                <ActivityIndicator size="large" color={colors.white} />
+              </View>
+            ) : null}
+          </>
         ) : null}
       </View>
     </Modal>
