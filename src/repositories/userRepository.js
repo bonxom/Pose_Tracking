@@ -22,7 +22,6 @@ import {
 } from "@/repositories/serverResponse";
 import {
   ACTIVE_SOURCES,
-  canFallbackToLocal,
   getCurrentSession,
   shouldUseServer,
 } from "@/repositories/source";
@@ -75,7 +74,10 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
     displayName: firstValue(raw.displayName, raw.fullname, raw.fullName, raw.name, username),
     avatar: normalizeMediaUrl(firstValue(raw.avatar, raw.avatar_url, raw.image, raw.picture, "")),
     coverImage: normalizeMediaUrl(firstValue(raw.cover_image, raw.coverImage, raw.cover_url, raw.background, "")),
-    description: String(firstValue(raw.description, raw.described, raw.bio, raw.about, "")).slice(0, 150),
+    description: normalizeOptionalText(
+      firstValue(raw.description, raw.described, raw.bio, raw.about, ""),
+      150,
+    ),
     address: firstValue(raw.address, raw.location, raw.province, raw.city, ""),
     city: firstValue(raw.city, raw.province, ""),
     country: firstValue(raw.country, ""),
@@ -145,6 +147,15 @@ function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
 
 function isSameUser(left, right) {
   return Boolean(left && right && String(left) === String(right));
+}
+
+function normalizeOptionalText(value = "", maxLength = 0) {
+  const normalized = String(value ?? "")
+    .replace(/^undefined$/i, "")
+    .replace(/^null$/i, "")
+    .trim();
+
+  return maxLength ? normalized.slice(0, maxLength) : normalized;
 }
 
 function normalizeComparable(value = "") {
@@ -262,17 +273,6 @@ function buildLocalProfileShape(session = {}, mockProfile = {}) {
   };
 }
 
-function shouldFallbackProfileSave(error) {
-  if (error?.sessionExpired) return false;
-  if (canFallbackToLocal()) return true;
-
-  return (
-    error?.status === 0 ||
-    ["NETWORK_ERROR", "TIMEOUT"].includes(String(error?.code || "")) ||
-    /unreachable|timed out|network/i.test(String(error?.message || ""))
-  );
-}
-
 function throwIfExpiredFromApiError(error) {
   const data = getBackendErrorData(error);
   if (isInvalidSessionResponse(data || error)) {
@@ -335,7 +335,10 @@ function buildSetUserInfoPayload(session, params, userName, options = {}) {
 
   if (!options.minimal) {
     const descriptionKey = options.descriptionKey || "description";
-    payload[descriptionKey] = String(firstParamValue(params, ["description"], "")).slice(0, 150);
+    payload[descriptionKey] = normalizeOptionalText(
+      firstParamValue(params, ["description"], ""),
+      150,
+    );
   }
 
   return payload;
@@ -393,7 +396,10 @@ function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOUR
   const currentProfile = buildLocalProfileShape(session, resolveMockProfile(session));
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(params, ["coverImage", "cover_image"], session?.coverImage || "");
-  const description = String(firstParamValue(params, ["description"], session?.description || "")).slice(0, 150);
+  const description = normalizeOptionalText(
+    firstParamValue(params, ["description"], session?.description || ""),
+    150,
+  );
   const address = firstParamValue(params, ["address"], session?.address || "");
   const profileLink = firstParamValue(params, ["profileLink", "link"], session?.profileLink || "");
 
@@ -589,7 +595,10 @@ export async function updateUserInfo(params = {}) {
         "",
       description:
         normalized.description ||
-        String(firstParamValue(params, ["description"], session?.description || "")).slice(0, 150),
+        normalizeOptionalText(
+          firstParamValue(params, ["description"], session?.description || ""),
+          150,
+        ),
       address: normalized.address || firstParamValue(params, ["address"], session?.address || ""),
       profileLink: normalized.profileLink || firstParamValue(params, ["profileLink", "link"], session?.profileLink || ""),
     };
@@ -597,15 +606,7 @@ export async function updateUserInfo(params = {}) {
     return updated;
   } catch (error) {
     const mappedError = mapForbiddenNameError(error);
-    if (mappedError !== error || error?.sessionExpired || !shouldFallbackProfileSave(error)) {
-      throw mappedError;
-    }
-
-    console.info("[DATA] Server set_user_info fallback", error.message);
-    const updated = buildLocalProfileUpdate(session, params, userName, ACTIVE_SOURCES.LOCAL_FALLBACK);
-    saveMockProfile(updated);
-    await saveAuthSession(updated);
-    return updated;
+    throw mappedError;
   }
 }
 

@@ -118,6 +118,13 @@ function cloneProfile(profile) {
   return profile ? { ...profile } : null;
 }
 
+function normalizeOptionalText(value = "") {
+  return String(value ?? "")
+    .replace(/^undefined$/i, "")
+    .replace(/^null$/i, "")
+    .trim();
+}
+
 export function getMockProfileById(userId = "") {
   return cloneProfile(profileStore.get(String(userId || "")));
 }
@@ -154,6 +161,9 @@ export function saveMockProfile(profile = {}) {
     id,
     displayName: profile.displayName || profile.username || current.displayName || current.username || "",
     profileLink: profile.profileLink || current.profileLink || `https://pose-tracking.local/profile/${id}`,
+    description: normalizeOptionalText(
+      profile.description ?? current.description ?? "",
+    ),
   };
 
   profileStore.set(id, next);
