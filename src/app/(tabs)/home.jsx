@@ -39,11 +39,7 @@ export default function HomeScreen() {
   const [newItemsCount, setNewItemsCount] = useState(0);
   const [uploadingCards, setUploadingCards] = useState([]);
 
-  useEffect(() => {
-    if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-      UIManager.setLayoutAnimationEnabledExperimental(true);
-    }
-  }, []);
+
 
   const loadPosts = useCallback(async ({ refresh = false } = {}) => {
     try {

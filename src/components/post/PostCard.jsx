@@ -253,8 +253,6 @@ export default function PostCard({
     });
   };
 
-  console.log("token: ", currentUser?.token);
-
   return (
     <Animated.View
       style={[
@@ -340,7 +338,7 @@ export default function PostCard({
         </View>
       ) : null}
 
-      {/* {post.videos?.length ? (
+      {post.videos?.length ? (
         <View
           style={[
             localStyles.videoGrid,
@@ -359,7 +357,7 @@ export default function PostCard({
             />
           ))}
         </View>
-      ) : null} */}
+      ) : null}
 
       {/* {post.timeSeriesPoses ? (
         <View style={postStyles.exerciseBanner}>

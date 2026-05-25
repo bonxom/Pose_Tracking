@@ -164,7 +164,6 @@ export async function getCourseStudents(index = 0, count = 50) {
 
 export async function getRequestedEnrollment(index = 0, count = 50) {
   const session = await getCurrentSession();
-  console.log(JSON.stringify(session, null, 2));
 
   const response = await backendApi.getRequestedEnrollment({
     token: session.token,
