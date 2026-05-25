@@ -236,21 +236,16 @@ export async function toggleLike(post) {
 
 export async function searchPosts(query = "", options = {}) {
   const session = await getCurrentSession();
+  const userId = options.userId || options.user_id || "";
 
   try {
     assertServerSession(session);
     const response = await backendApi.search({
       token: session.token,
       keyword: query,
-      user_id:
-        options.userId ||
-        options.user_id ||
-        session.id ||
-        session.user_id ||
-        session.identifier ||
-        "",
       index: "0",
       count: "20",
+      ...(userId ? { user_id: userId } : {}),
     });
 
     await assertBackendOk(response, { message: "Backend search failed" });

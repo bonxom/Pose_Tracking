@@ -40,17 +40,38 @@ export function persistSearchScreenCache(nextState) {
 
 export function mapSavedSearches(response) {
   const data = response?.data || {};
-  const items = Array.isArray(data.saved_searches)
-    ? data.saved_searches
-    : Array.isArray(data.items)
-      ? data.items
-      : [];
+  const items = Array.isArray(data)
+    ? data
+    : Array.isArray(data.saved_searches)
+      ? data.saved_searches
+      : Array.isArray(data.items)
+        ? data.items
+        : Array.isArray(data.searches)
+          ? data.searches
+          : Array.isArray(data.history)
+            ? data.history
+            : [];
 
   return items
     .map((item, index) => ({
-      id: String(item.search_id || item.id || `saved_${index}`),
-      keyword: String(item.keyword || item.value || item.text || "").trim(),
-      createdAt: String(item.created_at || item.createdAt || ""),
+      id: String(
+        item.search_id ||
+          item.id ||
+          item.saved_search_id ||
+          item.history_id ||
+          `saved_${index}`,
+      ),
+      keyword: String(
+        item.keyword ||
+          item.search_keyword ||
+          item.name ||
+          item.value ||
+          item.text ||
+          "",
+      ).trim(),
+      createdAt: String(
+        item.created_at || item.createdAt || item.created || item.updated_at || "",
+      ),
     }))
     .filter((item) => item.keyword);
 }
@@ -85,22 +106,41 @@ function dedupeUsers(posts = []) {
 }
 
 export function mapUsersFromResponse(response, fallbackPosts = []) {
-  const rawUsers = Array.isArray(response?.data?.users) ? response.data.users : [];
+  const rawUsers = Array.isArray(response?.data?.users)
+    ? response.data.users
+    : Array.isArray(response?.data?.user)
+      ? response.data.user
+      : Array.isArray(response?.data?.accounts)
+        ? response.data.accounts
+        : Array.isArray(response?.data?.people)
+          ? response.data.people
+          : [];
   const seen = new Set();
   const mappedUsers = rawUsers
     .map((item, index) => ({
-      id: String(item.id || item.user_id || item._id || `search_user_${index}`),
+      id: String(
+        item.id ||
+          item.user_id ||
+          item._id ||
+          item.uuid ||
+          item.identifier ||
+          item.username ||
+          item.user_name ||
+          item.handle ||
+          `search_user_${index}`,
+      ),
       name: String(
         item.name ||
           item.fullname ||
           item.fullName ||
+          item.displayName ||
           item.username ||
           item.user_name ||
           "Người dùng",
       ),
       handle: String(item.username || item.user_name || item.handle || ""),
       role: String(item.role || item.type || "HV"),
-      avatar: String(item.avatar || item.avatar_url || item.image || ""),
+      avatar: String(item.avatar || item.avatar_url || item.image || item.picture || ""),
       description: String(item.description || item.described || item.bio || ""),
     }))
     .filter((item) => {

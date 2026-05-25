@@ -197,7 +197,12 @@ export default function PostCard({
   const isExercisePost = post.type === "exercise" || post.canSubmit;
   const canSubmitExercise = isExercisePost && currentRole === "HV";
   const isSubmissionPost = post.type === "submission";
-  const authorId = String(post?.author?.id || "");
+  const authorId = String(
+    post?.author?.id ||
+      post?.author?.handle ||
+      post?.author?.name ||
+      "",
+  ).trim();
   const isOwnAuthorProfile = Boolean(
     authorId && currentUser?.id && String(currentUser.id) === authorId,
   );

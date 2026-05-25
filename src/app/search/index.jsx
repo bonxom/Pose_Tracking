@@ -1,5 +1,4 @@
 import { backendApi } from "@/api/client";
-import colors from "@/constants/colors";
 import ProfileActionSheet from "@/components/profile/ProfileActionSheet";
 import {
   SearchHeader,
@@ -7,6 +6,10 @@ import {
   SearchSkeletonRow,
   SearchUserCard,
 } from "@/components/search/SearchScreenParts";
+import colors from "@/constants/colors";
+import { toggleLike } from "@/repositories/postRepository";
+import { API_TYPE, API_TYPES } from "@/config/env";
+import { assertBackendOk } from "@/repositories/serverResponse";
 import searchStyles from "@/styles/search.styles";
 import {
   PAGE_SIZE,
@@ -18,7 +21,6 @@ import {
   persistSearchScreenCache,
   resetSearchScreenCache,
 } from "@/utils/search";
-import { toggleLike } from "@/repositories/postRepository";
 import { getAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -39,12 +41,16 @@ export default function SearchScreen() {
   const [keyword, setKeyword] = useState(searchScreenCache.keyword);
   const [posts, setPosts] = useState(searchScreenCache.posts);
   const [users, setUsers] = useState(searchScreenCache.users);
-  const [savedSearches, setSavedSearches] = useState(searchScreenCache.savedSearches);
+  const [savedSearches, setSavedSearches] = useState(
+    searchScreenCache.savedSearches,
+  );
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
-  const [hasSearched, setHasSearched] = useState(searchScreenCache.hasSearched);
+  const [hasSearched, setHasSearched] = useState(
+    searchScreenCache.hasSearched,
+  );
   const [nextIndex, setNextIndex] = useState(searchScreenCache.nextIndex);
   const [hasMore, setHasMore] = useState(searchScreenCache.hasMore);
   const [activeTab, setActiveTab] = useState(searchScreenCache.activeTab);
@@ -52,11 +58,7 @@ export default function SearchScreen() {
 
   const deferredKeyword = useDeferredValue(keyword);
 
-  useEffect(() => {
-    return () => {
-      resetSearchScreenCache();
-    };
-  }, []);
+  useEffect(() => () => resetSearchScreenCache(), []);
 
   const suggestions = useMemo(() => {
     const normalizedKeyword = deferredKeyword.trim().toLowerCase();
@@ -69,7 +71,6 @@ export default function SearchScreen() {
       .filter(Boolean);
 
     const uniqueSuggestions = [...new Set(suggestionPool)];
-
     if (!normalizedKeyword) {
       return uniqueSuggestions.slice(0, 8);
     }
@@ -90,25 +91,35 @@ export default function SearchScreen() {
       nextIndex,
       hasMore,
     });
-  }, [activeTab, hasMore, hasSearched, keyword, nextIndex, posts, savedSearches, users]);
+  }, [
+    activeTab,
+    hasMore,
+    hasSearched,
+    keyword,
+    nextIndex,
+    posts,
+    savedSearches,
+    users,
+  ]);
 
   const loadSavedSearches = useCallback(async (sessionToken) => {
     if (!sessionToken) return;
 
     try {
       setLoadingHistory(true);
+      setError("");
       const response = await backendApi.getSavedSearch({
         token: sessionToken,
         index: "0",
         count: "20",
       });
 
-      if (String(response?.code || "") !== "1000") {
-        throw new Error(response?.message || "Không thể tải lịch sử tìm kiếm.");
-      }
+      await assertBackendOk(response, {
+        allowNoData: true,
+        message: "Không thể tải lịch sử tìm kiếm.",
+      });
 
-      const mapped = mapSavedSearches(response);
-      setSavedSearches(mapped);
+      setSavedSearches(mapSavedSearches(response));
     } catch (loadError) {
       setError(loadError.message || "Không thể tải lịch sử tìm kiếm.");
     } finally {
@@ -178,12 +189,82 @@ export default function SearchScreen() {
           count: String(PAGE_SIZE),
         });
 
-        if (String(response?.code || "") !== "1000") {
-          throw new Error(response?.message || "Không thể tìm kiếm.");
-        }
+        await assertBackendOk(response, {
+          allowNoData: true,
+          message: "Không thể tìm kiếm.",
+        });
 
         const nextPostsChunk = mapPosts(response);
-        const nextUsersChunk = mapUsersFromResponse(response, nextPostsChunk);
+        let nextUsersChunk = mapUsersFromResponse(response, nextPostsChunk);
+
+        if (
+          API_TYPE === API_TYPES.BACKEND &&
+          !append &&
+          nextUsersChunk.length &&
+          !response?.data?.users
+        ) {
+          const enrichedUsers = await Promise.all(
+            nextUsersChunk.slice(0, 8).map(async (user) => {
+              try {
+                const profileResponse = await backendApi.getUserInfo({
+                  token,
+                  userId: user.id,
+                });
+
+                await assertBackendOk(profileResponse, {
+                  allowNoData: true,
+                  message: "Không thể tải thông tin người dùng.",
+                });
+
+                const data =
+                  profileResponse?.data && !Array.isArray(profileResponse.data)
+                    ? profileResponse.data
+                    : Array.isArray(profileResponse?.data)
+                      ? profileResponse.data[0]
+                      : null;
+
+                if (!data) return user;
+
+                return {
+                  ...user,
+                  id: String(
+                    data.id ||
+                      data.user_id ||
+                      data._id ||
+                      data.uuid ||
+                      user.id,
+                  ),
+                  name: String(
+                    data.name ||
+                      data.fullname ||
+                      data.fullName ||
+                      data.username ||
+                      data.user_name ||
+                      user.name,
+                  ),
+                  handle: String(
+                    data.username || data.user_name || data.handle || user.handle || "",
+                  ),
+                  avatar: String(
+                    data.avatar || data.avatar_url || data.image || data.picture || user.avatar || "",
+                  ),
+                  description: String(
+                    data.description || data.described || data.bio || user.description || "",
+                  ),
+                  role: String(data.role || data.type || user.role || "HV"),
+                };
+              } catch {
+                return user;
+              }
+            }),
+          );
+
+          const existingIds = new Set(enrichedUsers.map((item) => item.id));
+          nextUsersChunk = [
+            ...enrichedUsers,
+            ...nextUsersChunk.filter((item) => !existingIds.has(item.id)),
+          ];
+        }
 
         startTransition(() => {
           setPosts((current) => {
@@ -220,7 +301,7 @@ export default function SearchScreen() {
 
   const openProfilePreview = useCallback((userId) => {
     const normalizedUserId = String(userId || "").trim();
-    if (!normalizedUserId) return;
+    if (!normalizedUserId || normalizedUserId === "server_user") return;
 
     router.push({
       pathname: "/profile/[userId]",
@@ -239,15 +320,15 @@ export default function SearchScreen() {
           all: "0",
         });
 
-        if (String(response?.code || "") !== "1000") {
-          throw new Error(response?.message || "Không thể xóa lịch sử.");
-        }
+        await assertBackendOk(response, {
+          message: "Không thể xóa lịch sử tìm kiếm.",
+        });
 
         setSavedSearches((current) =>
           current.filter((saved) => saved.id !== item.id),
         );
       } catch (deleteError) {
-        setError(deleteError.message || "Không thể xóa lịch sử.");
+        setError(deleteError.message || "Không thể xóa lịch sử tìm kiếm.");
       }
     },
     [token],
@@ -262,13 +343,13 @@ export default function SearchScreen() {
         all: "1",
       });
 
-      if (String(response?.code || "") !== "1000") {
-        throw new Error(response?.message || "Không thể xóa toàn bộ lịch sử.");
-      }
+      await assertBackendOk(response, {
+        message: "Không thể xóa toàn bộ lịch sử tìm kiếm.",
+      });
 
       setSavedSearches([]);
     } catch (deleteError) {
-      setError(deleteError.message || "Không thể xóa toàn bộ lịch sử.");
+      setError(deleteError.message || "Không thể xóa toàn bộ lịch sử tìm kiếm.");
     }
   }, [token]);
 
@@ -285,21 +366,21 @@ export default function SearchScreen() {
 
   const handlePressUser = useCallback(
     (user) => {
-      openProfilePreview(user.id);
+      openProfilePreview(user.id || user.handle || user.name);
     },
     [openProfilePreview],
   );
 
   const handlePressPost = useCallback(
     (post) => {
-      openProfilePreview(post.author?.id);
+      openProfilePreview(post.author?.id || post.author?.handle || post.author?.name);
     },
     [openProfilePreview],
   );
 
   const handlePressPostComment = useCallback(
     (post) => {
-      openProfilePreview(post.author?.id);
+      openProfilePreview(post.author?.id || post.author?.handle || post.author?.name);
     },
     [openProfilePreview],
   );
@@ -351,7 +432,8 @@ export default function SearchScreen() {
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
-  const showPosts = hasSearched && (activeTab === "all" || activeTab === "posts");
+  const showPosts =
+    hasSearched && (activeTab === "all" || activeTab === "posts");
 
   return (
     <SafeAreaView style={searchStyles.safeArea}>
@@ -398,12 +480,22 @@ export default function SearchScreen() {
             <View style={searchStyles.postSkeletonCard}>
               <SearchSkeletonRow />
               <View style={searchStyles.postSkeletonBlock} />
-              <View style={[searchStyles.postSkeletonBlock, searchStyles.postSkeletonBlockShort]} />
+              <View
+                style={[
+                  searchStyles.postSkeletonBlock,
+                  searchStyles.postSkeletonBlockShort,
+                ]}
+              />
             </View>
             <View style={searchStyles.postSkeletonCard}>
               <SearchSkeletonRow />
               <View style={searchStyles.postSkeletonBlock} />
-              <View style={[searchStyles.postSkeletonBlock, searchStyles.postSkeletonBlockShort]} />
+              <View
+                style={[
+                  searchStyles.postSkeletonBlock,
+                  searchStyles.postSkeletonBlockShort,
+                ]}
+              />
             </View>
           </View>
         </View>
@@ -414,7 +506,9 @@ export default function SearchScreen() {
           renderItem={renderPostItem}
           ListEmptyComponent={
             <View style={searchStyles.emptyState}>
-              <Text style={searchStyles.emptyTitle}>Không tìm thấy kết quả nào</Text>
+              <Text style={searchStyles.emptyTitle}>
+                Không tìm thấy kết quả nào
+              </Text>
             </View>
           }
           ListFooterComponent={
@@ -448,7 +542,9 @@ export default function SearchScreen() {
           )}
           ListEmptyComponent={
             <View style={searchStyles.emptyState}>
-              <Text style={searchStyles.emptyTitle}>Không tìm thấy kết quả nào</Text>
+              <Text style={searchStyles.emptyTitle}>
+                Không tìm thấy kết quả nào
+              </Text>
             </View>
           }
           contentContainerStyle={searchStyles.peopleListContent}
