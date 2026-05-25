@@ -222,6 +222,8 @@ export default function PostCard({
     });
   };
 
+  const ContentContainer = onPress ? Pressable : View;
+
   return (
     <View style={[postStyles.card, flat && localStyles.flatCard]}>
       <View style={postStyles.headerRow}>
@@ -275,6 +277,7 @@ export default function PostCard({
         </Pressable>
       </View>
 
+      <ContentContainer onPress={onPress}>
       {post.exerciseTitle ? (
         <View style={postStyles.exerciseBanner}>
           <Text style={postStyles.exerciseBannerTitle}>
@@ -361,6 +364,7 @@ export default function PostCard({
           </View>
         </View>
       ) : null}
+      </ContentContainer>
 
       <View style={postStyles.statsRow}>
         <Text style={postStyles.statText}>

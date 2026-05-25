@@ -108,7 +108,11 @@ export default function RequestsView({
             {/* Header */}
             <View style={coursesStyles.header}>
               <Text style={coursesStyles.headerTitle}>Khoá học</Text>
-              <Pressable style={coursesStyles.searchBtn} hitSlop={8}>
+              <Pressable
+                style={coursesStyles.searchBtn}
+                hitSlop={8}
+                onPress={() => router.push("/search")}
+              >
                 <SearchIcon color={colors.text} size={24} />
               </Pressable>
             </View>
