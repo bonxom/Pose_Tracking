@@ -113,6 +113,34 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function toSavedSearchId(keyword = "") {
+  return `saved_search_${String(keyword)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")}`;
+}
+
+function saveMockSearchKeyword(keyword = "") {
+  const normalizedKeyword = String(keyword || "").trim();
+  if (!normalizedKeyword) return;
+
+  const nextItem = {
+    search_id: toSavedSearchId(normalizedKeyword) || `saved_search_${Date.now()}`,
+    keyword: normalizedKeyword,
+    created_at: new Date().toISOString(),
+  };
+
+  mockSavedSearches = [
+    nextItem,
+    ...mockSavedSearches.filter(
+      (item) =>
+        String(item.keyword || "").trim().toLowerCase() !==
+        normalizedKeyword.toLowerCase(),
+    ),
+  ].slice(0, 20);
+}
+
 export async function getMockSearchResponse(params = {}) {
   await delay(MOCK_SEARCH_DELAY_MS);
 
@@ -129,6 +157,10 @@ export async function getMockSearchResponse(params = {}) {
   const userId = String(params?.user_id || "").trim();
   const requestedIndex = Math.max(0, Number(params?.index || 0));
   const requestedCount = Math.max(1, Number(params?.count || 20));
+
+  if (requestedIndex === 0) {
+    saveMockSearchKeyword(keyword);
+  }
 
   const filtered = MOCK_SEARCH_POSTS.filter((post) => {
     if (userId && String(post.author?.id || "") !== userId) {
