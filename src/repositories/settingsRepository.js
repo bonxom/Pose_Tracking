@@ -4,8 +4,68 @@ import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
+function toBool(value, fallback = true) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  return String(value) === "1" || String(value).toLowerCase() === "true";
+}
+
+function settingValue(value) {
+  return value ? "1" : "0";
+}
+
+export function normalizePushSettings(settings = {}) {
+  return {
+    likeComment: toBool(settings.likeComment ?? settings.like_comment, true),
+    fromFriends: toBool(settings.fromFriends ?? settings.from_friends, true),
+    requestedFriend: toBool(
+      settings.requestedFriend ?? settings.requested_friend,
+      true,
+    ),
+    suggestedFriend: toBool(
+      settings.suggestedFriend ?? settings.suggested_friend,
+      true,
+    ),
+    birthday: toBool(settings.birthday, true),
+    video: toBool(settings.video, true),
+    report: toBool(settings.report, true),
+    soundOn: toBool(settings.soundOn ?? settings.sound_on, true),
+    notificationOn: toBool(
+      settings.notificationOn ?? settings.notification_on,
+      true,
+    ),
+    vibrantOn: toBool(settings.vibrantOn ?? settings.vibrant_on, true),
+    ledOn: toBool(settings.ledOn ?? settings.led_on, true),
+  };
+}
+
+function serializePushSettings(settings = {}) {
+  const normalized = normalizePushSettings(settings);
+
+  return {
+    notificationOn: settingValue(normalized.notificationOn),
+    likeComment: settingValue(normalized.likeComment),
+    fromFriends: settingValue(normalized.fromFriends),
+    requestedFriend: settingValue(normalized.requestedFriend),
+    suggestedFriend: settingValue(normalized.suggestedFriend),
+    birthday: settingValue(normalized.birthday),
+    video: settingValue(normalized.video),
+    report: settingValue(normalized.report),
+    soundOn: settingValue(normalized.soundOn),
+    vibrantOn: settingValue(normalized.vibrantOn),
+    ledOn: settingValue(normalized.ledOn),
+  };
+}
+
 export async function getPushSettings() {
   const session = await getCurrentSession();
+
+  if (!session?.token) {
+    return {
+      ...normalizePushSettings(localPushSettings),
+      source: ACTIVE_SOURCES.LOCAL,
+    };
+  }
 
   try {
     const response = await backendApi.getPushSettings({ token: session.token });
@@ -15,8 +75,10 @@ export async function getPushSettings() {
     });
 
     return {
-      ...localPushSettings,
-      ...extractObject(response),
+      ...normalizePushSettings({
+        ...localPushSettings,
+        ...extractObject(response),
+      }),
       source: ACTIVE_SOURCES.SERVER,
     };
   } catch (error) {
@@ -28,16 +90,37 @@ export async function getPushSettings() {
 export async function setPushSettings(settings = {}) {
   const session = await getCurrentSession();
 
+  if (!session?.token) {
+    throw new Error("Bạn cần đăng nhập để lưu cài đặt thông báo.");
+  }
+
   const response = await backendApi.setPushSettings({
     token: session.token,
-    ...settings,
+    ...serializePushSettings(settings),
   });
+
+  const code = String(response?.code || "");
+
+  // Backend trả 1010 khi setting đã giống giá trị yêu cầu.
+  // Trường hợp này vẫn coi là lưu thành công.
+  if (code === "1000" || code === "1010") {
+    return {
+      ...normalizePushSettings(settings),
+      source: ACTIVE_SOURCES.SERVER,
+    };
+  }
+
+  // Log response for diagnostics before assertion so we can capture unexpected server payloads
+  console.info("[DATA] setPushSettings response:", response);
 
   await assertBackendOk(response, {
     message: "Backend set_push_settings failed",
   });
 
-  return { ...localPushSettings, ...settings, source: ACTIVE_SOURCES.SERVER };
+  return {
+    ...normalizePushSettings(settings),
+    source: ACTIVE_SOURCES.SERVER,
+  };
 }
 
 export async function changePassword(oldPassword, newPassword) {
@@ -85,16 +168,23 @@ export async function checkNewVersion() {
   return extractObject(response);
 }
 
-export async function setDeviceToken(devtoken = DEFAULT_DEVICE_TOKEN) {
+export async function setDeviceToken(
+  devtoken = DEFAULT_DEVICE_TOKEN,
+  devtype = "1",
+) {
   const session = await getCurrentSession();
+
+  if (!session?.token) {
+    return null;
+  }
 
   const response = await backendApi.setDevtoken({
     token: session.token,
     devtoken,
-    devtype: "1",
+    devtype,
   });
 
   await assertBackendOk(response, { message: "Backend set_devtoken failed" });
 
-  return { registered: true, devtoken, source: ACTIVE_SOURCES.SERVER };
+  return { registered: true, devtoken, devtype, source: ACTIVE_SOURCES.SERVER };
 }

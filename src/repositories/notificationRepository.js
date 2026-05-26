@@ -35,6 +35,7 @@ let notificationCache = {
 
 let notificationBadge = 0;
 const notificationBadgeListeners = new Set();
+const notificationCacheListeners = new Set();
 
 export function getNotificationCache() {
   return notificationCache;
@@ -62,6 +63,25 @@ export function subscribeNotificationBadge(listener) {
   };
 }
 
+export function subscribeNotificationCache(listener) {
+  notificationCacheListeners.add(listener);
+  listener(notificationCache);
+
+  return () => {
+    notificationCacheListeners.delete(listener);
+  };
+}
+
+function emitNotificationCache() {
+  notificationCacheListeners.forEach((listener) => {
+    try {
+      listener(notificationCache);
+    } catch (err) {
+      // ignore listener errors
+    }
+  });
+}
+
 export function formatNotificationBadge(value) {
   const numeric = Number(value) || 0;
   return numeric > 99 ? "99+" : String(numeric);
@@ -87,8 +107,13 @@ function mergeNotifications(oldItems = [], newItems = []) {
   return sortNotifications(Array.from(map.values()));
 }
 
-function saveNotificationCache(page, { append = false } = {}) {
-  const nextItems = append
+function saveNotificationCache(
+  page,
+  { append = false, mergeWithExisting = false } = {},
+) {
+  const shouldMerge = append || mergeWithExisting;
+
+  const nextItems = shouldMerge
     ? mergeNotifications(notificationCache.items, page.items)
     : sortNotifications(page.items);
 
@@ -104,6 +129,7 @@ function saveNotificationCache(page, { append = false } = {}) {
   };
 
   setNotificationBadge(unreadCount);
+  emitNotificationCache();
 
   return notificationCache;
 }
@@ -145,6 +171,7 @@ export function markNotificationReadLocal(notificationId) {
   };
 
   setNotificationBadge(unreadCount);
+  emitNotificationCache();
 
   return notificationCache;
 }
@@ -257,6 +284,7 @@ export async function getNotificationPage(params = {}) {
 
     return saveNotificationCache(page, {
       append: Number(params.index || 0) > 0,
+      mergeWithExisting: Boolean(params.mergeWithExisting),
     });
   }
 
@@ -278,6 +306,7 @@ export async function getNotificationPage(params = {}) {
     const page = normalizeNotificationPage(response, ACTIVE_SOURCES.SERVER);
     return saveNotificationCache(page, {
       append: Number(params.index || 0) > 0,
+      mergeWithExisting: Boolean(params.mergeWithExisting),
     });
   } catch (error) {
     console.info("[DATA] Server notification fallback", {
