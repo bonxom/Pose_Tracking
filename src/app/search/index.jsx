@@ -36,6 +36,27 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const searchScreenCache = getSearchScreenCache();
 
+function buildSavedSearchEntry(keyword = "", currentItems = []) {
+  const trimmedKeyword = String(keyword || "").trim();
+  if (!trimmedKeyword) {
+    return currentItems;
+  }
+
+  const normalizedKeyword = trimmedKeyword.toLowerCase();
+  const nextItem = {
+    id: `local_saved_${normalizedKeyword.replace(/[^a-z0-9]+/g, "_") || Date.now()}`,
+    keyword: trimmedKeyword,
+    createdAt: new Date().toISOString(),
+  };
+
+  return [
+    nextItem,
+    ...currentItems.filter(
+      (item) => String(item.keyword || "").trim().toLowerCase() !== normalizedKeyword,
+    ),
+  ].slice(0, 20);
+}
+
 export default function SearchScreen() {
   const [token, setToken] = useState("");
   const [keyword, setKeyword] = useState(searchScreenCache.keyword);
@@ -282,6 +303,13 @@ export default function SearchScreen() {
           });
         });
 
+        if (!append && index === 0) {
+          setSavedSearches((current) =>
+            buildSavedSearchEntry(trimmedKeyword, current),
+          );
+          loadSavedSearches(token).catch(() => {});
+        }
+
         setNextIndex(index + PAGE_SIZE);
         setHasMore(nextPostsChunk.length >= PAGE_SIZE);
       } catch (searchError) {
@@ -296,7 +324,7 @@ export default function SearchScreen() {
         setLoadingMore(false);
       }
     },
-    [keyword, token],
+    [keyword, loadSavedSearches, token],
   );
 
   const openProfilePreview = useCallback((userId) => {
