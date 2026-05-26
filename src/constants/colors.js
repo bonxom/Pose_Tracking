@@ -4,6 +4,8 @@ const colors = {
   primaryLight: "#DBEAFE",
   brand: "#0866FF",
 
+  button_unactive: "#898787",
+
   background: "#FFFFFF",
   surface: "#F8FAFC",
   page: "#F0F2F5",

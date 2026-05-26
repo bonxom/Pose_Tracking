@@ -1,28 +1,33 @@
 import AppButton from "@/components/common/AppButton";
-import LikeButton from "@/components/icons/LikeButton";
+import CloseIcon from "@/components/icons/CloseIcon";
+import EarthIcon from "@/components/icons/EarthIcon";
+import EllipsisHorizontalIcon from "@/components/icons/EllipsisHorizontalIcon";
+import PlayVideoIcon from "@/components/icons/PlayVideoIcon";
+import VideoCamOutlineIcon from "@/components/icons/VideoCamOutlineIcon";
 import CommentButton from "@/components/post/CommentButton";
+import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
-import {
-  formatRelativeTime,
-  getInitials,
-  isFreshPost,
-} from "@/utils/formatters";
+import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
-import { Ionicons } from "@expo/vector-icons";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Image,
   Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
+const DEFAULT_AVATAR_URL =
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5FBH-i9W2GYVsE4y3QPE9QT1JRImQD9QkPg&s";
 const VIDEO_FALLBACK_SOURCES = [
   require("../../../assets/cam1.mp4"),
   require("../../../assets/cam2.mp4"),
@@ -36,32 +41,33 @@ function formatCount(value = 0) {
 }
 
 function PostVideoTile({ video, index, fallbackSource }) {
-  const [isReady, setIsReady] = useState(false);
   const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
+  const [isFullscreenReady, setIsFullscreenReady] = useState(false);
   const rawVideoUri = typeof video?.uri === "string" ? video.uri.trim() : "";
+  const rawThumbUri =
+    typeof video?.thumb === "string" && video.thumb.trim()
+      ? video.thumb.trim()
+      : typeof video?.thumbnail === "string" && video.thumbnail.trim()
+        ? video.thumbnail.trim()
+        : "";
   const [videoSource, setVideoSource] = useState(rawVideoUri || fallbackSource);
-
-  const previewPlayer = useVideoPlayer(videoSource, (player) => {
-    player.loop = true;
-    player.muted = true;
-    player.pause();
-  });
-
-  const fullscreenPlayer = useVideoPlayer(videoSource, (player) => {
-    player.loop = true;
-    player.muted = false;
-    player.pause();
-  });
+  const fullscreenPlayer = useVideoPlayer(
+    isFullscreenVisible ? videoSource : null,
+    (player) => {
+      player.loop = true;
+      player.muted = false;
+      player.pause();
+    },
+  );
 
   useEffect(() => {
     setVideoSource(rawVideoUri || fallbackSource);
-    setIsReady(false);
+    setIsFullscreenReady(false);
   }, [rawVideoUri, fallbackSource]);
 
   useEffect(() => {
-    previewPlayer.pause();
     fullscreenPlayer.pause();
-  }, [videoSource, previewPlayer, fullscreenPlayer]);
+  }, [videoSource, fullscreenPlayer]);
 
   useEffect(() => {
     const applyFallback = () => {
@@ -72,27 +78,24 @@ function PostVideoTile({ video, index, fallbackSource }) {
 
     const handleStatusChange = ({ status }) => {
       if (status === "error") {
+        setIsFullscreenReady(true);
         applyFallback();
       }
     };
 
-    const previewSub = previewPlayer.addListener(
-      "statusChange",
-      handleStatusChange,
-    );
     const fullscreenSub = fullscreenPlayer.addListener(
       "statusChange",
       handleStatusChange,
     );
 
     return () => {
-      previewSub.remove();
       fullscreenSub.remove();
     };
-  }, [fallbackSource, fullscreenPlayer, previewPlayer]);
+  }, [fallbackSource, fullscreenPlayer]);
 
   const openFullscreen = () => {
     setIsFullscreenVisible(true);
+    setIsFullscreenReady(false);
     fullscreenPlayer.pause();
   };
 
@@ -106,17 +109,22 @@ function PostVideoTile({ video, index, fallbackSource }) {
   return (
     <>
       <Pressable style={localStyles.videoCard} onPress={openFullscreen}>
-        <VideoView
-          player={previewPlayer}
-          style={localStyles.videoPreview}
-          contentFit="cover"
-          nativeControls={false}
-          onFirstFrameRender={() => setIsReady(true)}
-        />
-
-        {!isReady ? (
-          <View style={localStyles.videoLoadingOverlay}>
-            <ActivityIndicator size="small" color={colors.white} />
+        {rawThumbUri ? (
+          <Image
+            source={{ uri: rawThumbUri }}
+            style={localStyles.videoPreview}
+          />
+        ) : (
+          <View style={localStyles.videoPreviewFallback}>
+            <VideoCamOutlineIcon />
+            <Text style={localStyles.videoPreviewFallbackText}>
+              Chưa có thumbnail
+            </Text>
+          </View>
+        )}
+        {rawThumbUri ? (
+          <View pointerEvents="none" style={localStyles.playIconOverlay}>
+            <PlayVideoIcon size={42} />
           </View>
         ) : null}
 
@@ -139,15 +147,25 @@ function PostVideoTile({ video, index, fallbackSource }) {
             onPress={closeFullscreen}
             hitSlop={8}
           >
-            <Ionicons name="close" size={28} color={colors.white} />
+            <CloseIcon />
           </Pressable>
 
-          <VideoView
-            player={fullscreenPlayer}
-            style={localStyles.fullscreenVideo}
-            contentFit="contain"
-            nativeControls
-          />
+          {isFullscreenVisible && videoSource ? (
+            <>
+              <VideoView
+                player={fullscreenPlayer}
+                style={localStyles.fullscreenVideo}
+                contentFit="contain"
+                nativeControls
+                onFirstFrameRender={() => setIsFullscreenReady(true)}
+              />
+              {!isFullscreenReady ? (
+                <View style={localStyles.videoLoadingOverlay}>
+                  <ActivityIndicator size="large" color={colors.white} />
+                </View>
+              ) : null}
+            </>
+          ) : null}
         </View>
       </Modal>
     </>
@@ -169,6 +187,8 @@ export default function PostCard({
   const [isExpanded, setIsExpanded] = useState(detail);
   const [currentUser, setCurrentUser] = useState(null);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
+  const [isDeleteAnimating, setIsDeleteAnimating] = useState(false);
+  const removeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     getAuthSession().then(setCurrentUser).catch(console.warn);
@@ -195,23 +215,62 @@ export default function PostCard({
   const isExercisePost = post.type === "exercise" || post.canSubmit;
   const canSubmitExercise = isExercisePost && currentRole === "HV";
   const isSubmissionPost = post.type === "submission";
+  const likeCount = Number(post?.likeCount) || 0;
+  const commentCount = Number(post?.commentCount) || 0;
+  const likeSummaryText = post?.isLiked
+    ? likeCount <= 1
+      ? "Bạn đã thích"
+      : `Bạn và ${likeCount - 1} người khác`
+    : likeCount > 0
+      ? formatCount(likeCount)
+      : "";
   const hashtags = useMemo(() => {
     const values = new Set(post.hashtags || []);
     if (post.courseId) values.add(`#${post.courseId}`);
     if (post.exerciseId) values.add(`#${post.exerciseId}`);
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
+  const avatarUri =
+    typeof post.author?.avatar === "string" && post.author.avatar.trim()
+      ? post.author.avatar.trim()
+      : DEFAULT_AVATAR_URL;
+  const cardScale = removeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.98, 1],
+  });
+
+  const handleDeleteSuccess = () => {
+    if (isDeleteAnimating) return;
+    setIsOptionsVisible(false);
+    setIsDeleteAnimating(true);
+
+    Animated.timing(removeAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onDeletePost?.(post?.id);
+    });
+  };
+
+  console.log("token: ", currentUser?.token);
 
   return (
-    <View style={[postStyles.card, flat && localStyles.flatCard]}>
+    <Animated.View
+      style={[
+        postStyles.card,
+        flat && localStyles.flatCard,
+        {
+          opacity: removeAnim,
+          transform: [{ scale: cardScale }],
+        },
+      ]}
+      pointerEvents={isDeleteAnimating ? "none" : "auto"}
+    >
       <View style={postStyles.headerRow}>
-        <View style={postStyles.avatar}>
-          <Text style={postStyles.avatarText}>
-            {getInitials(post.author?.name || "Người dùng")}
-          </Text>
-        </View>
+        <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
 
-        <View style={{ flex: 1, gap: 4 }}>
+        <View style={postStyles.authorMetaGroup}>
           <Text style={postStyles.authorName}>
             {post.author?.name || "Người dùng"}
           </Text>
@@ -221,8 +280,7 @@ export default function PostCard({
               metaIsFresh && postStyles.freshMetaText,
             ]}
           >
-            {post.author?.handle || "@nguoidung"} ·{" "}
-            {formatRelativeTime(post.createdAt)}
+            {formatRelativeTime(post.createdAt)} · <EarthIcon />
           </Text>
         </View>
 
@@ -237,11 +295,7 @@ export default function PostCard({
           onPress={() => setIsOptionsVisible(true)}
           hitSlop={8}
         >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={20}
-            color={colors.subtext}
-          />
+          <EllipsisHorizontalIcon />
         </Pressable>
       </View>
 
@@ -307,14 +361,14 @@ export default function PostCard({
         </View>
       ) : null} */}
 
-      {post.timeSeriesPoses ? (
+      {/* {post.timeSeriesPoses ? (
         <View style={postStyles.exerciseBanner}>
           <Text style={postStyles.exerciseBannerTitle}>time_series_poses</Text>
           <Text style={postStyles.exerciseBannerMeta}>
             Backend có dữ liệu tư thế theo thời gian cho bài này.
           </Text>
         </View>
-      ) : null}
+      ) : null} */}
 
       {isSubmissionPost && post.scoreSummary ? (
         <View style={postStyles.scoreSummaryCard}>
@@ -333,12 +387,17 @@ export default function PostCard({
       ) : null}
 
       <View style={postStyles.statsRow}>
-        <Text style={postStyles.statText}>
-          {formatCount(post.likeCount)} lượt thích
-        </Text>
-        <Text style={postStyles.statText}>
-          {formatCount(post.commentCount)} bình luận
-        </Text>
+        {likeCount > 0 && (
+          <View style={localStyles.likeSummaryInline}>
+            <ThumbUpWithCircleIcon />
+            <Text style={postStyles.statText}>{likeSummaryText}</Text>
+          </View>
+        )}
+        {commentCount > 0 && (
+          <Text style={[postStyles.statText, postStyles.statTextRight]}>
+            {formatCount(commentCount)} bình luận
+          </Text>
+        )}
       </View>
 
       {post.canComment === false ? (
@@ -349,7 +408,7 @@ export default function PostCard({
 
       <View style={postStyles.actionRow}>
         <LikeButton
-          isLiked={post.is_liked}
+          isLiked={post.isLiked}
           onPress={onToggleLike}
           style={{ flex: 1, justifyContent: "center" }}
         />
@@ -381,10 +440,7 @@ export default function PostCard({
         postId={post?.id}
         onTurnOffNotifications={() => setIsOptionsVisible(false)}
         onTurnOnNotifications={() => setIsOptionsVisible(false)}
-        onDeletePost={() => {
-          setIsOptionsVisible(false);
-          onDeletePost?.();
-        }}
+        onDeletePost={handleDeleteSuccess}
         onEditPost={
           onEditPost
             ? () => {
@@ -398,7 +454,7 @@ export default function PostCard({
           onReportPost?.();
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 
@@ -427,8 +483,34 @@ const localStyles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  videoPreviewFallback: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.overlayBlack65,
+    gap: 8,
+  },
+  videoPreviewFallbackText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  playIconOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   videoLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.overlayBlack40,
@@ -446,6 +528,11 @@ const localStyles = StyleSheet.create({
     color: colors.white,
     fontSize: 11,
     fontWeight: "700",
+  },
+  likeSummaryInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   fullscreenBackdrop: {
     flex: 1,

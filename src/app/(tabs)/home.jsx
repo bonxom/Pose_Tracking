@@ -1,40 +1,65 @@
 import PostCard from "@/components/post/PostCard";
+import PostUploadingCard from "@/components/post/PostUploadingCard";
 import {
   // checkNewItems,
   getFeedPage,
   toggleLike,
 } from "@/repositories/postRepository";
+import {
+  consumeFinishedUploadedPosts,
+  subscribePostUploading,
+} from "@/services/postUploadingStore";
 import homeStyles from "@/styles/home.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  LayoutAnimation,
+  Platform,
   Pressable,
   RefreshControl,
   Text,
+  UIManager,
   View,
 } from "react-native";
 
+let homeFeedCache = [];
+
 export default function HomeScreen() {
-  const [posts, setPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const uploadSuccessAlertLock = useRef(false);
+  const [posts, setPosts] = useState(homeFeedCache);
+  const [isLoading, setIsLoading] = useState(homeFeedCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [lastId, setLastId] = useState("");
   const [newItemsCount, setNewItemsCount] = useState(0);
+  const [uploadingCards, setUploadingCards] = useState([]);
+
+  useEffect(() => {
+    if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   const loadPosts = useCallback(async ({ refresh = false } = {}) => {
     try {
       if (refresh) {
         setIsRefreshing(true);
-      } else {
+      } else if (!posts.length) {
         setIsLoading(true);
       }
       const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
-      setPosts(result.items || []);
+      const nextItems = result.items || [];
+      if (!refresh && nextItems.length === 0 && homeFeedCache.length > 0) {
+        setPosts(homeFeedCache);
+      } else {
+        homeFeedCache = nextItems;
+        setPosts(nextItems);
+      }
       setHasMore(Boolean(result.hasMore));
       setLastId(result.lastId || "");
       setNewItemsCount(Number(result.newItems || 0));
@@ -45,7 +70,7 @@ export default function HomeScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [posts.length]);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore || !lastId) return;
@@ -57,7 +82,11 @@ export default function HomeScreen() {
         count: 20,
         lastId,
       });
-      setPosts((current) => [...current, ...(result.items || [])]);
+      setPosts((current) => {
+        const next = [...current, ...(result.items || [])];
+        homeFeedCache = next;
+        return next;
+      });
       setHasMore(Boolean(result.hasMore));
       setLastId(result.lastId || lastId);
     } catch (error) {
@@ -81,6 +110,56 @@ export default function HomeScreen() {
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
+
+  const showUploadSuccessAlert = useCallback(() => {
+    if (uploadSuccessAlertLock.current) return;
+
+    uploadSuccessAlertLock.current = true;
+    Alert.alert("Thông báo", "Bài viết đã được đăng", [
+      {
+        text: "OK",
+        onPress: () => {
+          uploadSuccessAlertLock.current = false;
+          void loadPosts({ refresh: true });
+        },
+        // cứ tắt alert là refresh
+        onDismiss: () => {
+          uploadSuccessAlertLock.current = false;
+          void loadPosts({ refresh: true });
+        },
+      },
+    ]);
+  }, [loadPosts]);
+
+  useEffect(() => {
+    return subscribePostUploading((nextState) => {
+      setUploadingCards(nextState.uploadingCards || []);
+
+      if (!nextState.finishedPosts?.length) {
+        return;
+      }
+
+      const completedPosts = consumeFinishedUploadedPosts();
+      if (!completedPosts.length) {
+        return;
+      }
+
+      setPosts((current) => {
+        const existingIds = new Set(current.map((item) => item.id));
+        const uniqueNewPosts = completedPosts.filter(
+          (item) => item?.id && !existingIds.has(item.id),
+        );
+
+        const next = uniqueNewPosts.length
+          ? [...uniqueNewPosts, ...current]
+          : current;
+        homeFeedCache = next;
+        return next;
+      });
+
+      showUploadSuccessAlert();
+    });
+  }, [showUploadSuccessAlert]);
 
   // useEffect(() => {
   //   const timer = setInterval(checkForNewItems, 60_000);
@@ -120,7 +199,28 @@ export default function HomeScreen() {
     });
   };
 
-  if (isLoading) {
+  const handleDeletePost = useCallback((postId) => {
+    if (!postId) return;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPosts((current) => {
+      const next = current.filter((item) => item.id !== postId);
+      homeFeedCache = next;
+      return next;
+    });
+  }, []);
+
+  const feedItems = useMemo(() => {
+    const uploadingItems = uploadingCards.map((item) => ({
+      id: item.id,
+      __uploading: true,
+      avatarUri: item.avatarUri,
+    }));
+
+    return [...uploadingItems, ...posts];
+  }, [posts, uploadingCards]);
+
+  if (isLoading && posts.length === 0 && uploadingCards.length === 0) {
     return (
       <View style={[homeStyles.container, { flex: 1 }]}>
         <ActivityIndicator size="large" />
@@ -143,7 +243,7 @@ export default function HomeScreen() {
         </View> */}
 
         <FlatList
-          data={posts}
+          data={feedItems}
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl
@@ -163,16 +263,23 @@ export default function HomeScreen() {
               </Pressable>
             ) : null
           }
-          renderItem={({ item }) => (
-            <PostCard
-              post={item}
-              flat
-              onPress={() => handlePostPress(item.id)}
-              onToggleLike={() => handleToggleLike(item)}
-              onPressComment={() => handleCommentPress(item.id)}
-              onSubmitExercise={() => handleSubmitExercise(item)}
-            />
-          )}
+          renderItem={({ item }) =>
+            item.__uploading ? (
+              <PostUploadingCard avatarUri={item.avatarUri} />
+            ) : (
+              <PostCard
+                post={item}
+                flat
+                onPress={() => handlePostPress(item.id)}
+                onToggleLike={() => handleToggleLike(item)}
+                onPressComment={() => handleCommentPress(item.id)}
+                onSubmitExercise={() => handleSubmitExercise(item)}
+                onDeletePost={(deletedPostId) =>
+                  handleDeletePost(deletedPostId || item.id)
+                }
+              />
+            )
+          }
           ItemSeparatorComponent={() => <View style={homeStyles.postDivider} />}
           ListEmptyComponent={
             <Text style={homeStyles.subtitle}>Không có bài viết nào</Text>

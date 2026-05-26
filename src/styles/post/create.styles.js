@@ -123,6 +123,19 @@ const createStyles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  videoPreviewFallback: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.overlayBlack65,
+    gap: 8,
+  },
+  videoPreviewFallbackText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "600",
+  },
   videoPlayBadge: {
     position: "absolute",
     alignSelf: "center",
