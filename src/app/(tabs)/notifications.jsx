@@ -1,4 +1,6 @@
+import NoInternetView from "@/components/common/NoInternetView";
 import { API_TYPE, API_TYPES } from "@/config/env";
+import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   getNotificationCache,
   getNotificationPage,
@@ -140,7 +142,8 @@ function EmptyState() {
     <View style={styles.emptyState}>
       <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
       <Text style={styles.emptyText}>
-        Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ xuất hiện ở đây.
+        Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ xuất
+        hiện ở đây.
       </Text>
     </View>
   );
@@ -157,6 +160,7 @@ export default function NotificationsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
   const [lastUpdate, setLastUpdate] = useState(initialCache.lastUpdate);
 
   const visibleItems = useMemo(() => {
@@ -177,11 +181,13 @@ export default function NotificationsScreen() {
       } else {
         setIsLoading(true);
       }
-
-      const page = await getNotificationPage({
-        index: 0,
-        count: PAGE_SIZE,
-        lastUpdate: refresh ? cache.lastUpdate : "",
+      let page;
+      await executeWithInternetCheck(async () => {
+        page = await getNotificationPage({
+          index: 0,
+          count: PAGE_SIZE,
+          lastUpdate: refresh ? cache.lastUpdate : "",
+        });
       });
 
       setItems(page.items);
@@ -213,10 +219,12 @@ export default function NotificationsScreen() {
 
     try {
       setIsLoadingMore(true);
-
-      const page = await getNotificationPage({
-        index: items.length,
-        count: PAGE_SIZE,
+      let page;
+      await executeWithInternetCheck(async () => {
+        page = await getNotificationPage({
+          index: items.length,
+          count: PAGE_SIZE,
+        });
       });
 
       setItems(page.items);
@@ -310,7 +318,12 @@ export default function NotificationsScreen() {
           "",
       ).trim();
 
-      if (!postId || postId === "0" || postId === "undefined" || postId === "null") {
+      if (
+        !postId ||
+        postId === "0" ||
+        postId === "undefined" ||
+        postId === "null"
+      ) {
         console.warn("Notification missing post id", item);
         return;
       }
@@ -381,7 +394,13 @@ export default function NotificationsScreen() {
         </View>
       </View>
 
-      {error ? (
+      {isNoInternet ? (
+        <NoInternetView
+          onRefresh={() => loadPage({ refresh: true })}
+          refreshing={isRefreshing}
+          style={{ minHeight: 300, flex: 1 }}
+        />
+      ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.retryButton} onPress={() => loadPage()}>

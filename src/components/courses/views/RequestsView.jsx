@@ -2,7 +2,9 @@ import EnrollmentCard from "@/components/courses/EnrollmentCard";
 import SectionHeader from "@/components/courses/SectionHeader";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
+import NoInternetView from "@/components/common/NoInternetView";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
+import { useInternetFetch } from "@/hooks/useNetInfo";
 import { getRequestedEnrollment } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
@@ -34,6 +36,7 @@ export default function RequestsView({
   const [isLoading, setIsLoading] = useState(!cache);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
 
   const {
     actionStatuses,
@@ -54,10 +57,12 @@ export default function RequestsView({
         }
         setErrorText("");
 
-        const enrollRes = await getRequestedEnrollment(0, 50);
-        const sorted = sortByCreatedDesc(enrollRes);
-        setEnrollments(sorted);
-        setCache(sorted);
+        await executeWithInternetCheck(async () => {
+          const enrollRes = await getRequestedEnrollment(0, 50);
+          const sorted = sortByCreatedDesc(enrollRes);
+          setEnrollments(sorted);
+          setCache(sorted);
+        });
 
         if (refresh) {
           setActionStatuses({});
@@ -87,6 +92,14 @@ export default function RequestsView({
     return (
       <View style={coursesStyles.centerBox}>
         <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (isNoInternet && enrollments.length === 0) {
+    return (
+      <View style={coursesStyles.container}>
+        <NoInternetView onRefresh={() => fetchRequestsData({ refresh: true })} refreshing={isRefreshing} />
       </View>
     );
   }

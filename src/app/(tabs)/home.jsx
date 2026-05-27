@@ -1,5 +1,7 @@
+import NoInternetView from "@/components/common/NoInternetView";
 import PostCard from "@/components/post/PostCard";
 import PostUploadingCard from "@/components/post/PostUploadingCard";
+import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   // checkNewItems,
   getFeedPage,
@@ -38,6 +40,7 @@ export default function HomeScreen() {
   const [lastId, setLastId] = useState("");
   const [newItemsCount, setNewItemsCount] = useState(0);
   const [uploadingCards, setUploadingCards] = useState([]);
+  const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
 
   // Load persistent cache from disk once per app session, then replace
   // useEffect-based fetch with useFocusEffect so the feed silently
@@ -50,18 +53,20 @@ export default function HomeScreen() {
         // Only show full-screen spinner when there is truly nothing to show
         setIsLoading(true);
       }
-      const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
-      const nextItems = result.items || [];
-      if (!refresh && nextItems.length === 0 && homeFeedCache.length > 0) {
-        setPosts(homeFeedCache);
-      } else {
-        homeFeedCache = nextItems;
-        setPosts(nextItems);
-        writeCache(CACHE_KEY_HOME_FEED, nextItems);
-      }
-      setHasMore(Boolean(result.hasMore));
-      setLastId(result.lastId || "");
-      setNewItemsCount(Number(result.newItems || 0));
+      await executeWithInternetCheck(async () => {
+        const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
+        const nextItems = result.items || [];
+        if (!refresh && nextItems.length === 0 && homeFeedCache.length > 0) {
+          setPosts(homeFeedCache);
+        } else {
+          homeFeedCache = nextItems;
+          setPosts(nextItems);
+          writeCache(CACHE_KEY_HOME_FEED, nextItems);
+        }
+        setHasMore(Boolean(result.hasMore));
+        setLastId(result.lastId || "");
+        setNewItemsCount(Number(result.newItems || 0));
+      });
     } catch (error) {
       console.warn("Failed to load posts:", error);
       if (await redirectIfSessionExpired(error, router)) return;
@@ -243,7 +248,11 @@ export default function HomeScreen() {
     return [...uploadingItems, ...posts];
   }, [posts, uploadingCards]);
 
-  if (isLoading && posts.length === 0 && uploadingCards.length === 0) {
+  if (
+    (isLoading || isNoInternet) &&
+    posts.length === 0 &&
+    uploadingCards.length === 0
+  ) {
     return (
       <View style={[homeStyles.container, { flex: 1 }]}>
         <ActivityIndicator size="large" />
@@ -253,18 +262,13 @@ export default function HomeScreen() {
 
   return (
     <View style={homeStyles.container}>
-      <View style={{ flex: 1, width: "100%" }}>
-        {/* <View style={homeStyles.headerCard}>
-          <Text style={homeStyles.title}>IT4788 PoseFeed</Text>
-          <Text style={homeStyles.subtitle}>
-            Bài tập diễu binh, bài nộp học viên và kết quả chấm tự động
-          </Text>
-          <Text style={homeStyles.sourceLabel}>{sourceLabel}</Text>
-          {errorText ? (
-            <Text style={homeStyles.errorText}>{errorText}</Text>
-          ) : null}
-        </View> */}
-
+      {isNoInternet && posts.length === 0 ? (
+        <NoInternetView
+          style={{ minHeight: 400 }}
+          onRefresh={() => loadPosts({ refresh: true })}
+          refreshing={isRefreshing}
+        />
+      ) : (
         <FlatList
           data={feedItems}
           keyExtractor={(item) => item.id}
@@ -317,7 +321,7 @@ export default function HomeScreen() {
           onEndReached={loadMore}
           onEndReachedThreshold={0.35}
         />
-      </View>
+      )}
     </View>
   );
 }
