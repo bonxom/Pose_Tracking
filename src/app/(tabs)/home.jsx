@@ -10,19 +10,18 @@ import {
   subscribePostUploading,
 } from "@/services/postUploadingStore";
 import homeStyles from "@/styles/home.styles";
+import { CACHE_KEY_HOME_FEED, readCache, writeCache } from "@/utils/cacheStore";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   LayoutAnimation,
-  Platform,
   Pressable,
   RefreshControl,
   Text,
-  UIManager,
   View,
 } from "react-native";
 
@@ -30,6 +29,7 @@ let homeFeedCache = [];
 
 export default function HomeScreen() {
   const uploadSuccessAlertLock = useRef(false);
+  const diskCacheLoadedRef = useRef(false);
   const [posts, setPosts] = useState(homeFeedCache);
   const [isLoading, setIsLoading] = useState(homeFeedCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -39,13 +39,15 @@ export default function HomeScreen() {
   const [newItemsCount, setNewItemsCount] = useState(0);
   const [uploadingCards, setUploadingCards] = useState([]);
 
-
-
+  // Load persistent cache from disk once per app session, then replace
+  // useEffect-based fetch with useFocusEffect so the feed silently
+  // background-refreshes every time the user returns to this tab.
   const loadPosts = useCallback(async ({ refresh = false } = {}) => {
     try {
       if (refresh) {
         setIsRefreshing(true);
-      } else if (!posts.length) {
+      } else if (homeFeedCache.length === 0) {
+        // Only show full-screen spinner when there is truly nothing to show
         setIsLoading(true);
       }
       const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
@@ -55,6 +57,7 @@ export default function HomeScreen() {
       } else {
         homeFeedCache = nextItems;
         setPosts(nextItems);
+        writeCache(CACHE_KEY_HOME_FEED, nextItems);
       }
       setHasMore(Boolean(result.hasMore));
       setLastId(result.lastId || "");
@@ -66,7 +69,34 @@ export default function HomeScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [posts.length]);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // In-memory cache already populated → render instantly, refresh in background
+      if (homeFeedCache.length > 0) {
+        setIsLoading(false);
+        loadPosts();
+        return;
+      }
+
+      // No in-memory cache: try disk first, then fetch
+      if (!diskCacheLoadedRef.current) {
+        diskCacheLoadedRef.current = true;
+        readCache(CACHE_KEY_HOME_FEED).then((cached) => {
+          if (cached?.length > 0 && homeFeedCache.length === 0) {
+            homeFeedCache = cached;
+            setPosts(cached);
+            setIsLoading(false);
+          }
+          // Either way, fetch fresh data in background
+          loadPosts();
+        });
+      } else {
+        loadPosts();
+      }
+    }, [loadPosts]),
+  );
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore || !lastId) return;
@@ -81,6 +111,7 @@ export default function HomeScreen() {
       setPosts((current) => {
         const next = [...current, ...(result.items || [])];
         homeFeedCache = next;
+        writeCache(CACHE_KEY_HOME_FEED, next);
         return next;
       });
       setHasMore(Boolean(result.hasMore));
@@ -102,10 +133,6 @@ export default function HomeScreen() {
   //     console.warn("Failed to check new items:", error);
   //   }
   // }, [lastId]);
-
-  useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
 
   const showUploadSuccessAlert = useCallback(() => {
     if (uploadSuccessAlertLock.current) return;

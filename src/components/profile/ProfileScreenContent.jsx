@@ -12,10 +12,11 @@ import {
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
+import { CACHE_KEY_PROFILE_PREFIX, readCache, writeCache } from "@/utils/cacheStore";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -27,22 +28,26 @@ import {
 } from "react-native";
 
 
+// Module-level in-memory profile cache, keyed by userId ("" = own profile)
+let profileCache = {};
+
 export default function ProfileScreenContent({ userId = "" }) {
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = CACHE_KEY_PROFILE_PREFIX + (userId || "me");
+
+  const [profile, setProfile] = useState(() => profileCache[userId]?.profile ?? null);
+  const [posts, setPosts] = useState(() => profileCache[userId]?.posts ?? []);
+  const [loading, setLoading] = useState(!profileCache[userId]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [menuVisible, setMenuVisible] = useState(false);
   const [coverMenuVisible, setCoverMenuVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
+  const diskCacheLoadedRef = useRef(false);
 
   const loadProfile = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setRefreshing(true);
-    } else {
-      setLoading(true);
     }
     setError("");
 
@@ -68,25 +73,69 @@ export default function ProfileScreenContent({ userId = "" }) {
         includeLocked: isOwnProfile,
       });
 
-      setProfile({ ...user, isOwnProfile });
-      setPosts(postPage.items || []);
+      const nextProfile = { ...user, isOwnProfile };
+      const nextPosts = postPage.items || [];
+
+      // Lazy-load update: only re-render if data actually changed
+      setProfile((prev) => {
+        const changed =
+          !prev ||
+          prev.id !== nextProfile.id ||
+          prev.displayName !== nextProfile.displayName ||
+          prev.avatar !== nextProfile.avatar;
+        return changed ? nextProfile : prev;
+      });
+      setPosts((prev) => {
+        const prevIds = prev.map((p) => p.id).join(",");
+        const nextIds = nextPosts.map((p) => p.id).join(",");
+        return prevIds !== nextIds ? nextPosts : prev;
+      });
+
+      // Persist to memory + disk
+      profileCache[userId] = { profile: nextProfile, posts: nextPosts };
+      writeCache(cacheKey, { profile: nextProfile, posts: nextPosts });
     } catch (loadError) {
       if (loadError.sessionExpired) {
         await clearAuthSession();
         router.replace("/(auth)/login");
         return;
       }
-      setError(loadError.message || "Không thể tải hồ sơ.");
+      // Only show error if we have no cached data to display
+      if (!profileCache[userId]) {
+        setError(loadError.message || "Không thể tải hồ sơ.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userId]);
+  }, [userId, cacheKey]);
 
   useFocusEffect(
     useCallback(() => {
-      loadProfile(false);
-    }, [loadProfile]),
+      // If we have in-memory cache, render it instantly then fetch in background
+      if (profileCache[userId]) {
+        setLoading(false);
+        loadProfile(false);
+        return;
+      }
+
+      // No in-memory cache: try disk first, then fetch
+      if (!diskCacheLoadedRef.current) {
+        diskCacheLoadedRef.current = true;
+        readCache(cacheKey).then((cached) => {
+          if (cached?.profile) {
+            profileCache[userId] = cached;
+            setProfile(cached.profile);
+            setPosts(cached.posts || []);
+            setLoading(false);
+          }
+          // Either way, fetch fresh data in background
+          loadProfile(false);
+        });
+      } else {
+        loadProfile(false);
+      }
+    }, [loadProfile, userId, cacheKey]),
   );
 
   const profileLink = useMemo(() => {
