@@ -145,6 +145,20 @@ export async function searchScreenSearch(keyword = "", options = {}) {
     users = await hydrateSearchUsers(users);
   }
 
+  // Client-side filter: only include users whose name or handle contains the keyword
+  try {
+    const lowered = String(trimmedKeyword || "").trim().toLowerCase();
+    if (lowered) {
+      users = users.filter((u) => {
+        const name = String(u?.name || "").toLowerCase();
+        const handle = String(u?.handle || "").replace(/^@/, "").toLowerCase();
+        return name.includes(lowered) || handle.includes(lowered);
+      });
+    }
+  } catch (e) {
+    // ignore filter errors and return users as-is
+  }
+
   return {
     posts,
     users,

@@ -182,7 +182,7 @@ export default function SearchScreen() {
         setUsers([]);
         setHasMore(false);
         setNextIndex(0);
-        setActiveTab("posts");
+        setActiveTab("all");
         setError("");
         return;
       }
@@ -219,7 +219,7 @@ export default function SearchScreen() {
         });
 
         if (!append) {
-          setActiveTab(getBestSearchTab(trimmedKeyword, result.users, result.posts));
+          setActiveTab("all");
         }
 
         if (!append && index === 0) {
