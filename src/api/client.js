@@ -5,6 +5,7 @@ import {
   API_TYPE,
   API_TYPES,
 } from "@/config/env";
+import MOCK_ACCOUNTS from "@/constants/mocks/MOCK_ACCOUNTS";
 import MOCK_ADD_POST from "@/constants/mocks/MOCK_ADD_POST";
 import MOCK_GET_LIST_POSTS from "@/constants/mocks/MOCK_GET_LIST_POSTS";
 import MOCK_GET_POST from "@/constants/mocks/MOCK_GET_POST";
@@ -21,6 +22,9 @@ import {
   setMockNotificationRead,
 } from "@/constants/mocks/MOCK_NOTIFICATION";
 import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
+
+const ADD_POST_TIMEOUT_MS = 10 * 60 * 1000;
+const EDIT_POST_TIMEOUT_MS = ADD_POST_TIMEOUT_MS;
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -68,6 +72,7 @@ async function request(path, body = {}, options = {}) {
     options.timeout || API_TIMEOUT_MS,
   );
   const transport = options.transport || "json";
+  const method = options.method || "POST";
   const headers = {
     Accept: "application/json",
     ...(options.headers || {}),
@@ -86,9 +91,9 @@ async function request(path, body = {}, options = {}) {
 
   try {
     const url = joinUrl(options.baseUrl || API_BASE_URL, path);
-    logApi("request", { url, transport });
+    logApi("request", { url, transport, method });
     const response = await fetch(url, {
-      method: "POST",
+      method,
       headers,
       body: payload,
       signal: controller.signal,
@@ -125,6 +130,14 @@ async function request(path, body = {}, options = {}) {
 
 export async function post(path, body = {}, options = {}) {
   return request(path, body, { ...options, transport: "json" });
+}
+
+export async function del(path, body = {}, options = {}) {
+  return request(path, body, {
+    ...options,
+    transport: "json",
+    method: "DELETE",
+  });
 }
 
 export async function postForm(path, body = {}, options = {}) {
@@ -253,8 +266,56 @@ function buildMockGetUserInfoResponse(params = {}) {
   };
 }
 
+function buildMockLoginResponse(params = {}) {
+  const { phonenumber, password } = params;
+
+  if (!phonenumber || !password) {
+    return {
+      code: "1002",
+      message: "Parameter is not enough",
+    };
+  }
+
+  const matchedUser = MOCK_ACCOUNTS.find(
+    (item) =>
+      item.phonenumber === String(phonenumber) &&
+      item.password === String(password),
+  );
+
+  if (matchedUser) {
+    return {
+      code: "1000",
+      message: "OK",
+      data: {
+        ...matchedUser,
+        token: `mock_${matchedUser.role?.toLowerCase() || "hv"}_token`,
+        active: "1",
+      },
+    };
+  }
+
+  const phoneExists = MOCK_ACCOUNTS.some(
+    (item) => item.phonenumber === String(phonenumber),
+  );
+
+  if (phoneExists) {
+    return {
+      code: "1004",
+      message: "Parameter value is invalid",
+    };
+  }
+
+  return {
+    code: "9995",
+    message: "User is not validated",
+  };
+}
+
 export const backendApi = {
-  login: (params) => post("/login", params),
+  login: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(buildMockLoginResponse(params))
+      : post("/login", params),
   logout: (params) => post("/logout", params),
   signup: (params) => post("/signup", params),
   getVerifyCode: (params) => post("/get_verify_code", params),
@@ -271,11 +332,35 @@ export const backendApi = {
   addPost: (fields, files) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(MOCK_ADD_POST)
-      : postMultipart("/add_post", fields, files),
-  editPost: (params) => post("/edit_post", params),
+      : postMultipart("/add_post", fields, files, {
+          timeout: ADD_POST_TIMEOUT_MS,
+        }),
+  editPost: (params) => post("/edit_post", params, {
+    timeout: EDIT_POST_TIMEOUT_MS,
+  }),
   editPostMultipart: (fields, files) =>
-    postMultipart("/edit_post", fields, files),
-  deletePost: (params) => post("/delete_post", params),
+    postMultipart("/edit_post", fields, files, {
+      timeout: EDIT_POST_TIMEOUT_MS,
+    }),
+  deletePost: (params = {}) => {
+    const payload = {
+      token: params.token || "",
+    };
+
+    const postId =
+      params.id !== undefined && params.id !== null ? String(params.id) : "";
+
+    const headers = {};
+    if (postId) {
+      headers.id = postId;
+    }
+
+    const endpoint = postId
+      ? `/delete_post/${encodeURIComponent(postId)}`
+      : "/delete_post";
+
+    return del(endpoint, payload, { headers });
+  },
   reportPost: (params) => post("/report_post", params),
   like: (params) => post("/like_post", params),
   getComment: (params) => post("/get_comment", params),
@@ -323,7 +408,10 @@ export const backendApi = {
   setPushSettings: (params) => post("/set_push_settings", params),
   changePassword: (params) => post("/change_password", params),
   checkNewVersion: (params) => post("/check_new_version", params),
-  setDevtoken: (params) => post("/set_devtoken", params),
+  setDevtoken: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve({ code: "1000", message: "OK" })
+      : post("/set_devtoken", params),
   getConversation: (params) => post("/get_conversation", params),
   deleteMessage: (params) => post("/delete_message", params),
   getListConversation: (params) => post("/get_list_conversation", params),

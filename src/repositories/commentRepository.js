@@ -17,24 +17,42 @@ export async function getComments(postOrId, options = {}) {
     return localPosts.getComments(postId, options);
   }
 
+  const safeIndex = Math.max(0, Number(options.index) || 0);
+  const safeCount = Math.max(1, Number(options.count) || 20);
   const session = await getCurrentSession();
   assertServerSession(session);
 
   const response = await backendApi.getComment({
     token: session.token,
     id: postId,
-    index: String(options.index || 0),
-    count: String(options.count || 20),
+    index: String(safeIndex),
+    count: String(safeCount),
   });
 
   await assertBackendOk(response, { allowNoData: true, message: "Backend comments failed" });
 
-  const comments = extractList(response).map((item) => normalizeComment(item, ACTIVE_SOURCES.SERVER));
+  const root = response?.data;
+  const nested = root?.data;
+  const rawComments = Array.isArray(nested?.data)
+    ? nested.data
+    : Array.isArray(nested)
+      ? nested
+      : extractList(response);
+  const isBlocked = String(root?.is_blocked ?? nested?.is_blocked ?? "0") === "1";
+  const deduped = new Map();
+  rawComments.forEach((item) => {
+    const normalized = normalizeComment(item, ACTIVE_SOURCES.SERVER);
+    if (!normalized?.id || deduped.has(normalized.id)) return;
+    deduped.set(normalized.id, normalized);
+  });
+  const comments = Array.from(deduped.values());
 
   return {
     comments,
-    hasOlder: false,
+    hasOlder: !isBlocked && rawComments.length >= safeCount,
     total: comments.length,
+    receivedCount: rawComments.length,
+    isBlocked,
   };
 }
 
@@ -57,9 +75,10 @@ export async function addComment(postOrId, commentText, extra = {}) {
   });
 
   await assertBackendOk(response, { message: "Backend set_comment failed" });
+  const createdComment = extractList(response)[0] || { comment: commentText };
 
   return {
     post: null,
-    comment: normalizeComment(response?.data || { content: commentText }, ACTIVE_SOURCES.SERVER),
+    comment: normalizeComment(createdComment, ACTIVE_SOURCES.SERVER),
   };
 }

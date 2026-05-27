@@ -156,13 +156,13 @@ export default function CourseCard({ item, onJoin, flat = false }) {
       ) : null}
 
       {/* ── Videos ── */}
-      {videos.length > 0 ? (
+      {/* {videos.length > 0 ? (
         <View style={[localStyles.videoGrid, flat && localStyles.videoGridFullBleed]}>
           {videos.map((v) => (
             <CourseVideoTile key={v.uri} uri={v.uri} label={v.label} />
           ))}
         </View>
-      ) : null}
+      ) : null} */}
 
       {/* ── Action bar ── */}
       <View style={localStyles.actionRow}>

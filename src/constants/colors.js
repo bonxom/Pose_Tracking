@@ -4,6 +4,8 @@ const colors = {
   primaryLight: "#DBEAFE",
   brand: "#0866FF",
 
+  button_unactive: "#898787",
+
   background: "#FFFFFF",
   surface: "#F8FAFC",
   page: "#F0F2F5",
@@ -39,6 +41,7 @@ const colors = {
   divider: "#838689",
   overlayBlack40: "rgba(0, 0, 0, 0.4)",
   overlayBlack65: "rgba(0, 0, 0, 0.65)",
+  blue: "#0865fe",
 };
 
 export default colors;

@@ -1,21 +1,24 @@
 import AppButton from "@/components/common/AppButton";
+import NoInternetView from "@/components/common/NoInternetView";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import ProfileActionSheet from "@/components/profile/ProfileActionSheet";
 import ProfileHero from "@/components/profile/ProfileHero";
 import ProfileImagePreviewModal from "@/components/profile/ProfileImagePreviewModal";
 import ProfilePostsSection from "@/components/profile/ProfilePostsSection";
 import colors from "@/constants/colors";
+import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   getUserInfo,
   getUserPosts,
   updateUserInfo,
 } from "@/repositories/userRepository";
 import profileStyles from "@/styles/profile.styles";
+import { CACHE_KEY_PROFILE, readCache, writeCache } from "@/utils/cacheStore";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -26,86 +29,143 @@ import {
   View,
 } from "react-native";
 
+// Module-level in-memory profile cache, keyed by userId ("" = own profile)
+let profileCache = {};
+
 export default function ProfileScreenContent({ userId = "" }) {
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = !userId ? CACHE_KEY_PROFILE : null;
+
+  const [profile, setProfile] = useState(
+    () => profileCache[userId]?.profile ?? null,
+  );
+  const [posts, setPosts] = useState(() => profileCache[userId]?.posts ?? []);
+  const [loading, setLoading] = useState(!profileCache[userId]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
   const [menuVisible, setMenuVisible] = useState(false);
   const [coverMenuVisible, setCoverMenuVisible] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
+  const diskCacheLoadedRef = useRef(false);
 
   const loadProfile = useCallback(
     async (isRefresh = false) => {
       if (isRefresh) {
         setRefreshing(true);
-      } else {
-        setLoading(true);
       }
       setError("");
 
       try {
-        const session = await getAuthSession();
-        const targetUserId = userId || "";
-
-        let user = null;
-        try {
-          user = await getUserInfo(targetUserId);
-        } catch (profileError) {
-          if (profileError.sessionExpired) {
-            throw profileError;
-          }
-        }
-
-        const isOwnProfile = Boolean(
-          user?.isOwnProfile ||
+        await executeWithInternetCheck(async () => {
+          const session = await getAuthSession();
+          const targetUserId = userId || "";
+          const user = await getUserInfo(targetUserId);
+          const isOwnProfile = Boolean(
+            user.isOwnProfile ||
             !targetUserId ||
             String(targetUserId) ===
-              String(session?.id || session?.user_id || session?.identifier || ""),
-        );
+              String(
+                session?.id || session?.user_id || session?.identifier || "",
+              ),
+          );
 
-        if (user?.unavailable) {
-          setProfile(user);
-          setPosts([]);
-          return;
-        }
+          if (user.unavailable) {
+            setProfile(user);
+            setPosts([]);
+            return;
+          }
 
-        const postPage = await getUserPosts(user?.id || targetUserId, {
-          index: 0,
-          count: 20,
-          includeLocked: isOwnProfile,
+          const postPage = await getUserPosts(user.id, {
+            index: 0,
+            count: 20,
+            includeLocked: isOwnProfile,
+          });
+
+          const nextProfile = { ...user, isOwnProfile };
+          const nextPosts = postPage.items || [];
+
+          // If the network fetch failed and returned empty local mock data,
+          // BUT we already have cached posts in memory, ignore the mock data
+          // and let the catch block (or executeWithInternetCheck) handle the error state.
+          const isFallback =
+            user.source === "local-fallback" ||
+            postPage.source === "local-fallback";
+
+          if (
+            isFallback &&
+            profileCache[userId] &&
+            profileCache[userId].posts?.length > 0
+          ) {
+            // Throw a network error so useInternetFetch can catch it
+            throw new Error("Không thể kết nối đến máy chủ");
+          }
+
+          // Lazy-load update: only re-render if data actually changed
+          setProfile((prev) => {
+            const changed =
+              !prev ||
+              prev.id !== nextProfile.id ||
+              prev.displayName !== nextProfile.displayName ||
+              prev.avatar !== nextProfile.avatar;
+            return changed ? nextProfile : prev;
+          });
+          setPosts((prev) => {
+            const prevIds = prev.map((p) => p.id).join(",");
+            const nextIds = nextPosts.map((p) => p.id).join(",");
+            return prevIds !== nextIds ? nextPosts : prev;
+          });
+
+          // Persist to memory + disk
+          profileCache[userId] = { profile: nextProfile, posts: nextPosts };
+          if (cacheKey) {
+            writeCache(cacheKey, { profile: nextProfile, posts: nextPosts });
+          }
         });
-
-        const resolvedProfile = user;
-
-        if (!resolvedProfile) {
-          throw new Error("Không thể tải hồ sơ.");
-        }
-
-        setProfile({ ...resolvedProfile, isOwnProfile });
-        setPosts(postPage.items || []);
       } catch (loadError) {
         if (loadError.sessionExpired) {
           await clearAuthSession();
           router.replace("/(auth)/login");
           return;
         }
-
-        setError(loadError.message || "Không thể tải hồ sơ.");
+        // Only show error if we have no cached data to display
+        if (!profileCache[userId]) {
+          setError(loadError.message || "Không thể tải hồ sơ.");
+        }
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [userId],
+    [userId, cacheKey, executeWithInternetCheck],
   );
 
   useFocusEffect(
     useCallback(() => {
+      // If we have in-memory cache, render it instantly then fetch in background
+      if (profileCache[userId]) {
+        setLoading(false);
+        loadProfile(false);
+        return;
+      }
+
+      // No in-memory cache: try disk first, then fetch
+      if (cacheKey && !diskCacheLoadedRef.current) {
+        diskCacheLoadedRef.current = true;
+        readCache(cacheKey).then((cached) => {
+          if (cached?.profile) {
+            profileCache[userId] = cached;
+            setProfile(cached.profile);
+            setPosts(cached.posts || []);
+          }
+          setLoading(false);
+          loadProfile(false);
+        });
+        return;
+      }
+
       loadProfile(false);
-    }, [loadProfile]),
+    }, [loadProfile, userId, cacheKey]),
   );
 
   const profileLink = useMemo(() => {
@@ -129,7 +189,8 @@ export default function ProfileScreenContent({ userId = "" }) {
     if (!profile) return;
 
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permission.status !== "granted") {
         Alert.alert(
           "Cần quyền truy cập ảnh",
@@ -159,10 +220,10 @@ export default function ProfileScreenContent({ userId = "" }) {
         avatar: nextProfile.avatar,
         coverImage: nextProfile.coverImage,
       });
-    } catch (nextError) {
+    } catch (error) {
       Alert.alert(
         "Không thể cập nhật ảnh",
-        nextError.message || "Vui lòng thử lại.",
+        error.message || "Vui lòng thử lại.",
       );
     }
   };
@@ -245,11 +306,19 @@ export default function ProfileScreenContent({ userId = "" }) {
         />
 
         <View style={profileStyles.fbBody}>
-          <ProfilePostsSection
-            profile={profile}
-            posts={posts}
-            loading={loading}
-          />
+          {isNoInternet && posts.length === 0 ? (
+            <NoInternetView
+              onRefresh={() => loadProfile(true)}
+              refreshing={refreshing}
+              style={{ minHeight: 300 }}
+            />
+          ) : (
+            <ProfilePostsSection
+              profile={profile}
+              posts={posts}
+              loading={loading}
+            />
+          )}
         </View>
       </ScrollView>
 
@@ -257,6 +326,11 @@ export default function ProfileScreenContent({ userId = "" }) {
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
         rows={[
+          {
+            label: "Chỉnh sửa trang cá nhân",
+            icon: "create-outline",
+            onPress: () => router.push("/settings/profile-edit"),
+          },
           {
             label: "Tìm kiếm trên trang cá nhân",
             icon: "search-outline",

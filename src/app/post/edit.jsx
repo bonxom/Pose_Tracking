@@ -1,11 +1,18 @@
 import Screen from "@/components/common/Screen";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
 import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
+import EarthIcon from "@/components/icons/EarthIcon";
 import colors from "@/constants/colors";
 import {
   editPost,
   getPostById,
+  validateTwoVideos,
 } from "@/repositories/postRepository";
+import {
+  enqueuePostUploading,
+  rejectPostUploading,
+  resolvePostUploading,
+} from "@/services/postUploadingStore";
 import { getUserInfo } from "@/repositories/userRepository";
 import createStyles from "@/styles/post/create.styles";
 import postStyles from "@/styles/post.styles";
@@ -30,62 +37,26 @@ import {
   View,
 } from "react-native";
 
-const VIDEO_FALLBACK_SOURCES = [
-  require("../../../assets/cam1.mp4"),
-  require("../../../assets/cam2.mp4"),
-];
-
-function VideoThumbnail({ video, fallbackSource, onPress }) {
-  const [isReady, setIsReady] = useState(false);
-  const rawVideoUri = typeof video?.uri === "string" ? video.uri.trim() : "";
-  const [videoSource, setVideoSource] = useState(rawVideoUri || fallbackSource);
-  const previewPlayer = useVideoPlayer(videoSource, (videoPlayer) => {
-    videoPlayer.loop = true;
-    videoPlayer.muted = true;
-    videoPlayer.pause();
-  });
-
-  useEffect(() => {
-    setVideoSource(rawVideoUri || fallbackSource);
-    setIsReady(false);
-  }, [rawVideoUri, fallbackSource]);
-
-  useEffect(() => {
-    previewPlayer.pause();
-  }, [previewPlayer, videoSource]);
-
-  useEffect(() => {
-    const applyFallback = () => {
-      setVideoSource((current) =>
-        current === fallbackSource ? current : fallbackSource,
-      );
-    };
-
-    const sub = previewPlayer.addListener("statusChange", ({ status }) => {
-      if (status === "error") {
-        applyFallback();
-      }
-    });
-
-    return () => {
-      sub.remove();
-    };
-  }, [fallbackSource, previewPlayer]);
+function VideoThumbnail({ video, onPress }) {
+  const thumbnailUri =
+    typeof video?.thumb === "string" && video.thumb.trim()
+      ? video.thumb.trim()
+      : typeof video?.thumbnail === "string" && video.thumbnail.trim()
+        ? video.thumbnail.trim()
+        : "";
 
   return (
     <Pressable style={createStyles.videoPreviewFrame} onPress={onPress}>
-      <VideoView
-        player={previewPlayer}
-        style={createStyles.videoPreview}
-        contentFit="cover"
-        nativeControls={false}
-        onFirstFrameRender={() => setIsReady(true)}
-      />
-      {!isReady ? (
-        <View style={createStyles.videoLoadingOverlay}>
-          <ActivityIndicator size="small" color={colors.white} />
+      {thumbnailUri ? (
+        <Image source={{ uri: thumbnailUri }} style={createStyles.videoPreview} />
+      ) : (
+        <View style={createStyles.videoPreviewFallback}>
+          <Ionicons name="videocam-outline" size={24} color={colors.white} />
+          <Text style={createStyles.videoPreviewFallbackText}>
+            Chưa có thumbnail
+          </Text>
         </View>
-      ) : null}
+      )}
       <View style={createStyles.videoPlayBadge}>
         <Text style={createStyles.videoPlayText}>Xem video</Text>
       </View>
@@ -94,7 +65,8 @@ function VideoThumbnail({ video, fallbackSource, onPress }) {
 }
 
 function FullscreenVideoModal({ visible, uri, onClose }) {
-  const player = useVideoPlayer(uri || null, (videoPlayer) => {
+  const [isReady, setIsReady] = useState(false);
+  const player = useVideoPlayer(visible ? uri || null : null, (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = false;
     videoPlayer.pause();
@@ -103,6 +75,26 @@ function FullscreenVideoModal({ visible, uri, onClose }) {
   useEffect(() => {
     player.pause();
   }, [player, uri]);
+
+  useEffect(() => {
+    if (visible && uri) {
+      setIsReady(false);
+      return;
+    }
+    setIsReady(true);
+  }, [visible, uri]);
+
+  useEffect(() => {
+    const sub = player.addListener("statusChange", ({ status }) => {
+      if (status === "error") {
+        setIsReady(true);
+      }
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, [player]);
 
   return (
     <Modal
@@ -121,12 +113,20 @@ function FullscreenVideoModal({ visible, uri, onClose }) {
         </Pressable>
 
         {uri ? (
-          <VideoView
-            player={player}
-            style={createStyles.fullscreenVideo}
-            contentFit="contain"
-            nativeControls
-          />
+          <>
+            <VideoView
+              player={player}
+              style={createStyles.fullscreenVideo}
+              contentFit="contain"
+              nativeControls
+              onFirstFrameRender={() => setIsReady(true)}
+            />
+            {!isReady ? (
+              <View style={createStyles.videoLoadingOverlay}>
+                <ActivityIndicator size="large" color={colors.white} />
+              </View>
+            ) : null}
+          </>
         ) : null}
       </View>
     </Modal>
@@ -147,7 +147,7 @@ export default function EditPostScreen() {
   const [statusText, setStatusText] = useState("");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [textAreaHeight, setTextAreaHeight] = useState(26);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
@@ -313,22 +313,41 @@ export default function EditPostScreen() {
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      await editPost(post, {
-        content: trimmedContent,
-        videos: isReplacingVideos ? replacementVideos : undefined,
-      });
-
-      Alert.alert("Thành công", "Bài viết đã được cập nhật.");
-      router.replace("/(tabs)/home");
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      console.warn("Failed to update post:", error);
-      setStatusText(error.message || "Không thể cập nhật bài viết.");
-    } finally {
-      setIsSubmitting(false);
+    const nextVideos = isReplacingVideos ? replacementVideos : undefined;
+    if (nextVideos?.length) {
+      try {
+        validateTwoVideos(nextVideos);
+      } catch (error) {
+        Alert.alert(
+          "Video chưa hợp lệ",
+          error?.message || "Vui lòng kiểm tra lại video trước khi cập nhật.",
+        );
+        return;
+      }
     }
+
+    const avatarUri =
+      profileUser?.avatar ||
+      session?.avatar ||
+      session?.user?.avatar ||
+      "https://ui-avatars.com/api/?name=User&background=random";
+    const uploadingId = enqueuePostUploading({ avatarUri });
+    router.replace("/(tabs)/home");
+
+    void (async () => {
+      try {
+        await editPost(post, {
+          content: trimmedContent,
+          videos: nextVideos,
+        });
+        resolvePostUploading(uploadingId, null);
+      } catch (error) {
+        rejectPostUploading(uploadingId);
+        if (await redirectIfSessionExpired(error, router)) return;
+        console.warn("Failed to update post:", error);
+        Alert.alert("Lỗi", "Hệ thống đang lỗi, vui lòng thử lại sau");
+      }
+    })();
   };
 
   const hasContentChanged = content.trim() !== initialContent.trim();
@@ -435,7 +454,7 @@ export default function EditPostScreen() {
                   "Người dùng"}
               </Text>
               <View style={createStyles.privacyBadge}>
-                <Ionicons name="earth" size={14} color={colors.subtext} />
+                <EarthIcon />
                 <Text style={createStyles.privacyText}>Công khai</Text>
               </View>
             </View>
@@ -474,10 +493,6 @@ export default function EditPostScreen() {
                     </Pressable>
                     <VideoThumbnail
                       video={video}
-                      fallbackSource={
-                        VIDEO_FALLBACK_SOURCES[index] ||
-                        VIDEO_FALLBACK_SOURCES[VIDEO_FALLBACK_SOURCES.length - 1]
-                      }
                       onPress={() => setActiveVideoUri(video.uri)}
                     />
                   </View>
@@ -501,6 +516,8 @@ export default function EditPostScreen() {
         onSaveDraft={handleSaveDraft}
         onDiscard={handleDiscard}
         onContinue={() => setShowDraftSheet(false)}
+        discardIconName="close-outline"
+        discardLabel="Bỏ thay đổi"
       />
       <FullscreenVideoModal
         visible={Boolean(activeVideoUri)}

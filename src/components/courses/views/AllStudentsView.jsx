@@ -1,3 +1,4 @@
+import NoInternetView from "@/components/common/NoInternetView";
 import SectionHeader from "@/components/courses/SectionHeader";
 import StudentCard from "@/components/courses/StudentCard";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
@@ -7,6 +8,7 @@ import SortZtoAIcon from "@/components/icons/SortZtoAIcon";
 import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import colors from "@/constants/colors";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
+import { useInternetFetch } from "@/hooks/useNetInfo";
 import { getCourseStudents } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
@@ -32,6 +34,7 @@ export default function AllStudentsView({
   const [isLoading, setIsLoading] = useState(!cache);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
 
   const [sortOrder, setSortOrder] = useState("default");
   const [sortModalVisible, setSortModalVisible] = useState(false);
@@ -53,16 +56,18 @@ export default function AllStudentsView({
   const fetchStudentsData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await getCourseStudents();
-      setStudents(res);
-      setCache(res);
+      await executeWithInternetCheck(async () => {
+        const res = await getCourseStudents();
+        setStudents(res);
+        setCache(res);
+      });
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
       setErrorText(error.message || "Không thể tải dữ liệu.");
     } finally {
       setIsLoading(false);
     }
-  }, [setCache]);
+  }, [setCache, executeWithInternetCheck]);
 
   const mounted = useRef(false);
   useEffect(() => {
@@ -77,17 +82,19 @@ export default function AllStudentsView({
   const refreshStudents = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const res = await getCourseStudents(0, 500);
-      setStudents(res);
-      setCache(res);
-      setActionStatuses({});
+      await executeWithInternetCheck(async () => {
+        const res = await getCourseStudents(0, 500);
+        setStudents(res);
+        setCache(res);
+        setActionStatuses({});
+      });
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
       setErrorText(error.message || "Không thể tải dữ liệu.");
     } finally {
       setIsRefreshing(false);
     }
-  }, [setActionStatuses, setCache]);
+  }, [setActionStatuses, setCache, executeWithInternetCheck]);
 
   if (isLoading && !isRefreshing) {
     return (
@@ -96,6 +103,15 @@ export default function AllStudentsView({
         <View style={coursesStyles.centerBox}>
           <ActivityIndicator size="large" />
         </View>
+      </View>
+    );
+  }
+
+  if (isNoInternet) {
+    return (
+      <View style={coursesStyles.container}>
+        <SubViewNavBar title="Tất cả học viên" onBack={onBack} />
+        <NoInternetView onRefresh={refreshStudents} refreshing={isRefreshing} />
       </View>
     );
   }
