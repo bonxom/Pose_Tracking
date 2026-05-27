@@ -141,6 +141,25 @@ function saveMockSearchKeyword(keyword = "") {
   ].slice(0, 20);
 }
 
+function buildMockSearchUsers(posts = []) {
+  const seen = new Set();
+
+  return posts
+    .map((post) => ({
+      id: String(post.author?.id || ""),
+      name: String(post.author?.username || post.author?.name || "Người dùng"),
+      handle: String(post.author?.username || ""),
+      role: String(post.author?.role || "HV"),
+      avatar: String(post.author?.avatar || ""),
+      description: "",
+    }))
+    .filter((item) => {
+      if (!item.id || seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+}
+
 export async function getMockSearchResponse(params = {}) {
   await delay(MOCK_SEARCH_DELAY_MS);
 
@@ -182,6 +201,10 @@ export async function getMockSearchResponse(params = {}) {
       posts: clone(
         filtered.slice(requestedIndex, requestedIndex + requestedCount),
       ),
+      users: clone(buildMockSearchUsers(filtered)),
+      user: clone(buildMockSearchUsers(filtered)),
+      accounts: clone(buildMockSearchUsers(filtered)),
+      people: clone(buildMockSearchUsers(filtered)),
     },
   };
 }

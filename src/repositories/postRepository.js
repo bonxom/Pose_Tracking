@@ -291,7 +291,8 @@ export async function deleteSavedSearch(searchId) {
 
   const response = await backendApi.delSavedSearch({
     token: session.token,
-    id: searchId,
+    search_id: searchId,
+    all: "0",
   });
 
   await assertBackendOk(response, {

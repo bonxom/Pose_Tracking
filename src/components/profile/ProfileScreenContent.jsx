@@ -26,44 +26,6 @@ import {
   View,
 } from "react-native";
 
-function buildBackendOnlyProfile(targetUserId, posts = []) {
-  const firstPost = posts[0];
-  const author = firstPost?.author || {};
-  if (!firstPost) return null;
-
-  const id = String(author.id || author.handle || author.name || targetUserId || "").trim();
-  const username = String(author.handle || author.name || targetUserId || "").trim();
-  const displayName = String(author.name || author.handle || targetUserId || "").trim();
-
-  if (!id || !displayName) {
-    return null;
-  }
-
-  return {
-    id,
-    username,
-    displayName,
-    avatar: author.avatar || "",
-    coverImage: "",
-    description: "",
-    address: "",
-    city: "",
-    country: "",
-    profileLink: "",
-    postCount: posts.length,
-    online: Boolean(author.online),
-    listing: true,
-    createdAt: "",
-    isOwnProfile: false,
-    unavailable: false,
-    unavailableReason: "",
-    height: "",
-    role: author.role || "HV",
-    source: firstPost.source,
-    raw: firstPost.raw || null,
-  };
-}
-
 export default function ProfileScreenContent({ userId = "" }) {
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -116,9 +78,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           includeLocked: isOwnProfile,
         });
 
-        const resolvedProfile =
-          user ||
-          buildBackendOnlyProfile(targetUserId, postPage.items || []);
+        const resolvedProfile = user;
 
         if (!resolvedProfile) {
           throw new Error("Không thể tải hồ sơ.");

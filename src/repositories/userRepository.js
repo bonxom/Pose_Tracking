@@ -488,6 +488,14 @@ export async function getUserInfo(userId = "") {
   } catch (error) {
     console.info("[DATA] Server get_user_info failed", error.message);
     throwIfExpiredFromApiError(error);
+
+    if (!isOwnProfile) {
+      const fallbackProfile = await resolveBackendProfileFromPosts(session, targetUserId);
+      if (fallbackProfile) {
+        return fallbackProfile;
+      }
+    }
+
     throw error;
   }
 }

@@ -86,6 +86,23 @@ export const SearchSkeletonRow = memo(function SearchSkeletonRow({
   );
 });
 
+export const SearchSuggestionRow = memo(function SearchSuggestionRow({
+  label,
+  icon,
+  onPress,
+}) {
+  return (
+    <Pressable style={searchStyles.suggestionRow} onPress={onPress}>
+      <View style={searchStyles.suggestionIconWrap}>
+        <ProfileIcon name={icon} size={16} color={colors.ink} />
+      </View>
+      <Text style={searchStyles.suggestionText} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+});
+
 export const SearchUserCard = memo(function SearchUserCard({ user, onPress }) {
   const subtitle = user.description || "Có bài viết mới";
 
@@ -113,23 +130,6 @@ export const SearchUserCard = memo(function SearchUserCard({ user, onPress }) {
         </Text>
       </View>
       <ProfileIcon name="chevron-forward" size={18} color={colors.subtext} />
-    </Pressable>
-  );
-});
-
-export const SearchSuggestionRow = memo(function SearchSuggestionRow({
-  label,
-  icon,
-  onPress,
-}) {
-  return (
-    <Pressable style={searchStyles.suggestionRow} onPress={onPress}>
-      <View style={searchStyles.suggestionIconWrap}>
-        <ProfileIcon name={icon} size={16} color={colors.ink} />
-      </View>
-      <Text style={searchStyles.suggestionText} numberOfLines={1}>
-        {label}
-      </Text>
     </Pressable>
   );
 });
@@ -173,6 +173,7 @@ export function SearchHeader({
   onChangeTab,
   onPressUser,
   searchTabs,
+  showPeopleResults = false,
 }) {
   const showSuggestions = Boolean(keyword.trim()) && !hasSearched;
   const showHistory = !keyword.trim() && !hasSearched;
@@ -279,43 +280,20 @@ export function SearchHeader({
         </View>
       ) : null}
 
-      {hasSearched && activeTab === "all" ? (
-        <>
-          <View style={searchStyles.panel}>
-            <View style={searchStyles.panelHeader}>
-              <Text style={searchStyles.panelTitle}>Mọi người</Text>
-              {users.length > 3 ? (
-                <Pressable onPress={() => onChangeTab("people")}>
-                  <Text style={searchStyles.headerLink}>Xem tất cả</Text>
-                </Pressable>
-              ) : null}
-            </View>
-
-            {users.length ? (
-              users.slice(0, 3).map((user) => (
-                <SearchUserCard
-                  key={user.id}
-                  user={user}
-                  onPress={() => onPressUser(user)}
-                />
-              ))
-            ) : loadingSearch ? (
-              <View style={searchStyles.skeletonGroup}>
-                <SearchSkeletonRow />
-                <SearchSkeletonRow />
-                <SearchSkeletonRow />
-              </View>
-            ) : (
-              <Text style={searchStyles.emptyInlineText}>
-                Không có người dùng phù hợp.
-              </Text>
-            )}
+      {showPeopleResults && users?.length ? (
+        <View style={searchStyles.panel}>
+          <View style={searchStyles.panelHeader}>
+            <Text style={searchStyles.panelTitle}>Mọi người</Text>
           </View>
 
-          <View style={searchStyles.postsHeader}>
-            <Text style={searchStyles.postsHeaderTitle}>Bài viết</Text>
-          </View>
-        </>
+          {users.map((user) => (
+            <SearchUserCard
+              key={user.id}
+              user={user}
+              onPress={() => onPressUser(user)}
+            />
+          ))}
+        </View>
       ) : null}
     </View>
   );
