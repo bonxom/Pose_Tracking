@@ -1,17 +1,7 @@
 import Screen from "@/components/common/Screen";
-<<<<<<< HEAD
 import { loginDemoStudent, loginDemoTeacher, loginWithPassword } from "@/repositories/authRepository";
 import { getDataSourceMode } from "@/repositories/source";
 import { registerDeviceForPush } from "@/services/pushNotifications";
-=======
-import {
-  loginDemoStudent,
-  loginDemoTeacher,
-  loginWithPassword,
-} from "@/repositories/authRepository";
-import { setDeviceToken } from "@/repositories/settingsRepository";
-import { getDataSourceMode } from "@/repositories/source";
->>>>>>> origin/main
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -60,13 +50,8 @@ export default function LoginScreen() {
         loggedInAt: new Date().toISOString(),
       });
       if (!data.demoMode) {
-<<<<<<< HEAD
         registerDeviceForPush().catch((error) =>
           console.warn("Cannot register push token:", error),
-=======
-        setDeviceToken().catch((error) =>
-          console.warn("Cannot register device token:", error),
->>>>>>> origin/main
         );
       }
     } catch (storageError) {

@@ -39,7 +39,6 @@
       "expo-secure-store",
       "expo-image",
       "expo-web-browser",
-<<<<<<< HEAD
       "expo-video",
       [
         "expo-notifications",
@@ -50,9 +49,6 @@
           ]
         }
       ]
-=======
-      "expo-video"
->>>>>>> origin/main
     ],
     "experiments": {
       "typedRoutes": true,
