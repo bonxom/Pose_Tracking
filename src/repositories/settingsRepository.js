@@ -1,5 +1,6 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
+import { DEMO_PUSH_SETTINGS as localPushSettings } from "@/constants/demo";
 import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";

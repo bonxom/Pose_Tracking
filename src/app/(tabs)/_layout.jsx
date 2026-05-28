@@ -4,7 +4,6 @@ import HomeIcon from "@/components/icons/HomeIcon";
 import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
-import { getInitials } from "@/utils/formatters";
 import {
   formatNotificationBadge,
   getNotificationBadge,
@@ -14,6 +13,7 @@ import {
   startInAppNotificationRuntime,
   stopInAppNotificationRuntime,
 } from "@/services/pushNotifications";
+import { getInitials } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, Tabs, usePathname } from "expo-router";
@@ -87,6 +87,9 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const isHome = pathname === "/home" || pathname === "/";
   const [session, setSession] = useState(null);
+  const [notificationBadge, setTabNotificationBadge] = useState(
+    getNotificationBadge(),
+  );
 
   useEffect(() => {
     const unsubscribeBadge = subscribeNotificationBadge(setTabNotificationBadge);
@@ -108,9 +111,6 @@ export default function TabsLayout() {
     getAuthSession().then(setSession).catch(console.warn);
   }, []);
 
-  const [notificationBadge, setTabNotificationBadge] = useState(
-    getNotificationBadge(),
-  );
   const displayName = session?.displayName || session?.username || "Người dùng";
   const avatar = session?.avatar || session?.user?.avatar || "";
 

@@ -13,7 +13,8 @@ import {
 function normalizeLocalSession(user) {
   return {
     ...user.data,
-    token: user.data.token || `${user.data.role?.toLowerCase() || "hv"}_demo_token`,
+    token:
+      user.data.token || `${user.data.role?.toLowerCase() || "hv"}_demo_token`,
     source: ACTIVE_SOURCES.LOCAL,
     demoMode: true,
   };
@@ -48,15 +49,16 @@ function localLogin(phonenumber, password) {
   };
 }
 
-export async function loginWithPassword(phonenumber, password, options = {}) {
+function isKnownMockCredential(phonenumber, password) {
+  return MOCK_USERS.some(
+    (item) => item.phonenumber === phonenumber && item.password === password,
+  );
+}
+
+export async function loginWithPassword(phonenumber, password) {
   const normalizedPhone = phonenumber?.trim();
   const normalizedPassword = password?.trim();
   const mode = getDataSourceMode();
-  const serverPreferred = shouldUseServer({ token: "pending", source: ACTIVE_SOURCES.SERVER });
-
-  if (!serverPreferred) {
-    return localLogin(normalizedPhone, normalizedPassword);
-  }
 
   try {
     const response = await backendApi.login({
@@ -80,7 +82,10 @@ export async function loginWithPassword(phonenumber, password, options = {}) {
     }
 
     if (options.allowLocalFallback && canFallbackToLocal()) {
-      console.info("[DATA] Backend login failed, using explicit local demo fallback", response);
+      console.info(
+        "[DATA] Backend login failed, using explicit local demo fallback",
+        response,
+      );
       return localLogin(normalizedPhone, normalizedPassword);
     }
 
@@ -88,13 +93,18 @@ export async function loginWithPassword(phonenumber, password, options = {}) {
       code: String(response?.code || "BACKEND_LOGIN_FAILED"),
       message:
         response?.message ||
-        (mode === "server" ? "Backend login failed" : "Backend login failed. Use a demo shortcut for local mode."),
+        (mode === "server"
+          ? "Backend login failed"
+          : "Backend login failed. Use a demo shortcut for local mode."),
       data: null,
       source: ACTIVE_SOURCES.SERVER,
     };
   } catch (error) {
     if (options.allowLocalFallback && canFallbackToLocal()) {
-      console.info("[DATA] Backend unavailable, using explicit local demo fallback", error.message);
+      console.info(
+        "[DATA] Backend unavailable, using explicit local demo fallback",
+        error.message,
+      );
       return localLogin(normalizedPhone, normalizedPassword);
     }
 
@@ -137,7 +147,8 @@ export async function logoutSession(session) {
   } catch (error) {
     return {
       code: "NETWORK_ERROR",
-      message: error.message || "Backend logout unavailable; local session cleared",
+      message:
+        error.message || "Backend logout unavailable; local session cleared",
       source: ACTIVE_SOURCES.SERVER,
     };
   }

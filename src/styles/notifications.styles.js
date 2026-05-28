@@ -226,9 +226,4 @@ export default StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.primary,
   },
-
-  retryButtonText: {
-    color: colors.white,
-    fontWeight: "800",
-  },
 });

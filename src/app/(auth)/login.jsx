@@ -1,7 +1,17 @@
 import Screen from "@/components/common/Screen";
+<<<<<<< HEAD
 import { loginDemoStudent, loginDemoTeacher, loginWithPassword } from "@/repositories/authRepository";
 import { getDataSourceMode } from "@/repositories/source";
 import { registerDeviceForPush } from "@/services/pushNotifications";
+=======
+import {
+  loginDemoStudent,
+  loginDemoTeacher,
+  loginWithPassword,
+} from "@/repositories/authRepository";
+import { setDeviceToken } from "@/repositories/settingsRepository";
+import { getDataSourceMode } from "@/repositories/source";
+>>>>>>> origin/main
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -10,26 +20,27 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    Pressable,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
-
 export default function LoginScreen() {
+  const dataSourceMode = getDataSourceMode();
+  const isServerMode = dataSourceMode === "server";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [phoneNumberError, setPhoneNumberError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showDevFallback, setShowDevFallback] = useState(getDataSourceMode() !== "server");
+  const [showDevFallback, setShowDevFallback] = useState(!isServerMode);
 
   const persistAndNavigate = async (data) => {
     try {
@@ -49,8 +60,13 @@ export default function LoginScreen() {
         loggedInAt: new Date().toISOString(),
       });
       if (!data.demoMode) {
+<<<<<<< HEAD
         registerDeviceForPush().catch((error) =>
           console.warn("Cannot register push token:", error),
+=======
+        setDeviceToken().catch((error) =>
+          console.warn("Cannot register device token:", error),
+>>>>>>> origin/main
         );
       }
     } catch (storageError) {
@@ -60,9 +76,9 @@ export default function LoginScreen() {
     router.replace("/(tabs)/home");
   };
 
-  const handleDemoLogin = async (loginFn, phone, password) => {
+  const handleDemoLogin = async (loginFn, phone, nextPassword) => {
     setPhoneNumber(phone);
-    setPassword(password);
+    setPassword(nextPassword);
     setPhoneNumberError("");
     setPasswordError("");
     const response = await loginFn();
@@ -86,11 +102,13 @@ export default function LoginScreen() {
 
     setPhoneNumberError("");
     setPasswordError("");
-
-    // Gọi Mock API
     setIsLoading(true);
+
     try {
-      const response = await loginWithPassword(normalizedPhone, normalizedPassword);
+      const response = await loginWithPassword(
+        normalizedPhone,
+        normalizedPassword,
+      );
 
       switch (response.code) {
         case "1000": {
@@ -104,15 +122,14 @@ export default function LoginScreen() {
           break;
         }
         case "9995":
-          // Chưa được đăng ký
-          setPhoneNumberError("Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.");
+          setPhoneNumberError(
+            "Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.",
+          );
           break;
         case "1004":
-          // Format sai hoặc mật khẩu sai
           setPhoneNumberError("Số điện thoại hoặc mật khẩu không chính xác.");
           break;
         case "1002":
-          // Không đủ dữ liệu
           setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
           break;
         default:
@@ -133,7 +150,6 @@ export default function LoginScreen() {
         <Text style={styles.languageText}>English · 中文(台灣) ·</Text>
         <Text style={styles.languageLink}>Xem thêm...</Text>
       </View>
-
       <View style={styles.inputRow}>
         <TextInput
           placeholder="Số điện thoại"
@@ -141,7 +157,9 @@ export default function LoginScreen() {
           value={phoneNumber}
           onChangeText={(text) => {
             setPhoneNumber(text);
-            if (phoneNumberError) setPhoneNumberError("");
+            if (phoneNumberError) {
+              setPhoneNumberError("");
+            }
           }}
           keyboardType="phone-pad"
           autoCapitalize="none"
@@ -161,7 +179,9 @@ export default function LoginScreen() {
           value={password}
           onChangeText={(text) => {
             setPassword(text);
-            if (passwordError) setPasswordError("");
+            if (passwordError) {
+              setPasswordError("");
+            }
           }}
           secureTextEntry={!showPassword}
           style={[styles.input, { flex: 1 }]}
@@ -208,7 +228,9 @@ export default function LoginScreen() {
             </Text>
             <Pressable
               style={[styles.createButton, { borderColor: "#2563EB" }]}
-              onPress={() => handleDemoLogin(loginDemoStudent, "0900000001", "123456")}
+              onPress={() =>
+                handleDemoLogin(loginDemoStudent, "0900000001", "123456")
+              }
               disabled={isLoading}
             >
               <Text style={styles.createText}>
@@ -217,7 +239,9 @@ export default function LoginScreen() {
             </Pressable>
             <Pressable
               style={[styles.createButton, { borderColor: "#94A3B8" }]}
-              onPress={() => handleDemoLogin(loginDemoTeacher, "0900000002", "123456")}
+              onPress={() =>
+                handleDemoLogin(loginDemoTeacher, "0900000002", "123456")
+              }
               disabled={isLoading}
             >
               <Text style={styles.createText}>

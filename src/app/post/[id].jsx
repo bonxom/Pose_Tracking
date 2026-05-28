@@ -74,6 +74,16 @@ export default function PostDetailScreen() {
     });
   };
 
+  const handleNavigateEdit = () => {
+    if (!post?.id) return;
+    router.push({
+      pathname: "/post/edit",
+      params: {
+        id: post.id,
+      },
+    });
+  };
+
   const handleAddComment = async () => {
     const normalizedComment = commentText.trim().replace(/[\u0000-\u001F\u007F]/g, " ");
     if (!normalizedComment) {
@@ -168,7 +178,7 @@ export default function PostDetailScreen() {
       setStatusText("Đã cập nhật bài viết.");
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể sửa bài viết.");
+      setStatusText("Hệ thống đang lỗi, vui lòng thử lại sau");
     }
   };
 
@@ -178,7 +188,7 @@ export default function PostDetailScreen() {
       router.replace("/(tabs)/home");
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể xóa bài viết.");
+      setStatusText("Hệ thống đang lỗi, vui lòng thử lại sau");
     }
   };
 
@@ -219,8 +229,9 @@ export default function PostDetailScreen() {
           post={post}
           detail={true}
           onToggleLike={handleToggleLike}
-          onPressComment={() => router.push(`/comment/${post.id}`)}
+          onPressComment={() => router.push(`/post/comment/${post.id}`)}
           onSubmitExercise={handleSubmitExercise}
+          onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
         />
 
         {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}

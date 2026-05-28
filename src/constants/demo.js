@@ -63,11 +63,31 @@ export const DEMO_EXERCISES = [
   },
 ];
 
+export const DEMO_MOCK_POST_IDS = {
+  submissionPrimary: "12345678",
+  teacherExercise01: "post_teacher_exercise_001",
+  studentSubmission02: "post_student_submission_002",
+  teacherExercise02: "post_teacher_exercise_002",
+};
+
+export const DEMO_VIDEO_ASSETS = {
+  left: {
+    url: "assets/vid_first.mp4",
+    thumb:
+      "https://scontent.fhan15-1.fna.fbcdn.net/v/t39.30808-6/558141326_2249246405590900_261624433520061036_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=94e2a3&_nc_eui2=AeGdg74i1AkXDVbdozDSKl6BGxYHR7mPN9MbFgdHuY830yJZnOQGW8Y1ndkBZGiQHhj6GDgpAMYTTd8Dy-MMZgOr&_nc_ohc=KnO6bb2yB_QQ7kNvwGX-b0E&_nc_oc=AdqmcXtIwlqZ2UMS0VhA44y8E1fKQjdQVjM_bYz1bFNm7zuN-SAqiLAUG19EhkZQ_n0eKldOk72gFIgBtpgI4UB1&_nc_zt=23&_nc_ht=scontent.fhan15-1.fna&_nc_gid=9prgd3po8mhh5ys5IBFa6w&_nc_ss=7b2a8&oh=00_Af6nqYQ2m2P-2ilId02pOVGMVaRXaNTMYSwURy2RnZvAKA&oe=6A11B148",
+  },
+  right: {
+    url: "assets/vid_second.mp4",
+    thumb: "https://picsum.photos/seed/vid_second_thumb/480/270",
+  },
+};
+
 export const DEMO_VIDEO_PLACEHOLDERS = [
   {
     id: "demo_left_video",
     name: "demo-goc-trai.mp4",
-    uri: "demo://submission-left-camera",
+    uri: DEMO_VIDEO_ASSETS.left.url,
+    thumb: DEMO_VIDEO_ASSETS.left.thumb,
     angle: "Góc quay trái",
     duration: 16000,
     fileSize: 12_400_000,
@@ -75,7 +95,8 @@ export const DEMO_VIDEO_PLACEHOLDERS = [
   {
     id: "demo_right_video",
     name: "demo-goc-phai.mp4",
-    uri: "demo://submission-right-camera",
+    uri: DEMO_VIDEO_ASSETS.right.url,
+    thumb: DEMO_VIDEO_ASSETS.right.thumb,
     angle: "Góc quay phải",
     duration: 16200,
     fileSize: 12_800_000,
@@ -210,33 +231,6 @@ export const DEMO_CONVERSATIONS = [
   },
 ];
 
-export const DEMO_FRIENDS = [
-  {
-    id: DEMO_TEACHER.id,
-    username: DEMO_TEACHER.displayName,
-    displayName: DEMO_TEACHER.displayName,
-    role: DEMO_TEACHER.role,
-    phonenumber: DEMO_TEACHER.phonenumber,
-    avatar: DEMO_TEACHER.avatar,
-  },
-  {
-    id: "demo_student_002",
-    username: "Tran Thi B",
-    displayName: "Tran Thi B",
-    role: "HV",
-    phonenumber: "0900000012",
-    avatar: "",
-  },
-  {
-    id: "demo_teacher_002",
-    username: "Trung doi truong Cuong",
-    displayName: "Trung đội trưởng Cường",
-    role: "GV",
-    phonenumber: "0900000022",
-    avatar: "",
-  },
-];
-
 export const DEMO_SAVED_SEARCHES = [
   {
     id: "saved_search_salute",
@@ -277,9 +271,6 @@ export const DEMO_ENROLLMENT_REQUESTS = [
 
 export const DEMO_PUSH_SETTINGS = {
   like_comment: true,
-  from_friends: true,
-  requested_friend: true,
-  suggested_friend: true,
   birthday: true,
   video: true,
   report: true,

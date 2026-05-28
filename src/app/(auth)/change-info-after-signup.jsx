@@ -8,13 +8,13 @@ import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -144,6 +144,7 @@ export default function ChangeInfoAfterSignupScreen() {
             demoMode: false,
             loggedInAt: new Date().toISOString(),
           });
+
           registerDeviceForPush().catch((error) =>
             console.warn("Cannot register push token:", error),
           );

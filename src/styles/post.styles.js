@@ -46,7 +46,8 @@ const postStyles = StyleSheet.create({
     borderWidth: sizes.borderWidth,
     borderColor: colors.border,
     padding: sizes.lg,
-    gap: sizes.md,
+    gap: sizes.ssm,
+    paddingBottom: sizes.md,
   },
   headerRow: {
     flexDirection: "row",
@@ -57,6 +58,7 @@ const postStyles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primaryLight,
@@ -71,10 +73,14 @@ const postStyles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
   },
+  authorMetaGroup: {
+    flex: 1,
+    gap: 1,
+  },
   metaText: {
     fontSize: 13,
     color: colors.subtext,
-    marginTop: 2,
+    marginTop: 0,
   },
   freshMetaText: {
     color: colors.primary,
@@ -140,7 +146,7 @@ const postStyles = StyleSheet.create({
   },
   selectedMediaCard: {
     borderColor: colors.primary,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: colors.primaryLight,
   },
   mediaTitle: {
     fontSize: 14,
@@ -159,6 +165,10 @@ const postStyles = StyleSheet.create({
     fontSize: 13,
     color: colors.subtext,
   },
+  statTextRight: {
+    marginLeft: "auto",
+    textAlign: "right",
+  },
   hashtagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -174,9 +184,9 @@ const postStyles = StyleSheet.create({
     alignItems: "center",
     gap: sizes.md,
     borderWidth: sizes.borderWidth,
-    borderColor: "#BFDBFE",
+    borderColor: colors.primaryLight,
     borderRadius: sizes.radiusMd,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: colors.primaryLight,
     padding: sizes.md,
   },
   scoreSummaryNumber: {
@@ -198,8 +208,10 @@ const postStyles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: sizes.sm,
+    flexWrap: "nowrap",
+    gap: sizes.lg,
+    alignItems: "center",
+    marginVertical: -2,
   },
   actionButton: {
     minWidth: 96,
@@ -289,27 +301,30 @@ const postStyles = StyleSheet.create({
   commentCard: {
     backgroundColor: colors.surface,
     borderRadius: sizes.radiusMd,
-    padding: sizes.md,
-    gap: sizes.xs,
+    padding: sizes.xs,
+    gap: sizes.xxs,
   },
   scoreCommentCard: {
     borderWidth: sizes.borderWidth,
     borderColor: colors.primaryLight,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: colors.primaryLight,
   },
   commentAuthor: {
     fontSize: 14,
     fontWeight: "700",
     color: colors.text,
+    paddingLeft: sizes.xs,
   },
   commentText: {
     fontSize: 14,
     lineHeight: 20,
     color: colors.text,
+    padding: sizes.xs,
   },
   commentMeta: {
     fontSize: 12,
     color: colors.subtext,
+    paddingLeft: 40,
   },
   lockedText: {
     fontSize: 13,
@@ -357,7 +372,7 @@ const postStyles = StyleSheet.create({
   draftBanner: {
     borderWidth: sizes.borderWidth,
     borderColor: colors.primaryLight,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: colors.primaryLight,
     borderRadius: sizes.radiusMd,
     padding: sizes.md,
     gap: sizes.xs,

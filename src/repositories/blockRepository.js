@@ -48,8 +48,8 @@ export async function setBlock(userId, type = "block") {
 
   const response = await backendApi.setBlock({
     token: session.token,
-    user_id: userId,
-    type,
+    userId: userId,
+    type: type === "block" ? "0" : "1",
   });
 
   await assertBackendOk(response, { message: "Backend set_block failed" });

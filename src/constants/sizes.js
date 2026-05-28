@@ -1,5 +1,7 @@
 const sizes = {
+  xxs: 2,
   xs: 4,
+  ssm: 6,
   sm: 8,
   md: 12,
   lg: 16,
@@ -13,6 +15,8 @@ const sizes = {
   inputHeight: 48,
   buttonHeight: 48,
   borderWidth: 1,
+
+  dividerWidth: 4,
 };
 
 export default sizes;

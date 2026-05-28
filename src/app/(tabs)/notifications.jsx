@@ -311,7 +311,7 @@ export default function NotificationsScreen() {
 
     await clearAuthSession();
 
-    router.replace("/login");
+    router.replace("/(auth)/login");
 
     return true;
   }

@@ -8,6 +8,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
+<<<<<<< HEAD
 const CONTENT_NOTIFICATION_KEYS = [
   {
     key: "likeComment",
@@ -49,6 +50,9 @@ const DELIVERY_NOTIFICATION_KEYS = [
     icon: "⚡",
   },
 ];
+=======
+const PUSH_KEYS = ["notification_on", "like_comment", "video", "sound_on"];
+>>>>>>> origin/main
 
 export default function PushSettingsScreen() {
   const [settings, setSettings] = useState(normalizePushSettings({}));
