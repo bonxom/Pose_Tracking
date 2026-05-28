@@ -132,7 +132,7 @@ export default function PostOptionsSheet({
             <>
               <OptionRow
                 iconName="alert-circle-outline"
-                label="Tìm hỗ trợ hoặc báo cáo bài viết"
+                label="Báo cáo bài viết"
                 onPress={onReportPost}
               />
               <OptionRow

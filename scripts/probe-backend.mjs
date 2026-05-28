@@ -153,7 +153,7 @@ const endpointSpecs = [
   },
   {
     name: "like",
-    paths: ["/it4788/like"],
+    paths: ["/it4788/like_post"],
     body: ({ token, postId }) => ({ token: MUTATION_ENABLED ? token : "__probe_invalid_token__", id: postId || "1" }),
     transports: ["json", "form", "multipart"],
     authSensitive: true,

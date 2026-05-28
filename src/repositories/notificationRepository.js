@@ -2,9 +2,9 @@ import { backendApi } from "@/api/client";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import {
-    ACTIVE_SOURCES,
-    getCurrentSession,
-    sourceFromResponse,
+  ACTIVE_SOURCES,
+  getCurrentSession,
+  sourceFromResponse,
 } from "@/repositories/source";
 
 function isNotificationSessionExpired(error) {
@@ -35,6 +35,7 @@ let notificationCache = {
 
 let notificationBadge = 0;
 const notificationBadgeListeners = new Set();
+const notificationCacheListeners = new Set();
 
 export function getNotificationCache() {
   return notificationCache;
@@ -62,6 +63,25 @@ export function subscribeNotificationBadge(listener) {
   };
 }
 
+export function subscribeNotificationCache(listener) {
+  notificationCacheListeners.add(listener);
+  listener(notificationCache);
+
+  return () => {
+    notificationCacheListeners.delete(listener);
+  };
+}
+
+function emitNotificationCache() {
+  notificationCacheListeners.forEach((listener) => {
+    try {
+      listener(notificationCache);
+    } catch {
+      // Ignore UI listener errors.
+    }
+  });
+}
+
 export function formatNotificationBadge(value) {
   const numeric = Number(value) || 0;
   return numeric > 99 ? "99+" : String(numeric);
@@ -87,8 +107,12 @@ function mergeNotifications(oldItems = [], newItems = []) {
   return sortNotifications(Array.from(map.values()));
 }
 
-function saveNotificationCache(page, { append = false } = {}) {
-  const nextItems = append
+function saveNotificationCache(
+  page,
+  { append = false, mergeWithExisting = false } = {},
+) {
+  const shouldMerge = append || mergeWithExisting;
+  const nextItems = shouldMerge
     ? mergeNotifications(notificationCache.items, page.items)
     : sortNotifications(page.items);
 
@@ -104,6 +128,7 @@ function saveNotificationCache(page, { append = false } = {}) {
   };
 
   setNotificationBadge(unreadCount);
+  emitNotificationCache();
 
   return notificationCache;
 }
@@ -145,11 +170,16 @@ export function markNotificationReadLocal(notificationId) {
   };
 
   setNotificationBadge(unreadCount);
+  emitNotificationCache();
 
   return notificationCache;
 }
 
-function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER, index = 0) {
+function normalizeNotification(
+  raw = {},
+  source = ACTIVE_SOURCES.SERVER,
+  index = 0,
+) {
   const type = raw.type || raw.notification_type || "info";
   const objectId =
     raw.object_id ||
@@ -247,7 +277,7 @@ export async function getNotificationPage(params = {}) {
       token: session?.token || "",
       index: String(params.index || 0),
       count: String(params.count || 20),
-      // last_update: params.lastUpdate || params.last_update || "",
+      last_update: params.lastUpdate || params.last_update || "",
     });
 
     await assertBackendOk(response, {
@@ -258,6 +288,7 @@ export async function getNotificationPage(params = {}) {
     const page = normalizeNotificationPage(response, sourceFromResponse(response));
     return saveNotificationCache(page, {
       append: Number(params.index || 0) > 0,
+      mergeWithExisting: Boolean(params.mergeWithExisting),
     });
   } catch (error) {
     console.info("[DATA] Notification unavailable", {

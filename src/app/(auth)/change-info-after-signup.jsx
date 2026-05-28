@@ -1,7 +1,7 @@
 import authApi from "@/api/auth";
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
-import { setDeviceToken } from "@/repositories/settingsRepository";
+import { registerDeviceForPush } from "@/services/pushNotifications";
 import { saveAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -144,7 +144,7 @@ export default function ChangeInfoAfterSignupScreen() {
             demoMode: false,
             loggedInAt: new Date().toISOString(),
           });
-          setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
+          registerDeviceForPush().catch((error) => console.warn("Cannot register push device:", error));
         } catch (storageError) {
           console.warn("Cannot persist session:", storageError);
         }

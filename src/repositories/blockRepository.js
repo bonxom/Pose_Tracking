@@ -1,13 +1,17 @@
 import { backendApi } from "@/api/client";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import {
-  getCurrentSession,
-  sourceFromResponse,
-} from "@/repositories/source";
+import { getCurrentSession, sourceFromResponse } from "@/repositories/source";
+
+function requireToken(session) {
+  if (!session?.token) {
+    throw new Error("Cần đăng nhập để quản lý danh sách chặn.");
+  }
+}
 
 export async function getBlocks() {
   const session = await getCurrentSession();
+  requireToken(session);
 
   try {
     const response = await backendApi.getListBlocks({
@@ -22,6 +26,7 @@ export async function getBlocks() {
       message: "Backend get_list_blocks failed",
     });
 
+    const source = sourceFromResponse(response);
     const deduped = new Map();
     extractList(response).forEach((item) => {
       const id = String(
@@ -34,7 +39,7 @@ export async function getBlocks() {
           item.username || item.name || item.user_name || "Người dùng bị chặn",
         avatar: item.avatar || "",
         role: item.role || "",
-        source: sourceFromResponse(response),
+        source,
         raw: item,
       });
     });
@@ -47,11 +52,17 @@ export async function getBlocks() {
 }
 
 export async function setBlock(userId, type = "block") {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) {
+    throw new Error("Thiếu user_id cần chặn/bỏ chặn.");
+  }
+
   const session = await getCurrentSession();
+  requireToken(session);
 
   const response = await backendApi.setBlock({
     token: session.token,
-    userId: userId,
+    user_id: normalizedUserId,
     type: type === "block" ? "0" : "1",
   });
 

@@ -238,6 +238,13 @@ export default function HomeScreen() {
     });
   }, []);
 
+  const handleReportPost = useCallback(async (post) => {
+    router.push({
+      pathname: "/post/[id]",
+      params: { id: post.id, report: "1" },
+    });
+  }, []);
+
   const feedItems = useMemo(() => {
     const uploadingItems = uploadingCards.map((item) => ({
       id: item.id,
@@ -304,6 +311,7 @@ export default function HomeScreen() {
                 onDeletePost={(deletedPostId) =>
                   handleDeletePost(deletedPostId || item.id)
                 }
+                onReportPost={() => handleReportPost(item)}
               />
             )
           }

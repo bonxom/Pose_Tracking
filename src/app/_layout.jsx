@@ -1,3 +1,4 @@
+import { startInAppNotificationRuntime } from "@/services/pushNotifications";
 import { getAuthSession } from "@/utils/session";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
@@ -7,6 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
+  const currentGroup = segments[0];
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   useEffect(() => {
@@ -17,7 +19,6 @@ export default function RootLayout() {
         const session = await getAuthSession();
         if (!isMounted) return;
 
-        const currentGroup = segments[0];
         const isAuthenticated = Boolean(session);
         const isAuthGroup = currentGroup === "(auth)";
         const isSignupSuccess =
@@ -43,7 +44,12 @@ export default function RootLayout() {
     return () => {
       isMounted = false;
     };
-  }, [router, segments]);
+  }, [currentGroup, router, segments]);
+
+  useEffect(() => {
+    if (currentGroup === "(auth)") return undefined;
+    return startInAppNotificationRuntime();
+  }, [currentGroup]);
 
   if (isBootstrapping) {
     return (

@@ -320,14 +320,27 @@ export async function deletePost(post) {
   return { deleted: true, source: sourceFromResponse(response) };
 }
 
-export async function reportPost(post, reason = "") {
+export async function reportPost(post, report = "") {
   const session = await getCurrentSession();
+  const payload =
+    report && typeof report === "object"
+      ? report
+      : {
+          subject: report || "Báo cáo bài viết",
+          details: report || "Nội dung không phù hợp",
+        };
+
   const response = await backendApi.reportPost({
     token: session?.token || "",
     id: post.id,
-    subject: reason || "Báo cáo bài viết",
-    details: reason || "Nội dung không phù hợp",
+    subject: payload.subject || "Báo cáo bài viết",
+    details: payload.details || payload.subject || "Nội dung không phù hợp",
   });
+
+  const code = String(response?.code || "");
+  if (code === "1000" || code === "1010") {
+    return { reported: true, source: ACTIVE_SOURCES.SERVER };
+  }
 
   await assertBackendOk(response, { message: "Backend report_post failed" });
 

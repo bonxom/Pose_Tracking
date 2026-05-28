@@ -4,7 +4,7 @@ import {
   loginDemoTeacher,
   loginWithPassword,
 } from "@/repositories/authRepository";
-import { setDeviceToken } from "@/repositories/settingsRepository";
+import { registerDeviceForPush } from "@/services/pushNotifications";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -51,8 +51,8 @@ export default function LoginScreen() {
         loggedInAt: new Date().toISOString(),
       });
       if (!data.demoMode) {
-        setDeviceToken().catch((error) =>
-          console.warn("Cannot register device token:", error),
+        registerDeviceForPush().catch((error) =>
+          console.warn("Cannot register push device:", error),
         );
       }
     } catch (storageError) {
