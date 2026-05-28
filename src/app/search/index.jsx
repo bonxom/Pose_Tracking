@@ -72,11 +72,17 @@ function buildSavedSearchEntry(keyword = "", currentItems = []) {
   }
 
   const normalizedKeyword = trimmedKeyword.toLowerCase();
-  const nextItem = {
-    id: `local_saved_${normalizedKeyword.replace(/[^a-z0-9]+/g, "_") || Date.now()}`,
-    keyword: trimmedKeyword,
-    createdAt: new Date().toISOString(),
-  };
+  const existingItem = currentItems.find(
+    (item) => String(item.keyword || "").trim().toLowerCase() === normalizedKeyword,
+  );
+
+  const nextItem = existingItem
+    ? existingItem
+    : {
+        id: `local_saved_${normalizedKeyword.replace(/[^a-z0-9]+/g, "_") || Date.now()}`,
+        keyword: trimmedKeyword,
+        createdAt: new Date().toISOString(),
+      };
 
   return [
     nextItem,
@@ -84,6 +90,23 @@ function buildSavedSearchEntry(keyword = "", currentItems = []) {
       (item) => String(item.keyword || "").trim().toLowerCase() !== normalizedKeyword,
     ),
   ].slice(0, 20);
+}
+
+function mergeSavedSearchEntries(preferredItems = [], fallbackItems = []) {
+  const seenKeywords = new Set();
+
+  return [...preferredItems, ...fallbackItems]
+    .filter((item) => {
+      const normalizedKeyword = String(item?.keyword || "").trim().toLowerCase();
+
+      if (!normalizedKeyword || seenKeywords.has(normalizedKeyword)) {
+        return false;
+      }
+
+      seenKeywords.add(normalizedKeyword);
+      return true;
+    })
+    .slice(0, 20);
 }
 
 export default function SearchScreen() {
@@ -156,7 +179,7 @@ export default function SearchScreen() {
       setLoadingHistory(true);
       setError("");
       const history = await getSavedSearches();
-      setSavedSearches(history);
+      setSavedSearches((current) => mergeSavedSearchEntries(current, history));
     } catch (loadError) {
       setError(loadError.message || "Không thể tải lịch sử tìm kiếm.");
     } finally {
