@@ -9,6 +9,7 @@ import {
   setDeviceToken,
 } from "@/repositories/settingsRepository";
 import { getCurrentSession } from "@/repositories/source";
+import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
@@ -99,7 +100,21 @@ export async function registerDeviceForPush() {
 
   await loadAndApplyPushSettings();
 
+  if (Platform.OS === "web") {
+    return null;
+  }
+
   const devtype = Platform.OS === "ios" ? "0" : "1";
+  const isExpoGo = Constants.appOwnership === "expo";
+
+  if (Platform.OS === "android" && isExpoGo) {
+    console.warn(
+      "Skip remote push registration: Expo Go Android SDK 53+ does not support remote push notifications.",
+    );
+
+    await setDeviceToken(DEFAULT_DEVICE_TOKEN, devtype);
+    return DEFAULT_DEVICE_TOKEN;
+  }
 
   if (!Device.isDevice) {
     await setDeviceToken(DEFAULT_DEVICE_TOKEN, devtype);
