@@ -1,7 +1,10 @@
 import { backendApi } from "@/api/client";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
+import {
+  getCurrentSession,
+  sourceFromResponse,
+} from "@/repositories/source";
 
 export async function getBlocks() {
   const session = await getCurrentSession();
@@ -31,14 +34,14 @@ export async function getBlocks() {
           item.username || item.name || item.user_name || "Người dùng bị chặn",
         avatar: item.avatar || "",
         role: item.role || "",
-        source: ACTIVE_SOURCES.SERVER,
+        source: sourceFromResponse(response),
         raw: item,
       });
     });
 
     return Array.from(deduped.values());
   } catch (error) {
-    console.info("[DATA] Server blocks fallback", error.message);
+    console.info("[DATA] Blocks unavailable", error.message);
     throw error;
   }
 }
@@ -54,5 +57,5 @@ export async function setBlock(userId, type = "block") {
 
   await assertBackendOk(response, { message: "Backend set_block failed" });
 
-  return { blocked: type !== "unblock", source: ACTIVE_SOURCES.SERVER };
+  return { blocked: type !== "unblock", source: sourceFromResponse(response) };
 }

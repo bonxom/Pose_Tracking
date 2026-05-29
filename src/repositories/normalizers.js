@@ -28,6 +28,9 @@ export function extractList(response) {
   if (Array.isArray(data?.results)) return data.results;
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.users)) return data.users;
+  if (Array.isArray(data?.students)) return data.students;
+  if (Array.isArray(data?.courses)) return data.courses;
   return toArray(data);
 }
 
@@ -93,7 +96,10 @@ export function normalizeSession(raw = {}) {
       id,
       "",
     ),
-    source: ACTIVE_SOURCES.SERVER,
+    source:
+      raw.source === ACTIVE_SOURCES.LOCAL
+        ? ACTIVE_SOURCES.LOCAL
+        : ACTIVE_SOURCES.SERVER,
     demoMode: false,
     raw: data,
   };

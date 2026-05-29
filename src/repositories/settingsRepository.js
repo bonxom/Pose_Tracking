@@ -1,9 +1,8 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
-import { DEMO_PUSH_SETTINGS as localPushSettings } from "@/constants/demo";
 import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
+import { getCurrentSession, sourceFromResponse } from "@/repositories/source";
 
 export async function getPushSettings() {
   const session = await getCurrentSession();
@@ -16,12 +15,11 @@ export async function getPushSettings() {
     });
 
     return {
-      ...localPushSettings,
       ...extractObject(response),
-      source: ACTIVE_SOURCES.SERVER,
+      source: sourceFromResponse(response),
     };
   } catch (error) {
-    console.info("[DATA] Server push settings fallback", error.message);
+    console.info("[DATA] Push settings unavailable", error.message);
     throw error;
   }
 }
@@ -38,7 +36,7 @@ export async function setPushSettings(settings = {}) {
     message: "Backend set_push_settings failed",
   });
 
-  return { ...localPushSettings, ...settings, source: ACTIVE_SOURCES.SERVER };
+  return { ...settings, ...extractObject(response), source: sourceFromResponse(response) };
 }
 
 export async function changePassword(oldPassword, newPassword) {
@@ -54,7 +52,7 @@ export async function changePassword(oldPassword, newPassword) {
     message: "Backend change_password failed",
   });
 
-  return { changed: true, source: ACTIVE_SOURCES.SERVER };
+  return { changed: true, source: sourceFromResponse(response) };
 }
 
 export async function checkNewVersion() {
@@ -97,5 +95,5 @@ export async function setDeviceToken(devtoken = DEFAULT_DEVICE_TOKEN) {
 
   await assertBackendOk(response, { message: "Backend set_devtoken failed" });
 
-  return { registered: true, devtoken, source: ACTIVE_SOURCES.SERVER };
+  return { registered: true, devtoken, source: sourceFromResponse(response) };
 }

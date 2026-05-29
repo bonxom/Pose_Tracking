@@ -1,7 +1,11 @@
 import { backendApi } from "@/api/client";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
+import {
+  ACTIVE_SOURCES,
+  getCurrentSession,
+  sourceFromResponse,
+} from "@/repositories/source";
 
 function normalizeConversation(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   return {
@@ -42,10 +46,10 @@ export async function getConversationList() {
     });
 
     return extractList(response).map((item) =>
-      normalizeConversation(item, ACTIVE_SOURCES.SERVER),
+      normalizeConversation(item, sourceFromResponse(response)),
     );
   } catch (error) {
-    console.info("[DATA] Server conversation list fallback", error.message);
+    console.info("[DATA] Conversation list unavailable", error.message);
     throw error;
   }
 }
@@ -66,13 +70,13 @@ export async function getConversation(conversationId) {
   });
 
   const messages = extractList(response).map((item) =>
-    normalizeMessage(item, ACTIVE_SOURCES.SERVER),
+    normalizeMessage(item, sourceFromResponse(response)),
   );
   return {
     id: conversationId,
     title: "Cuộc trò chuyện",
     messages,
-    source: ACTIVE_SOURCES.SERVER,
+    source: sourceFromResponse(response),
   };
 }
 
@@ -96,7 +100,7 @@ export async function deleteMessage(messageId) {
 
   await assertBackendOk(response, { message: "Backend delete_message failed" });
 
-  return { deleted: true, source: ACTIVE_SOURCES.SERVER };
+  return { deleted: true, source: sourceFromResponse(response) };
 }
 
 export async function deleteConversation(conversationId) {
@@ -111,7 +115,7 @@ export async function deleteConversation(conversationId) {
     message: "Backend delete_conversation failed",
   });
 
-  return { deleted: true, source: ACTIVE_SOURCES.SERVER };
+  return { deleted: true, source: sourceFromResponse(response) };
 }
 
 export async function markConversationRead(conversationId) {
@@ -126,5 +130,5 @@ export async function markConversationRead(conversationId) {
     message: "Backend set_read_message failed",
   });
 
-  return { read: true, source: ACTIVE_SOURCES.SERVER };
+  return { read: true, source: sourceFromResponse(response) };
 }

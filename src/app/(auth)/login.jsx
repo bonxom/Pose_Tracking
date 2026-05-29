@@ -5,7 +5,6 @@ import {
   loginWithPassword,
 } from "@/repositories/authRepository";
 import { setDeviceToken } from "@/repositories/settingsRepository";
-import { getDataSourceMode } from "@/repositories/source";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -26,15 +25,13 @@ import {
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
 export default function LoginScreen() {
-  const dataSourceMode = getDataSourceMode();
-  const isServerMode = dataSourceMode === "server";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [phoneNumberError, setPhoneNumberError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showDevFallback, setShowDevFallback] = useState(!isServerMode);
+  const [showDevFallback, setShowDevFallback] = useState(false);
 
   const persistAndNavigate = async (data) => {
     try {

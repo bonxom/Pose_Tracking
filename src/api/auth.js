@@ -1,7 +1,6 @@
 import { backendApi } from "@/api/client";
-import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
+import { API_TYPE, API_TYPES, DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { MOCK_USERS } from "@/constants/mocks/users";
-import { isBackendMode } from "@/repositories/source";
 import { isPhone } from "@/utils/validation";
 
 // Giáº£ láº­p network delay Ä‘á»ƒ test loading state
@@ -11,7 +10,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const MOCK_VERIFY_CODES = new Map();
 
 function isServerAuthMode() {
-  return isBackendMode();
+  return API_TYPE === API_TYPES.BACKEND;
 }
 
 function isOk(response) {

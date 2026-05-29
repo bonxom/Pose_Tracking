@@ -1,12 +1,5 @@
 import { backendApi } from "@/api/client";
 import { API_BASE_URL } from "@/config/env";
-import { DEMO_STUDENT } from "@/constants/demo";
-import {
-  getMockProfileById,
-  resolveMockProfile,
-  saveMockProfile,
-} from "@/constants/mocks/profiles";
-import * as localPosts from "@/services/postStore";
 import {
   extractList,
   extractObject,
@@ -23,7 +16,7 @@ import {
 import {
   ACTIVE_SOURCES,
   getCurrentSession,
-  shouldUseServer,
+  sourceFromResponse,
 } from "@/repositories/source";
 import { saveAuthSession } from "@/utils/session";
 
@@ -94,16 +87,6 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
   };
 }
 
-function localUser(session) {
-  const mockProfile = resolveMockProfile(session);
-  const localProfile = buildLocalProfileShape(session, mockProfile);
-
-  return normalizeUser(localProfile || DEMO_STUDENT, ACTIVE_SOURCES.LOCAL, {
-    session,
-    isOwnProfile: true,
-  });
-}
-
 export function validateProfileUserName(value = "") {
   const userName = String(value).trim();
 
@@ -138,11 +121,6 @@ function mapForbiddenNameError(error) {
   }
 
   return error;
-}
-
-function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  const mockProfile = getMockProfileById(userId);
-  return normalizeUser(mockProfile || { id: userId }, source, { isOwnProfile: false });
 }
 
 function isSameUser(left, right) {
@@ -228,73 +206,11 @@ function firstParamValue(params = {}, keys = [], fallback = "") {
   return key ? params[key] : fallback;
 }
 
-function buildLocalProfileShape(session = {}, mockProfile = {}) {
-  return {
-    ...(mockProfile || {}),
-    ...(session || {}),
-    id: firstValue(
-      session?.id,
-      session?.user_id,
-      session?.identifier,
-      mockProfile?.id,
-      mockProfile?.identifier,
-      DEMO_STUDENT.id,
-    ),
-    username: firstValue(
-      session?.username,
-      session?.displayName,
-      mockProfile?.username,
-      mockProfile?.displayName,
-      DEMO_STUDENT.username,
-    ),
-    displayName: firstValue(
-      session?.displayName,
-      session?.username,
-      mockProfile?.displayName,
-      mockProfile?.username,
-      DEMO_STUDENT.displayName,
-    ),
-    avatar: firstValue(session?.avatar, mockProfile?.avatar, ""),
-    coverImage: firstValue(session?.coverImage, mockProfile?.coverImage, ""),
-    description: firstValue(session?.description, mockProfile?.description, ""),
-    address: firstValue(session?.address, mockProfile?.address, ""),
-    city: firstValue(session?.city, mockProfile?.city, ""),
-    country: firstValue(session?.country, mockProfile?.country, ""),
-    profileLink: firstValue(session?.profileLink, mockProfile?.profileLink, ""),
-    postCount: firstValue(session?.postCount, mockProfile?.postCount, 0),
-    online: firstValue(session?.online, mockProfile?.online, false),
-    listing: firstValue(session?.listing, mockProfile?.listing, true),
-    role: firstValue(session?.role, mockProfile?.role, "HV"),
-    phonenumber: firstValue(session?.phonenumber, mockProfile?.phonenumber, ""),
-    identifier: firstValue(session?.identifier, mockProfile?.identifier, session?.phonenumber, ""),
-    handle: firstValue(session?.handle, mockProfile?.handle, ""),
-    height: firstValue(session?.height, mockProfile?.height, ""),
-    demoMode: true,
-  };
-}
-
 function throwIfExpiredFromApiError(error) {
   const data = getBackendErrorData(error);
   if (isInvalidSessionResponse(data || error)) {
     throw new SessionExpiredError(data?.message || error?.message);
   }
-}
-
-async function getLocalUserPosts(targetUserId, includeLocked, source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  const posts = await localPosts.getPosts();
-  const filtered = posts.filter((post) => {
-    const matchesUser = !targetUserId || isSameUser(post.author?.id, targetUserId);
-    const canSeeLocked = includeLocked || post.canComment !== false;
-    return matchesUser && canSeeLocked;
-  });
-
-  return {
-    items: filtered,
-    total: filtered.length,
-    hasMore: false,
-    lastId: filtered[0]?.id || "",
-    source,
-  };
 }
 
 function isLocalAssetUri(value = "") {
@@ -392,47 +308,13 @@ async function setUserInfoWithCompatibility(session, params, userName) {
   throw lastError || new Error("Backend set_user_info failed");
 }
 
-function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOURCES.LOCAL) {
-  const currentProfile = buildLocalProfileShape(session, resolveMockProfile(session));
-  const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
-  const coverImage = firstParamValue(params, ["coverImage", "cover_image"], session?.coverImage || "");
-  const description = normalizeOptionalText(
-    firstParamValue(params, ["description"], session?.description || ""),
-    150,
-  );
-  const address = firstParamValue(params, ["address"], session?.address || "");
-  const profileLink = firstParamValue(params, ["profileLink", "link"], session?.profileLink || "");
-
-  return {
-    ...currentProfile,
-    ...session,
-    ...params,
-    id: firstValue(session?.id, currentProfile?.id, session?.identifier, session?.phonenumber, ""),
-    username: userName || session?.username || currentProfile?.username || "",
-    displayName: userName || session?.displayName || session?.username || currentProfile?.displayName || "",
-    avatar,
-    coverImage,
-    description,
-    address,
-    profileLink,
-    phonenumber: firstValue(session?.phonenumber, currentProfile?.phonenumber, ""),
-    identifier: firstValue(session?.identifier, currentProfile?.identifier, session?.phonenumber, ""),
-    role: firstValue(session?.role, currentProfile?.role, "HV"),
-    handle: firstValue(session?.handle, currentProfile?.handle, ""),
-    height: firstValue(session?.height, currentProfile?.height, ""),
-    source,
-    demoMode: true,
-    profileSavedLocally: source !== ACTIVE_SOURCES.SERVER,
-  };
-}
-
 async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
   const attempts = isOwnProfile
-    ? [{ token: session.token }]
+    ? [{ token: session?.token || "" }]
     : [
-        { token: session.token, userId: targetUserId },
-        { token: session.token, user_id: targetUserId },
-        { token: session.token },
+        { token: session?.token || "", userId: targetUserId },
+        { token: session?.token || "", user_id: targetUserId },
+        { token: session?.token || "" },
       ];
 
   let lastError = null;
@@ -462,18 +344,11 @@ export async function getUserInfo(userId = "") {
   const targetUserId = String(userId || "");
   const isOwnProfile = !targetUserId || isSameUser(targetUserId, session?.id || session?.user_id || session?.identifier);
 
-  if (!shouldUseServer(session)) {
-    if (isOwnProfile) {
-      return localUser(session);
-    }
-
-    return fallbackUserById(targetUserId, ACTIVE_SOURCES.LOCAL);
-  }
-
   try {
     const response = await getUserInfoFromBackend(session, targetUserId, isOwnProfile);
 
-    const normalized = normalizeUser(extractObject(response), ACTIVE_SOURCES.SERVER, {
+    const responseSource = sourceFromResponse(response);
+    const normalized = normalizeUser(extractObject(response), responseSource, {
       session,
       isOwnProfile,
     });
@@ -502,7 +377,7 @@ export async function getUserInfo(userId = "") {
 
 async function getBackendCompatibilityPosts(session, params = {}) {
   const response = await backendApi.getListPosts({
-    token: session.token,
+    token: session?.token || "",
     index: String(params.index || 0),
     count: String(params.count || 100),
     last_id: params.lastId || params.last_id || "",
@@ -515,8 +390,9 @@ async function getBackendCompatibilityPosts(session, params = {}) {
     message: "Backend get_list_posts failed",
   });
 
+  const responseSource = sourceFromResponse(response);
   const items = extractList(response)
-    .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
+    .map((item) => normalizePost(item, responseSource))
     .filter((post) => post.id);
 
   return {
@@ -524,7 +400,7 @@ async function getBackendCompatibilityPosts(session, params = {}) {
     total: toNumber(response?.data?.total || response?.total, items.length),
     hasMore: Boolean(response?.data?.has_more || response?.has_more),
     lastId: String(response?.data?.last_id || response?.last_id || ""),
-    source: ACTIVE_SOURCES.SERVER,
+    source: responseSource,
   };
 }
 
@@ -552,7 +428,7 @@ async function resolveBackendProfileFromPosts(session, targetUserId) {
         avatar: firstPost.author?.avatar,
         role: firstPost.author?.role,
       },
-      ACTIVE_SOURCES.SERVER,
+      page.source || ACTIVE_SOURCES.SERVER,
       { session, isOwnProfile: false },
     ),
     postCount: matchedPosts.length,
@@ -568,17 +444,11 @@ export async function updateUserInfo(params = {}) {
     throw new Error(validationError);
   }
 
-  if (!shouldUseServer(session)) {
-    const updated = buildLocalProfileUpdate(session, params, userName, ACTIVE_SOURCES.LOCAL);
-    saveMockProfile(updated);
-    await saveAuthSession(updated);
-    return updated;
-  }
-
   try {
     const response = await setUserInfoWithCompatibility(session, params, userName);
 
-    const normalized = normalizeUser(extractObject(response), ACTIVE_SOURCES.SERVER, {
+    const responseSource = sourceFromResponse(response);
+    const normalized = normalizeUser(extractObject(response), responseSource, {
       session,
       isOwnProfile: true,
     });
@@ -590,7 +460,7 @@ export async function updateUserInfo(params = {}) {
       identifier: session.identifier || normalized.identifier || session.id || normalized.id || "",
       role: session.role || normalized.role || "HV",
       demoMode: session.demoMode || false,
-      source: ACTIVE_SOURCES.SERVER,
+      source: responseSource,
       username: userName || normalized.username || session?.username || "",
       displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
       avatar: normalized.avatar || (isLocalAssetUri(params.avatar) ? session?.avatar : params.avatar) || session?.avatar || "",
@@ -622,10 +492,6 @@ export async function getUserPosts(userId = "", paging = {}) {
   const session = await getCurrentSession();
   const targetUserId = String(userId || session?.id || session?.user_id || session?.identifier || "");
   const includeLocked = paging.includeLocked !== false;
-
-  if (!shouldUseServer(session)) {
-    return getLocalUserPosts(targetUserId, includeLocked, ACTIVE_SOURCES.LOCAL);
-  }
 
   const mapVisibleItems = (items = []) =>
     items.filter((post) => post.id && (includeLocked || post.canComment !== false));
@@ -661,7 +527,7 @@ export async function getUserPosts(userId = "", paging = {}) {
       total: matchedItems.length,
       hasMore: false,
       lastId: matchedItems[matchedItems.length - 1]?.id || "",
-      source: ACTIVE_SOURCES.SERVER,
+      source: compatibilityPage.source,
     };
   } catch (error) {
     console.info("[DATA] Server user posts failed", error.message);
@@ -679,14 +545,9 @@ export async function searchUserProfile(userId = "", keyword = "") {
     return [];
   }
 
-  if (!shouldUseServer(session)) {
-    const items = await localPosts.searchPosts(normalizedKeyword);
-    return targetUserId ? items.filter((post) => isSameUser(post.author?.id, targetUserId)) : items;
-  }
-
   try {
     const response = await backendApi.search({
-      token: session.token,
+      token: session?.token || "",
       keyword: normalizedKeyword,
       user_id: targetUserId,
       index: "0",
@@ -695,13 +556,12 @@ export async function searchUserProfile(userId = "", keyword = "") {
 
     await assertBackendOk(response, { allowNoData: true, message: "Backend search failed" });
 
-    const directItems = extractList(response)
-      .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
+    const responseSource = sourceFromResponse(response);
+    return extractList(response)
+      .map((item) => normalizePost(item, responseSource))
       .filter((post) => post.id);
-
-    return directItems;
   } catch (error) {
-    console.info("[DATA] Profile search fallback", error.message);
+    console.info("[DATA] Profile search unavailable", error.message);
     throwIfExpiredFromApiError(error);
     throw error;
   }

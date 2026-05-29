@@ -1,10 +1,10 @@
 import { backendApi } from "@/api/client";
-import { API_TYPE, API_TYPES } from "@/config/env";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import {
     ACTIVE_SOURCES,
     getCurrentSession,
+    sourceFromResponse,
 } from "@/repositories/source";
 
 function isNotificationSessionExpired(error) {
@@ -149,7 +149,7 @@ export function markNotificationReadLocal(notificationId) {
   return notificationCache;
 }
 
-function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
+function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER, index = 0) {
   const type = raw.type || raw.notification_type || "info";
   const objectId =
     raw.object_id ||
@@ -170,7 +170,7 @@ function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     );
   }
 
-  const id = buildNotificationId(raw, 0);
+  const id = buildNotificationId(raw, index);
 
   return {
     id,
@@ -211,7 +211,7 @@ function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
 
 function normalizeNotificationPage(response, source) {
   const items = extractList(response).map((item, index) =>
-    normalizeNotification(item, index, source),
+    normalizeNotification(item, source, index),
   );
   const data =
     response?.data && !Array.isArray(response.data) ? response.data : {};
@@ -240,9 +240,11 @@ export async function getNotifications() {
 }
 
 export async function getNotificationPage(params = {}) {
-  // Mock mode: allow last_update to simulate pull-to-refresh behavior
-  if (API_TYPE === API_TYPES.MOCK) {
+  const session = await getCurrentSession();
+
+  try {
     const response = await backendApi.getNotification({
+      token: session?.token || "",
       index: String(params.index || 0),
       count: String(params.count || 20),
       // last_update: params.lastUpdate || params.last_update || "",
@@ -250,37 +252,15 @@ export async function getNotificationPage(params = {}) {
 
     await assertBackendOk(response, {
       allowNoData: true,
-      message: "Mock notification failed",
-    });
-
-    const page = normalizeNotificationPage(response, ACTIVE_SOURCES.LOCAL);
-
-    return saveNotificationCache(page, {
-      append: Number(params.index || 0) > 0,
-    });
-  }
-
-  // Backend mode: do not send last_update, only token/index/count
-  const session = await getCurrentSession();
-
-  try {
-    const response = await backendApi.getNotification({
-      token: session.token,
-      index: String(params.index || 0),
-      count: String(params.count || 20),
-    });
-
-    await assertBackendOk(response, {
-      allowNoData: true,
       message: "Backend notification failed",
     });
 
-    const page = normalizeNotificationPage(response, ACTIVE_SOURCES.SERVER);
+    const page = normalizeNotificationPage(response, sourceFromResponse(response));
     return saveNotificationCache(page, {
       append: Number(params.index || 0) > 0,
     });
   } catch (error) {
-    console.info("[DATA] Server notification fallback", {
+    console.info("[DATA] Notification unavailable", {
       message: error?.message,
       status: error?.status,
       code: error?.code,
@@ -302,7 +282,7 @@ export async function markNotificationRead(notificationId) {
   const session = await getCurrentSession();
 
   const response = await backendApi.setReadNotification({
-    token: session?.token,
+    token: session?.token || "",
     notification_id: String(notificationId),
   });
 
@@ -311,6 +291,6 @@ export async function markNotificationRead(notificationId) {
   });
   return {
     read: true,
-    source: ACTIVE_SOURCES.SERVER,
+    source: sourceFromResponse(response),
   };
 }

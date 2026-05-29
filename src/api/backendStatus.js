@@ -1,12 +1,12 @@
-import { API_BASE_URL } from "@/config/env";
+import { API_BASE_URL, API_TYPE, API_TYPES } from "@/config/env";
 import { backendApi } from "@/api/client";
-import { getApiType, getDataSourceMode, hasServerSession, isMockMode } from "@/repositories/source";
+import { hasServerSession } from "@/repositories/source";
 
 export async function checkBackendStatus(session = null) {
-  const mode = getDataSourceMode();
-  const apiType = getApiType();
+  const mode = API_TYPE === API_TYPES.MOCK ? "local" : "server";
+  const apiType = API_TYPE;
 
-  if (isMockMode()) {
+  if (API_TYPE === API_TYPES.MOCK) {
     return {
       ok: true,
       baseUrl: API_BASE_URL,
@@ -69,9 +69,9 @@ export async function checkBackendStatus(session = null) {
       ok: false,
       baseUrl: API_BASE_URL,
       state: "unavailable",
-      mode: "local-fallback",
+      mode,
       apiType,
-      message: error.message || "Using local demo fallback",
+      message: error.message || "Backend unavailable",
     };
   }
 }

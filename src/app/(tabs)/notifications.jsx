@@ -1,6 +1,5 @@
 import NoInternetView from "@/components/common/NoInternetView";
 import SearchIcon from "@/components/icons/SearchIcon";
-import { API_TYPE, API_TYPES } from "@/config/env";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   getNotificationCache,
@@ -155,14 +154,14 @@ export default function NotificationsScreen() {
 
   const [items, setItems] = useState(initialCache.items);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [badge, setBadge] = useState(initialCache.unreadCount);
+  const [, setBadge] = useState(initialCache.unreadCount);
   const [hasMore, setHasMore] = useState(initialCache.hasMore);
   const [isLoading, setIsLoading] = useState(!initialCache.hasLoaded);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
-  const [lastUpdate, setLastUpdate] = useState(initialCache.lastUpdate);
+  const [, setLastUpdate] = useState(initialCache.lastUpdate);
 
   const visibleItems = useMemo(() => {
     if (activeFilter === "unread") {
@@ -197,13 +196,11 @@ export default function NotificationsScreen() {
       setHasMore(page.hasMore);
       setLastUpdate(page.lastUpdate);
     } catch (err) {
-      if (API_TYPE !== API_TYPES.MOCK) {
-        if (await handleNotificationAuthError(err)) {
-          setItems([]);
-          setBadge(0);
-          setHasMore(false);
-          return;
-        }
+      if (await handleNotificationAuthError(err)) {
+        setItems([]);
+        setBadge(0);
+        setHasMore(false);
+        return;
       }
 
       setError(err?.message || "Không tải được thông báo.");
@@ -211,7 +208,7 @@ export default function NotificationsScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [executeWithInternetCheck]);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || isLoading || isRefreshing || !hasMore) {
@@ -234,20 +231,25 @@ export default function NotificationsScreen() {
       setHasMore(page.hasMore);
       setLastUpdate(page.lastUpdate);
     } catch (err) {
-      if (API_TYPE !== API_TYPES.MOCK) {
-        if (await handleNotificationAuthError(err)) {
-          setItems([]);
-          setBadge(0);
-          setHasMore(false);
-          return;
-        }
+      if (await handleNotificationAuthError(err)) {
+        setItems([]);
+        setBadge(0);
+        setHasMore(false);
+        return;
       }
 
       setError(err?.message || "Không tải thêm được thông báo.");
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoading, isRefreshing, isLoadingMore, items.length]);
+  }, [
+    executeWithInternetCheck,
+    hasMore,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    items.length,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -296,10 +298,8 @@ export default function NotificationsScreen() {
         try {
           await markNotificationRead(notificationId);
         } catch (err) {
-          if (API_TYPE !== API_TYPES.MOCK) {
-            if (await handleNotificationAuthError(err)) {
-              return;
-            }
+          if (await handleNotificationAuthError(err)) {
+            return;
           }
 
           console.warn("Failed to mark notification read:", err);
@@ -342,7 +342,7 @@ export default function NotificationsScreen() {
         params: { id: postId },
       });
     },
-    [badge, items],
+    [],
   );
 
   if (isLoading && items.length === 0) {
