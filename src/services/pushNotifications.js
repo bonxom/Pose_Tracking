@@ -1,12 +1,12 @@
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import {
-    getNotificationPage,
-    setNotificationBadge,
+  getNotificationPage,
+  setNotificationBadge,
 } from "@/repositories/notificationRepository";
 import {
-    getPushSettings,
-    normalizePushSettings,
-    setDeviceToken,
+  getPushSettings,
+  normalizePushSettings,
+  setDeviceToken,
 } from "@/repositories/settingsRepository";
 import { getCurrentSession } from "@/repositories/source";
 import * as Device from "expo-device";
@@ -138,11 +138,21 @@ async function showLocalNotificationForNewItems(unreadCount) {
         screen: "notifications",
       },
     },
-    trigger: null,
+    trigger:
+      Platform.OS === "android"
+        ? {
+            seconds: 1,
+            channelId: getNotificationChannelId(currentSettings),
+          }
+        : null,
   });
 }
 
-export async function refreshNotificationBadge({ notifyIfNew = false } = {}) {
+export async function refreshNotificationBadge({
+  notifyIfNew = false,
+  getCurrentPath,
+  onNewInAppNotification,
+} = {}) {
   const page = await getNotificationPage({
     index: 0,
     count: 20,
@@ -153,11 +163,30 @@ export async function refreshNotificationBadge({ notifyIfNew = false } = {}) {
 
   setNotificationBadge(unreadCount);
 
+  const currentPath = String(getCurrentPath?.() || "");
+  const isInNotificationsScreen =
+    currentPath === "/notifications" ||
+    currentPath === "/(tabs)/notifications" ||
+    currentPath.endsWith("/notifications");
+
   if (
     notifyIfNew &&
     lastUnreadCount !== null &&
-    unreadCount > lastUnreadCount
+    unreadCount > lastUnreadCount &&
+    !isInNotificationsScreen
   ) {
+    console.log("NEW_IN_APP_NOTIFICATION", {
+      currentPath,
+      lastUnreadCount,
+      unreadCount,
+    });
+
+    onNewInAppNotification?.({
+      unreadCount,
+      previousUnreadCount: lastUnreadCount,
+      page,
+    });
+
     await showLocalNotificationForNewItems(unreadCount);
   }
 
@@ -166,35 +195,55 @@ export async function refreshNotificationBadge({ notifyIfNew = false } = {}) {
   return page;
 }
 
-export function startInAppNotificationRuntime({ onOpen } = {}) {
+export function startInAppNotificationRuntime({
+  onOpen,
+  getCurrentPath,
+  onNewInAppNotification,
+} = {}) {
   stopInAppNotificationRuntime();
 
   loadAndApplyPushSettings().catch((error) => {
     console.log("START_PUSH_SETTINGS_ERROR", error?.message);
   });
 
-  refreshNotificationBadge({ notifyIfNew: false }).catch((error) => {
+  refreshNotificationBadge({
+    notifyIfNew: false,
+    getCurrentPath,
+    onNewInAppNotification,
+  }).catch((error) => {
     console.log("LOAD_NOTIFICATION_BADGE_ERROR", error?.message);
   });
 
   pollingTimer = setInterval(() => {
     if (AppState.currentState !== "active") return;
 
-    refreshNotificationBadge({ notifyIfNew: true }).catch((error) => {
+    refreshNotificationBadge({
+      notifyIfNew: true,
+      getCurrentPath,
+      onNewInAppNotification,
+    }).catch((error) => {
       console.log("POLL_NOTIFICATION_ERROR", error?.message);
     });
   }, 30000);
 
   appStateSubscription = AppState.addEventListener("change", (state) => {
     if (state === "active") {
-      refreshNotificationBadge({ notifyIfNew: true }).catch((error) => {
+      refreshNotificationBadge({
+        notifyIfNew: true,
+        getCurrentPath,
+        onNewInAppNotification,
+      }).catch((error) => {
         console.log("RESUME_NOTIFICATION_ERROR", error?.message);
       });
     }
   });
 
   receivedSubscription = Notifications.addNotificationReceivedListener(() => {
-    refreshNotificationBadge({ notifyIfNew: false }).catch((error) => {
+    refreshNotificationBadge({
+      notifyIfNew: false,
+      getCurrentPath,
+      onNewInAppNotification,
+    }).catch((error) => {
       console.log("RECEIVE_PUSH_REFRESH_ERROR", error?.message);
     });
   });

@@ -9,15 +9,12 @@ import {
   getNotificationBadge,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
-import {
-  startInAppNotificationRuntime,
-  stopInAppNotificationRuntime,
-} from "@/services/pushNotifications";
+
 import { getInitials } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, Tabs, usePathname } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -85,6 +82,11 @@ function ProfileTabAvatar({ focused, avatar, name }) {
 
 export default function TabsLayout() {
   const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
   const isHome = pathname === "/home" || pathname === "/";
   const [session, setSession] = useState(null);
   const [notificationBadge, setTabNotificationBadge] = useState(
@@ -94,16 +96,8 @@ export default function TabsLayout() {
   useEffect(() => {
     const unsubscribeBadge = subscribeNotificationBadge(setTabNotificationBadge);
 
-    const stopRuntime = startInAppNotificationRuntime({
-      onOpen: () => {
-        router.push("/(tabs)/notifications");
-      },
-    });
-
     return () => {
       unsubscribeBadge?.();
-      stopRuntime?.();
-      stopInAppNotificationRuntime();
     };
   }, []);
 
