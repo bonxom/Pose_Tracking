@@ -1,7 +1,8 @@
 import UserAvatar from "@/components/common/UserAvatar";
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
-import { resolveAvatarUri } from "@/utils/profile";
+import { useAuthSession } from "@/hooks/useAuthSession";
+import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 // ─── Join Button ────────────────────────────────────────────────────────────
@@ -18,10 +19,26 @@ function joinButtonProps(item) {
 // ─── CourseCard ──────────────────────────────────────────────────────────────
 export default function CourseCard({ item, onJoin, flat = false }) {
   const { title: btnTitle, disabled: btnDisabled } = joinButtonProps(item);
-  const avatarUri = resolveAvatarUri(
-    item.avatar || "",
-    item.avatarVersion || item.profileSyncRequestedAt || "",
+  const { session: currentUser } = useAuthSession();
+
+  const authorId = String(item.course_id || "").trim();
+  const isOwnAuthorProfile = Boolean(
+    authorId && currentUser?.id && String(currentUser.id) === authorId,
   );
+
+  const handleOpenAuthorProfile = () => {
+    if (!authorId) return;
+
+    if (isOwnAuthorProfile) {
+      router.push("/(tabs)/profile");
+      return;
+    }
+
+    router.push({
+      pathname: "/profile/[userId]",
+      params: { userId: authorId },
+    });
+  };
 
   // Build video list from left_video / right_video (skip empty strings)
   const videos = [
@@ -42,7 +59,10 @@ export default function CourseCard({ item, onJoin, flat = false }) {
   ].filter(Boolean);
 
   return (
-    <View style={[localStyles.card, flat && localStyles.flatCard]}>
+    <Pressable
+      style={[localStyles.card, flat && localStyles.flatCard]}
+      onPress={handleOpenAuthorProfile}
+    >
       {/* ── Creator header ── */}
       <View style={localStyles.headerRow}>
         <UserAvatar uri={item.avatar} />
@@ -102,7 +122,7 @@ export default function CourseCard({ item, onJoin, flat = false }) {
           </Text>
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
