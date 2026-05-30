@@ -25,6 +25,8 @@ export function extractList(response) {
   const data = response?.data || response;
   if (Array.isArray(data?.post)) return data.post;
   if (Array.isArray(data?.posts)) return data.posts;
+  if (Array.isArray(data?.results)) return data.results;
+  if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.items)) return data.items;
   return toArray(data);
 }
@@ -165,7 +167,14 @@ function normalizeLiked(value) {
 }
 
 export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
-  const user = raw.author || raw.user || raw.poster || raw.owner || {};
+  const user =
+    raw.author ||
+    raw.user ||
+    raw.poster ||
+    raw.owner ||
+    raw.creator ||
+    raw.account ||
+    {};
   const rawVideos = extractList(
     raw.videos || raw.video || raw.video_url || raw.images || raw.media,
   );
@@ -213,24 +222,47 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
         firstValue(
           user.id,
           user.user_id,
+          user._id,
+          user.uuid,
+          user.identifier,
+          user.username,
+          user.user_name,
+          user.handle,
           raw.author_id,
           raw.user_id,
+          raw.owner_id,
+          raw.creator_id,
+          raw.author_name,
+          raw.username,
+          raw.user_name,
           "server_user",
         ),
       ),
       name: firstValue(
         user.name,
         user.username,
+        user.user_name,
+        user.fullname,
+        user.fullName,
         raw.author_name,
         raw.username,
+        raw.user_name,
         "Người dùng",
       ),
-      handle: firstValue(user.handle, raw.handle, ""),
+      handle: firstValue(
+        user.handle,
+        user.username,
+        user.user_name,
+        raw.handle,
+        "",
+      ),
       role,
       online: Boolean(firstValue(user.online, raw.online, false)),
       avatar: firstValue(
         user.avatar,
         user.avatar_url,
+        user.image,
+        user.picture,
         raw.author_avatar,
         raw.avatar,
         "",
@@ -272,7 +304,23 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     comments: [],
     raw,
     isValidForFeed: Boolean(
-      firstValue(user.id, user.user_id, raw.author_id, raw.user_id) &&
+      firstValue(
+        user.id,
+        user.user_id,
+        user._id,
+        user.uuid,
+        user.identifier,
+        user.username,
+        user.user_name,
+        user.handle,
+        raw.author_id,
+        raw.user_id,
+        raw.owner_id,
+        raw.creator_id,
+        raw.author_name,
+        raw.username,
+        raw.user_name,
+      ) &&
       (content || isValidMediaList(rawVideos)),
     ),
   };

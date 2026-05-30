@@ -245,7 +245,7 @@ export async function getNotificationPage(params = {}) {
     const response = await backendApi.getNotification({
       index: String(params.index || 0),
       count: String(params.count || 20),
-      last_update: params.lastUpdate || params.last_update || "",
+      // last_update: params.lastUpdate || params.last_update || "",
     });
 
     await assertBackendOk(response, {

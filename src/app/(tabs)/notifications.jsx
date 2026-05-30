@@ -1,4 +1,5 @@
 import NoInternetView from "@/components/common/NoInternetView";
+import SearchIcon from "@/components/icons/SearchIcon";
 import { API_TYPE, API_TYPES } from "@/config/env";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
@@ -355,7 +356,16 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Thông báo</Text>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.title}>Thông báo</Text>
+          <Pressable
+            onPress={() => router.push("/search")}
+            hitSlop={8}
+            style={styles.searchButton}
+          >
+            <SearchIcon size={24} />
+          </Pressable>
+        </View>
 
         <View style={styles.filterRow}>
           <Pressable

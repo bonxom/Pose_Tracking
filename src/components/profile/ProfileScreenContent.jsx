@@ -92,7 +92,11 @@ export default function ProfileScreenContent({ userId = "" }) {
             user.source === "local-fallback" ||
             postPage.source === "local-fallback";
 
-          if (isFallback && profileCache[userId] && profileCache[userId].posts?.length > 0) {
+          if (
+            isFallback &&
+            profileCache[userId] &&
+            profileCache[userId].posts?.length > 0
+          ) {
             // Throw a network error so useInternetFetch can catch it
             throw new Error("Không thể kết nối đến máy chủ");
           }
@@ -299,7 +303,6 @@ export default function ProfileScreenContent({ userId = "" }) {
               ? router.push("/profile/settings")
               : setMenuVisible(true)
           }
-          onMessage={() => router.push("/chat")}
         />
 
         <View style={profileStyles.fbBody}>

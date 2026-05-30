@@ -103,7 +103,6 @@ export default function ProfileHero({
   onOpenMenu,
   onOpenCoverMenu,
   onOpenAvatarMenu,
-  onMessage,
 }) {
   const displayName = profile.displayName || profile.username;
   const username =
@@ -149,10 +148,7 @@ export default function ProfileHero({
             {profile.description}
           </Text>
         ) : null}
-        <View style={[profileStyles.fbActionRow, isOwnProfile && profileStyles.fbOwnActionRow]}>
-          {!isOwnProfile ? (
-            <FbButton title="Nhắn tin" icon="chatbubble" variant="secondary" onPress={onMessage} />
-          ) : null}
+        <View style={[profileStyles.fbActionRow, profileStyles.fbOwnActionRow]}>
           <FbButton icon="ellipsis-horizontal" variant="icon" onPress={onOpenMenu} compact />
         </View>
         <ProfileDetails profile={profile} />

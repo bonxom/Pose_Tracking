@@ -22,7 +22,6 @@ import {
 } from "@/repositories/serverResponse";
 import {
   ACTIVE_SOURCES,
-  canFallbackToLocal,
   getCurrentSession,
   shouldUseServer,
 } from "@/repositories/source";
@@ -75,7 +74,10 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
     displayName: firstValue(raw.displayName, raw.fullname, raw.fullName, raw.name, username),
     avatar: normalizeMediaUrl(firstValue(raw.avatar, raw.avatar_url, raw.image, raw.picture, "")),
     coverImage: normalizeMediaUrl(firstValue(raw.cover_image, raw.coverImage, raw.cover_url, raw.background, "")),
-    description: String(firstValue(raw.description, raw.described, raw.bio, raw.about, "")).slice(0, 150),
+    description: normalizeOptionalText(
+      firstValue(raw.description, raw.described, raw.bio, raw.about, ""),
+      150,
+    ),
     address: firstValue(raw.address, raw.location, raw.province, raw.city, ""),
     city: firstValue(raw.city, raw.province, ""),
     country: firstValue(raw.country, ""),
@@ -147,6 +149,50 @@ function isSameUser(left, right) {
   return Boolean(left && right && String(left) === String(right));
 }
 
+function normalizeOptionalText(value = "", maxLength = 0) {
+  const normalized = String(value ?? "")
+    .replace(/^undefined$/i, "")
+    .replace(/^null$/i, "")
+    .trim();
+
+  return maxLength ? normalized.slice(0, maxLength) : normalized;
+}
+
+function normalizeComparable(value = "") {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function matchesUserIdentity(targetUserId = "", candidate = {}) {
+  const target = normalizeComparable(targetUserId);
+  if (!target) return false;
+
+  const candidateValues = [
+    candidate.id,
+    candidate.user_id,
+    candidate._id,
+    candidate.uuid,
+    candidate.identifier,
+    candidate.username,
+    candidate.user_name,
+    candidate.handle,
+    candidate.name,
+    candidate.fullname,
+    candidate.fullName,
+    candidate.displayName,
+    candidate.author?.id,
+    candidate.author?.handle,
+    candidate.author?.name,
+  ];
+
+  return candidateValues.some((value) => normalizeComparable(value) === target);
+}
+
 function getBackendErrorData(error) {
   return error?.data || null;
 }
@@ -164,6 +210,17 @@ function rejectsField(error, fieldName) {
 
 function hasOwnValue(object = {}, key) {
   return Object.prototype.hasOwnProperty.call(object, key) && object[key] !== undefined && object[key] !== null;
+}
+
+function shouldRetryGetUserInfoWithoutUserId(error) {
+  const message = getBackendErrorMessage(error).toLowerCase();
+  return (
+    message.includes("property userid should not exist") ||
+    rejectsField(error, "userId") ||
+    message.includes("property user_id should not exist") ||
+    rejectsField(error, "user_id") ||
+    error?.status === 400
+  );
 }
 
 function firstParamValue(params = {}, keys = [], fallback = "") {
@@ -214,17 +271,6 @@ function buildLocalProfileShape(session = {}, mockProfile = {}) {
     height: firstValue(session?.height, mockProfile?.height, ""),
     demoMode: true,
   };
-}
-
-function shouldFallbackProfileSave(error) {
-  if (error?.sessionExpired) return false;
-  if (canFallbackToLocal()) return true;
-
-  return (
-    error?.status === 0 ||
-    ["NETWORK_ERROR", "TIMEOUT"].includes(String(error?.code || "")) ||
-    /unreachable|timed out|network/i.test(String(error?.message || ""))
-  );
 }
 
 function throwIfExpiredFromApiError(error) {
@@ -289,7 +335,10 @@ function buildSetUserInfoPayload(session, params, userName, options = {}) {
 
   if (!options.minimal) {
     const descriptionKey = options.descriptionKey || "description";
-    payload[descriptionKey] = String(firstParamValue(params, ["description"], "")).slice(0, 150);
+    payload[descriptionKey] = normalizeOptionalText(
+      firstParamValue(params, ["description"], ""),
+      150,
+    );
   }
 
   return payload;
@@ -347,7 +396,10 @@ function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOUR
   const currentProfile = buildLocalProfileShape(session, resolveMockProfile(session));
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(params, ["coverImage", "cover_image"], session?.coverImage || "");
-  const description = String(firstParamValue(params, ["description"], session?.description || "")).slice(0, 150);
+  const description = normalizeOptionalText(
+    firstParamValue(params, ["description"], session?.description || ""),
+    150,
+  );
   const address = firstParamValue(params, ["address"], session?.address || "");
   const profileLink = firstParamValue(params, ["profileLink", "link"], session?.profileLink || "");
 
@@ -374,6 +426,37 @@ function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOUR
   };
 }
 
+async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
+  const attempts = isOwnProfile
+    ? [{ token: session.token }]
+    : [
+        { token: session.token, userId: targetUserId },
+        { token: session.token, user_id: targetUserId },
+        { token: session.token },
+      ];
+
+  let lastError = null;
+
+  for (let index = 0; index < attempts.length; index += 1) {
+    try {
+      const response = await backendApi.getUserInfo(attempts[index]);
+      await assertBackendOk(response, { message: "Backend get_user_info failed" });
+      return response;
+    } catch (error) {
+      throwIfExpiredFromApiError(error);
+      lastError = error;
+
+      const canRetry = !isOwnProfile && shouldRetryGetUserInfoWithoutUserId(error);
+
+      if (!canRetry) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error("Backend get_user_info failed");
+}
+
 export async function getUserInfo(userId = "") {
   const session = await getCurrentSession();
   const targetUserId = String(userId || "");
@@ -388,42 +471,92 @@ export async function getUserInfo(userId = "") {
   }
 
   try {
-    const basePayload = { token: session.token };
-    const response = await backendApi.getUserInfo(
-      isOwnProfile ? basePayload : { ...basePayload, user_id: targetUserId },
-    );
-
-    await assertBackendOk(response, { message: "Backend get_user_info failed" });
+    const response = await getUserInfoFromBackend(session, targetUserId, isOwnProfile);
 
     const normalized = normalizeUser(extractObject(response), ACTIVE_SOURCES.SERVER, {
       session,
       isOwnProfile,
     });
 
-    if (!isOwnProfile && !isSameUser(normalized.id, targetUserId)) {
-      return fallbackUserById(targetUserId);
+    if (!isOwnProfile && !matchesUserIdentity(targetUserId, normalized)) {
+      throw new Error("Backend trả về hồ sơ không khớp người dùng yêu cầu.");
     }
 
     return isOwnProfile && !normalized.description && session?.description
       ? { ...normalized, description: session.description }
       : normalized;
   } catch (error) {
-    console.info("[DATA] Server get_user_info fallback", error.message);
+    console.info("[DATA] Server get_user_info failed", error.message);
     throwIfExpiredFromApiError(error);
 
-    if (!error.sessionExpired) {
-      if (isOwnProfile) {
-        return normalizeUser(session || DEMO_STUDENT, ACTIVE_SOURCES.LOCAL_FALLBACK, {
-          session,
-          isOwnProfile: true,
-        });
+    if (!isOwnProfile) {
+      const fallbackProfile = await resolveBackendProfileFromPosts(session, targetUserId);
+      if (fallbackProfile) {
+        return fallbackProfile;
       }
-
-      return fallbackUserById(targetUserId);
     }
 
     throw error;
   }
+}
+
+async function getBackendCompatibilityPosts(session, params = {}) {
+  const response = await backendApi.getListPosts({
+    token: session.token,
+    index: String(params.index || 0),
+    count: String(params.count || 100),
+    last_id: params.lastId || params.last_id || "",
+    category_id: params.categoryId || params.category_id || "",
+    ...(params.user_id ? { user_id: params.user_id } : {}),
+  });
+
+  await assertBackendOk(response, {
+    allowNoData: true,
+    message: "Backend get_list_posts failed",
+  });
+
+  const items = extractList(response)
+    .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
+    .filter((post) => post.id);
+
+  return {
+    items,
+    total: toNumber(response?.data?.total || response?.total, items.length),
+    hasMore: Boolean(response?.data?.has_more || response?.has_more),
+    lastId: String(response?.data?.last_id || response?.last_id || ""),
+    source: ACTIVE_SOURCES.SERVER,
+  };
+}
+
+async function resolveBackendProfileFromPosts(session, targetUserId) {
+  const page = await getBackendCompatibilityPosts(session, {
+    index: 0,
+    count: 100,
+  });
+  const matchedPosts = page.items.filter((post) =>
+    matchesUserIdentity(targetUserId, post.author),
+  );
+  const firstPost = matchedPosts[0];
+
+  if (!firstPost) {
+    return null;
+  }
+
+  return {
+    ...normalizeUser(
+      {
+        id: firstPost.author?.id,
+        username: firstPost.author?.handle || firstPost.author?.name,
+        user_name: firstPost.author?.handle || firstPost.author?.name,
+        name: firstPost.author?.name,
+        avatar: firstPost.author?.avatar,
+        role: firstPost.author?.role,
+      },
+      ACTIVE_SOURCES.SERVER,
+      { session, isOwnProfile: false },
+    ),
+    postCount: matchedPosts.length,
+  };
 }
 
 export async function updateUserInfo(params = {}) {
@@ -470,7 +603,10 @@ export async function updateUserInfo(params = {}) {
         "",
       description:
         normalized.description ||
-        String(firstParamValue(params, ["description"], session?.description || "")).slice(0, 150),
+        normalizeOptionalText(
+          firstParamValue(params, ["description"], session?.description || ""),
+          150,
+        ),
       address: normalized.address || firstParamValue(params, ["address"], session?.address || ""),
       profileLink: normalized.profileLink || firstParamValue(params, ["profileLink", "link"], session?.profileLink || ""),
     };
@@ -478,15 +614,7 @@ export async function updateUserInfo(params = {}) {
     return updated;
   } catch (error) {
     const mappedError = mapForbiddenNameError(error);
-    if (mappedError !== error || error?.sessionExpired || !shouldFallbackProfileSave(error)) {
-      throw mappedError;
-    }
-
-    console.info("[DATA] Server set_user_info fallback", error.message);
-    const updated = buildLocalProfileUpdate(session, params, userName, ACTIVE_SOURCES.LOCAL_FALLBACK);
-    saveMockProfile(updated);
-    await saveAuthSession(updated);
-    return updated;
+    throw mappedError;
   }
 }
 
@@ -499,39 +627,45 @@ export async function getUserPosts(userId = "", paging = {}) {
     return getLocalUserPosts(targetUserId, includeLocked, ACTIVE_SOURCES.LOCAL);
   }
 
+  const mapVisibleItems = (items = []) =>
+    items.filter((post) => post.id && (includeLocked || post.canComment !== false));
+
   try {
-    const response = await backendApi.getListPosts({
-      token: session.token,
+    const directPage = await getBackendCompatibilityPosts(session, {
       user_id: targetUserId,
-      index: String(paging.index || 0),
-      count: String(paging.count || 20),
+      index: paging.index || 0,
+      count: paging.count || 20,
     });
 
-    await assertBackendOk(response, { allowNoData: true, message: "Backend get_list_posts failed" });
+    const directItems = mapVisibleItems(directPage.items || []);
+    if (directItems.length || !targetUserId) {
+      return {
+        ...directPage,
+        items: directItems,
+        total: directItems.length || directPage.total,
+      };
+    }
 
-    const items = extractList(response)
-      .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
-      .filter((post) => post.id && (includeLocked || post.canComment !== false));
+    const compatibilityPage = await getBackendCompatibilityPosts(session, {
+      index: 0,
+      count: Math.max(100, Number(paging.count || 20)),
+    });
+    const matchedItems = mapVisibleItems(
+      (compatibilityPage.items || []).filter((post) =>
+        matchesUserIdentity(targetUserId, post.author),
+      ),
+    );
 
     return {
-      items,
-      total: toNumber(response?.data?.total || response?.total, items.length),
-      hasMore: Boolean(response?.data?.has_more || response?.has_more),
-      lastId: String(response?.data?.last_id || response?.last_id || ""),
+      items: matchedItems,
+      total: matchedItems.length,
+      hasMore: false,
+      lastId: matchedItems[matchedItems.length - 1]?.id || "",
       source: ACTIVE_SOURCES.SERVER,
     };
   } catch (error) {
-    console.info("[DATA] Server user posts fallback", error.message);
+    console.info("[DATA] Server user posts failed", error.message);
     throwIfExpiredFromApiError(error);
-
-    if (!error.sessionExpired) {
-      return getLocalUserPosts(
-        targetUserId,
-        includeLocked,
-        ACTIVE_SOURCES.LOCAL_FALLBACK,
-      );
-    }
-
     throw error;
   }
 }
@@ -561,17 +695,14 @@ export async function searchUserProfile(userId = "", keyword = "") {
 
     await assertBackendOk(response, { allowNoData: true, message: "Backend search failed" });
 
-    return extractList(response)
+    const directItems = extractList(response)
       .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
       .filter((post) => post.id);
+
+    return directItems;
   } catch (error) {
     console.info("[DATA] Profile search fallback", error.message);
-
-    if (!error.sessionExpired && canFallbackToLocal()) {
-      const items = await localPosts.searchPosts(normalizedKeyword);
-      return targetUserId ? items.filter((post) => isSameUser(post.author?.id, targetUserId)) : items;
-    }
-
+    throwIfExpiredFromApiError(error);
     throw error;
   }
 }

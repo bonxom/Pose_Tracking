@@ -9,8 +9,13 @@ import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
-import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
+import {
+  formatRelativeTime,
+  getInitials,
+  isFreshPost,
+} from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
+import { router } from "expo-router";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -215,6 +220,12 @@ export default function PostCard({
   const isExercisePost = post.type === "exercise" || post.canSubmit;
   const canSubmitExercise = isExercisePost && currentRole === "HV";
   const isSubmissionPost = post.type === "submission";
+  const authorId = String(
+    post?.author?.id || post?.author?.handle || post?.author?.name || "",
+  ).trim();
+  const isOwnAuthorProfile = Boolean(
+    authorId && currentUser?.id && String(currentUser.id) === authorId,
+  );
   const likeCount = Number(post?.likeCount) || 0;
   const commentCount = Number(post?.commentCount) || 0;
   const likeSummaryText = post?.isLiked
@@ -253,6 +264,22 @@ export default function PostCard({
     });
   };
 
+  const handleOpenAuthorProfile = () => {
+    if (!authorId) return;
+
+    if (isOwnAuthorProfile) {
+      router.push("/(tabs)/profile");
+      return;
+    }
+
+    router.push({
+      pathname: "/profile/[userId]",
+      params: { userId: authorId },
+    });
+  };
+
+  const ContentContainer = onPress ? Pressable : View;
+
   return (
     <Animated.View
       style={[
@@ -266,21 +293,39 @@ export default function PostCard({
       pointerEvents={isDeleteAnimating ? "none" : "auto"}
     >
       <View style={postStyles.headerRow}>
-        <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
+        <Pressable
+          style={localStyles.authorPressable}
+          onPress={handleOpenAuthorProfile}
+          disabled={!authorId}
+        >
+          {post.author?.avatar ? (
+            <Image
+              source={{ uri: post.author.avatar }}
+              style={postStyles.avatar}
+            />
+          ) : (
+            <View style={postStyles.avatar}>
+              <Text style={postStyles.avatarText}>
+                {getInitials(post.author?.name || "Người dùng")}
+              </Text>
+            </View>
+          )}
 
-        <View style={postStyles.authorMetaGroup}>
-          <Text style={postStyles.authorName}>
-            {post.author?.name || "Người dùng"}
-          </Text>
-          <Text
-            style={[
-              postStyles.metaText,
-              metaIsFresh && postStyles.freshMetaText,
-            ]}
-          >
-            {formatRelativeTime(post.createdAt)} · <EarthIcon />
-          </Text>
-        </View>
+          <View style={localStyles.authorMeta}>
+            <Text style={postStyles.authorName}>
+              {post.author?.name || "Người dùng"}
+            </Text>
+            <Text
+              style={[
+                postStyles.metaText,
+                metaIsFresh && postStyles.freshMetaText,
+              ]}
+            >
+              {post.author?.handle || "@nguoidung"} ·{" "}
+              {formatRelativeTime(post.createdAt)} · <EarthIcon />
+            </Text>
+          </View>
+        </Pressable>
 
         <View style={postStyles.roleBadge}>
           <Text style={postStyles.roleBadgeText}>
@@ -297,69 +342,72 @@ export default function PostCard({
         </Pressable>
       </View>
 
-      {post.exerciseTitle ? (
-        <View style={postStyles.exerciseBanner}>
-          <Text style={postStyles.exerciseBannerTitle}>
-            {isExercisePost ? "Bài tập GV" : "Bài nộp HV"}
-          </Text>
-          <Text style={postStyles.exerciseBannerText}>
-            {post.exerciseTitle}
-          </Text>
-          {post.courseTitle ? (
-            <Text style={postStyles.exerciseBannerMeta}>
-              {post.courseTitle}
+      <ContentContainer onPress={onPress}>
+        {post.exerciseTitle ? (
+          <View style={postStyles.exerciseBanner}>
+            <Text style={postStyles.exerciseBannerTitle}>
+              {isExercisePost ? "Bài tập GV" : "Bài nộp HV"}
             </Text>
-          ) : null}
-        </View>
-      ) : null}
-
-      {shouldShowExpand ? (
-        <Pressable onPress={() => setIsExpanded((current) => !current)}>
-          <Text style={postStyles.bodyText}>
-            {isExpanded ? content : previewText}
-            {!isExpanded && (
-              <Text style={[postStyles.expandText, { color: colors.subtext }]}>
-                Xem thêm
+            <Text style={postStyles.exerciseBannerText}>
+              {post.exerciseTitle}
+            </Text>
+            {post.courseTitle ? (
+              <Text style={postStyles.exerciseBannerMeta}>
+                {post.courseTitle}
               </Text>
-            )}
-          </Text>
-        </Pressable>
-      ) : (
-        <Text style={postStyles.bodyText}>{content}</Text>
-      )}
+            ) : null}
+          </View>
+        ) : null}
 
-      {hashtags.length ? (
-        <View style={postStyles.hashtagRow}>
-          {hashtags.map((tag) => (
-            <Text key={tag} style={postStyles.hashtagText}>
-              {tag}
+        {shouldShowExpand ? (
+          <Pressable onPress={() => setIsExpanded((current) => !current)}>
+            <Text style={postStyles.bodyText}>
+              {isExpanded ? content : previewText}
+              {!isExpanded && (
+                <Text
+                  style={[postStyles.expandText, { color: colors.subtext }]}
+                >
+                  Xem thêm
+                </Text>
+              )}
             </Text>
-          ))}
-        </View>
-      ) : null}
+          </Pressable>
+        ) : (
+          <Text style={postStyles.bodyText}>{content}</Text>
+        )}
 
-      {post.videos?.length ? (
-        <View
-          style={[
-            localStyles.videoGrid,
-            flat && localStyles.videoGridFullBleed,
-          ]}
-        >
-          {post.videos.slice(0, 2).map((video, index) => (
-            <PostVideoTile
-              key={video.id || `${video.uri}_${index}`}
-              video={video}
-              index={index}
-              fallbackSource={
-                VIDEO_FALLBACK_SOURCES[index] ||
-                VIDEO_FALLBACK_SOURCES[VIDEO_FALLBACK_SOURCES.length - 1]
-              }
-            />
-          ))}
-        </View>
-      ) : null}
+        {hashtags.length ? (
+          <View style={postStyles.hashtagRow}>
+            {hashtags.map((tag) => (
+              <Text key={tag} style={postStyles.hashtagText}>
+                {tag}
+              </Text>
+            ))}
+          </View>
+        ) : null}
 
-      {/* {post.timeSeriesPoses ? (
+        {post.videos?.length ? (
+          <View
+            style={[
+              localStyles.videoGrid,
+              flat && localStyles.videoGridFullBleed,
+            ]}
+          >
+            {post.videos.slice(0, 2).map((video, index) => (
+              <PostVideoTile
+                key={video.id || `${video.uri}_${index}`}
+                video={video}
+                index={index}
+                fallbackSource={
+                  VIDEO_FALLBACK_SOURCES[index] ||
+                  VIDEO_FALLBACK_SOURCES[VIDEO_FALLBACK_SOURCES.length - 1]
+                }
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {/* {post.timeSeriesPoses ? (
         <View style={postStyles.exerciseBanner}>
           <Text style={postStyles.exerciseBannerTitle}>time_series_poses</Text>
           <Text style={postStyles.exerciseBannerMeta}>
@@ -368,21 +416,22 @@ export default function PostCard({
         </View>
       ) : null} */}
 
-      {isSubmissionPost && post.scoreSummary ? (
-        <View style={postStyles.scoreSummaryCard}>
-          <Text style={postStyles.scoreSummaryNumber}>
-            {post.scoreSummary.score}/100
-          </Text>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={postStyles.scoreSummaryTitle}>
-              {post.scoreSummary.label || "Đã chấm tự động"}
+        {isSubmissionPost && post.scoreSummary ? (
+          <View style={postStyles.scoreSummaryCard}>
+            <Text style={postStyles.scoreSummaryNumber}>
+              {post.scoreSummary.score}/100
             </Text>
-            <Text style={postStyles.scoreSummaryText}>
-              {post.scoreSummary.mistakes?.slice(0, 2).join("; ")}
-            </Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={postStyles.scoreSummaryTitle}>
+                {post.scoreSummary.label || "Đã chấm tự động"}
+              </Text>
+              <Text style={postStyles.scoreSummaryText}>
+                {post.scoreSummary.mistakes?.slice(0, 2).join("; ")}
+              </Text>
+            </View>
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </ContentContainer>
 
       <View style={postStyles.statsRow}>
         {likeCount > 0 && (
@@ -457,6 +506,16 @@ export default function PostCard({
 }
 
 const localStyles = StyleSheet.create({
+  authorPressable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  authorMeta: {
+    flex: 1,
+    gap: 4,
+  },
   flatCard: {
     borderRadius: 0,
     borderWidth: 0,

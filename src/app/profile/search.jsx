@@ -2,17 +2,18 @@ import BackIcon from "@/components/icons/BackIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import PostCard from "@/components/post/PostCard";
-import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
+import { toggleLike } from "@/repositories/postRepository";
+import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
 import { clearAuthSession } from "@/utils/session";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { memo, startTransition, useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,36 +21,69 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const SearchPostRow = memo(function SearchPostRow({
+  item,
+  onPressPost,
+  onToggleLike,
+  onPressComment,
+}) {
+  return (
+    <PostCard
+      post={item}
+      onPress={() => onPressPost(item)}
+      onToggleLike={() => onToggleLike(item)}
+      onPressComment={() => onPressComment(item)}
+    />
+  );
+});
+
 export default function ProfileSearchScreen() {
   const params = useLocalSearchParams();
   const userId = typeof params.userId === "string" ? params.userId : "";
+
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
 
-    getUserInfo(userId)
-      .then((user) => {
-        if (alive) setProfile(user);
-      })
-      .catch(() => {
-        if (alive) setProfile(null);
-      });
+      const loadProfile = async () => {
+        try {
+          setProfileLoading(true);
+          const user = await getUserInfo(userId);
+          if (alive) {
+            setProfile(user);
+          }
+        } catch {
+          if (alive) {
+            setProfile(null);
+          }
+        } finally {
+          if (alive) {
+            setProfileLoading(false);
+          }
+        }
+      };
 
-    return () => {
-      alive = false;
-    };
-  }, [userId]);
+      loadProfile();
 
-  const runSearch = async () => {
+      return () => {
+        alive = false;
+      };
+    }, [userId]),
+  );
+
+  const runSearch = useCallback(async () => {
     const normalizedKeyword = keyword.trim();
     if (!normalizedKeyword) {
       setResults([]);
+      setHasSearched(false);
       setError("Nhập từ khóa để tìm trong trang cá nhân.");
       return;
     }
@@ -59,7 +93,9 @@ export default function ProfileSearchScreen() {
     setHasSearched(true);
     try {
       const items = await searchUserProfile(userId, normalizedKeyword);
-      setResults(items);
+      startTransition(() => {
+        setResults(items);
+      });
     } catch (searchError) {
       if (searchError.sessionExpired) {
         await clearAuthSession();
@@ -70,9 +106,49 @@ export default function ProfileSearchScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [keyword, userId]);
 
-  const displayName = profile?.displayName || profile?.username || "hồ sơ này";
+  const handleClearKeyword = useCallback(() => {
+    setKeyword("");
+    setResults([]);
+    setHasSearched(false);
+    setError("");
+  }, []);
+
+  const handleToggleLike = useCallback(async (post) => {
+    try {
+      const updated = await toggleLike(post);
+      setResults((current) =>
+        current.map((item) => (item.id === post.id ? updated : item)),
+      );
+    } catch (likeError) {
+      setError(likeError.message || "Không thể thích bài viết.");
+    }
+  }, []);
+
+  const handlePressPost = useCallback((post) => {
+    router.push(`/post/${post.id}`);
+  }, []);
+
+  const handlePressComment = useCallback((post) => {
+    router.push(`/post/comment/${post.id}`);
+  }, []);
+
+  const renderPostItem = useCallback(
+    ({ item }) => (
+      <SearchPostRow
+        item={item}
+        onPressPost={handlePressPost}
+        onToggleLike={handleToggleLike}
+        onPressComment={handlePressComment}
+      />
+    ),
+    [handlePressComment, handlePressPost, handleToggleLike],
+  );
+
+  const keyExtractor = useCallback((item) => item.id, []);
+  const displayName =
+    profile?.displayName || profile?.username || "trang cá nhân này";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -81,61 +157,66 @@ export default function ProfileSearchScreen() {
           <BackIcon size={22} color={colors.text} />
         </Pressable>
         <View style={styles.inputWrap}>
-          <SearchIcon size={20} color={colors.subtext} />
+          <SearchIcon size={18} color={colors.subtext} />
           <TextInput
             value={keyword}
             onChangeText={setKeyword}
-            placeholder="Tìm kiếm trong bài viết, ảnh và th..."
+            placeholder="Tìm kiếm"
             placeholderTextColor={colors.placeholder}
             style={styles.input}
             returnKeyType="search"
             onSubmitEditing={runSearch}
             autoFocus
           />
+          {keyword ? (
+            <Pressable style={styles.clearButton} onPress={handleClearKeyword}>
+              <ProfileIcon name="close" size={18} color={colors.subtext} />
+            </Pressable>
+          ) : null}
         </View>
-        <Pressable style={styles.searchSubmit} onPress={runSearch} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator size="small" color={colors.white} />
-          ) : (
-            <ProfileIcon name="search" size={19} color={colors.white} />
-          )}
-        </Pressable>
       </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {loading ? (
+      {loading && !results.length ? (
+        <View style={styles.centerState}>
           <ActivityIndicator color={colors.brand} />
-        ) : results.length ? (
-          results.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onPress={() => router.push(`/post/${post.id}`)}
-              onPressComment={() => router.push(`/post/comment/${post.id}`)}
-            />
-          ))
-        ) : (
-          <View style={styles.emptyIntro}>
-            <View style={styles.avatar}>
-              {profile?.avatar ? (
-                <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
-              ) : (
-                <Text style={styles.avatarText}>
-                  {String(displayName).trim()[0]?.toUpperCase() || "U"}
+        </View>
+      ) : (
+        <FlatList
+          data={results}
+          keyExtractor={keyExtractor}
+          renderItem={renderPostItem}
+          ListEmptyComponent={
+            profileLoading ? (
+              <View style={styles.centerState}>
+                <ActivityIndicator color={colors.brand} />
+              </View>
+            ) : (
+              <View style={styles.emptyIntro}>
+                <View style={styles.avatar}>
+                  {profile?.avatar ? (
+                    <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarText}>
+                      {String(displayName).trim()[0]?.toUpperCase() || "U"}
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.emptyTitle}>
+                  {hasSearched ? "Không tìm thấy kết quả" : "Bạn đang tìm gì à?"}
                 </Text>
-              )}
-            </View>
-            <Text style={styles.emptyTitle}>
-              {hasSearched ? "Không tìm thấy kết quả" : "Bạn đang tìm gì à?"}
-            </Text>
-            <Text style={styles.emptyText}>
-              Tìm kiếm trên trang cá nhân của {displayName} để xem bài viết, ảnh và các hoạt động hiển thị khác.
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+                <Text style={styles.emptyText}>
+                  Tìm kiếm trên trang cá nhân của {displayName} để xem bài viết,
+                  ảnh và các hoạt động hiển thị khác.
+                </Text>
+              </View>
+            )
+          }
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -146,7 +227,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.page,
   },
   header: {
-    minHeight: 54,
+    minHeight: 56,
     paddingHorizontal: sizes.sm,
     flexDirection: "row",
     alignItems: "center",
@@ -156,34 +237,33 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderStrong,
   },
   iconButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   inputWrap: {
     flex: 1,
-    minHeight: 34,
-    borderRadius: 17,
-    paddingHorizontal: sizes.sm,
+    minHeight: 40,
+    borderRadius: 20,
+    paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
-    gap: sizes.xs,
-    backgroundColor: colors.page,
+    gap: 8,
+    backgroundColor: "#EFF2F5",
+    position: "relative",
   },
   input: {
     flex: 1,
     fontSize: 15,
     color: colors.text,
+    paddingRight: 24,
   },
-  searchSubmit: {
-    width: 38,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.brand,
+  clearButton: {
+    position: "absolute",
+    right: 12,
+    top: 11,
   },
   errorText: {
     paddingHorizontal: sizes.md,
@@ -195,13 +275,19 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: sizes.md,
-    paddingTop: 52,
+    paddingTop: hasTopPadding(),
     paddingBottom: sizes.xl,
     gap: sizes.md,
+  },
+  centerState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   emptyIntro: {
     alignItems: "center",
     paddingHorizontal: sizes.lg,
+    paddingTop: 48,
   },
   avatar: {
     width: 74,
@@ -230,10 +316,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   emptyText: {
-    marginTop: 2,
+    marginTop: 4,
     fontSize: 13,
     lineHeight: 18,
     color: colors.ink,
     textAlign: "center",
   },
 });
+
+function hasTopPadding() {
+  return 40;
+}

@@ -40,6 +40,23 @@ export default StyleSheet.create({
     marginBottom: 12,
   },
 
+  headerTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+
+  searchButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0F2F5",
+    marginBottom: 12,
+  },
+
   filterRow: {
     flexDirection: "row",
     alignItems: "center",
