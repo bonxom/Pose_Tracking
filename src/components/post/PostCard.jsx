@@ -9,11 +9,7 @@ import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
-import {
-  formatRelativeTime,
-  getInitials,
-  isFreshPost,
-} from "@/utils/formatters";
+import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { getAuthSession } from "@/utils/session";
 import { router } from "expo-router";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -32,7 +28,7 @@ import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
 const DEFAULT_AVATAR_URL =
-  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5FBH-i9W2GYVsE4y3QPE9QT1JRImQD9QkPg&s";
+  "https://sloganhay.com/wp-content/uploads/2026/03/avatar-mac-dinh-facebook-10.jpg";
 const VIDEO_FALLBACK_SOURCES = [
   require("../../../assets/cam1.mp4"),
   require("../../../assets/cam2.mp4"),
@@ -217,7 +213,7 @@ export default function PostCard({
   }, [content, detail, isExpanded]);
 
   const metaIsFresh = isFreshPost(post.createdAt, post.author?.online);
-  const isExercisePost = post.type === "exercise" || post.canSubmit;
+  const isExercisePost = post.author.role === "GV" || post.canSubmit;
   const canSubmitExercise = isExercisePost && currentRole === "HV";
   const isSubmissionPost = post.type === "submission";
   const authorId = String(
@@ -298,20 +294,9 @@ export default function PostCard({
           onPress={handleOpenAuthorProfile}
           disabled={!authorId}
         >
-          {post.author?.avatar ? (
-            <Image
-              source={{ uri: post.author.avatar }}
-              style={postStyles.avatar}
-            />
-          ) : (
-            <View style={postStyles.avatar}>
-              <Text style={postStyles.avatarText}>
-                {getInitials(post.author?.name || "Người dùng")}
-              </Text>
-            </View>
-          )}
+          <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
 
-          <View style={localStyles.authorMeta}>
+          <View style={postStyles.authorMetaGroup}>
             <Text style={postStyles.authorName}>
               {post.author?.name || "Người dùng"}
             </Text>
@@ -511,10 +496,6 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-  },
-  authorMeta: {
-    flex: 1,
-    gap: 4,
   },
   flatCard: {
     borderRadius: 0,
