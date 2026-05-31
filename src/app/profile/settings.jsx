@@ -33,7 +33,7 @@ function HeaderAvatar({ profile }) {
         </View>
       )}
       <View style={styles.headerAvatarBadge}>
-        <ProfileIcon name="chevron-down" size={12} color={colors.ink} />
+        <ProfileIcon name="chevron-down" size={10} color={colors.ink} />
       </View>
     </View>
   );
@@ -43,7 +43,7 @@ function SettingsRow({ icon, label, onPress }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <View style={styles.rowIcon}>
-        <ProfileIcon name={icon} size={30} color={colors.ink} />
+        <ProfileIcon name={icon} size={22} color={colors.ink} />
       </View>
       <Text style={styles.rowText}>{label}</Text>
     </Pressable>
@@ -113,7 +113,7 @@ export default function ProfileSettingsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <BackIcon size={28} color={colors.ink} />
+          <BackIcon size={24} color={colors.ink} />
         </Pressable>
         <Text style={styles.headerTitle}>Cài đặt trang cá nhân</Text>
         <HeaderAvatar profile={profile} />
@@ -168,9 +168,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: "center",
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: "900",
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "800",
     color: colors.ink,
   },
   headerAvatarWrap: {
@@ -227,14 +227,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderMuted,
   },
   rowIcon: {
-    width: 50,
+    width: 40,
     alignItems: "flex-start",
     justifyContent: "center",
   },
   rowText: {
     flex: 1,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 16,
+    lineHeight: 22,
     color: colors.ink,
   },
   linkSection: {
@@ -245,15 +245,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   linkTitle: {
-    fontSize: 25,
-    lineHeight: 31,
-    fontWeight: "900",
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "800",
     color: colors.ink,
   },
   linkSubtitle: {
     marginTop: sizes.xs,
-    fontSize: 21,
-    lineHeight: 27,
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.inkMuted,
   },
   divider: {
@@ -263,9 +263,9 @@ const styles = StyleSheet.create({
   },
   linkValue: {
     marginTop: sizes.lg,
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: "900",
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
     color: colors.ink,
   },
   shareButton: {
