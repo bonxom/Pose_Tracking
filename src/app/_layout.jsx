@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import "../../global.css";
+
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
