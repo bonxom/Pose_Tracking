@@ -101,15 +101,9 @@ export default function ProfileScreenContent({ userId = "" }) {
             throw new Error("Không thể kết nối đến máy chủ");
           }
 
-          // Lazy-load update: only re-render if data actually changed
-          setProfile((prev) => {
-            const changed =
-              !prev ||
-              prev.id !== nextProfile.id ||
-              prev.displayName !== nextProfile.displayName ||
-              prev.avatar !== nextProfile.avatar;
-            return changed ? nextProfile : prev;
-          });
+          // Always update profile after a successful fetch so bio/cover/name
+          // changes appear immediately when returning from edit screen.
+          setProfile(nextProfile);
           setPosts((prev) => {
             const prevIds = prev.map((p) => p.id).join(",");
             const nextIds = nextPosts.map((p) => p.id).join(",");

@@ -392,6 +392,8 @@ export const backendApi = {
       ? Promise.resolve(buildMockGetUserInfoResponse(params))
       : post("/get_user_info", params),
   setUserInfo: (params) => post("/set_user_info", params),
+  setUserInfoMultipart: (fields, files = []) =>
+    postMultipart("/set_user_info", fields, files),
   getListBlocks: (params) => post("/get_list_blocks", params),
   setBlock: (params) => post("/set_block", params),
   setApproveEnrollment: (params) => post("/set_approve_enrollment", params),

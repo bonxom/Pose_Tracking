@@ -25,10 +25,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-function isLocalAssetUri(value = "") {
-  return /^(file|content|asset-library|ph):\/\//i.test(String(value || ""));
-}
-
 function initials(name = "") {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
@@ -146,12 +142,12 @@ export default function ProfileEditScreen() {
         } else {
           setCoverImage(uri);
         }
-        setStatus("Ảnh đã chọn đang được preview local. Backend cần URL ảnh hoặc API upload để lưu thật.");
+        setStatus("Ảnh đã được chọn. Nhấn \"Lưu thay đổi\" để upload file lên server.");
       }
     } catch {
       Alert.alert(
         "Không thể chọn ảnh",
-        "Cơ chế chọn ảnh bị lỗi. Upload thật cần backend nhận file hoặc URL ảnh.",
+        "Cơ chế chọn ảnh bị lỗi. Vui lòng thử lại.",
       );
     }
   };
@@ -167,20 +163,12 @@ export default function ProfileEditScreen() {
     setStatus("");
     setUsernameError("");
     try {
-      const hasLocalImage = isLocalAssetUri(avatar) || isLocalAssetUri(coverImage);
       await updateUserInfo({
         userName: username.trim(),
         avatar,
         coverImage,
         description: description.trim().slice(0, 150),
       });
-
-      if (hasLocalImage) {
-        Alert.alert(
-          "Ảnh chưa upload lên server",
-          "set_user_info chỉ nhận avatar/coverImage dạng URL. Ảnh chọn từ máy là URI local nên app giữ ảnh cũ trên server.",
-        );
-      }
       router.replace("/(tabs)/profile");
     } catch (error) {
       if (error.sessionExpired) {
@@ -244,33 +232,6 @@ export default function ProfileEditScreen() {
                 multiline
                 containerStyle={styles.inputGroup}
                 style={[styles.input, styles.multilineInput]}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <SectionHeader title="Liên kết ảnh" />
-              <Text style={styles.sectionHint}>
-                Dùng URL ảnh đã upload để backend lưu avatar và ảnh bìa ổn định.
-              </Text>
-              <AppInput
-                label="avatar URL"
-                value={isLocalAssetUri(avatar) ? "" : avatar}
-                onChangeText={setAvatar}
-                placeholder="https://..."
-                autoCapitalize="none"
-                keyboardType="url"
-                containerStyle={styles.inputGroup}
-                style={styles.input}
-              />
-              <AppInput
-                label="coverImage URL"
-                value={isLocalAssetUri(coverImage) ? "" : coverImage}
-                onChangeText={setCoverImage}
-                placeholder="https://..."
-                autoCapitalize="none"
-                keyboardType="url"
-                containerStyle={styles.inputGroup}
-                style={styles.input}
               />
             </View>
 
@@ -360,13 +321,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "800",
     color: colors.brand,
-  },
-  sectionHint: {
-    marginTop: sizes.xs,
-    marginBottom: sizes.sm,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.inkMuted,
   },
   avatarPreviewWrap: {
     alignSelf: "center",

@@ -320,28 +320,81 @@ function normalizeMediaUrl(value = "") {
   }
 }
 
-function buildSetUserInfoPayload(session, params, userName, options = {}) {
+function guessImageMimeType(uri = "") {
+  const clean = String(uri || "").split("?")[0].toLowerCase();
+
+  if (clean.endsWith(".png")) return "image/png";
+  if (clean.endsWith(".webp")) return "image/webp";
+  if (clean.endsWith(".gif")) return "image/gif";
+  if (clean.endsWith(".heic")) return "image/heic";
+  if (clean.endsWith(".heif")) return "image/heif";
+  if (clean.endsWith(".jpg") || clean.endsWith(".jpeg")) return "image/jpeg";
+
+  return "image/jpeg";
+}
+
+function buildImageFilePayload(uri = "", fieldName = "image") {
+  const cleanUri = String(uri || "").trim();
+  if (!cleanUri) return null;
+
+  const extByMime = {
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/jpeg": "jpg",
+  };
+  const mimeType = guessImageMimeType(cleanUri);
+  const uriWithoutQuery = cleanUri.split("?")[0];
+  const lastSegment = uriWithoutQuery.split("/").pop() || "";
+  const hasExt = /\.[a-z0-9]+$/i.test(lastSegment);
+  const extension = extByMime[mimeType] || "jpg";
+  const fileName = hasExt ? lastSegment : `${fieldName}-${Date.now()}.${extension}`;
+
+  return {
+    fieldName,
+    uri: cleanUri,
+    name: fileName,
+    mimeType,
+  };
+}
+
+function buildSetUserInfoRequest(session, params, userName, options = {}) {
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(params, ["coverImage", "cover_image"], session?.coverImage || "");
   const usernameKey = options.usernameKey || "username";
   const coverImageKey = options.coverImageKey || "coverImage";
-  const payload = {
+  const fields = {
     token: session.token,
-    avatar: isLocalAssetUri(avatar) ? session?.avatar || "" : avatar,
   };
+  const files = [];
 
-  payload[usernameKey] = userName;
-  payload[coverImageKey] = isLocalAssetUri(coverImage) ? session?.coverImage || "" : coverImage;
+  fields[usernameKey] = userName;
+
+  if (isLocalAssetUri(avatar)) {
+    const avatarFile = buildImageFilePayload(avatar, "avatar");
+    if (avatarFile) files.push(avatarFile);
+  } else {
+    fields.avatar = avatar;
+  }
+
+  if (isLocalAssetUri(coverImage)) {
+    const coverFile = buildImageFilePayload(coverImage, coverImageKey);
+    if (coverFile) files.push(coverFile);
+  } else {
+    fields[coverImageKey] = coverImage;
+  }
 
   if (!options.minimal) {
     const descriptionKey = options.descriptionKey || "description";
-    payload[descriptionKey] = normalizeOptionalText(
+    fields[descriptionKey] = normalizeOptionalText(
       firstParamValue(params, ["description"], ""),
       150,
     );
   }
 
-  return payload;
+  return { fields, files };
 }
 
 async function setUserInfoWithCompatibility(session, params, userName) {
@@ -364,8 +417,10 @@ async function setUserInfoWithCompatibility(session, params, userName) {
 
   for (const options of attempts) {
     try {
-      const response = await backendApi.setUserInfo(
-        buildSetUserInfoPayload(session, params, userName, options),
+      const request = buildSetUserInfoRequest(session, params, userName, options);
+      const response = await backendApi.setUserInfoMultipart(
+        request.fields,
+        request.files,
       );
       await assertBackendOk(response, { message: "Backend set_user_info failed" });
       return response;
@@ -376,6 +431,7 @@ async function setUserInfoWithCompatibility(session, params, userName) {
       const canRetry =
         rejectsField(error, "username") ||
         rejectsField(error, "user_name") ||
+        rejectsField(error, "avatar") ||
         rejectsField(error, "coverImage") ||
         rejectsField(error, "cover_image") ||
         rejectsField(error, "description") ||
@@ -593,12 +649,11 @@ export async function updateUserInfo(params = {}) {
       source: ACTIVE_SOURCES.SERVER,
       username: userName || normalized.username || session?.username || "",
       displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
-      avatar: normalized.avatar || (isLocalAssetUri(params.avatar) ? session?.avatar : params.avatar) || session?.avatar || "",
+      avatar: normalized.avatar || params.avatar || session?.avatar || "",
       coverImage:
         normalized.coverImage ||
-        (isLocalAssetUri(params.coverImage || params.cover_image)
-          ? session?.coverImage
-          : params.coverImage || params.cover_image) ||
+        params.coverImage ||
+        params.cover_image ||
         session?.coverImage ||
         "",
       description:
