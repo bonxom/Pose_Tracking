@@ -164,7 +164,7 @@ export default function TabsLayout() {
             height: 56,
             paddingTop: 4,
             paddingBottom: 4,
-            backgroundColor: "#FFFFFF",
+            backgroundColor: colors.background,
             borderTopWidth: 0,
             borderBottomWidth: 1,
             borderBottomColor: "#E4E6EB",
@@ -178,7 +178,7 @@ export default function TabsLayout() {
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => (
-              <HomeIcon focused={focused} size={24} />
+              <HomeIcon focused={focused} size={28} />
             ),
           }}
         />
@@ -186,7 +186,7 @@ export default function TabsLayout() {
           name="courses"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <CoursesIcon focused={focused} />,
+            tabBarIcon: ({ focused }) => <CoursesIcon focused={focused} size={28} />,
           }}
         />
         <Tabs.Screen
@@ -195,7 +195,7 @@ export default function TabsLayout() {
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => (
               <IconWithBadge
-                icon={<BellIcon focused={focused} />}
+                icon={<BellIcon focused={focused} size={28} />}
                 badge={notificationBadge}
               />
             ),
@@ -230,7 +230,7 @@ export default function TabsLayout() {
           name="menu"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <MenuIcon focused={focused} si />,
+            tabBarIcon: ({ focused }) => <MenuIcon focused={focused} size={28} />,
           }}
         />
       </Tabs>

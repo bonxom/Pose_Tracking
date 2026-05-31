@@ -60,11 +60,6 @@ const conversationStyles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
   },
-  avatarUnread: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
   contentWrapper: {
     flex: 1,
     flexDirection: "row",
@@ -107,7 +102,7 @@ const conversationStyles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.blue || "#0865fe",
+    backgroundColor: colors.blue,
   },
   readStatusAvatar: {
     width: 16,

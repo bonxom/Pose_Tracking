@@ -185,7 +185,7 @@ export default function ConversationsScreen() {
         <View style={conversationStyles.avatarWrapper}>
           <Image
             source={{ uri: partnerAvatarUri }}
-            style={isUnread ? conversationStyles.avatarUnread : conversationStyles.avatarNormal}
+            style={conversationStyles.avatarNormal}
           />
         </View>
         <View style={conversationStyles.contentWrapper}>
@@ -206,13 +206,9 @@ export default function ConversationsScreen() {
               <Text style={conversationStyles.timeText}> · {formattedTime}</Text>
             </View>
           </View>
-          <View style={conversationStyles.statusContainer}>
-            {isUnread ? (
-              <View style={conversationStyles.unreadDot} />
-            ) : (
-              <Image source={{ uri: partnerAvatarUri }} style={conversationStyles.readStatusAvatar} />
-            )}
-          </View>
+          {isUnread && (
+            <View style={conversationStyles.unreadDot} />
+          )}
         </View>
       </Pressable>
     );
