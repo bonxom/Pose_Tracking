@@ -1,14 +1,10 @@
+import authApi from "@/api/auth";
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { DEMO_STUDENT, DEMO_TEACHER } from "@/constants/demo";
 import { MOCK_USERS } from "@/constants/mocks/users";
 import { normalizeSession } from "@/repositories/normalizers";
-import {
-  ACTIVE_SOURCES,
-  canFallbackToLocal,
-  getDataSourceMode,
-  shouldUseServer,
-} from "@/repositories/source";
+import { ACTIVE_SOURCES, shouldUseServer } from "@/repositories/source";
 
 function normalizeLocalSession(user) {
   return {
@@ -49,25 +45,15 @@ function localLogin(phonenumber, password) {
   };
 }
 
-function isKnownMockCredential(phonenumber, password) {
-  return MOCK_USERS.some(
-    (item) => item.phonenumber === phonenumber && item.password === password,
-  );
-}
-
 export async function loginWithPassword(phonenumber, password) {
-  const normalizedPhone = phonenumber?.trim();
-  const normalizedPassword = password?.trim();
-  const mode = getDataSourceMode();
-
   try {
-    const response = await backendApi.login({
-      phonenumber: normalizedPhone,
-      password: normalizedPassword,
+    const response = await authApi.login({
+      phonenumber,
+      password,
       devtoken: DEFAULT_DEVICE_TOKEN,
     });
 
-    if (response?.code === "1000" || response?.code === 1000) {
+    if (response.code === "1000") {
       const session = normalizeSession(response);
       if (!session.token) {
         throw new Error("Backend login response did not include token");
@@ -81,33 +67,13 @@ export async function loginWithPassword(phonenumber, password) {
       };
     }
 
-    if (options.allowLocalFallback && canFallbackToLocal()) {
-      console.info(
-        "[DATA] Backend login failed, using explicit local demo fallback",
-        response,
-      );
-      return localLogin(normalizedPhone, normalizedPassword);
-    }
-
     return {
       code: String(response?.code || "BACKEND_LOGIN_FAILED"),
-      message:
-        response?.message ||
-        (mode === "server"
-          ? "Backend login failed"
-          : "Backend login failed. Use a demo shortcut for local mode."),
+      message: response?.message || "login failed",
       data: null,
       source: ACTIVE_SOURCES.SERVER,
     };
   } catch (error) {
-    if (options.allowLocalFallback && canFallbackToLocal()) {
-      console.info(
-        "[DATA] Backend unavailable, using explicit local demo fallback",
-        error.message,
-      );
-      return localLogin(normalizedPhone, normalizedPassword);
-    }
-
     return {
       code: "NETWORK_ERROR",
       message: error.message || "Backend unavailable",

@@ -6,7 +6,6 @@ import {
   resolveMockProfile,
   saveMockProfile,
 } from "@/constants/mocks/profiles";
-import * as localPosts from "@/services/postStore";
 import {
   extractList,
   extractObject,
@@ -25,13 +24,24 @@ import {
   getCurrentSession,
   shouldUseServer,
 } from "@/repositories/source";
+import * as localPosts from "@/services/postStore";
 import { saveAuthSession } from "@/utils/session";
 
-export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options = {}) {
+export function normalizeUser(
+  raw = {},
+  source = ACTIVE_SOURCES.SERVER,
+  options = {},
+) {
   const sessionLike = normalizeSession({ data: raw });
   const session = options.session || {};
   const isOwnProfile = Boolean(options.isOwnProfile);
-  const id = firstValue(raw.id, raw.user_id, raw._id, raw.uuid, isOwnProfile && session.id);
+  const id = firstValue(
+    raw.id,
+    raw.user_id,
+    raw._id,
+    raw.uuid,
+    isOwnProfile && session.id,
+  );
   const username = firstValue(
     raw.user_name,
     raw.username,
@@ -55,15 +65,17 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
 
   const isBlocked = Boolean(
     raw.blocked ||
-      raw.is_blocked ||
-      raw.isBlocked ||
-      raw.banned ||
-      raw.is_banned ||
-      raw.locked ||
-      raw.is_locked,
+    raw.is_blocked ||
+    raw.isBlocked ||
+    raw.banned ||
+    raw.is_banned ||
+    raw.locked ||
+    raw.is_locked,
   );
 
-  const normalizedOnline = String(firstValue(raw.online, raw.is_online, "0")).toLowerCase();
+  const normalizedOnline = String(
+    firstValue(raw.online, raw.is_online, "0"),
+  ).toLowerCase();
 
   return {
     ...sessionLike,
@@ -71,9 +83,25 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
     token: sessionLike.token || session.token || "",
     source,
     username,
-    displayName: firstValue(raw.displayName, raw.fullname, raw.fullName, raw.name, username),
-    avatar: normalizeMediaUrl(firstValue(raw.avatar, raw.avatar_url, raw.image, raw.picture, "")),
-    coverImage: normalizeMediaUrl(firstValue(raw.cover_image, raw.coverImage, raw.cover_url, raw.background, "")),
+    displayName: firstValue(
+      raw.displayName,
+      raw.fullname,
+      raw.fullName,
+      raw.name,
+      username,
+    ),
+    avatar: normalizeMediaUrl(
+      firstValue(raw.avatar, raw.avatar_url, raw.image, raw.picture, ""),
+    ),
+    coverImage: normalizeMediaUrl(
+      firstValue(
+        raw.cover_image,
+        raw.coverImage,
+        raw.cover_url,
+        raw.background,
+        "",
+      ),
+    ),
     description: normalizeOptionalText(
       firstValue(raw.description, raw.described, raw.bio, raw.about, ""),
       150,
@@ -81,14 +109,31 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
     address: firstValue(raw.address, raw.location, raw.province, raw.city, ""),
     city: firstValue(raw.city, raw.province, ""),
     country: firstValue(raw.country, ""),
-    profileLink: firstValue(raw.link, raw.profile_link, raw.website, raw.url, ""),
-    postCount: toNumber(firstValue(raw.post_count, raw.posts_count, raw.total_posts), 0),
+    profileLink: firstValue(
+      raw.link,
+      raw.profile_link,
+      raw.website,
+      raw.url,
+      "",
+    ),
+    postCount: toNumber(
+      firstValue(raw.post_count, raw.posts_count, raw.total_posts),
+      0,
+    ),
     online: ["1", "true", "online", "yes"].includes(normalizedOnline),
     listing: firstValue(raw.listing, raw.is_listing, true),
-    createdAt: firstValue(raw.createdAt, raw.created_at, raw.created, raw.create_time, ""),
+    createdAt: firstValue(
+      raw.createdAt,
+      raw.created_at,
+      raw.created,
+      raw.create_time,
+      "",
+    ),
     isOwnProfile,
     unavailable: isBlocked,
-    unavailableReason: isBlocked ? "Tài khoản không tồn tại hoặc bạn không thể xem hồ sơ này." : "",
+    unavailableReason: isBlocked
+      ? "Tài khoản không tồn tại hoặc bạn không thể xem hồ sơ này."
+      : "",
     height: firstValue(raw.height, session.height, ""),
     raw,
   };
@@ -142,7 +187,9 @@ function mapForbiddenNameError(error) {
 
 function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
   const mockProfile = getMockProfileById(userId);
-  return normalizeUser(mockProfile || { id: userId }, source, { isOwnProfile: false });
+  return normalizeUser(mockProfile || { id: userId }, source, {
+    isOwnProfile: false,
+  });
 }
 
 function isSameUser(left, right) {
@@ -199,7 +246,9 @@ function getBackendErrorData(error) {
 
 function getBackendErrorMessage(error) {
   const data = getBackendErrorData(error);
-  return String(data?.message || data?.msg || data?.error || error?.message || "");
+  return String(
+    data?.message || data?.msg || data?.error || error?.message || "",
+  );
 }
 
 function rejectsField(error, fieldName) {
@@ -209,7 +258,11 @@ function rejectsField(error, fieldName) {
 }
 
 function hasOwnValue(object = {}, key) {
-  return Object.prototype.hasOwnProperty.call(object, key) && object[key] !== undefined && object[key] !== null;
+  return (
+    Object.prototype.hasOwnProperty.call(object, key) &&
+    object[key] !== undefined &&
+    object[key] !== null
+  );
 }
 
 function shouldRetryGetUserInfoWithoutUserId(error) {
@@ -266,7 +319,12 @@ function buildLocalProfileShape(session = {}, mockProfile = {}) {
     listing: firstValue(session?.listing, mockProfile?.listing, true),
     role: firstValue(session?.role, mockProfile?.role, "HV"),
     phonenumber: firstValue(session?.phonenumber, mockProfile?.phonenumber, ""),
-    identifier: firstValue(session?.identifier, mockProfile?.identifier, session?.phonenumber, ""),
+    identifier: firstValue(
+      session?.identifier,
+      mockProfile?.identifier,
+      session?.phonenumber,
+      "",
+    ),
     handle: firstValue(session?.handle, mockProfile?.handle, ""),
     height: firstValue(session?.height, mockProfile?.height, ""),
     demoMode: true,
@@ -280,10 +338,15 @@ function throwIfExpiredFromApiError(error) {
   }
 }
 
-async function getLocalUserPosts(targetUserId, includeLocked, source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
+async function getLocalUserPosts(
+  targetUserId,
+  includeLocked,
+  source = ACTIVE_SOURCES.LOCAL_FALLBACK,
+) {
   const posts = await localPosts.getPosts();
   const filtered = posts.filter((post) => {
-    const matchesUser = !targetUserId || isSameUser(post.author?.id, targetUserId);
+    const matchesUser =
+      !targetUserId || isSameUser(post.author?.id, targetUserId);
     const canSeeLocked = includeLocked || post.canComment !== false;
     return matchesUser && canSeeLocked;
   });
@@ -322,7 +385,11 @@ function normalizeMediaUrl(value = "") {
 
 function buildSetUserInfoPayload(session, params, userName, options = {}) {
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
-  const coverImage = firstParamValue(params, ["coverImage", "cover_image"], session?.coverImage || "");
+  const coverImage = firstParamValue(
+    params,
+    ["coverImage", "cover_image"],
+    session?.coverImage || "",
+  );
   const usernameKey = options.usernameKey || "username";
   const coverImageKey = options.coverImageKey || "coverImage";
   const payload = {
@@ -331,7 +398,9 @@ function buildSetUserInfoPayload(session, params, userName, options = {}) {
   };
 
   payload[usernameKey] = userName;
-  payload[coverImageKey] = isLocalAssetUri(coverImage) ? session?.coverImage || "" : coverImage;
+  payload[coverImageKey] = isLocalAssetUri(coverImage)
+    ? session?.coverImage || ""
+    : coverImage;
 
   if (!options.minimal) {
     const descriptionKey = options.descriptionKey || "description";
@@ -347,10 +416,26 @@ function buildSetUserInfoPayload(session, params, userName, options = {}) {
 async function setUserInfoWithCompatibility(session, params, userName) {
   const hasDescription = hasOwnValue(params, "description");
   const attempts = [
-    { usernameKey: "username", coverImageKey: "coverImage", descriptionKey: "description" },
-    { usernameKey: "username", coverImageKey: "coverImage", descriptionKey: "described" },
-    { usernameKey: "user_name", coverImageKey: "cover_image", descriptionKey: "description" },
-    { usernameKey: "user_name", coverImageKey: "cover_image", descriptionKey: "described" },
+    {
+      usernameKey: "username",
+      coverImageKey: "coverImage",
+      descriptionKey: "description",
+    },
+    {
+      usernameKey: "username",
+      coverImageKey: "coverImage",
+      descriptionKey: "described",
+    },
+    {
+      usernameKey: "user_name",
+      coverImageKey: "cover_image",
+      descriptionKey: "description",
+    },
+    {
+      usernameKey: "user_name",
+      coverImageKey: "cover_image",
+      descriptionKey: "described",
+    },
   ];
 
   if (!hasDescription) {
@@ -367,7 +452,9 @@ async function setUserInfoWithCompatibility(session, params, userName) {
       const response = await backendApi.setUserInfo(
         buildSetUserInfoPayload(session, params, userName, options),
       );
-      await assertBackendOk(response, { message: "Backend set_user_info failed" });
+      await assertBackendOk(response, {
+        message: "Backend set_user_info failed",
+      });
       return response;
     } catch (error) {
       throwIfExpiredFromApiError(error);
@@ -392,31 +479,67 @@ async function setUserInfoWithCompatibility(session, params, userName) {
   throw lastError || new Error("Backend set_user_info failed");
 }
 
-function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOURCES.LOCAL) {
-  const currentProfile = buildLocalProfileShape(session, resolveMockProfile(session));
+function buildLocalProfileUpdate(
+  session,
+  params,
+  userName,
+  source = ACTIVE_SOURCES.LOCAL,
+) {
+  const currentProfile = buildLocalProfileShape(
+    session,
+    resolveMockProfile(session),
+  );
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
-  const coverImage = firstParamValue(params, ["coverImage", "cover_image"], session?.coverImage || "");
+  const coverImage = firstParamValue(
+    params,
+    ["coverImage", "cover_image"],
+    session?.coverImage || "",
+  );
   const description = normalizeOptionalText(
     firstParamValue(params, ["description"], session?.description || ""),
     150,
   );
   const address = firstParamValue(params, ["address"], session?.address || "");
-  const profileLink = firstParamValue(params, ["profileLink", "link"], session?.profileLink || "");
+  const profileLink = firstParamValue(
+    params,
+    ["profileLink", "link"],
+    session?.profileLink || "",
+  );
 
   return {
     ...currentProfile,
     ...session,
     ...params,
-    id: firstValue(session?.id, currentProfile?.id, session?.identifier, session?.phonenumber, ""),
+    id: firstValue(
+      session?.id,
+      currentProfile?.id,
+      session?.identifier,
+      session?.phonenumber,
+      "",
+    ),
     username: userName || session?.username || currentProfile?.username || "",
-    displayName: userName || session?.displayName || session?.username || currentProfile?.displayName || "",
+    displayName:
+      userName ||
+      session?.displayName ||
+      session?.username ||
+      currentProfile?.displayName ||
+      "",
     avatar,
     coverImage,
     description,
     address,
     profileLink,
-    phonenumber: firstValue(session?.phonenumber, currentProfile?.phonenumber, ""),
-    identifier: firstValue(session?.identifier, currentProfile?.identifier, session?.phonenumber, ""),
+    phonenumber: firstValue(
+      session?.phonenumber,
+      currentProfile?.phonenumber,
+      "",
+    ),
+    identifier: firstValue(
+      session?.identifier,
+      currentProfile?.identifier,
+      session?.phonenumber,
+      "",
+    ),
     role: firstValue(session?.role, currentProfile?.role, "HV"),
     handle: firstValue(session?.handle, currentProfile?.handle, ""),
     height: firstValue(session?.height, currentProfile?.height, ""),
@@ -440,13 +563,16 @@ async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
   for (let index = 0; index < attempts.length; index += 1) {
     try {
       const response = await backendApi.getUserInfo(attempts[index]);
-      await assertBackendOk(response, { message: "Backend get_user_info failed" });
+      await assertBackendOk(response, {
+        message: "Backend get_user_info failed",
+      });
       return response;
     } catch (error) {
       throwIfExpiredFromApiError(error);
       lastError = error;
 
-      const canRetry = !isOwnProfile && shouldRetryGetUserInfoWithoutUserId(error);
+      const canRetry =
+        !isOwnProfile && shouldRetryGetUserInfoWithoutUserId(error);
 
       if (!canRetry) {
         throw error;
@@ -459,8 +585,14 @@ async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
 
 export async function getUserInfo(userId = "") {
   const session = await getCurrentSession();
+  console.log(JSON.stringify(session, null, 2));
   const targetUserId = String(userId || "");
-  const isOwnProfile = !targetUserId || isSameUser(targetUserId, session?.id || session?.user_id || session?.identifier);
+  const isOwnProfile =
+    !targetUserId ||
+    isSameUser(
+      targetUserId,
+      session?.id || session?.user_id || session?.identifier,
+    );
 
   if (!shouldUseServer(session)) {
     if (isOwnProfile) {
@@ -471,12 +603,20 @@ export async function getUserInfo(userId = "") {
   }
 
   try {
-    const response = await getUserInfoFromBackend(session, targetUserId, isOwnProfile);
-
-    const normalized = normalizeUser(extractObject(response), ACTIVE_SOURCES.SERVER, {
+    const response = await getUserInfoFromBackend(
       session,
+      targetUserId,
       isOwnProfile,
-    });
+    );
+
+    const normalized = normalizeUser(
+      extractObject(response),
+      ACTIVE_SOURCES.SERVER,
+      {
+        session,
+        isOwnProfile,
+      },
+    );
 
     if (!isOwnProfile && !matchesUserIdentity(targetUserId, normalized)) {
       throw new Error("Backend trả về hồ sơ không khớp người dùng yêu cầu.");
@@ -490,7 +630,10 @@ export async function getUserInfo(userId = "") {
     throwIfExpiredFromApiError(error);
 
     if (!isOwnProfile) {
-      const fallbackProfile = await resolveBackendProfileFromPosts(session, targetUserId);
+      const fallbackProfile = await resolveBackendProfileFromPosts(
+        session,
+        targetUserId,
+      );
       if (fallbackProfile) {
         return fallbackProfile;
       }
@@ -569,31 +712,58 @@ export async function updateUserInfo(params = {}) {
   }
 
   if (!shouldUseServer(session)) {
-    const updated = buildLocalProfileUpdate(session, params, userName, ACTIVE_SOURCES.LOCAL);
+    const updated = buildLocalProfileUpdate(
+      session,
+      params,
+      userName,
+      ACTIVE_SOURCES.LOCAL,
+    );
     saveMockProfile(updated);
     await saveAuthSession(updated);
     return updated;
   }
 
   try {
-    const response = await setUserInfoWithCompatibility(session, params, userName);
-
-    const normalized = normalizeUser(extractObject(response), ACTIVE_SOURCES.SERVER, {
+    const response = await setUserInfoWithCompatibility(
       session,
-      isOwnProfile: true,
-    });
+      params,
+      userName,
+    );
+
+    const normalized = normalizeUser(
+      extractObject(response),
+      ACTIVE_SOURCES.SERVER,
+      {
+        session,
+        isOwnProfile: true,
+      },
+    );
     const updated = {
       ...session,
       ...normalized,
       token: session.token || normalized.token || "",
       phonenumber: session.phonenumber || normalized.phonenumber || "",
-      identifier: session.identifier || normalized.identifier || session.id || normalized.id || "",
+      identifier:
+        session.identifier ||
+        normalized.identifier ||
+        session.id ||
+        normalized.id ||
+        "",
       role: session.role || normalized.role || "HV",
       demoMode: session.demoMode || false,
       source: ACTIVE_SOURCES.SERVER,
       username: userName || normalized.username || session?.username || "",
-      displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
-      avatar: normalized.avatar || (isLocalAssetUri(params.avatar) ? session?.avatar : params.avatar) || session?.avatar || "",
+      displayName:
+        userName ||
+        normalized.displayName ||
+        session?.displayName ||
+        session?.username ||
+        "",
+      avatar:
+        normalized.avatar ||
+        (isLocalAssetUri(params.avatar) ? session?.avatar : params.avatar) ||
+        session?.avatar ||
+        "",
       coverImage:
         normalized.coverImage ||
         (isLocalAssetUri(params.coverImage || params.cover_image)
@@ -607,8 +777,16 @@ export async function updateUserInfo(params = {}) {
           firstParamValue(params, ["description"], session?.description || ""),
           150,
         ),
-      address: normalized.address || firstParamValue(params, ["address"], session?.address || ""),
-      profileLink: normalized.profileLink || firstParamValue(params, ["profileLink", "link"], session?.profileLink || ""),
+      address:
+        normalized.address ||
+        firstParamValue(params, ["address"], session?.address || ""),
+      profileLink:
+        normalized.profileLink ||
+        firstParamValue(
+          params,
+          ["profileLink", "link"],
+          session?.profileLink || "",
+        ),
     };
     await saveAuthSession(updated);
     return updated;
@@ -620,7 +798,9 @@ export async function updateUserInfo(params = {}) {
 
 export async function getUserPosts(userId = "", paging = {}) {
   const session = await getCurrentSession();
-  const targetUserId = String(userId || session?.id || session?.user_id || session?.identifier || "");
+  const targetUserId = String(
+    userId || session?.id || session?.user_id || session?.identifier || "",
+  );
   const includeLocked = paging.includeLocked !== false;
 
   if (!shouldUseServer(session)) {
@@ -628,7 +808,9 @@ export async function getUserPosts(userId = "", paging = {}) {
   }
 
   const mapVisibleItems = (items = []) =>
-    items.filter((post) => post.id && (includeLocked || post.canComment !== false));
+    items.filter(
+      (post) => post.id && (includeLocked || post.canComment !== false),
+    );
 
   try {
     const directPage = await getBackendCompatibilityPosts(session, {
@@ -673,7 +855,9 @@ export async function getUserPosts(userId = "", paging = {}) {
 export async function searchUserProfile(userId = "", keyword = "") {
   const session = await getCurrentSession();
   const normalizedKeyword = String(keyword || "").trim();
-  const targetUserId = String(userId || session?.id || session?.user_id || session?.identifier || "");
+  const targetUserId = String(
+    userId || session?.id || session?.user_id || session?.identifier || "",
+  );
 
   if (!normalizedKeyword) {
     return [];
@@ -681,7 +865,9 @@ export async function searchUserProfile(userId = "", keyword = "") {
 
   if (!shouldUseServer(session)) {
     const items = await localPosts.searchPosts(normalizedKeyword);
-    return targetUserId ? items.filter((post) => isSameUser(post.author?.id, targetUserId)) : items;
+    return targetUserId
+      ? items.filter((post) => isSameUser(post.author?.id, targetUserId))
+      : items;
   }
 
   try {
@@ -693,7 +879,10 @@ export async function searchUserProfile(userId = "", keyword = "") {
       count: "20",
     });
 
-    await assertBackendOk(response, { allowNoData: true, message: "Backend search failed" });
+    await assertBackendOk(response, {
+      allowNoData: true,
+      message: "Backend search failed",
+    });
 
     const directItems = extractList(response)
       .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
