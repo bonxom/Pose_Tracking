@@ -321,6 +321,8 @@ export const backendApi = {
   getVerifyCode: (params) => post("/get_verify_code", params),
   checkVerifyCode: (params) => post("/check_verify_code", params),
   changeInfoAfterSignup: (params) => post("/change_info_after_signup", params),
+  changeInfoAfterSignupMultipart: (fields, files = []) =>
+    postMultipart("/change_info_after_signup", fields, files),
   getListPosts: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(buildMockGetListPostsResponse(params))

@@ -55,10 +55,16 @@ function isKnownMockCredential(phonenumber, password) {
   );
 }
 
-export async function loginWithPassword(phonenumber, password) {
+export async function loginWithPassword(
+  phonenumber,
+  password,
+  options = {},
+) {
   const normalizedPhone = phonenumber?.trim();
   const normalizedPassword = password?.trim();
   const mode = getDataSourceMode();
+  const allowLocalFallback =
+    Boolean(options.allowLocalFallback) && canFallbackToLocal();
 
   try {
     const response = await backendApi.login({
@@ -81,7 +87,7 @@ export async function loginWithPassword(phonenumber, password) {
       };
     }
 
-    if (options.allowLocalFallback && canFallbackToLocal()) {
+    if (allowLocalFallback) {
       console.info(
         "[DATA] Backend login failed, using explicit local demo fallback",
         response,
@@ -100,7 +106,7 @@ export async function loginWithPassword(phonenumber, password) {
       source: ACTIVE_SOURCES.SERVER,
     };
   } catch (error) {
-    if (options.allowLocalFallback && canFallbackToLocal()) {
+    if (allowLocalFallback) {
       console.info(
         "[DATA] Backend unavailable, using explicit local demo fallback",
         error.message,

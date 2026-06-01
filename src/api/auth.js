@@ -26,6 +26,43 @@ function backendError(response, fallbackMessage = "Backend request failed") {
   };
 }
 
+function guessImageMimeType(uri = "") {
+  const clean = String(uri || "").split("?")[0].toLowerCase();
+
+  if (clean.endsWith(".png")) return "image/png";
+  if (clean.endsWith(".webp")) return "image/webp";
+  if (clean.endsWith(".gif")) return "image/gif";
+  if (clean.endsWith(".heic")) return "image/heic";
+  if (clean.endsWith(".heif")) return "image/heif";
+  if (clean.endsWith(".jpg") || clean.endsWith(".jpeg")) return "image/jpeg";
+
+  return "image/jpeg";
+}
+
+function buildAvatarFile(avatar = "") {
+  const uri = String(avatar || "").trim();
+  if (!uri) return null;
+  if (!/^(file|content|asset-library|ph):\/\//i.test(uri)) return null;
+
+  const mimeType = guessImageMimeType(uri);
+  const extByMime = {
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/jpeg": "jpg",
+  };
+  const fileName = `avatar-${Date.now()}.${extByMime[mimeType] || "jpg"}`;
+
+  return {
+    fieldName: "avatar",
+    uri,
+    name: fileName,
+    mimeType,
+  };
+}
+
 const authApi = {
   /**
    * ÄÄƒng nháº­p báº±ng sá»‘ Ä‘iá»‡n thoáº¡i
@@ -308,7 +345,9 @@ const authApi = {
       try {
         const candidateBodies = [
           { phonenumber, code },
+          { phonenumber, codeVerify: code },
           { phoneNumber: phonenumber, code },
+          { phoneNumber: phonenumber, codeVerify: code },
           { phone: phonenumber, code },
           { phonenumber, verify_code: code },
           { phonenumber, code_verify: code },
@@ -434,24 +473,26 @@ const authApi = {
 
     if (isServerAuthMode()) {
       try {
+        const avatarFile = buildAvatarFile(avatar);
+        const avatarValue = avatarFile ? "" : avatar;
         const candidateBodies = [
           {
             token,
             username,
-            avatar,
+            avatar: avatarValue,
             height,
           },
           {
             token,
             user_name: username,
-            avatar,
+            avatar: avatarValue,
             cover_image: "",
             height,
           },
           {
             token,
             username,
-            avatar,
+            avatar: avatarValue,
           },
         ];
         let response = null;
@@ -459,7 +500,10 @@ const authApi = {
 
         for (const body of candidateBodies) {
           try {
-            response = await backendApi.changeInfoAfterSignup(body);
+            response = await backendApi.changeInfoAfterSignupMultipart(
+              body,
+              avatarFile ? [avatarFile] : [],
+            );
             if (isOk(response)) break;
           } catch (error) {
             lastError = error;
