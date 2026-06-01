@@ -5,8 +5,13 @@ import {
 import { getAuthSession } from "@/utils/session";
 import { Stack, router, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+
+function getToastInitial(value = "") {
+  const trimmed = String(value || "").trim();
+  return trimmed ? trimmed[0].toUpperCase() : "N";
+}
 
 export default function RootLayout() {
   const navRouter = useRouter();
@@ -72,15 +77,16 @@ export default function RootLayout() {
       onOpen: () => {
         router.push("/(tabs)/notifications");
       },
-      onNewInAppNotification: ({ unreadCount }) => {
+      onNewInAppNotification: ({ notification }) => {
         console.log("SHOW_NOTIFICATION_TOAST", {
-          unreadCount,
+          notification,
           path: pathnameRef.current,
         });
 
         setNotificationToast({
-          title: "Bạn có thông báo mới",
-          body: `Bạn có ${unreadCount} thông báo chưa đọc.`,
+          title: notification?.title || "Bạn có thông báo mới",
+          body: notification?.body || "Có thông báo mới.",
+          avatar: notification?.avatar || "",
         });
 
         if (toastTimerRef.current) {
@@ -146,8 +152,8 @@ export default function RootLayout() {
               right: 16,
               zIndex: 9999,
               backgroundColor: "#FFFFFF",
-              borderRadius: 14,
-              paddingHorizontal: 16,
+              borderRadius: 16,
+              paddingHorizontal: 12,
               paddingVertical: 12,
               borderWidth: 1,
               borderColor: "#E5E7EB",
@@ -158,12 +164,52 @@ export default function RootLayout() {
               elevation: 8,
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: "800", color: "#111827" }}>
-              {notificationToast.title}
-            </Text>
-            <Text style={{ marginTop: 4, fontSize: 13, color: "#4B5563" }}>
-              {notificationToast.body}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {notificationToast.avatar ? (
+                <Image
+                  source={{ uri: notificationToast.avatar }}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: "#E7F3FF",
+                  }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: "#E7F3FF",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "800", color: "#1877F2" }}>
+                    {getToastInitial(notificationToast.title)}
+                  </Text>
+                </View>
+              )}
+
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: 15, fontWeight: "800", color: "#111827" }}
+                >
+                  {notificationToast.title}
+                </Text>
+
+                {notificationToast.body ? (
+                  <Text
+                    numberOfLines={2}
+                    style={{ marginTop: 3, fontSize: 13, color: "#4B5563" }}
+                  >
+                    {notificationToast.body}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
           </Pressable>
         ) : null}
       </View>

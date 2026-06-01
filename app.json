@@ -19,7 +19,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "usesCleartextTraffic": true,
-      "package": "com.anonymous.Pose_Tracking"
+      "package": "com.group1.posetracking",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -54,6 +55,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a0648591-1768-4245-b5e0-eeecdf3fc004"
+      }
+    },
+    "owner": "anhnbd2005"
   }
 }

@@ -266,8 +266,18 @@ function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERV
     source,
     type,
     title: raw.title || raw.message || raw.content || "Thông báo",
-    body: raw.body || raw.description || raw.content || raw.message || "",
-    avatar: raw.avatar || "",
+    body: raw.description || raw.body || raw.content || raw.message || "",
+    avatar:
+      raw.avatar ||
+      raw.user_avatar ||
+      raw.sender_avatar ||
+      raw.image ||
+      raw.image_url ||
+      raw.imageUrl ||
+      raw.photo ||
+      raw.actor?.avatar ||
+      raw.user?.avatar ||
+      "",
     group: raw.group || raw.group_type || "",
     badge: Number(raw.badge || raw.badge_count || 0),
     created:

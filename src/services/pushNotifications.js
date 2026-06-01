@@ -9,6 +9,7 @@ import {
   setDeviceToken,
 } from "@/repositories/settingsRepository";
 import { getCurrentSession } from "@/repositories/source";
+import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
@@ -30,6 +31,153 @@ let appStateSubscription = null;
 let receivedSubscription = null;
 let responseSubscription = null;
 let lastUnreadCount = null;
+let lastNotificationIds = new Set();
+
+function isNotificationsPath(path = "") {
+  const currentPath = String(path || "");
+  return (
+    currentPath === "/notifications" ||
+    currentPath === "/(tabs)/notifications" ||
+    currentPath.endsWith("/notifications")
+  );
+}
+
+function getNotificationId(item = {}) {
+  return String(
+    item.notificationId ||
+      item.id ||
+      item.raw?.notificationId ||
+      item.raw?.notification_id ||
+      item.raw?.id ||
+      "",
+  ).trim();
+}
+
+function getNotificationTime(item = {}) {
+  const time = new Date(
+    item.created ||
+      item.createdAt ||
+      item.raw?.created ||
+      item.raw?.created_at ||
+      item.raw?.time ||
+      0,
+  ).getTime();
+
+  return Number.isFinite(time) ? time : 0;
+}
+
+function normalizeNotificationPreview(item = {}) {
+  const raw = item.raw || {};
+
+  const title = String(
+    item.title ||
+      raw.title ||
+      raw.message ||
+      raw.content ||
+      "Bạn có thông báo mới",
+  ).trim();
+
+  const body = String(
+    item.description ||
+      item.body ||
+      raw.description ||
+      raw.comment_content ||
+      raw.commentContent ||
+      raw.post_title ||
+      raw.postTitle ||
+      raw.post_content ||
+      raw.postContent ||
+      raw.content ||
+      raw.message ||
+      "",
+  ).trim();
+
+  const avatar = String(
+    item.avatar ||
+      raw.avatar ||
+      raw.user_avatar ||
+      raw.sender_avatar ||
+      raw.image ||
+      raw.image_url ||
+      raw.imageUrl ||
+      raw.photo ||
+      raw.actor?.avatar ||
+      raw.user?.avatar ||
+      "",
+  ).trim();
+
+  return {
+    ...item,
+    id: getNotificationId(item),
+    title,
+    body,
+    avatar,
+    targetType: item.targetType || raw.targetType || raw.target_type || "",
+    targetId:
+      item.targetId ||
+      item.objectId ||
+      raw.targetId ||
+      raw.target_id ||
+      raw.objectId ||
+      raw.object_id ||
+      raw.postId ||
+      raw.post_id ||
+      "",
+    raw,
+  };
+}
+
+function getLatestNewNotification(items = []) {
+  const newItems = items
+    .filter((item) => {
+      const id = getNotificationId(item);
+      return id && !lastNotificationIds.has(id);
+    })
+    .sort((a, b) => getNotificationTime(b) - getNotificationTime(a));
+
+  return newItems[0] ? normalizeNotificationPreview(newItems[0]) : null;
+}
+
+function rememberNotificationIds(items = []) {
+  lastNotificationIds = new Set(items.map(getNotificationId).filter(Boolean));
+}
+
+function normalizeReceivedPushNotification(notification = {}) {
+  const content = notification?.request?.content || {};
+  const data = content.data || {};
+
+  return normalizeNotificationPreview({
+    id:
+      data.notificationId ||
+      data.notification_id ||
+      data.id ||
+      `push_${Date.now()}`,
+    notificationId: data.notificationId || data.notification_id || data.id,
+    title: content.title || data.title || data.message,
+    body:
+      content.body ||
+      data.description ||
+      data.body ||
+      data.content ||
+      data.message,
+    avatar:
+      data.avatar ||
+      data.user_avatar ||
+      data.sender_avatar ||
+      data.image ||
+      data.image_url ||
+      data.imageUrl,
+    targetType: data.targetType || data.target_type,
+    targetId:
+      data.targetId ||
+      data.target_id ||
+      data.objectId ||
+      data.object_id ||
+      data.postId ||
+      data.post_id,
+    raw: data,
+  });
+}
 
 function toBool(value, fallback = true) {
   if (value === undefined || value === null) return fallback;
@@ -91,51 +239,99 @@ export async function loadAndApplyPushSettings() {
 }
 
 export async function registerDeviceForPush() {
+  console.log("PUSH_REGISTER_START", {
+    platform: Platform.OS,
+    isDevice: Device.isDevice,
+    appOwnership: Constants.appOwnership,
+  });
+
   const session = await getCurrentSession();
 
   if (!session?.token) {
+    console.log("PUSH_REGISTER_SKIP_NO_SESSION");
     return null;
   }
 
   await loadAndApplyPushSettings();
 
-  const devtype = Platform.OS === "ios" ? "0" : "1";
-
-  if (!Device.isDevice) {
-    await setDeviceToken(DEFAULT_DEVICE_TOKEN, devtype);
-    return DEFAULT_DEVICE_TOKEN;
-  }
+  const devtype = Platform.OS === "ios" ? 0 : 1;
 
   const permission = await Notifications.getPermissionsAsync();
   let status = permission.status;
 
+  console.log("PUSH_PERMISSION_EXISTING", permission);
+
   if (status !== "granted") {
     const requested = await Notifications.requestPermissionsAsync();
     status = requested.status;
+
+    console.log("PUSH_PERMISSION_REQUESTED", requested);
   }
 
   if (status !== "granted") {
+    console.log("PUSH_PERMISSION_DENIED");
     return null;
   }
 
-  const tokenResult = await Notifications.getExpoPushTokenAsync();
-  const devtoken = tokenResult.data;
+  try {
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ||
+      Constants.easConfig?.projectId;
 
-  await setDeviceToken(devtoken, devtype);
+    console.log("PUSH_PROJECT_ID", projectId);
 
-  return devtoken;
+    const tokenResult = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined,
+    );
+
+    const devtoken = tokenResult.data;
+
+    console.log("====================================");
+    console.log("EXPO_PUSH_TOKEN:", devtoken);
+    console.log("DEVICE_TYPE:", devtype);
+    console.log("====================================");
+
+    await setDeviceToken(devtoken, devtype);
+
+    console.log("SET_DEV_TOKEN_OK", {
+      devtype,
+      devtoken,
+    });
+
+    return devtoken;
+  } catch (error) {
+    console.log("GET_EXPO_PUSH_TOKEN_ERROR", {
+      message: error?.message,
+      stack: error?.stack,
+    });
+
+    await setDeviceToken(DEFAULT_DEVICE_TOKEN, devtype);
+
+    console.log("SET_DEFAULT_DEVICE_TOKEN", {
+      devtype,
+      devtoken: DEFAULT_DEVICE_TOKEN,
+    });
+
+    return DEFAULT_DEVICE_TOKEN;
+  }
 }
 
-async function showLocalNotificationForNewItems(unreadCount) {
+async function showLocalNotificationForNewItems(notification) {
   if (!toBool(currentSettings.notificationOn, true)) return;
+
+  const preview = normalizeNotificationPreview(notification);
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "Bạn có thông báo mới",
-      body: `Bạn có ${unreadCount} thông báo chưa đọc.`,
+      title: preview.title,
+      body: preview.body,
       sound: getNotificationSound(currentSettings),
       data: {
         screen: "notifications",
+        notificationId: preview.id,
+        targetType: preview.targetType,
+        targetId: preview.targetId,
+        avatar: preview.avatar,
       },
     },
     trigger:
@@ -159,38 +355,43 @@ export async function refreshNotificationBadge({
     mergeWithExisting: true,
   });
 
+  const items = Array.isArray(page?.items) ? page.items : [];
   const unreadCount = Number(page?.unreadCount || 0);
+  const hasBaseline = lastUnreadCount !== null;
+  const latestNewNotification = hasBaseline
+    ? getLatestNewNotification(items)
+    : null;
 
   setNotificationBadge(unreadCount);
 
   const currentPath = String(getCurrentPath?.() || "");
-  const isInNotificationsScreen =
-    currentPath === "/notifications" ||
-    currentPath === "/(tabs)/notifications" ||
-    currentPath.endsWith("/notifications");
+  const isInNotificationsScreen = isNotificationsPath(currentPath);
 
   if (
     notifyIfNew &&
-    lastUnreadCount !== null &&
-    unreadCount > lastUnreadCount &&
-    !isInNotificationsScreen
+    hasBaseline &&
+    !isInNotificationsScreen &&
+    (latestNewNotification || unreadCount > lastUnreadCount)
   ) {
-    console.log("NEW_IN_APP_NOTIFICATION", {
-      currentPath,
-      lastUnreadCount,
-      unreadCount,
-    });
+    const preview =
+      latestNewNotification ||
+      normalizeNotificationPreview({
+        title: "Bạn có thông báo mới",
+        body: "Có thông báo mới. Nhấn để xem chi tiết.",
+      });
 
     onNewInAppNotification?.({
+      notification: preview,
       unreadCount,
       previousUnreadCount: lastUnreadCount,
       page,
     });
 
-    await showLocalNotificationForNewItems(unreadCount);
+    await showLocalNotificationForNewItems(preview);
   }
 
   lastUnreadCount = unreadCount;
+  rememberNotificationIds(items);
 
   return page;
 }
@@ -238,15 +439,30 @@ export function startInAppNotificationRuntime({
     }
   });
 
-  receivedSubscription = Notifications.addNotificationReceivedListener(() => {
-    refreshNotificationBadge({
-      notifyIfNew: false,
-      getCurrentPath,
-      onNewInAppNotification,
-    }).catch((error) => {
-      console.log("RECEIVE_PUSH_REFRESH_ERROR", error?.message);
-    });
-  });
+  receivedSubscription = Notifications.addNotificationReceivedListener(
+    (notification) => {
+      const currentPath = String(getCurrentPath?.() || "");
+
+      if (!isNotificationsPath(currentPath)) {
+        const preview = normalizeReceivedPushNotification(notification);
+
+        onNewInAppNotification?.({
+          notification: preview,
+          unreadCount: lastUnreadCount,
+          previousUnreadCount: lastUnreadCount,
+          page: null,
+        });
+      }
+
+      refreshNotificationBadge({
+        notifyIfNew: false,
+        getCurrentPath,
+        onNewInAppNotification,
+      }).catch((error) => {
+        console.log("RECEIVE_PUSH_REFRESH_ERROR", error?.message);
+      });
+    },
+  );
 
   responseSubscription = Notifications.addNotificationResponseReceivedListener(
     () => {
