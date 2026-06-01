@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     ActivityIndicator,
     Pressable,
@@ -19,14 +20,17 @@ export default function AppButton({
   textStyle,
 }) {
   const isDisabled = disabled || loading;
+  const [isPressed, setIsPressed] = useState(false);
 
   return (
     <Pressable
       onPress={onPress}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      style={[
         styles.button,
-        pressed && !isDisabled && styles.buttonPressed,
+        isPressed && !isDisabled && styles.buttonPressed,
         isDisabled && styles.buttonDisabled,
         style,
       ]}

@@ -35,21 +35,35 @@ const REACTION_OPTIONS = [
   "💩",
 ];
 
+import { useState } from "react";
+
+function ReactionOption({ reaction, onSelectReaction }) {
+  const [isPressed, setIsPressed] = useState(false);
+  return (
+    <Pressable
+      onPress={() => onSelectReaction(reaction)}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      style={[
+        styles.reactionOption,
+        isPressed && styles.reactionOptionPressed,
+      ]}
+      hitSlop={6}
+    >
+      <Text style={styles.reactionEmoji}>{reaction}</Text>
+    </Pressable>
+  );
+}
+
 export default function CommentReactionPicker({ onSelectReaction }) {
   return (
     <View style={styles.reactionPicker}>
       {REACTION_OPTIONS.map((reaction) => (
-        <Pressable
+        <ReactionOption
           key={reaction}
-          onPress={() => onSelectReaction(reaction)}
-          style={({ pressed }) => [
-            styles.reactionOption,
-            pressed && styles.reactionOptionPressed,
-          ]}
-          hitSlop={6}
-        >
-          <Text style={styles.reactionEmoji}>{reaction}</Text>
-        </Pressable>
+          reaction={reaction}
+          onSelectReaction={onSelectReaction}
+        />
       ))}
     </View>
   );

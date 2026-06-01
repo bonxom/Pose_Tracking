@@ -101,11 +101,11 @@ function NotificationItem({ item, onPress }) {
   return (
     <Pressable
       onPress={() => onPress(item)}
-      style={({ pressed }) => [
+      style={[
         styles.notificationItem,
         unread && styles.notificationItemUnread,
-        pressed && styles.notificationItemPressed,
       ]}
+      className="active:opacity-75"
     >
       <View style={styles.avatarWrap}>
         {item.avatar ? (

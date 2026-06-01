@@ -115,6 +115,7 @@ function joinButtonProps(item) {
 // ─── CourseCard ──────────────────────────────────────────────────────────────
 export default function CourseCard({ item, onJoin, flat = false }) {
   const { title: btnTitle, disabled: btnDisabled } = joinButtonProps(item);
+  const [isPressed, setIsPressed] = useState(false);
 
   // Build video list from left_video / right_video (skip empty strings)
   const videos = [
@@ -168,10 +169,12 @@ export default function CourseCard({ item, onJoin, flat = false }) {
       <View style={localStyles.actionRow}>
         <Pressable
           onPress={btnDisabled ? undefined : () => onJoin?.(item)}
+          onPressIn={() => setIsPressed(true)}
+          onPressOut={() => setIsPressed(false)}
           disabled={btnDisabled}
-          style={({ pressed }) => [
+          style={[
             localStyles.joinButton,
-            pressed && !btnDisabled && localStyles.joinButtonPressed,
+            isPressed && !btnDisabled && localStyles.joinButtonPressed,
             btnDisabled && localStyles.joinButtonDisabled,
           ]}
         >

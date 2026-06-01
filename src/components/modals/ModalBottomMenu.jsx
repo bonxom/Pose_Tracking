@@ -48,10 +48,8 @@ export default function ModalBottomMenu({ visible, onClose, buttons = [] }) {
                 {buttons.map((btn, index) => (
                   <Pressable
                     key={index}
-                    style={({ pressed }) => [
-                      styles.itemRow,
-                      { opacity: pressed ? 0.7 : 1 },
-                    ]}
+                    style={styles.itemRow}
+                    className="active:opacity-70"
                     onPress={() => {
                       onClose();
                       if (btn.onPress) btn.onPress();

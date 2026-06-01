@@ -26,7 +26,7 @@ export default function DraftActionSheet({
           <Text style={styles.sheetTitle}>Bạn muốn hoàn thành bài viết của mình sau?</Text>
           <Text style={styles.sheetSubtitle}>Lưu làm bản nháp hoặc bạn có thể tiếp tục chỉnh sửa.</Text>
 
-          <Pressable style={({ pressed }) => [styles.optionRow, pressed && styles.optionRowPressed]} onPress={onSaveDraft}>
+          <Pressable style={styles.optionRow} className="active:opacity-70 active:bg-[#f0f0f0]" onPress={onSaveDraft}>
             <View style={styles.iconContainer}>
               <Ionicons name="bookmark-outline" size={24} color={colors.text} />
             </View>
@@ -36,7 +36,7 @@ export default function DraftActionSheet({
             </View>
           </Pressable>
 
-          <Pressable style={({ pressed }) => [styles.optionRow, pressed && styles.optionRowPressed]} onPress={onDiscard}>
+          <Pressable style={styles.optionRow} className="active:opacity-70 active:bg-[#f0f0f0]" onPress={onDiscard}>
             <View style={styles.iconContainer}>
               <Ionicons name={discardIconName} size={24} color={colors.text} />
             </View>
@@ -45,7 +45,7 @@ export default function DraftActionSheet({
             </View>
           </Pressable>
 
-          <Pressable style={({ pressed }) => [styles.optionRow, pressed && styles.optionRowPressed]} onPress={onContinue}>
+          <Pressable style={styles.optionRow} className="active:opacity-70 active:bg-[#f0f0f0]" onPress={onContinue}>
             <View style={styles.iconContainer}>
               <Ionicons name="checkmark-outline" size={28} color="#2196F3" />
             </View>

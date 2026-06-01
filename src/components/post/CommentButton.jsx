@@ -10,12 +10,8 @@ export default function CommentButton({ disabled = false, onPress, style }) {
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
-        styles.button,
-        pressed && !disabled && styles.buttonPressed,
-        disabled && styles.buttonDisabled,
-        style,
-      ]}
+      style={[styles.button, disabled && styles.buttonDisabled, style]}
+      className="active:opacity-70"
       hitSlop={8}
     >
       <CommentIcon size={20} color={iconColor} />

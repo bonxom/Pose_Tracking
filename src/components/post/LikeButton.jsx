@@ -7,11 +7,11 @@ export default function LikeButton({ isLiked, onPress, style }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.button,
-        pressed && styles.buttonPressed,
         style,
       ]}
+      className="active:opacity-70"
       hitSlop={8}
     >
       <ThumbUpIcon

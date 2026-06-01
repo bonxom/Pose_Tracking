@@ -44,10 +44,8 @@ export default function NoInternetView({
       </View>
 
       <Pressable
-        style={({ pressed }) => [
-          styles.button,
-          pressed && styles.buttonPressed,
-        ]}
+        style={styles.button}
+        className="active:opacity-[0.88]"
         onPress={handleOpenSettings}
       >
         <Text style={styles.buttonText}>Mở cài đặt mạng</Text>

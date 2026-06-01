@@ -1,8 +1,8 @@
+import NoInternetView from "@/components/common/NoInternetView";
 import EnrollmentCard from "@/components/courses/EnrollmentCard";
 import SectionHeader from "@/components/courses/SectionHeader";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
-import NoInternetView from "@/components/common/NoInternetView";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import { getRequestedEnrollment } from "@/repositories/courseRepository";
@@ -99,7 +99,10 @@ export default function RequestsView({
   if (isNoInternet && enrollments.length === 0) {
     return (
       <View style={coursesStyles.container}>
-        <NoInternetView onRefresh={() => fetchRequestsData({ refresh: true })} refreshing={isRefreshing} />
+        <NoInternetView
+          onRefresh={() => fetchRequestsData({ refresh: true })}
+          refreshing={isRefreshing}
+        />
       </View>
     );
   }

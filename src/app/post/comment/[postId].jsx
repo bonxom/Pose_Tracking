@@ -486,11 +486,11 @@ export default function CommentScreen() {
                   />
                   <Pressable
                     onPress={handleToggleReactionPicker}
-                    style={({ pressed }) => [
+                    style={[
                       styles.iconButton,
                       isReactionPickerVisible && styles.iconButtonActive,
-                      pressed && styles.iconButtonPressed,
                     ]}
+                    className="active:opacity-70"
                     hitSlop={8}
                   >
                     <SmileIcon />
@@ -498,14 +498,12 @@ export default function CommentScreen() {
                   <Pressable
                     onPress={handleSubmitComment}
                     disabled={isSubmitting || !commentText.trim()}
-                    style={({ pressed }) => [
+                    style={[
                       styles.sendButton,
                       (isSubmitting || !commentText.trim()) &&
                         styles.sendButtonDisabled,
-                      pressed &&
-                        !(isSubmitting || !commentText.trim()) &&
-                        styles.sendButtonPressed,
                     ]}
+                    className="active:opacity-70"
                     hitSlop={8}
                   >
                     {isSubmitting ? (

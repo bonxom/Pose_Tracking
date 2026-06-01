@@ -18,7 +18,11 @@ function Avatar({ uri, name, size = 72, bordered = false }) {
           source={{ uri }}
           style={[profileStyles.avatarImage, avatarStyle]}
           onError={(event) =>
-            console.warn("PROFILE_AVATAR_LOAD_ERROR", uri, event.nativeEvent?.error)
+            console.warn(
+              "PROFILE_AVATAR_LOAD_ERROR",
+              uri,
+              event.nativeEvent?.error,
+            )
           }
         />
       ) : (
@@ -37,7 +41,14 @@ function Avatar({ uri, name, size = 72, bordered = false }) {
   );
 }
 
-function FbButton({ title, icon, variant = "primary", onPress, disabled, compact }) {
+function FbButton({
+  title,
+  icon,
+  variant = "primary",
+  onPress,
+  disabled,
+  compact,
+}) {
   const isIconOnly = variant === "icon";
   const iconSize = isIconOnly ? 22 : icon === "pencil" ? 17 : 18;
   const iconColor = variant === "primary" ? colors.white : colors.ink;
@@ -46,14 +57,14 @@ function FbButton({ title, icon, variant = "primary", onPress, disabled, compact
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
+      style={[
         profileStyles.fbButton,
         compact && profileStyles.fbButtonCompact,
         variant === "secondary" && profileStyles.fbButtonSecondary,
         variant === "icon" && profileStyles.fbIconButton,
         disabled && profileStyles.pillButtonDisabled,
-        pressed && !disabled && profileStyles.pillButtonPressed,
       ]}
+      className="active:opacity-60"
     >
       {icon ? (
         <View
@@ -90,7 +101,8 @@ function ProfileDetails({ profile }) {
       <View style={profileStyles.fbProfileDetailRow}>
         <ProfileIcon name="home" size={18} color={colors.subtext} />
         <Text style={profileStyles.fbProfileDetailText} numberOfLines={1}>
-          Sống tại <Text style={profileStyles.fbProfileDetailStrong}>{city}</Text>
+          Sống tại{" "}
+          <Text style={profileStyles.fbProfileDetailStrong}>{city}</Text>
         </Text>
       </View>
     </View>
@@ -106,20 +118,32 @@ export default function ProfileHero({
 }) {
   const displayName = profile.displayName || profile.username;
   const username =
-    profile.username && profile.username !== displayName ? profile.username : "";
+    profile.username && profile.username !== displayName
+      ? profile.username
+      : "";
 
   return (
     <View style={profileStyles.fbHero}>
       <View style={profileStyles.fbCover}>
         {profile.coverImage ? (
-          <Image source={{ uri: profile.coverImage }} style={profileStyles.coverImage} />
+          <Image
+            source={{ uri: profile.coverImage }}
+            style={profileStyles.coverImage}
+          />
         ) : (
           <View style={profileStyles.fbCoverFallback}>
-            <ProfileIcon name="image-outline" size={38} color={colors.subtext} />
+            <ProfileIcon
+              name="image-outline"
+              size={38}
+              color={colors.subtext}
+            />
           </View>
         )}
         {isOwnProfile ? (
-          <Pressable style={profileStyles.fbCoverCamera} onPress={onOpenCoverMenu}>
+          <Pressable
+            style={profileStyles.fbCoverCamera}
+            onPress={onOpenCoverMenu}
+          >
             <ProfileIcon name="camera" size={18} color={colors.ink} />
           </Pressable>
         ) : null}
@@ -128,9 +152,17 @@ export default function ProfileHero({
       <View style={profileStyles.fbHeroInfo}>
         <View style={profileStyles.fbAvatarRow}>
           <View>
-            <Avatar uri={profile.avatar} name={profile.displayName} size={132} bordered />
+            <Avatar
+              uri={profile.avatar}
+              name={profile.displayName}
+              size={132}
+              bordered
+            />
             {isOwnProfile ? (
-              <Pressable style={profileStyles.fbAvatarCamera} onPress={onOpenAvatarMenu}>
+              <Pressable
+                style={profileStyles.fbAvatarCamera}
+                onPress={onOpenAvatarMenu}
+              >
                 <ProfileIcon name="camera" size={19} color={colors.ink} />
               </Pressable>
             ) : null}
@@ -149,7 +181,12 @@ export default function ProfileHero({
           </Text>
         ) : null}
         <View style={[profileStyles.fbActionRow, profileStyles.fbOwnActionRow]}>
-          <FbButton icon="ellipsis-horizontal" variant="icon" onPress={onOpenMenu} compact />
+          <FbButton
+            icon="ellipsis-horizontal"
+            variant="icon"
+            onPress={onOpenMenu}
+            compact
+          />
         </View>
         <ProfileDetails profile={profile} />
       </View>

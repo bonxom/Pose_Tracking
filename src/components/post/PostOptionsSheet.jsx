@@ -17,10 +17,11 @@ function OptionRow({
 }) {
   return (
     <Pressable
-      style={({ pressed }) => [
+      style={[
         styles.optionRow,
-        (pressed || disabled) && styles.optionRowPressed,
+        disabled && styles.optionRowPressed,
       ]}
+      className="active:opacity-70"
       onPress={onPress}
       disabled={disabled}
     >

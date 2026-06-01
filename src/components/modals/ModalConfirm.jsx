@@ -39,20 +39,22 @@ export default function ModalConfirm({
           </View>
           <View style={styles.modalFooter}>
             <Pressable
-              style={({ pressed }) => [
+              style={[
                 styles.modalBtnCancel,
-                { opacity: pressed || isProcessing ? 0.7 : 1 },
+                { opacity: isProcessing ? 0.7 : 1 },
               ]}
+              className="active:opacity-70"
               onPress={onCancel}
               disabled={isProcessing}
             >
               <Text style={styles.modalBtnCancelText}>{cancelText}</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [
+              style={[
                 styles.modalBtnConfirm,
-                { opacity: pressed || isProcessing ? 0.7 : 1 },
+                { opacity: isProcessing ? 0.7 : 1 },
               ]}
+              className="active:opacity-70"
               onPress={onConfirm}
               disabled={isProcessing}
             >
