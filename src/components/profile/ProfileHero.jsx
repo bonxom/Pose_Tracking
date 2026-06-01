@@ -3,6 +3,7 @@ import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
 import { initials } from "@/utils/profile";
 import { Image, Pressable, Text, View } from "react-native";
+import { useEffect, useState } from "react";
 
 function Avatar({ uri, name, size = 72, bordered = false }) {
   const avatarStyle = {
@@ -10,16 +11,35 @@ function Avatar({ uri, name, size = 72, bordered = false }) {
     height: size,
     borderRadius: size / 2,
   };
+  const ring = bordered ? 4 : 0;
+  const shellSize = size + ring * 2;
+  const shellStyle = bordered
+    ? {
+        width: shellSize,
+        height: shellSize,
+        borderRadius: shellSize / 2,
+        padding: ring,
+        backgroundColor: colors.white,
+        overflow: "hidden",
+      }
+    : avatarStyle;
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [uri]);
 
   return (
-    <View style={[bordered && profileStyles.fbAvatarBorder, avatarStyle]}>
-      {uri ? (
+    <View style={shellStyle}>
+      {uri && !imageFailed ? (
         <Image
           source={{ uri }}
+          resizeMode="cover"
           style={[profileStyles.avatarImage, avatarStyle]}
-          onError={(event) =>
-            console.warn("PROFILE_AVATAR_LOAD_ERROR", uri, event.nativeEvent?.error)
-          }
+          onError={(event) => {
+            console.warn("PROFILE_AVATAR_LOAD_ERROR", uri, event.nativeEvent?.error);
+            setImageFailed(true);
+          }}
         />
       ) : (
         <View style={[profileStyles.avatarFallback, avatarStyle]}>
@@ -128,7 +148,7 @@ export default function ProfileHero({
       <View style={profileStyles.fbHeroInfo}>
         <View style={profileStyles.fbAvatarRow}>
           <View>
-            <Avatar uri={profile.avatar} name={profile.displayName} size={132} bordered />
+            <Avatar uri={profile.avatar} name={profile.displayName} size={120} bordered />
             {isOwnProfile ? (
               <Pressable style={profileStyles.fbAvatarCamera} onPress={onOpenAvatarMenu}>
                 <ProfileIcon name="camera" size={19} color={colors.ink} />

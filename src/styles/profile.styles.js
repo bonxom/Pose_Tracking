@@ -52,8 +52,9 @@ const profileStyles = StyleSheet.create({
     borderBottomColor: profileColors.borderStrong,
   },
   fbCover: {
-    height: 178,
-    marginHorizontal: sizes.md,
+    height: 192,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderBottomLeftRadius: 10,
     borderBottomRightRadius: 10,
     overflow: "hidden",
@@ -81,14 +82,11 @@ const profileStyles = StyleSheet.create({
     paddingBottom: sizes.md,
   },
   fbAvatarRow: {
-    height: 70,
+    height: 128,
+    marginTop: -72,
+    zIndex: 2,
     alignItems: "center",
-  },
-  fbAvatarBorder: {
-    borderWidth: 4,
-    borderColor: colors.white,
-    backgroundColor: colors.white,
-    marginTop: -66,
+    justifyContent: "center",
   },
   fbAvatarCamera: {
     position: "absolute",
@@ -104,7 +102,7 @@ const profileStyles = StyleSheet.create({
     borderColor: colors.white,
   },
   fbName: {
-    marginTop: 2,
+    marginTop: 8,
     fontSize: 24,
     lineHeight: 30,
     fontWeight: "900",
