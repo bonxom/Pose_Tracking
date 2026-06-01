@@ -474,25 +474,21 @@ const authApi = {
     if (isServerAuthMode()) {
       try {
         const avatarFile = buildAvatarFile(avatar);
-        const avatarValue = avatarFile ? "" : avatar;
         const candidateBodies = [
           {
             token,
             username,
-            avatar: avatarValue,
             height,
           },
           {
             token,
             user_name: username,
-            avatar: avatarValue,
             cover_image: "",
             height,
           },
           {
             token,
             username,
-            avatar: avatarValue,
           },
         ];
         let response = null;
