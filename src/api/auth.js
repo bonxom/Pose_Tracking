@@ -344,8 +344,8 @@ const authApi = {
     if (isServerAuthMode()) {
       try {
         const candidateBodies = [
-          { phonenumber, code },
           { phonenumber, codeVerify: code },
+          { phonenumber, code },
           { phoneNumber: phonenumber, code },
           { phoneNumber: phonenumber, codeVerify: code },
           { phone: phonenumber, code },

@@ -22,6 +22,7 @@ export default function VerifyScreen() {
   const verifyCode = typeof params.verifyCode === "string" ? params.verifyCode : "";
   const signupToken = typeof params.token === "string" ? params.token : "";
   const resolvedSignupRequestId = signupRequestId || phonenumber;
+  const [currentVerifyCode, setCurrentVerifyCode] = useState(verifyCode);
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -59,6 +60,14 @@ export default function VerifyScreen() {
         signupRequestId: resolvedSignupRequestId,
       });
       if (response.code === "1000") {
+        const nextVerifyCode =
+          response.data?.verifyCode ||
+          response.data?.verify_code ||
+          response.data?.mock_verify_code ||
+          "";
+        if (nextVerifyCode) {
+          setCurrentVerifyCode(nextVerifyCode);
+        }
         setCountdown(60);
         setCanResend(false);
         Alert.alert("Thành công", response.message || "Đã gửi lại mã xác thực.");
@@ -91,7 +100,8 @@ export default function VerifyScreen() {
 
     try {
       const matchesDisplayedCode =
-        verifyCode && normalizedCode.toLowerCase() === verifyCode.toLowerCase();
+        currentVerifyCode &&
+        normalizedCode.toLowerCase() === currentVerifyCode.toLowerCase();
 
       const response = await authApi.checkVerifyCode({
         phonenumber,
@@ -144,7 +154,8 @@ export default function VerifyScreen() {
       Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
     } catch (verifyError) {
       const matchesDisplayedCode =
-        verifyCode && normalizedCode.toLowerCase() === verifyCode.toLowerCase();
+        currentVerifyCode &&
+        normalizedCode.toLowerCase() === currentVerifyCode.toLowerCase();
 
       if (matchesDisplayedCode) {
         goToChangeInfo({
@@ -168,7 +179,7 @@ export default function VerifyScreen() {
       <Text style={authStyles.title}>Xác minh</Text>
       <Text style={authStyles.subtitle}>
         Nhập mã xác thực gửi tới số điện thoại {phonenumber}.
-        {verifyCode ? ` Mã xác minh: ${verifyCode}.` : " Mã xác minh mặc định: 123456."}
+        {currentVerifyCode ? ` Mã xác minh: ${currentVerifyCode}.` : " Mã xác minh mặc định: 123456."}
       </Text>
 
       <AppInput

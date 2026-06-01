@@ -20,15 +20,13 @@ export default function RootLayout() {
         const currentGroup = segments[0];
         const isAuthenticated = Boolean(session);
         const isAuthGroup = currentGroup === "(auth)";
-        const isSignupSuccess =
-          currentGroup === "(auth)" && segments[1] === "signup-success";
 
         if (!isAuthenticated && !isAuthGroup) {
           router.replace("/(auth)/login");
           return;
         }
 
-        if (isAuthenticated && isAuthGroup && !isSignupSuccess) {
+        if (isAuthenticated && isAuthGroup) {
           router.replace("/(tabs)/home");
         }
       } finally {
