@@ -15,7 +15,8 @@ import { getAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, Tabs, usePathname } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function HomeTopSection() {
@@ -65,6 +66,11 @@ function TabButton({ onPress, accessibilityState, children }) {
 
 function ProfileTabAvatar({ focused, avatar, name }) {
   const initials = getInitials(name || "Người dùng");
+  const [imageReady, setImageReady] = useState(false);
+
+  useEffect(() => {
+    setImageReady(false);
+  }, [avatar]);
 
   return (
     <View
@@ -73,13 +79,26 @@ function ProfileTabAvatar({ focused, avatar, name }) {
         focused && styles.profileAvatarWrapActive,
       ]}
     >
-      {avatar ? (
-        <Image source={{ uri: avatar }} style={styles.profileAvatarImage} />
-      ) : (
+      <View style={styles.profileAvatarFallbackShell}>
         <View style={styles.profileAvatarFallback}>
           <Text style={styles.profileAvatarFallbackText}>{initials}</Text>
         </View>
-      )}
+      </View>
+      {avatar ? (
+        <Image
+          source={{ uri: avatar }}
+          style={styles.profileAvatarImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+          onLoadEnd={() => setImageReady(true)}
+          onError={() => setImageReady(false)}
+          style={[
+            styles.profileAvatarImage,
+            !imageReady && styles.profileAvatarImageHidden,
+          ]}
+        />
+      ) : null}
     </View>
   );
 }
@@ -306,7 +325,22 @@ const styles = StyleSheet.create({
   profileAvatarWrapActive: {
     borderColor: colors.primary,
   },
+  profileAvatarFallbackShell: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14.5,
+    padding: 1,
+    backgroundColor: "#DCE8FF",
+  },
   profileAvatarImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: "100%",
     height: "100%",
     borderRadius: 12.5,
@@ -314,6 +348,7 @@ const styles = StyleSheet.create({
   profileAvatarFallback: {
     width: "100%",
     height: "100%",
+    borderRadius: 13.5,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#E8EEF9",
@@ -322,6 +357,9 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 10,
     fontWeight: "900",
+  },
+  profileAvatarImageHidden: {
+    opacity: 0,
   },
   notificationBadge: {
     position: "absolute",

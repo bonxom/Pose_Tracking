@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
   Alert,
   Clipboard,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,12 +20,19 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 
 function HeaderAvatar({ profile }) {
   return (
     <View style={styles.headerAvatarWrap}>
       {profile?.avatar ? (
-        <Image source={{ uri: profile.avatar }} style={styles.headerAvatar} />
+        <Image
+          source={{ uri: profile.avatar }}
+          style={styles.headerAvatar}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       ) : (
         <View style={styles.headerAvatarFallback}>
           <Text style={styles.headerAvatarText}>{initials(profile?.displayName || profile?.username)}</Text>

@@ -2,7 +2,8 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
 import { initials } from "@/utils/profile";
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { useEffect, useState } from "react";
 
 function Avatar({ uri, name, size = 72, bordered = false }) {
@@ -34,8 +35,10 @@ function Avatar({ uri, name, size = 72, bordered = false }) {
       {uri && !imageFailed ? (
         <Image
           source={{ uri }}
-          resizeMode="cover"
           style={[profileStyles.avatarImage, avatarStyle]}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
           onError={(event) => {
             console.warn("PROFILE_AVATAR_LOAD_ERROR", uri, event.nativeEvent?.error);
             setImageFailed(true);

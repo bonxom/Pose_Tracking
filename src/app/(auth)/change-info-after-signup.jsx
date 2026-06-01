@@ -92,78 +92,78 @@ export default function ChangeInfoAfterSignupScreen() {
     setIsLoading(true);
 
     try {
-      if (verifiedLocally || token.startsWith("local_verify_")) {
-        await saveAuthSession({
-          id: phonenumber || `local_user_${Date.now()}`,
-          token,
-          phonenumber,
-          username: normalizedUsername,
-          displayName: normalizedUsername,
-          role: role || "HV",
-          avatar: avatar || "",
-          coverImage: "",
-          height: normalizedHeight || "",
-          source: "local",
-          demoMode: true,
-          loggedInAt: new Date().toISOString(),
-        });
-        router.replace("/(tabs)/home");
-        return;
-      }
-
-      const response = await authApi.changeInfoAfterSignup({
+      const optimisticSession = {
+        id: phonenumber || `local_user_${Date.now()}`,
         token,
         phonenumber,
         username: normalizedUsername,
-        avatar,
-        height: normalizedHeight,
-        signupRequestId,
-      });
+        displayName: normalizedUsername,
+        role: role || "HV",
+        avatar: avatar || "",
+        coverImage: "",
+        height: normalizedHeight || "",
+        source: verifiedLocally || token.startsWith("local_verify_") ? "local" : "server",
+        demoMode: Boolean(verifiedLocally || token.startsWith("local_verify_")),
+        loggedInAt: new Date().toISOString(),
+      };
 
-      if (response.code === "1000") {
-        const completedUser = response.data || {};
-        const savedToken = completedUser.token || token;
-        const savedUsername =
-          completedUser.username ||
-          completedUser.user_name ||
-          completedUser.name ||
-          normalizedUsername;
-
-        try {
-          await saveAuthSession({
-            id: completedUser.id || completedUser.user_id || phonenumber || "server_user",
-            token: savedToken,
-            phonenumber: completedUser.phonenumber || phonenumber,
-            username: savedUsername,
-            displayName: savedUsername,
-            role: completedUser.role || role || "HV",
-            avatar: completedUser.avatar || avatar || "",
-            coverImage: completedUser.coverImage || completedUser.cover_image || "",
-            height: completedUser.height || normalizedHeight || "",
-            source: "server",
-            demoMode: false,
-            loggedInAt: new Date().toISOString(),
-          });
-          setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
-        } catch (storageError) {
-          console.warn("Cannot persist session:", storageError);
-        }
-
+      if (verifiedLocally || token.startsWith("local_verify_")) {
+        await saveAuthSession(optimisticSession);
         router.replace("/(tabs)/home");
         return;
       }
 
-      if (response.code === "1004") {
-        setUsernameError("Dữ liệu không hợp lệ.");
-        return;
-      }
+      await saveAuthSession(optimisticSession);
+      router.replace("/(tabs)/home");
 
-      if (response.code === "1002") {
-        setUsernameError("Vui lòng nhập đầy đủ thông tin.");
-        return;
-      }
+      void (async () => {
+        try {
+          const response = await authApi.changeInfoAfterSignup({
+            token,
+            phonenumber,
+            username: normalizedUsername,
+            avatar,
+            height: normalizedHeight,
+            signupRequestId,
+          });
 
-      Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
+          if (response.code !== "1000") {
+            return;
+          }
+
+          const completedUser = response.data || {};
+          const savedToken = completedUser.token || token;
+          const savedUsername =
+            completedUser.username ||
+            completedUser.user_name ||
+            completedUser.name ||
+            normalizedUsername;
+
+          try {
+            await saveAuthSession({
+              id: completedUser.id || completedUser.user_id || phonenumber || "server_user",
+              token: savedToken,
+              phonenumber: completedUser.phonenumber || phonenumber,
+              username: savedUsername,
+              displayName: savedUsername,
+              role: completedUser.role || role || "HV",
+              avatar: completedUser.avatar || avatar || "",
+              coverImage: completedUser.coverImage || completedUser.cover_image || "",
+              height: completedUser.height || normalizedHeight || "",
+              source: "server",
+              demoMode: false,
+              loggedInAt: new Date().toISOString(),
+            });
+            setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
+          } catch (storageError) {
+            console.warn("Cannot persist session:", storageError);
+          }
+        } catch (backgroundError) {
+          console.warn("Background signup sync failed:", backgroundError);
+        }
+      })();
+
+      return;
     } catch {
       Alert.alert("Lỗi", "Không thể kết nối đến máy chủ.");
     } finally {
