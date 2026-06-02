@@ -1,26 +1,26 @@
 ﻿import { API_TYPE, API_TYPES } from "@/config/env";
 import {
-  getNotificationCache,
-  getNotificationPage,
-  isNotificationAuthError,
-  isNotificationUnread,
-  markNotificationRead,
-  markNotificationReadLocal,
-  setNotificationBadge,
-  subscribeNotificationBadge,
+    getNotificationCache,
+    getNotificationPage,
+    isNotificationAuthError,
+    isNotificationUnread,
+    markNotificationRead,
+    markNotificationReadLocal,
+    setNotificationBadge,
+    subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
 import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Pressable,
+    RefreshControl,
+    Text,
+    View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -201,6 +201,7 @@ export default function NotificationsScreen() {
           index: 0,
           count: PAGE_SIZE,
           lastUpdate: refresh ? cache.lastUpdate : "",
+          mergeWithExisting: false,
         });
 
         const nextBadge = Number(page.unreadCount || 0);
@@ -301,9 +302,9 @@ export default function NotificationsScreen() {
         setIsLoading(false);
 
         latestBadgeRef.current = Number(cache.unreadCount || 0);
-      } else {
-        loadPage({ refresh: true });
       }
+
+      loadPage({ refresh: true });
 
       setHasNewNotification(false);
 

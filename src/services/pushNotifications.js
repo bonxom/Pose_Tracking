@@ -1,6 +1,6 @@
-import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import {
   getNotificationPage,
+  resetNotificationCache,
   setNotificationBadge,
 } from "@/repositories/notificationRepository";
 import {
@@ -305,14 +305,7 @@ export async function registerDeviceForPush() {
       stack: error?.stack,
     });
 
-    await setDeviceToken(DEFAULT_DEVICE_TOKEN, devtype);
-
-    console.log("SET_DEFAULT_DEVICE_TOKEN", {
-      devtype,
-      devtoken: DEFAULT_DEVICE_TOKEN,
-    });
-
-    return DEFAULT_DEVICE_TOKEN;
+    return null;
   }
 }
 
@@ -387,7 +380,7 @@ export async function refreshNotificationBadge({
       page,
     });
 
-    await showLocalNotificationForNewItems(preview);
+    // await showLocalNotificationForNewItems(preview);
   }
 
   lastUnreadCount = unreadCount;
@@ -465,8 +458,17 @@ export function startInAppNotificationRuntime({
   );
 
   responseSubscription = Notifications.addNotificationResponseReceivedListener(
-    () => {
-      onOpen?.();
+    (response) => {
+      try {
+        const data = response?.notification?.request?.content?.data || {};
+
+        console.log("PUSH_NOTIFICATION_PRESSED", data);
+
+        onOpen?.(data);
+      } catch (error) {
+        console.log("PUSH_NOTIFICATION_PRESS_ERROR", error?.message);
+        onOpen?.({});
+      }
     },
   );
 
@@ -487,4 +489,16 @@ export function stopInAppNotificationRuntime() {
 
   responseSubscription?.remove?.();
   responseSubscription = null;
+}
+
+export function resetInAppNotificationRuntime() {
+  stopInAppNotificationRuntime();
+
+  lastUnreadCount = null;
+  lastNotificationIds = new Set();
+
+  resetNotificationCache();
+
+  Notifications.dismissAllNotificationsAsync().catch(() => {});
+  Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
 }

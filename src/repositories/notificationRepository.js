@@ -1,5 +1,5 @@
 import { backendApi } from "@/api/client";
-import { API_TYPE, API_TYPES } from "@/config/env";
+import { API_BASE_URL, API_TYPE, API_TYPES } from "@/config/env";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
@@ -18,14 +18,18 @@ export function isNotificationAuthError(error) {
   return isNotificationSessionExpired(error);
 }
 
-let notificationCache = {
-  items: [],
-  unreadCount: 0,
-  lastUpdate: "",
-  hasMore: false,
-  hasLoaded: false,
-  source: ACTIVE_SOURCES.LOCAL,
-};
+function createEmptyNotificationCache() {
+  return {
+    items: [],
+    unreadCount: 0,
+    lastUpdate: "",
+    hasMore: false,
+    hasLoaded: false,
+    source: ACTIVE_SOURCES.LOCAL,
+  };
+}
+
+let notificationCache = createEmptyNotificationCache();
 
 let notificationBadge = 0;
 const notificationBadgeListeners = new Set();
@@ -37,6 +41,12 @@ export function getNotificationCache() {
 
 export function getNotificationBadge() {
   return notificationBadge;
+}
+
+export function resetNotificationCache() {
+  notificationCache = createEmptyNotificationCache();
+  setNotificationBadge(0);
+  emitNotificationCache();
 }
 
 export function setNotificationBadge(value) {
@@ -230,6 +240,85 @@ export function markNotificationReadLocal(notificationId) {
   return notificationCache;
 }
 
+function firstNonEmpty(...values) {
+  return values.find(
+    (value) => value !== undefined && value !== null && String(value).trim() !== "",
+  );
+}
+
+function normalizeImageUrl(value = "") {
+  const url = String(value || "").trim();
+
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+    return url;
+  }
+
+  const baseUrl = API_BASE_URL.replace(/\/it4788\/?$/, "").replace(/\/+$/, "");
+  const cleanPath = url.replace(/^\/+/, "");
+
+  return `${baseUrl}/${cleanPath}`;
+}
+
+function getNotificationAvatar(raw = {}) {
+  const sender =
+    raw.sender ||
+    raw.actor ||
+    raw.user ||
+    raw.from ||
+    raw.from_user ||
+    raw.fromUser ||
+    raw.author ||
+    raw.poster ||
+    raw.owner ||
+    {};
+
+  return normalizeImageUrl(
+    firstNonEmpty(
+      raw.sender_avatar,
+      raw.senderAvatar,
+      raw.sender_avatar_url,
+      raw.senderAvatarUrl,
+
+      raw.actor_avatar,
+      raw.actorAvatar,
+      raw.actor_avatar_url,
+      raw.actorAvatarUrl,
+
+      raw.user_avatar,
+      raw.userAvatar,
+      raw.user_avatar_url,
+      raw.userAvatarUrl,
+
+      raw.from_avatar,
+      raw.fromAvatar,
+      raw.from_avatar_url,
+      raw.fromAvatarUrl,
+
+      raw.author_avatar,
+      raw.authorAvatar,
+      raw.author_avatar_url,
+      raw.authorAvatarUrl,
+
+      sender.avatar,
+      sender.avatar_url,
+      sender.avatarUrl,
+      sender.image,
+      sender.image_url,
+      sender.imageUrl,
+      sender.photo,
+
+      raw.avatar,
+      raw.avatar_url,
+      raw.avatarUrl,
+      raw.image,
+      raw.image_url,
+      raw.imageUrl,
+      raw.photo,
+    ),
+  );
+}
+
 function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERVER) {
   const type = raw.type || raw.notification_type || "info";
 
@@ -260,24 +349,14 @@ function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERV
         ? !toBoolFlag(readValue, false)
         : true;
 
-  return {
+  const notificationData = {
     id: notificationId,
     notificationId,
     source,
     type,
     title: raw.title || raw.message || raw.content || "Thông báo",
     body: raw.description || raw.body || raw.content || raw.message || "",
-    avatar:
-      raw.avatar ||
-      raw.user_avatar ||
-      raw.sender_avatar ||
-      raw.image ||
-      raw.image_url ||
-      raw.imageUrl ||
-      raw.photo ||
-      raw.actor?.avatar ||
-      raw.user?.avatar ||
-      "",
+    avatar: getNotificationAvatar(raw),
     group: raw.group || raw.group_type || "",
     badge: Number(raw.badge || raw.badge_count || 0),
     created:
@@ -312,6 +391,19 @@ function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERV
     objectId,
     raw,
   };
+
+  console.log("NORMALIZE_NOTIFICATION_AVATAR", {
+    title: raw.title,
+    avatar: notificationData.avatar,
+    rawAvatar: raw.avatar,
+    senderAvatar: raw.sender_avatar,
+    sender: raw.sender,
+    actor: raw.actor,
+    user: raw.user,
+    raw,
+  });
+
+  return notificationData;
 }
 
 function normalizeNotificationPage(response, source) {

@@ -20,7 +20,10 @@
       "predictiveBackGestureEnabled": false,
       "usesCleartextTraffic": true,
       "package": "com.group1.posetracking",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "notification": {
+        "defaultChannel": "push-voice"
+      }
     },
     "web": {
       "output": "static",
