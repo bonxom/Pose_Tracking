@@ -140,9 +140,6 @@ export async function clearSavedSearches() {
 export async function searchScreenSearch(keyword = "", options = {}) {
   const session = await getCurrentSession();
   const token = String(session?.token || "");
-  const sessionUserId = String(
-    session?.id || session?.user_id || session?.identifier || "",
-  ).trim();
   const trimmedKeyword = String(keyword || "").trim();
 
   if (!token) {
@@ -167,12 +164,11 @@ export async function searchScreenSearch(keyword = "", options = {}) {
   const requestedUserId = String(
     options.userId || options.user_id || options.scopeUserId || "",
   ).trim();
-  const userId = requestedUserId || sessionUserId;
 
   const response = await backendApi.search({
     token,
     keyword: trimmedKeyword,
-    ...(userId ? { user_id: userId } : {}),
+    ...(requestedUserId ? { user_id: requestedUserId } : {}),
     index: String(index),
     count: String(count),
   });
