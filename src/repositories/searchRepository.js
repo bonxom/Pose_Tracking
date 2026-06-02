@@ -54,6 +54,17 @@ function normalizeSearchUser(profile = {}, fallback = {}) {
   };
 }
 
+function hasBackendSearchUsers(response = {}) {
+  const data = response?.data || {};
+
+  return (
+    Array.isArray(data.users) ||
+    Array.isArray(data.user) ||
+    Array.isArray(data.accounts) ||
+    Array.isArray(data.people)
+  );
+}
+
 async function hydrateSearchUsers(users = []) {
   const enrichedUsers = await Promise.all(
     users.slice(0, 8).map(async (user) => {
@@ -103,6 +114,9 @@ export async function clearSavedSearches() {
 export async function searchScreenSearch(keyword = "", options = {}) {
   const session = await getCurrentSession();
   const token = String(session?.token || "");
+  const userId = String(
+    session?.id || session?.user_id || session?.identifier || "",
+  ).trim();
   const trimmedKeyword = String(keyword || "").trim();
 
   if (!token) {
@@ -124,6 +138,7 @@ export async function searchScreenSearch(keyword = "", options = {}) {
   const response = await backendApi.search({
     token,
     keyword: trimmedKeyword,
+    ...(userId ? { user_id: userId } : {}),
     index: String(index),
     count: String(count),
   });
@@ -135,12 +150,13 @@ export async function searchScreenSearch(keyword = "", options = {}) {
 
   const posts = mapPosts(response);
   let users = mapUsersFromResponse(response, posts);
+  const backendHasUsers = hasBackendSearchUsers(response);
 
   if (
     API_TYPE === API_TYPES.BACKEND &&
     !options.append &&
     users.length &&
-    !response?.data?.users
+    !backendHasUsers
   ) {
     users = await hydrateSearchUsers(users);
   }
@@ -148,7 +164,7 @@ export async function searchScreenSearch(keyword = "", options = {}) {
   // Client-side filter: only include users whose name or handle contains the keyword
   try {
     const lowered = String(trimmedKeyword || "").trim().toLowerCase();
-    if (lowered) {
+    if (lowered && !backendHasUsers) {
       users = users.filter((u) => {
         const name = String(u?.name || "").toLowerCase();
         const handle = String(u?.handle || "").replace(/^@/, "").toLowerCase();
@@ -163,6 +179,6 @@ export async function searchScreenSearch(keyword = "", options = {}) {
     posts,
     users,
     nextIndex: index + count,
-    hasMore: posts.length >= count,
+    hasMore: posts.length >= count || users.length >= count,
   };
 }
