@@ -3,6 +3,8 @@ import { clearNotificationState } from "@/services/notificationStore";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
+import { CACHE_KEY_PROFILE } from "@/utils/cacheStore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -73,6 +75,7 @@ export default function MenuScreen() {
     try {
       await clearAuthSession();
       clearNotificationState();
+      await AsyncStorage.removeItem(CACHE_KEY_PROFILE);
     } finally {
       router.replace("/(auth)/login");
     }

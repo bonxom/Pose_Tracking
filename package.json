@@ -16,16 +16,16 @@
     "lint": "expo lint"
   },
   "dependencies": {
-    "@react-navigation/bottom-tabs": "^7.15.5",
-    "@react-navigation/elements": "^2.9.14",
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/netinfo": "11.5.2",
     "@react-navigation/native": "^7.1.33",
-    "expo": "~55.0.24",
+    "expo": "~55.0.26",
     "expo-constants": "~55.0.11",
     "expo-dev-client": "~55.0.35",
     "expo-device": "~55.0.17",
     "expo-font": "~55.0.6",
-    "expo-glass-effect": "~55.0.11",
-    "expo-image": "~55.0.10",
+    "expo-image": "~55.0.11",
     "expo-image-picker": "~55.0.20",
     "expo-linking": "~55.0.15",
     "expo-media-library": "~55.0.17",
@@ -34,10 +34,9 @@
     "expo-secure-store": "~55.0.14",
     "expo-splash-screen": "~55.0.21",
     "expo-status-bar": "~55.0.6",
-    "expo-symbols": "~55.0.8",
-    "expo-system-ui": "~55.0.17",
+    "expo-symbols": "~55.0.9",
     "expo-video": "~55.0.17",
-    "expo-web-browser": "~55.0.15",
+    "expo-web-browser": "~55.0.16",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.6",
@@ -54,7 +53,6 @@
   "devDependencies": {
     "@types/react": "~19.2.10",
     "eslint": "^9.39.4",
-    "eslint-config-expo": "~55.0.1",
-    "eslint-import-resolver-typescript": "^3.10.1"
+    "eslint-config-expo": "~55.0.1"
   }
 }

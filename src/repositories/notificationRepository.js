@@ -392,17 +392,6 @@ function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERV
     raw,
   };
 
-  console.log("NORMALIZE_NOTIFICATION_AVATAR", {
-    title: raw.title,
-    avatar: notificationData.avatar,
-    rawAvatar: raw.avatar,
-    senderAvatar: raw.sender_avatar,
-    sender: raw.sender,
-    actor: raw.actor,
-    user: raw.user,
-    raw,
-  });
-
   return notificationData;
 }
 
@@ -456,7 +445,7 @@ export async function getNotificationPage(params = {}) {
     const response = await backendApi.getNotification({
       index: String(params.index || 0),
       count: String(params.count || 20),
-      last_update: params.lastUpdate || params.last_update || "",
+      // last_update: params.lastUpdate || params.last_update || "",
     });
 
     await assertBackendOk(response, {

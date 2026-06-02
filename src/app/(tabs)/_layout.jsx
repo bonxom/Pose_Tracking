@@ -41,7 +41,11 @@ function HomeTopSection() {
             <FontAwesome name="plus-square-o" size={24} color={colors.text} />
           </Pressable>
         ) : null}
-        <Pressable style={styles.searchBtn} hitSlop={8}>
+        <Pressable
+          style={styles.searchBtn}
+          hitSlop={8}
+          onPress={() => router.push("/search")}
+        >
           <SearchIcon size={28} />
         </Pressable>
       </View>

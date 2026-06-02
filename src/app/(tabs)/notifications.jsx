@@ -1,26 +1,29 @@
-﻿import { API_TYPE, API_TYPES } from "@/config/env";
+import NoInternetView from "@/components/common/NoInternetView";
+import SearchIcon from "@/components/icons/SearchIcon";
+import { API_TYPE, API_TYPES } from "@/config/env";
+import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
-    getNotificationCache,
-    getNotificationPage,
-    isNotificationAuthError,
-    isNotificationUnread,
-    markNotificationRead,
-    markNotificationReadLocal,
-    setNotificationBadge,
-    subscribeNotificationBadge,
+  getNotificationCache,
+  getNotificationPage,
+  isNotificationAuthError,
+  isNotificationUnread,
+  markNotificationRead,
+  markNotificationReadLocal,
+  setNotificationBadge,
+  subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
 import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Pressable,
-    RefreshControl,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -140,7 +143,8 @@ function EmptyState() {
     <View style={styles.emptyState}>
       <Text style={styles.emptyTitle}>Chưa có thông báo</Text>
       <Text style={styles.emptyText}>
-        Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ xuất hiện ở đây.
+        Khi có lượt thích, bình luận hoặc cập nhật bài viết mới, chúng sẽ xuất
+        hiện ở đây.
       </Text>
     </View>
   );
@@ -151,13 +155,14 @@ export default function NotificationsScreen() {
 
   const [items, setItems] = useState(initialCache.items);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [badge, setBadge] = useState(initialCache.unreadCount);
+  const [, setBadge] = useState(initialCache.unreadCount);
   const [hasMore, setHasMore] = useState(initialCache.hasMore);
   const [isLoading, setIsLoading] = useState(!initialCache.hasLoaded);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
-  const [lastUpdate, setLastUpdate] = useState(initialCache.lastUpdate);
+  const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
+  const [, setLastUpdate] = useState(initialCache.lastUpdate);
   const [hasNewNotification, setHasNewNotification] = useState(false);
 
   const listRef = useRef(null);
@@ -173,12 +178,18 @@ export default function NotificationsScreen() {
     return items;
   }, [activeFilter, items]);
 
-  const handleNotificationAuthError = useCallback(async (error) => {
-    if (!isNotificationAuthError(error)) {
+  const handleNotificationAuthError = useCallback(async (err) => {
+    if (!isNotificationAuthError(err)) {
       return false;
     }
 
     await clearAuthSession();
+
+    setItems([]);
+    setBadge(0);
+    setNotificationBadge(0);
+    setHasMore(false);
+
     router.replace("/(auth)/login");
 
     return true;
@@ -197,11 +208,15 @@ export default function NotificationsScreen() {
           setIsLoading(true);
         }
 
-        const page = await getNotificationPage({
-          index: 0,
-          count: PAGE_SIZE,
-          lastUpdate: refresh ? cache.lastUpdate : "",
-          mergeWithExisting: false,
+        let page;
+
+        await executeWithInternetCheck(async () => {
+          page = await getNotificationPage({
+            index: 0,
+            count: PAGE_SIZE,
+            lastUpdate: refresh ? cache.lastUpdate : "",
+            mergeWithExisting: false,
+          });
         });
 
         const nextBadge = Number(page.unreadCount || 0);
@@ -219,9 +234,6 @@ export default function NotificationsScreen() {
       } catch (err) {
         if (API_TYPE !== API_TYPES.MOCK) {
           if (await handleNotificationAuthError(err)) {
-            setItems([]);
-            setBadge(0);
-            setHasMore(false);
             return;
           }
         }
@@ -232,7 +244,7 @@ export default function NotificationsScreen() {
         setIsRefreshing(false);
       }
     },
-    [handleNotificationAuthError],
+    [executeWithInternetCheck, handleNotificationAuthError],
   );
 
   const loadMore = useCallback(async () => {
@@ -242,10 +254,12 @@ export default function NotificationsScreen() {
 
     try {
       setIsLoadingMore(true);
-
-      const page = await getNotificationPage({
-        index: items.length,
-        count: PAGE_SIZE,
+      let page;
+      await executeWithInternetCheck(async () => {
+        page = await getNotificationPage({
+          index: items.length,
+          count: PAGE_SIZE,
+        });
       });
 
       setItems(page.items);
@@ -268,6 +282,7 @@ export default function NotificationsScreen() {
       setIsLoadingMore(false);
     }
   }, [
+    executeWithInternetCheck,
     hasMore,
     isLoading,
     isRefreshing,
@@ -395,7 +410,12 @@ export default function NotificationsScreen() {
           "",
       ).trim();
 
-      if (!postId || postId === "0" || postId === "undefined" || postId === "null") {
+      if (
+        !postId ||
+        postId === "0" ||
+        postId === "undefined" ||
+        postId === "null"
+      ) {
         console.warn("Notification missing post id", item);
         return;
       }
@@ -427,7 +447,16 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Thông báo</Text>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.title}>Thông báo</Text>
+          <Pressable
+            onPress={() => router.push("/search")}
+            hitSlop={8}
+            style={styles.searchButton}
+          >
+            <SearchIcon size={24} />
+          </Pressable>
+        </View>
 
         <View style={styles.filterRow}>
           <Pressable
@@ -477,7 +506,13 @@ export default function NotificationsScreen() {
         </Pressable>
       ) : null}
 
-      {error ? (
+      {isNoInternet ? (
+        <NoInternetView
+          onRefresh={() => loadPage({ refresh: true })}
+          refreshing={isRefreshing}
+          style={{ minHeight: 300, flex: 1 }}
+        />
+      ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.retryButton} onPress={() => loadPage()}>

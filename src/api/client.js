@@ -13,6 +13,11 @@ import MOCK_GET_USER_INFO from "@/constants/mocks/MOCK_GET_USER_INFO";
 import MOCK_LIST_COURSES from "@/constants/mocks/MOCK_LIST_COURSES";
 import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
 import {
+  deleteMockSavedSearchResponse,
+  getMockSavedSearchResponse,
+  getMockSearchResponse,
+} from "@/constants/mocks/MOCK_SEARCH";
+import {
   getMockNotificationResponse,
   setMockNotificationRead,
 } from "@/constants/mocks/MOCK_NOTIFICATION";
@@ -360,9 +365,22 @@ export const backendApi = {
   like: (params) => post("/like_post", params),
   getComment: (params) => post("/get_comment", params),
   setComment: (params) => postForm("/set_comment", params),
-  search: (params) => post("/search", params),
-  getSavedSearch: (params) => post("/get_saved_search", params),
-  delSavedSearch: (params) => post("/del_saved_search", params),
+  search: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockSearchResponse(params)
+      : post("/search", params),
+  getSavedSearch: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockSavedSearchResponse(params)
+      : post("/get_saved_search", params),
+  deleteSavedSearch: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? deleteMockSavedSearchResponse(params)
+      : post("/del_saved_search", params),
+  delSavedSearch: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? deleteMockSavedSearchResponse(params)
+      : post("/del_saved_search", params),
   getListStudents: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(MOCK_LIST_STUDENTS)

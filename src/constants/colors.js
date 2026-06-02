@@ -41,6 +41,7 @@ const colors = {
   divider: "#838689",
   overlayBlack40: "rgba(0, 0, 0, 0.4)",
   overlayBlack65: "rgba(0, 0, 0, 0.65)",
+  blue: "#0865fe",
 };
 
 export default colors;

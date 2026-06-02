@@ -1,9 +1,11 @@
 import {
+  resetInAppNotificationRuntime,
   startInAppNotificationRuntime,
   stopInAppNotificationRuntime,
 } from "@/services/pushNotifications";
 import { getAuthSession } from "@/utils/session";
 import { Stack, router, usePathname, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -69,6 +71,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      resetInAppNotificationRuntime?.();
+      setNotificationToast(null);
       return undefined;
     }
 
@@ -113,6 +117,7 @@ export default function RootLayout() {
   if (isBootstrapping) {
     return (
       <SafeAreaProvider>
+        <StatusBar style="dark" />
         <View
           style={{
             flex: 1,
