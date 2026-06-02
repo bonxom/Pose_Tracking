@@ -6,12 +6,21 @@ import {
   API_TYPES,
 } from "@/config/env";
 import MOCK_ACCOUNTS from "@/constants/mocks/MOCK_ACCOUNTS";
-import MOCK_ADD_POST from "@/constants/mocks/MOCK_ADD_POST";
-import MOCK_GET_LIST_POSTS from "@/constants/mocks/MOCK_GET_LIST_POSTS";
-import MOCK_GET_POST from "@/constants/mocks/MOCK_GET_POST";
 import MOCK_GET_USER_INFO from "@/constants/mocks/MOCK_GET_USER_INFO";
 import MOCK_LIST_COURSES from "@/constants/mocks/MOCK_LIST_COURSES";
 import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
+import {
+  getMockAddPostResponse,
+  getMockCheckNewItemResponse,
+  getMockDeletePostResponse,
+  getMockEditPostResponse,
+  getMockGetCommentResponse,
+  getMockGetListPostsResponse,
+  getMockGetPostResponse,
+  getMockLikePostResponse,
+  getMockReportPostResponse,
+  getMockSetCommentResponse,
+} from "@/constants/mocks/MOCK_POST_API";
 import {
   deleteMockSavedSearchResponse,
   getMockSavedSearchResponse,
@@ -193,46 +202,6 @@ export async function postMultipart(
   return request(path, formData, { ...options, transport: "multipart" });
 }
 
-function buildMockGetPostResponse(params = {}) {
-  const list = Array.isArray(MOCK_GET_POST.data) ? MOCK_GET_POST.data : [];
-  const requestId = String(params?.id || "");
-  const matched = list.find((item) => String(item.id) === requestId);
-
-  return {
-    ...MOCK_GET_POST,
-    data: [matched || list[0]].filter(Boolean),
-  };
-}
-
-function buildMockGetListPostsResponse(params = {}) {
-  const source = MOCK_GET_LIST_POSTS?.data || {};
-  const list = Array.isArray(source.posts) ? source.posts : [];
-  const count = Math.max(1, Number(params?.count || 20));
-  const requestedLastId = String(params?.last_id || params?.lastId || "");
-  const requestedIndex = Math.max(0, Number(params?.index || 0));
-  const lastIdIndex = requestedLastId
-    ? list.findIndex((item) => String(item?.post_id || "") === requestedLastId)
-    : -1;
-  const startIndex =
-    lastIdIndex >= 0 ? lastIdIndex + 1 : Math.min(requestedIndex, list.length);
-
-  const sliced = list.slice(startIndex, startIndex + count);
-  const lastItem = sliced[sliced.length - 1];
-  const hasMore = startIndex + sliced.length < list.length;
-
-  return {
-    ...MOCK_GET_LIST_POSTS,
-    data: {
-      ...source,
-      posts: sliced,
-      last_id: lastItem?.post_id || "",
-      has_more: hasMore ? "1" : "0",
-      total: String(list.length),
-      new_items: source.new_items || "0",
-    },
-  };
-}
-
 function buildMockGetUserInfoResponse(params = {}) {
   const list = Array.isArray(MOCK_GET_USER_INFO.data)
     ? MOCK_GET_USER_INFO.data
@@ -323,26 +292,35 @@ export const backendApi = {
   changeInfoAfterSignup: (params) => post("/change_info_after_signup", params),
   getListPosts: (params) =>
     API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockGetListPostsResponse(params))
+      ? getMockGetListPostsResponse(params)
       : postForm("/get_list_posts", params),
   getPost: (params) =>
     API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockGetPostResponse(params))
+      ? getMockGetPostResponse(params)
       : post("/get_post", params),
   addPost: (fields, files) =>
     API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(MOCK_ADD_POST)
+      ? getMockAddPostResponse(fields, files)
       : postMultipart("/add_post", fields, files, {
           timeout: ADD_POST_TIMEOUT_MS,
         }),
-  editPost: (params) => post("/edit_post", params, {
-    timeout: EDIT_POST_TIMEOUT_MS,
-  }),
+  editPost: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockEditPostResponse(params)
+      : post("/edit_post", params, {
+          timeout: EDIT_POST_TIMEOUT_MS,
+        }),
   editPostMultipart: (fields, files) =>
-    postMultipart("/edit_post", fields, files, {
-      timeout: EDIT_POST_TIMEOUT_MS,
-    }),
+    API_TYPE === API_TYPES.MOCK
+      ? getMockEditPostResponse(fields, files)
+      : postMultipart("/edit_post", fields, files, {
+          timeout: EDIT_POST_TIMEOUT_MS,
+        }),
   deletePost: (params = {}) => {
+    if (API_TYPE === API_TYPES.MOCK) {
+      return getMockDeletePostResponse(params);
+    }
+
     const payload = {
       token: params.token || "",
     };
@@ -361,10 +339,22 @@ export const backendApi = {
 
     return del(endpoint, payload, { headers });
   },
-  reportPost: (params) => post("/report_post", params),
-  like: (params) => post("/like_post", params),
-  getComment: (params) => post("/get_comment", params),
-  setComment: (params) => postForm("/set_comment", params),
+  reportPost: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockReportPostResponse(params)
+      : post("/report_post", params),
+  like: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockLikePostResponse(params)
+      : post("/like_post", params),
+  getComment: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockGetCommentResponse(params)
+      : post("/get_comment", params),
+  setComment: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockSetCommentResponse(params)
+      : postForm("/set_comment", params),
   search: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? getMockSearchResponse(params)
@@ -418,7 +408,7 @@ export const backendApi = {
   deleteConversation: (params) => post("/delete_conversation", params),
   checkNewItem: (params) =>
     API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve({})
+      ? getMockCheckNewItemResponse(params)
       : post("/check_new_item", params),
   getNotification: (params) =>
     API_TYPE === API_TYPES.MOCK

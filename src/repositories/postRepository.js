@@ -10,9 +10,7 @@ import {
   ACTIVE_SOURCES,
   getCurrentSession,
   getSourceLabel,
-  isMockMode,
   isServerPost,
-  shouldUseServer,
 } from "@/repositories/source";
 import * as localPosts from "@/services/postStore";
 
@@ -30,6 +28,15 @@ function assertServerSession(session) {
   if (!session?.token) {
     throw new Error("Cần đăng nhập server để dùng dữ liệu backend.");
   }
+}
+
+function shouldUsePostApi(session) {
+  if (!session?.token) return false;
+  if (session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL) {
+    return false;
+  }
+
+  return true;
 }
 
 function normalizeServerPostList(response) {
@@ -80,6 +87,24 @@ function durationMs(video = {}) {
   return value > 1000 ? value : value * 1000;
 }
 
+function normalizeApiBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes"].includes(normalized)) return true;
+    if (["0", "false", "no"].includes(normalized)) return false;
+  }
+
+  if (typeof value === "number") {
+    return value === 1;
+  }
+
+  return Boolean(value);
+}
+
 function buildAddPostFields(session, params = {}) {
   const fields = {
     token: session.token,
@@ -91,6 +116,10 @@ function buildAddPostFields(session, params = {}) {
 
   if (params.exerciseId) {
     fields.exercise_id = params.exerciseId;
+  }
+
+  if (params.sourcePostId) {
+    fields.source_post_id = params.sourcePostId;
   }
 
   return fields;
@@ -151,22 +180,13 @@ function extractFeedMeta(response, params, itemCount) {
 
   return {
     lastId: String(rawLastId || params.lastId || params.last_id || ""),
-    hasMore: Boolean(hasMore),
+    hasMore: normalizeApiBoolean(hasMore),
     newItems: Number.isFinite(newItems) ? newItems : 0,
     total: Number(data.total || response?.total || itemCount),
   };
 }
 
 export async function getFeedPage(params = {}) {
-  if (isMockMode()) {
-    const localResult = await localPosts.getFeedPage(params);
-    return {
-      ...localResult,
-      source: ACTIVE_SOURCES.LOCAL,
-      sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL),
-    };
-  }
-
   const session = await getCurrentSession();
   assertServerSession(session);
   const response = await backendApi.getListPosts({
@@ -194,16 +214,6 @@ export async function getFeedPage(params = {}) {
 }
 
 export async function getPostById(postId) {
-  if (isMockMode()) {
-    const post = await localPosts.getPostById(postId);
-    if (!post) return null;
-    return {
-      ...post,
-      source: ACTIVE_SOURCES.LOCAL,
-      sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL),
-    };
-  }
-
   const session = await getCurrentSession();
   assertServerSession(session);
   const response = await backendApi.getPost({
@@ -219,11 +229,6 @@ export async function getPostById(postId) {
 }
 
 export async function toggleLike(post) {
-  if (isMockMode()) {
-    const postId = typeof post === "string" ? post : post?.id;
-    return localPosts.toggleLike(postId);
-  }
-
   const targetPost = typeof post === "string" ? await getPostById(post) : post;
   if (!targetPost?.id || !isServerPost(targetPost)) {
     throw new Error("Backend mode chỉ hỗ trợ thao tác với bài viết từ server.");
@@ -395,15 +400,6 @@ export async function reportPost(post, reason = "") {
 }
 
 export async function checkNewItems(lastId = "") {
-  if (isMockMode()) {
-    return {
-      hasNew: false,
-      count: 0,
-      source: ACTIVE_SOURCES.LOCAL,
-      raw: null,
-    };
-  }
-
   const session = await getCurrentSession();
 
   assertServerSession(session);
@@ -427,13 +423,21 @@ export async function checkNewItems(lastId = "") {
 
   await assertBackendOk(response, { message: "Backend check_new_item failed" });
 
+  const count = Number(
+    response.data?.new_items ??
+      response.data?.count ??
+      response.count ??
+      0,
+  );
+  const hasNewValue =
+    response.data?.has_new ??
+    response.data?.new_items ??
+    response.has_new ??
+    count;
+
   return {
-    hasNew: Boolean(
-      response.data?.new_items || response.data?.has_new || response.has_new,
-    ),
-    count: Number(
-      response.data?.new_items || response.data?.count || response.count || 0,
-    ),
+    hasNew: normalizeApiBoolean(hasNewValue, count > 0),
+    count: Number.isFinite(count) ? count : 0,
     source: ACTIVE_SOURCES.SERVER,
     raw: response,
   };
@@ -449,7 +453,7 @@ export async function getExercisePosts() {
 export async function createPost(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
-  const allowServer = shouldUseServer(session);
+  const allowServer = shouldUsePostApi(session);
 
   if (!allowServer) {
     return localPosts.createPost({
@@ -506,7 +510,7 @@ export async function createLocalPost(params) {
 export async function createExerciseSubmission(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
-  const allowServer = shouldUseServer(session);
+  const allowServer = shouldUsePostApi(session);
 
   if (!allowServer) {
     return localPosts.createExerciseSubmission({
