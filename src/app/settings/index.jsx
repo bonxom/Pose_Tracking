@@ -26,6 +26,15 @@ function SettingsRow({ icon, title, subtitle, onPress }) {
 }
 
 export default function SettingsScreen() {
+  const goBackToPreviousScreen = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)/menu");
+  };
+
   const runLogout = async () => {
     const currentSession = await getAuthSession().catch(() => null);
     await clearAuthSession();
@@ -69,6 +78,14 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
+            <Pressable
+              style={styles.backButton}
+              onPress={goBackToPreviousScreen}
+              accessibilityRole="button"
+              accessibilityLabel="Quay lại"
+            >
+              <ProfileIcon name="chevron-back" size={24} color={colors.ink} />
+            </Pressable>
             <Text style={styles.title}>Cài đặt</Text>
             <Pressable
               style={styles.searchButton}
@@ -166,8 +183,15 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: sizes.md,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
   },
   title: {
     flex: 1,

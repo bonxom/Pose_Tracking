@@ -23,7 +23,7 @@ export default function PoliciesScreen() {
             <Pressable style={styles.backButton} onPress={goBackToSettings}>
               <ProfileIcon name="chevron-back" size={24} color={colors.ink} />
             </Pressable>
-            <Text style={styles.headerTitle}>Cài đặt</Text>
+            <Text style={styles.headerTitle}>Trợ giúp & hỗ trợ</Text>
           </View>
           <Text style={styles.title}>Điều khoản & chính sách</Text>
           <Text style={styles.subtitle}>
