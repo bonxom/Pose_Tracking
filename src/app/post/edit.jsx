@@ -27,6 +27,7 @@ import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { createVideoPlayer } from "expo-video";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -42,6 +43,103 @@ import {
   View,
 } from "react-native";
 
+function normalizeDurationMs(value) {
+  const duration = Number(value || 0);
+  if (!Number.isFinite(duration) || duration <= 0) return 0;
+  return duration > 1000 ? Math.round(duration) : Math.round(duration * 1000);
+}
+
+async function readDurationFromVideoUri(uri) {
+  if (!uri) return 0;
+
+  if (typeof document !== "undefined") {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () =>
+        resolve(normalizeDurationMs(video.duration || 0));
+      video.onerror = () => resolve(0);
+      video.src = uri;
+    });
+  }
+
+  const player = createVideoPlayer({ uri });
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeoutId;
+    let sourceLoadSubscription;
+    let statusChangeSubscription;
+
+    const finish = (value = 0) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      sourceLoadSubscription?.remove();
+      statusChangeSubscription?.remove();
+      try {
+        player.release();
+      } catch {}
+      resolve(normalizeDurationMs(value));
+    };
+
+    const resolvePlayerDuration = (value = 0) => {
+      const duration = Number(value || player.duration || 0);
+      if (Number.isFinite(duration) && duration > 0) {
+        finish(duration);
+      }
+    };
+
+    sourceLoadSubscription = player.addListener("sourceLoad", (payload) => {
+      resolvePlayerDuration(payload?.duration);
+    });
+    statusChangeSubscription = player.addListener(
+      "statusChange",
+      (payload) => {
+        resolvePlayerDuration();
+        if (payload?.error) {
+          finish(0);
+        }
+      },
+    );
+    timeoutId = setTimeout(() => finish(0), 8000);
+
+    resolvePlayerDuration();
+  });
+}
+
+async function hydrateVideoDurations(videos = []) {
+  if (!Array.isArray(videos) || !videos.length) {
+    return videos;
+  }
+
+  const nextVideos = await Promise.all(
+    videos.map(async (video) => {
+      if (!video) return null;
+
+      const duration = normalizeDurationMs(video.duration || video.durationMs);
+      if (duration) {
+        return {
+          ...video,
+          duration,
+        };
+      }
+
+      const probedDuration = await readDurationFromVideoUri(video.uri);
+      if (!probedDuration) {
+        return video;
+      }
+
+      return {
+        ...video,
+        duration: probedDuration,
+      };
+    }),
+  );
+
+  return nextVideos;
+}
+
 export default function EditPostScreen() {
   const params = useLocalSearchParams();
   const postId = String(params.id || "");
@@ -56,7 +154,7 @@ export default function EditPostScreen() {
   const [statusText, setStatusText] = useState("");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [textAreaHeight, setTextAreaHeight] = useState(26);
-  const [isSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
@@ -96,10 +194,17 @@ export default function EditPostScreen() {
           throw new Error("Bài viết không tồn tại.");
         }
 
+        const hydratedVideos = await hydrateVideoDurations(
+          normalizeVideoSlots(loadedPost.videos || []),
+        );
+
         const initialText = loadedPost.content || loadedPost.described || "";
 
         if (isMounted) {
-          setPost(loadedPost);
+          setPost({
+            ...loadedPost,
+            videos: hydratedVideos,
+          });
           setContent(initialText);
           setInitialContent(initialText);
           setStatusText("");
@@ -143,16 +248,9 @@ export default function EditPostScreen() {
   }, []);
 
   const readVideoDuration = async (asset) => {
-    if (asset.duration) return asset.duration;
-    if (typeof document === "undefined" || !asset.uri) return 0;
-
-    return new Promise((resolve) => {
-      const video = document.createElement("video");
-      video.preload = "metadata";
-      video.onloadedmetadata = () => resolve(Math.round(video.duration * 1000));
-      video.onerror = () => resolve(0);
-      video.src = asset.uri;
-    });
+    const duration = normalizeDurationMs(asset.duration || asset.durationMs);
+    if (duration) return duration;
+    return readDurationFromVideoUri(asset.uri);
   };
 
   const buildVideoItem = async (asset, slotIndex) => {
@@ -211,7 +309,7 @@ export default function EditPostScreen() {
   };
 
   const handleSaveEdit = async () => {
-    if (!post) return;
+    if (!post || isSubmitting) return;
 
     const trimmedContent = content.trim();
     if (!trimmedContent) {
@@ -224,11 +322,16 @@ export default function EditPostScreen() {
       return;
     }
 
-    const nextVideos = isReplacingVideos ? replacementVideos : undefined;
+    setIsSubmitting(true);
+
+    let nextVideos = isReplacingVideos ? replacementVideos : undefined;
     if (nextVideos?.length) {
       try {
+        nextVideos = await hydrateVideoDurations(nextVideos);
+        setReplacementVideos(nextVideos);
         validateEditableVideos(nextVideos);
       } catch (error) {
+        setIsSubmitting(false);
         Alert.alert(
           "Video chưa hợp lệ",
           error?.message || "Vui lòng kiểm tra lại video trước khi cập nhật.",

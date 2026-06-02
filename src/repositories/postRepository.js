@@ -150,6 +150,15 @@ function isLocalUploadVideo(video = {}) {
   return Boolean(video?.isLocalUpload || video?.file || video?.blob);
 }
 
+function assertMatchingVideoDurations(firstMs, secondMs) {
+  const allowedDiff = 1_000;
+  if (Math.abs(firstMs - secondMs) > allowedDiff) {
+    throw new Error(
+      "Hai video khác thời lượng. Vui lòng chọn 2 video có thời lượng bằng nhau.",
+    );
+  }
+}
+
 export function validateEditableVideos(videos = []) {
   const filteredVideos = Array.isArray(videos) ? videos.filter(Boolean) : [];
   const localVideos = filteredVideos.filter(isLocalUploadVideo);
@@ -168,13 +177,16 @@ export function validateEditableVideos(videos = []) {
 
   const [first, second] = filteredVideos.map(durationMs);
   if (!first || !second) {
+    if (localVideos.length === 1) {
+      throw new Error(
+        "Không thể kiểm tra thời lượng với video cũ còn lại. Vui lòng thay cả 2 video để hệ thống đối chiếu thời lượng.",
+      );
+    }
+
     return true;
   }
 
-  const allowedDiff = Math.max(3_000, Math.max(first, second) * 0.2);
-  if (Math.abs(first - second) > allowedDiff) {
-    throw new Error("Hai video cần có thời lượng tương đương nhau.");
-  }
+  assertMatchingVideoDurations(first, second);
 
   return true;
 }
@@ -189,10 +201,7 @@ export function validateTwoVideos(videos = []) {
   });
 
   const [first, second] = videos.map(durationMs);
-  const allowedDiff = Math.max(3_000, Math.max(first, second) * 0.2);
-  if (Math.abs(first - second) > allowedDiff) {
-    throw new Error("Hai video cần có thời lượng tương đương nhau.");
-  }
+  assertMatchingVideoDurations(first, second);
 
   return true;
 }
@@ -375,8 +384,7 @@ export async function editPost(post, params = {}) {
     .map((video, index) => ({
       ...video,
       fieldName:
-        video.fieldName ||
-        (index === 0 ? "left_video" : "right_video"),
+        video.fieldName || (index === 0 ? "left_video" : "right_video"),
     }));
 
   if (params.videos?.length) {
