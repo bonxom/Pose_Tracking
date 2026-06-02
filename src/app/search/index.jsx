@@ -21,13 +21,14 @@ import {
   persistSearchScreenCache,
   resetSearchScreenCache,
 } from "@/utils/search";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   startTransition,
   useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
@@ -110,6 +111,7 @@ function mergeSavedSearchEntries(preferredItems = [], fallbackItems = []) {
 }
 
 export default function SearchScreen() {
+  const params = useLocalSearchParams();
   const [keyword, setKeyword] = useState(searchScreenCache.keyword);
   const [posts, setPosts] = useState(searchScreenCache.posts);
   const [users, setUsers] = useState(searchScreenCache.users);
@@ -129,8 +131,25 @@ export default function SearchScreen() {
     normalizeSearchTab(searchScreenCache.activeTab),
   );
   const [historyMenuItem, setHistoryMenuItem] = useState(null);
+  const lastAutoSearchKeywordRef = useRef("");
 
   const deferredKeyword = useDeferredValue(keyword);
+  const routeKeyword = useMemo(() => {
+    const rawValue = Array.isArray(params.keyword)
+      ? params.keyword[0]
+      : params.keyword;
+    return String(rawValue || "").trim();
+  }, [params.keyword]);
+  const routeTab = useMemo(() => {
+    const rawValue = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+    return normalizeSearchTab(String(rawValue || "").trim().toLowerCase());
+  }, [params.tab]);
+  const shouldAutoSearch = useMemo(() => {
+    const rawValue = Array.isArray(params.autoSearch)
+      ? params.autoSearch[0]
+      : params.autoSearch;
+    return String(rawValue || "").trim() === "1";
+  }, [params.autoSearch]);
 
   const suggestions = useMemo(() => {
     const normalizedKeyword = deferredKeyword.trim().toLowerCase();
@@ -196,7 +215,12 @@ export default function SearchScreen() {
   );
 
   const runSearch = useCallback(
-    async ({ append = false, index = 0, value = keyword } = {}) => {
+    async ({
+      append = false,
+      index = 0,
+      value = keyword,
+      preferredTab = "all",
+    } = {}) => {
       const trimmedKeyword = String(value || "").trim();
 
       if (!trimmedKeyword) {
@@ -242,7 +266,7 @@ export default function SearchScreen() {
         });
 
         if (!append) {
-          setActiveTab("all");
+          setActiveTab(normalizeSearchTab(preferredTab));
         }
 
         if (!append && index === 0) {
@@ -375,6 +399,33 @@ export default function SearchScreen() {
   const keyExtractor = useCallback((item) => item.id, []);
   const showPosts = hasSearched && (activeTab === "all" || activeTab === "posts");
   const showProfiles = hasSearched && (activeTab === "all" || activeTab === "people");
+
+  useEffect(() => {
+    if (!shouldAutoSearch || !routeKeyword) {
+      return;
+    }
+
+    if (lastAutoSearchKeywordRef.current === routeKeyword) {
+      return;
+    }
+
+    lastAutoSearchKeywordRef.current = routeKeyword;
+    setKeyword(routeKeyword);
+    setError("");
+    setHasSearched(false);
+
+    runSearch({
+      index: 0,
+      append: false,
+      value: routeKeyword,
+      preferredTab: routeTab,
+    });
+  }, [
+    routeKeyword,
+    routeTab,
+    runSearch,
+    shouldAutoSearch,
+  ]);
 
   return (
     <SafeAreaView style={searchStyles.safeArea}>

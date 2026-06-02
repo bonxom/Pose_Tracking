@@ -278,6 +278,20 @@ export default function PostCard({
     });
   };
 
+  const handlePressHashtag = (tag) => {
+    const normalizedTag = String(tag || "").trim();
+    if (!normalizedTag) return;
+
+    router.push({
+      pathname: "/search",
+      params: {
+        keyword: normalizedTag,
+        autoSearch: "1",
+        tab: "posts",
+      },
+    });
+  };
+
   const ContentContainer = onPress ? Pressable : View;
 
   return (
@@ -379,9 +393,15 @@ export default function PostCard({
         {hashtags.length ? (
           <View style={postStyles.hashtagRow}>
             {hashtags.map((tag) => (
-              <Text key={tag} style={postStyles.hashtagText}>
-                {tag}
-              </Text>
+              <Pressable
+                key={tag}
+                onPress={(event) => {
+                  event.stopPropagation?.();
+                  handlePressHashtag(tag);
+                }}
+              >
+                <Text style={postStyles.hashtagText}>{tag}</Text>
+              </Pressable>
             ))}
           </View>
         ) : null}

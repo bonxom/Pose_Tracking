@@ -5,7 +5,8 @@ import {
   getSavedSearches as getSavedSearchRecords,
 } from "@/repositories/postRepository";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { getCurrentSession } from "@/repositories/source";
+import { getCurrentSession, isMockMode } from "@/repositories/source";
+import * as localPosts from "@/services/postStore";
 import { getUserInfo } from "@/repositories/userRepository";
 import { mapPosts, mapUsersFromResponse } from "@/utils/search";
 
@@ -65,6 +66,31 @@ function hasBackendSearchUsers(response = {}) {
   );
 }
 
+function isHashtagKeyword(keyword = "") {
+  return String(keyword || "").trim().startsWith("#");
+}
+
+function normalizeHashtagKeyword(keyword = "") {
+  const trimmed = String(keyword || "").trim().toLowerCase();
+  if (!trimmed) return "";
+  return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+}
+
+async function searchMockHashtagPosts(keyword = "", options = {}) {
+  const normalizedHashtag = normalizeHashtagKeyword(keyword);
+  const index = Math.max(0, Number(options.index || 0));
+  const count = Math.max(1, Number(options.count || 20));
+  const matchedPosts = await localPosts.searchPostsByHashtag(normalizedHashtag);
+  const posts = matchedPosts.slice(index, index + count);
+
+  return {
+    posts,
+    users: [],
+    nextIndex: index + count,
+    hasMore: index + count < matchedPosts.length,
+  };
+}
+
 async function hydrateSearchUsers(users = []) {
   const enrichedUsers = await Promise.all(
     users.slice(0, 8).map(async (user) => {
@@ -114,7 +140,7 @@ export async function clearSavedSearches() {
 export async function searchScreenSearch(keyword = "", options = {}) {
   const session = await getCurrentSession();
   const token = String(session?.token || "");
-  const userId = String(
+  const sessionUserId = String(
     session?.id || session?.user_id || session?.identifier || "",
   ).trim();
   const trimmedKeyword = String(keyword || "").trim();
@@ -132,8 +158,16 @@ export async function searchScreenSearch(keyword = "", options = {}) {
     };
   }
 
+  if (isMockMode() && isHashtagKeyword(trimmedKeyword)) {
+    return searchMockHashtagPosts(trimmedKeyword, options);
+  }
+
   const index = Number(options.index || 0);
   const count = Number(options.count || 20);
+  const requestedUserId = String(
+    options.userId || options.user_id || options.scopeUserId || "",
+  ).trim();
+  const userId = requestedUserId || sessionUserId;
 
   const response = await backendApi.search({
     token,
