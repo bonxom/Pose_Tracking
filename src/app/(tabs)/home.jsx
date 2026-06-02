@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
   LayoutAnimation,
   Pressable,
@@ -28,19 +29,99 @@ import {
 } from "react-native";
 
 let homeFeedCache = [];
+const FEED_PAGE_SIZE = 2;
+const LOAD_MORE_CARD_DELAY_MS = 1000;
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function FeedLoadingCard() {
+  const animatedValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(animatedValue, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [animatedValue]);
+
+  return (
+    <Animated.View
+      style={[
+        homeStyles.loadingCard,
+        {
+          opacity: animatedValue,
+          transform: [
+            {
+              translateY: animatedValue.interpolate({
+                inputRange: [0, 1],
+                outputRange: [12, 0],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
+      <View style={homeStyles.loadingHeader}>
+        <View style={homeStyles.loadingAvatar} />
+        <View style={homeStyles.loadingMeta}>
+          <View style={homeStyles.loadingLinePrimary} />
+          <View style={homeStyles.loadingLineSecondary} />
+        </View>
+      </View>
+      <View style={homeStyles.loadingBlock} />
+      <View style={homeStyles.loadingLineTertiary} />
+      <View style={homeStyles.loadingLineSecondary} />
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen() {
   const uploadSuccessAlertLock = useRef(false);
   const diskCacheLoadedRef = useRef(false);
+  const loadMoreTriggerLock = useRef(false);
+  const lastContentHeightRef = useRef(0);
+  const lastTriggeredContentHeightRef = useRef(0);
   const [posts, setPosts] = useState(homeFeedCache);
   const [isLoading, setIsLoading] = useState(homeFeedCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasLoadedAllPosts, setHasLoadedAllPosts] = useState(false);
   const [lastId, setLastId] = useState("");
   const [newItemsCount, setNewItemsCount] = useState(0);
   const [uploadingCards, setUploadingCards] = useState([]);
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
+
+  const mergeUniquePosts = useCallback((currentPosts, incomingPosts) => {
+    if (!Array.isArray(incomingPosts) || incomingPosts.length === 0) {
+      return currentPosts;
+    }
+
+    const seenIds = new Set(currentPosts.map((item) => item.id));
+    const uniqueIncomingPosts = incomingPosts.filter(
+      (item) => item?.id && !seenIds.has(item.id),
+    );
+
+    return uniqueIncomingPosts.length
+      ? [...currentPosts, ...uniqueIncomingPosts]
+      : currentPosts;
+  }, []);
+
+  const mergeRefreshedFeed = useCallback((currentPosts, firstPagePosts) => {
+    if (!Array.isArray(firstPagePosts) || firstPagePosts.length === 0) {
+      return currentPosts;
+    }
+
+    const firstPageIds = new Set(firstPagePosts.map((item) => item?.id));
+    const remainingPosts = currentPosts.filter(
+      (item) => item?.id && !firstPageIds.has(item.id),
+    );
+
+    return [...firstPagePosts, ...remainingPosts];
+  }, []);
 
   // Load persistent cache from disk once per app session, then replace
   // useEffect-based fetch with useFocusEffect so the feed silently
@@ -54,16 +135,41 @@ export default function HomeScreen() {
         setIsLoading(true);
       }
       await executeWithInternetCheck(async () => {
-        const result = await getFeedPage({ index: 0, count: 20, lastId: "" });
+        const result = await getFeedPage({
+          index: 0,
+          count: FEED_PAGE_SIZE,
+          lastId: "",
+        });
         const nextItems = result.items || [];
-        if (!refresh && nextItems.length === 0 && homeFeedCache.length > 0) {
+        const hadCachedPosts = homeFeedCache.length > 0;
+        const mergedFeed =
+          !refresh && hadCachedPosts
+            ? mergeRefreshedFeed(homeFeedCache, nextItems)
+            : nextItems;
+
+        if (!refresh && nextItems.length === 0 && hadCachedPosts) {
           setPosts(homeFeedCache);
         } else {
-          homeFeedCache = nextItems;
-          setPosts(nextItems);
-          writeCache(CACHE_KEY_HOME_FEED, nextItems);
+          homeFeedCache = mergedFeed;
+          setPosts(mergedFeed);
+          writeCache(CACHE_KEY_HOME_FEED, mergedFeed);
         }
-        setHasMore(Boolean(result.hasMore));
+
+        const loadedCount =
+          !refresh && nextItems.length === 0 && hadCachedPosts
+            ? homeFeedCache.length
+            : mergedFeed.length;
+
+        setCurrentPage(
+          Math.max(0, Math.ceil(loadedCount / FEED_PAGE_SIZE) - 1),
+        );
+        if (refresh || !hadCachedPosts) {
+          setHasLoadedAllPosts(
+            Boolean(result.hasMore) === false && nextItems.length > 0,
+          );
+        }
+        loadMoreTriggerLock.current = false;
+        lastTriggeredContentHeightRef.current = 0;
         setLastId(result.lastId || "");
         setNewItemsCount(Number(result.newItems || 0));
       });
@@ -104,30 +210,106 @@ export default function HomeScreen() {
   );
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore || !lastId) return;
+    if (isLoadingMore || hasLoadedAllPosts || posts.length === 0) return;
 
     try {
       setIsLoadingMore(true);
-      const result = await getFeedPage({
-        index: posts.length,
-        count: 20,
+      await wait(LOAD_MORE_CARD_DELAY_MS);
+      const nextPage = currentPage + 1;
+      let result = await getFeedPage({
+        index: nextPage,
+        count: FEED_PAGE_SIZE,
         lastId,
       });
+
+      let nextItems = result.items || [];
+      if (nextItems.length === 0 && posts.length >= FEED_PAGE_SIZE) {
+        result = await getFeedPage({
+          index: posts.length,
+          count: FEED_PAGE_SIZE,
+          lastId,
+        });
+        nextItems = result.items || [];
+      }
+
+      if (nextItems.length === 0) {
+        setHasLoadedAllPosts(true);
+        Alert.alert("Thông báo", "Đã load hết tất cả các post");
+        return;
+      }
+
       setPosts((current) => {
-        const next = [...current, ...(result.items || [])];
+        const next = mergeUniquePosts(current, nextItems);
         homeFeedCache = next;
         writeCache(CACHE_KEY_HOME_FEED, next);
         return next;
       });
-      setHasMore(Boolean(result.hasMore));
-      setLastId(result.lastId || lastId);
+      setCurrentPage(nextPage);
+      setLastId(result.lastId || "");
     } catch (error) {
       console.warn("Failed to load more posts:", error);
       if (await redirectIfSessionExpired(error, router)) return;
     } finally {
+      loadMoreTriggerLock.current = false;
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoadingMore, lastId, posts.length]);
+  }, [
+    currentPage,
+    hasLoadedAllPosts,
+    isLoadingMore,
+    lastId,
+    mergeUniquePosts,
+    posts.length,
+  ]);
+
+  const queueLoadMore = useCallback(
+    (contentHeight = 0) => {
+      if (
+        loadMoreTriggerLock.current ||
+        isLoadingMore ||
+        hasLoadedAllPosts ||
+        posts.length === 0
+      ) {
+        return;
+      }
+
+      if (
+        contentHeight > 0 &&
+        contentHeight <= lastTriggeredContentHeightRef.current
+      ) {
+        return;
+      }
+
+      lastTriggeredContentHeightRef.current = contentHeight;
+      loadMoreTriggerLock.current = true;
+      void loadMore();
+    },
+    [hasLoadedAllPosts, isLoadingMore, loadMore, posts.length],
+  );
+
+  const handleListScroll = useCallback(
+    ({ nativeEvent }) => {
+      if (loadMoreTriggerLock.current || isLoadingMore || hasLoadedAllPosts) {
+        return;
+      }
+
+      const visibleHeight = nativeEvent.layoutMeasurement?.height || 0;
+      const offsetY = nativeEvent.contentOffset?.y || 0;
+      const contentHeight = nativeEvent.contentSize?.height || 0;
+      const distanceToBottom = contentHeight - (visibleHeight + offsetY);
+
+      lastContentHeightRef.current = contentHeight;
+
+      if (distanceToBottom <= 140 && contentHeight > visibleHeight) {
+        queueLoadMore(contentHeight);
+      }
+    },
+    [hasLoadedAllPosts, isLoadingMore, queueLoadMore],
+  );
+
+  const handleEndReached = useCallback(() => {
+    queueLoadMore(lastContentHeightRef.current);
+  }, [queueLoadMore]);
 
   // const checkForNewItems = useCallback(async () => {
   //   try {
@@ -272,6 +454,11 @@ export default function HomeScreen() {
         <FlatList
           data={feedItems}
           keyExtractor={(item) => item.id}
+          onScroll={handleListScroll}
+          scrollEventThrottle={16}
+          onContentSizeChange={(_, height) => {
+            lastContentHeightRef.current = height;
+          }}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -313,13 +500,17 @@ export default function HomeScreen() {
           }
           ListFooterComponent={
             isLoadingMore ? (
-              <ActivityIndicator style={{ paddingVertical: 16 }} />
-            ) : hasMore ? (
+              <FeedLoadingCard />
+            ) : hasLoadedAllPosts && posts.length > 0 ? (
+              <Text style={homeStyles.subtitle}>
+                Đã load hết tất cả các post
+              </Text>
+            ) : posts.length > 0 ? (
               <Text style={homeStyles.subtitle}>Kéo xuống để tải thêm</Text>
             ) : null
           }
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.35}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.15}
         />
       )}
     </View>

@@ -135,13 +135,8 @@ function buildLocalVideoInput(file = {}, index = 0) {
 
 function buildListResponse(posts = [], params = {}) {
   const count = Math.max(1, Number(params?.count || 20));
-  const requestedLastId = toStringValue(params?.last_id || params?.lastId);
   const requestedIndex = Math.max(0, Number(params?.index || 0));
-  const lastIdIndex = requestedLastId
-    ? posts.findIndex((item) => toStringValue(item?.id) === requestedLastId)
-    : -1;
-  const startIndex =
-    lastIdIndex >= 0 ? lastIdIndex + 1 : Math.min(requestedIndex, posts.length);
+  const startIndex = Math.min(requestedIndex * count, posts.length);
   const sliced = posts.slice(startIndex, startIndex + count);
   const lastItem = sliced[sliced.length - 1];
   const hasMore = startIndex + sliced.length < posts.length;

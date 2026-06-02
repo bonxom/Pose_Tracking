@@ -161,7 +161,7 @@ export function validateTwoVideos(videos = []) {
 function extractFeedMeta(response, params, itemCount) {
   const data =
     response?.data && !Array.isArray(response.data) ? response.data : {};
-  const requestedCount = Number(params.count || 20);
+  const requestedCount = Number(params.count || 10);
   const rawLastId =
     data.last_id || data.lastId || response?.last_id || response?.lastId || "";
   const hasMore =
@@ -192,7 +192,7 @@ export async function getFeedPage(params = {}) {
   const response = await backendApi.getListPosts({
     token: session.token,
     index: String(params.index || 0),
-    count: String(params.count || 20),
+    count: String(params.count || 10),
     last_id: params.lastId || params.last_id || "",
     category_id: params.categoryId || params.category_id || "",
   });
@@ -234,6 +234,8 @@ export async function toggleLike(post) {
     throw new Error("Backend mode chỉ hỗ trợ thao tác với bài viết từ server.");
   }
 
+  console.log("token: ", (await getCurrentSession())?.token);
+
   const session = await getCurrentSession();
   assertServerSession(session);
 
@@ -264,7 +266,7 @@ export async function searchPosts(query = "", options = {}) {
       token: session.token,
       keyword: query,
       index: "0",
-      count: "20",
+      count: "10",
       ...(userId ? { user_id: userId } : {}),
     });
 
@@ -285,7 +287,7 @@ export async function getSavedSearches() {
     const response = await backendApi.getSavedSearch({
       token: session.token,
       index: "0",
-      count: "20",
+      count: "10",
     });
 
     await assertBackendOk(response, {
@@ -424,10 +426,7 @@ export async function checkNewItems(lastId = "") {
   await assertBackendOk(response, { message: "Backend check_new_item failed" });
 
   const count = Number(
-    response.data?.new_items ??
-      response.data?.count ??
-      response.count ??
-      0,
+    response.data?.new_items ?? response.data?.count ?? response.count ?? 0,
   );
   const hasNewValue =
     response.data?.has_new ??
