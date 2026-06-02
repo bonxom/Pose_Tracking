@@ -212,12 +212,26 @@ export async function getMockEditPostResponse(fields = {}, files = []) {
     return buildNotFoundResponse();
   }
 
+  const nextVideos = Array.isArray(existingPost.videos)
+    ? [...existingPost.videos]
+    : [];
+
+  files.filter(Boolean).forEach((file, index) => {
+    const slotIndex =
+      file?.fieldName === "right_video"
+        ? 1
+        : file?.fieldName === "left_video"
+          ? 0
+          : index;
+    nextVideos[slotIndex] = buildLocalVideoInput(file, slotIndex);
+  });
+
   const updatedPost = await postStore.updatePost(postId, {
     content: toStringValue(fields?.described ?? existingPost.content),
     described: toStringValue(fields?.described ?? existingPost.described),
     videos:
       Array.isArray(files) && files.length > 0
-        ? files.filter(Boolean).map(buildLocalVideoInput)
+        ? nextVideos
         : existingPost.videos,
   });
 

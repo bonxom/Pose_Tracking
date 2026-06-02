@@ -125,28 +125,67 @@ function buildAddPostFields(session, params = {}) {
   return fields;
 }
 
+function validateVideoInput(video = {}, index = 0) {
+  if (isDemoVideo(video)) {
+    throw new Error("Server mode không chấp nhận video demo.");
+  }
+
+  if (!video.uri && !video.file && !video.blob) {
+    throw new Error(`Video ${index + 1} không có dữ liệu file hợp lệ.`);
+  }
+
+  const ms = durationMs(video);
+  if (!ms) {
+    throw new Error(`Không đọc được thời lượng video ${index + 1}.`);
+  }
+
+  if (ms < 10_000) {
+    throw new Error(`Video ${index + 1} phải dài tối thiểu 10 giây.`);
+  }
+
+  return ms;
+}
+
+function isLocalUploadVideo(video = {}) {
+  return Boolean(video?.isLocalUpload || video?.file || video?.blob);
+}
+
+export function validateEditableVideos(videos = []) {
+  const filteredVideos = Array.isArray(videos) ? videos.filter(Boolean) : [];
+  const localVideos = filteredVideos.filter(isLocalUploadVideo);
+
+  if (!localVideos.length) {
+    return true;
+  }
+
+  localVideos.forEach((video, index) => {
+    validateVideoInput(video, index);
+  });
+
+  if (filteredVideos.length !== 2) {
+    return true;
+  }
+
+  const [first, second] = filteredVideos.map(durationMs);
+  if (!first || !second) {
+    return true;
+  }
+
+  const allowedDiff = Math.max(3_000, Math.max(first, second) * 0.2);
+  if (Math.abs(first - second) > allowedDiff) {
+    throw new Error("Hai video cần có thời lượng tương đương nhau.");
+  }
+
+  return true;
+}
+
 export function validateTwoVideos(videos = []) {
   if (!Array.isArray(videos) || videos.length !== 2) {
     throw new Error("Bài viết cần đúng 2 video.");
   }
 
   videos.forEach((video, index) => {
-    if (isDemoVideo(video)) {
-      throw new Error("Server mode không chấp nhận video demo.");
-    }
-
-    if (!video.uri && !video.file && !video.blob) {
-      throw new Error(`Video ${index + 1} không có dữ liệu file hợp lệ.`);
-    }
-
-    const ms = durationMs(video);
-    if (!ms) {
-      throw new Error(`Không đọc được thời lượng video ${index + 1}.`);
-    }
-
-    if (ms < 10_000) {
-      throw new Error(`Video ${index + 1} phải dài tối thiểu 10 giây.`);
-    }
+    validateVideoInput(video, index);
   });
 
   const [first, second] = videos.map(durationMs);
@@ -331,8 +370,17 @@ export async function editPost(post, params = {}) {
 
   const session = await getCurrentSession();
   assertServerSession(session);
+  const multipartVideos = (params.videos || [])
+    .filter((video) => video && isLocalUploadVideo(video))
+    .map((video, index) => ({
+      ...video,
+      fieldName:
+        video.fieldName ||
+        (index === 0 ? "left_video" : "right_video"),
+    }));
+
   if (params.videos?.length) {
-    validateTwoVideos(params.videos);
+    validateEditableVideos(params.videos);
   }
 
   const fields = {
@@ -345,11 +393,6 @@ export async function editPost(post, params = {}) {
       post.content ||
       "",
   };
-
-  const multipartVideos = (params.videos || []).map((video, index) => ({
-    ...video,
-    fieldName: index === 0 ? "left_video" : "right_video",
-  }));
 
   const response = await backendApi.editPostMultipart(fields, multipartVideos);
   await assertBackendOk(response, { message: "Backend edit_post failed" });

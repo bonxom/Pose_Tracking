@@ -1,5 +1,11 @@
 import Screen from "@/components/common/Screen";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
+import {
+  PostVideoFullscreenModal,
+  PostVideoPreview,
+  PostVideoUploadSlot,
+  VIDEO_SLOTS,
+} from "@/components/post/PostVideoSlots";
 import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
 import EarthIcon from "@/components/icons/EarthIcon";
 import colors from "@/constants/colors";
@@ -20,17 +26,14 @@ import createStyles from "@/styles/post/create.styles";
 import postStyles from "@/styles/post.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -39,109 +42,13 @@ import {
   View,
 } from "react-native";
 
-function VideoThumbnail({ video, onPress }) {
-  const thumbnailUri =
-    typeof video?.thumb === "string" && video.thumb.trim()
-      ? video.thumb.trim()
-      : typeof video?.thumbnail === "string" && video.thumbnail.trim()
-        ? video.thumbnail.trim()
-        : "";
-
-  return (
-    <Pressable style={createStyles.videoPreviewFrame} onPress={onPress}>
-      {thumbnailUri ? (
-        <Image source={{ uri: thumbnailUri }} style={createStyles.videoPreview} />
-      ) : (
-        <View style={createStyles.videoPreviewFallback}>
-          <Ionicons name="videocam-outline" size={24} color={colors.white} />
-          <Text style={createStyles.videoPreviewFallbackText}>
-            Chưa có thumbnail
-          </Text>
-        </View>
-      )}
-      <View style={createStyles.videoPlayBadge}>
-        <Text style={createStyles.videoPlayText}>Xem video</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function FullscreenVideoModal({ visible, uri, onClose }) {
-  const [isReady, setIsReady] = useState(false);
-  const player = useVideoPlayer(visible ? uri || null : null, (videoPlayer) => {
-    videoPlayer.loop = true;
-    videoPlayer.muted = false;
-    videoPlayer.pause();
-  });
-
-  useEffect(() => {
-    player.pause();
-  }, [player, uri]);
-
-  useEffect(() => {
-    if (visible && uri) {
-      setIsReady(false);
-      return;
-    }
-    setIsReady(true);
-  }, [visible, uri]);
-
-  useEffect(() => {
-    const sub = player.addListener("statusChange", ({ status }) => {
-      if (status === "error") {
-        setIsReady(true);
-      }
-    });
-
-    return () => {
-      sub.remove();
-    };
-  }, [player]);
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={createStyles.fullscreenBackdrop}>
-        <Pressable
-          style={createStyles.closeButton}
-          onPress={onClose}
-          hitSlop={8}
-        >
-          <Ionicons name="close" size={28} color={colors.white} />
-        </Pressable>
-
-        {uri ? (
-          <>
-            <VideoView
-              player={player}
-              style={createStyles.fullscreenVideo}
-              contentFit="contain"
-              nativeControls
-              onFirstFrameRender={() => setIsReady(true)}
-            />
-            {!isReady ? (
-              <View style={createStyles.videoLoadingOverlay}>
-                <ActivityIndicator size="large" color={colors.white} />
-              </View>
-            ) : null}
-          </>
-        ) : null}
-      </View>
-    </Modal>
-  );
-}
-
 export default function CreatePostScreen() {
   const params = useLocalSearchParams();
   const isSubmissionMode = params.mode === "submission";
 
   const [content, setContent] = useState("");
   const [sourcePost, setSourcePost] = useState(null);
-  const [selectedVideos, setSelectedVideos] = useState([]);
+  const [selectedVideos, setSelectedVideos] = useState([null, null]);
   const [session, setSession] = useState(null);
   const [profileUser, setProfileUser] = useState(null);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
@@ -247,19 +154,16 @@ export default function CreatePostScreen() {
       name: asset.fileName || `real-video-${slotIndex + 1}.mp4`,
       mimeType: asset.mimeType || "video/mp4",
       angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
+      fieldName: slotIndex === 0 ? "left_video" : "right_video",
+      isLocalUpload: true,
       duration,
       fileSize: asset.fileSize || 0,
     };
   };
 
-  const pickCreateVideo = async () => {
-    if (selectedVideoCount >= 2) {
-      Alert.alert("Giới hạn video", "Bạn chỉ có thể chọn tối đa 2 video.");
-      return;
-    }
-
+  const pickCreateVideo = async (slotIndex) => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ["videos"],
       allowsEditing: false,
       quality: 1,
     });
@@ -268,13 +172,18 @@ export default function CreatePostScreen() {
       return;
     }
 
-    const video = await buildVideoItem(result.assets[0], selectedVideoCount);
-    setSelectedVideos((current) => [...current, video].slice(0, 2));
+    const video = await buildVideoItem(result.assets[0], slotIndex);
+    setSelectedVideos((current) =>
+      current.map((item, index) => (index === slotIndex ? video : item)),
+    );
   };
 
   const removeSelectedVideo = (index) => {
-    setSelectedVideos((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    setActiveVideoUri("");
+    const removedUri = selectedVideos[index]?.uri || "";
+    setSelectedVideos((current) =>
+      current.map((item, itemIndex) => (itemIndex === index ? null : item)),
+    );
+    setActiveVideoUri((current) => (current === removedUri ? "" : current));
   };
 
   const handleCreatePost = async () => {
@@ -363,7 +272,7 @@ export default function CreatePostScreen() {
   };
 
   const isSubmitDisabled = selectedVideoCount !== 2;
-  const bottomToolbarInset = 56 + keyboardOffset;
+  const bottomToolbarInset = keyboardOffset;
 
   return (
     <Screen style={postStyles.screen}>
@@ -453,45 +362,39 @@ export default function CreatePostScreen() {
             }}
           />
 
-          {selectedVideoCount > 0 ? (
-            <View style={createStyles.videoGrid}>
-              {selectedVideos.map((video, index) => {
-                if (!video?.uri) return null;
-                return (
-                  <View key={video.id} style={createStyles.videoCard}>
-                    <Pressable
-                      style={createStyles.videoRemoveButton}
-                      onPress={() => removeSelectedVideo(index)}
-                      hitSlop={8}
-                    >
-                      <CircleWithCrossIcon />
-                    </Pressable>
-                    <VideoThumbnail
-                      video={video}
-                      onPress={() => setActiveVideoUri(video.uri)}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          ) : null}
-        </ScrollView>
+          <View style={createStyles.videoGrid}>
+            {VIDEO_SLOTS.map((slot, index) => {
+              const video = selectedVideos[index];
 
-        <View
-          style={[
-            createStyles.bottomToolbar,
-            { bottom: keyboardOffset },
-          ]}
-        >
-          <Pressable
-            onPress={pickCreateVideo}
-            style={createStyles.libraryButton}
-            hitSlop={8}
-          >
-            <MaterialIcons name="photo-library" size={30} color={colors.subtext} />
-            <Text style={createStyles.libraryText}>Video ({selectedVideoCount}/2)</Text>
-          </Pressable>
-        </View>
+              return (
+                <View key={slot.key} style={createStyles.videoCard}>
+                  {video?.uri ? (
+                    <>
+                      <Pressable
+                        style={createStyles.videoRemoveButton}
+                        onPress={() => removeSelectedVideo(index)}
+                        hitSlop={8}
+                      >
+                        <CircleWithCrossIcon />
+                      </Pressable>
+                      <PostVideoPreview
+                        video={video}
+                        label={slot.label}
+                        onPress={() => setActiveVideoUri(video.uri)}
+                      />
+                    </>
+                  ) : (
+                    <PostVideoUploadSlot
+                      label={slot.label}
+                      emptyText={slot.emptyText}
+                      onPress={() => pickCreateVideo(index)}
+                    />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
       </View>
 
       <DraftActionSheet
@@ -501,7 +404,7 @@ export default function CreatePostScreen() {
         onDiscard={handleDiscard}
         onContinue={() => setShowDraftSheet(false)}
       />
-      <FullscreenVideoModal
+      <PostVideoFullscreenModal
         visible={Boolean(activeVideoUri)}
         uri={activeVideoUri}
         onClose={() => setActiveVideoUri("")}

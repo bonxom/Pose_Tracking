@@ -29,7 +29,7 @@ import {
 } from "react-native";
 
 let homeFeedCache = [];
-const FEED_PAGE_SIZE = 2;
+const FEED_PAGE_SIZE = 10;
 const LOAD_MORE_CARD_DELAY_MS = 1000;
 
 function wait(ms) {
