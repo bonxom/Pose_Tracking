@@ -29,10 +29,6 @@ import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 const EXPAND_THRESHOLD = 180;
 const DEFAULT_AVATAR_URL =
   "https://sloganhay.com/wp-content/uploads/2026/03/avatar-mac-dinh-facebook-10.jpg";
-const VIDEO_FALLBACK_SOURCES = [
-  require("../../../assets/cam1.mp4"),
-  require("../../../assets/cam2.mp4"),
-];
 
 function formatCount(value = 0) {
   const count = Number(value) || 0;
@@ -383,10 +379,7 @@ export default function PostCard({
                 key={video.id || `${video.uri}_${index}`}
                 video={video}
                 index={index}
-                fallbackSource={
-                  VIDEO_FALLBACK_SOURCES[index] ||
-                  VIDEO_FALLBACK_SOURCES[VIDEO_FALLBACK_SOURCES.length - 1]
-                }
+                fallbackSource={null}
               />
             ))}
           </View>
