@@ -338,7 +338,15 @@ export async function reportPost(post, report = "") {
   });
 
   const code = String(response?.code || "");
-  if (code === "1000" || code === "1010") {
+  if (code === "1010") {
+    return {
+      reported: true,
+      unavailable: true,
+      source: sourceFromResponse(response),
+    };
+  }
+
+  if (code === "1000") {
     return { reported: true, source: ACTIVE_SOURCES.SERVER };
   }
 

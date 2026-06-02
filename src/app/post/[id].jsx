@@ -233,13 +233,19 @@ export default function PostDetailScreen() {
     }
 
     try {
-      await reportPost(post, {
+      const result = await reportPost(post, {
         subject: reportCategory,
         details: reportDetail.trim() || reportCategory,
       });
       setReportCategory("");
       setReportDetail("");
       setIsReportOpen(false);
+      if (result?.unavailable) {
+        setPost(null);
+        setComments([]);
+        setStatusText("Bài viết không còn khả dụng.");
+        return;
+      }
       setStatusText("Đã gửi báo cáo.");
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
@@ -258,7 +264,15 @@ export default function PostDetailScreen() {
   if (!post) {
     return (
       <Screen style={postStyles.screen}>
-        <Text style={postStyles.title}>Bài viết không tồn tại</Text>
+        <Text style={postStyles.title}>Bài viết không khả dụng</Text>
+        {statusText ? (
+          <Text style={postStyles.warningText}>{statusText}</Text>
+        ) : null}
+        <AppButton
+          title="Quay lại"
+          onPress={() => router.back()}
+          style={postStyles.actionButton}
+        />
       </Screen>
     );
   }

@@ -7,56 +7,64 @@ import { getCurrentSession, sourceFromResponse } from "@/repositories/source";
 function toBool(value, fallback = true) {
   if (value === undefined || value === null) return fallback;
   if (typeof value === "boolean") return value;
-  return String(value) === "1" || String(value).toLowerCase() === "true";
+  const normalized = String(value).toLowerCase();
+  if (normalized === "1" || normalized === "true") return true;
+  if (normalized === "0" || normalized === "false") return false;
+  return fallback;
 }
 
 function settingValue(value) {
   return value ? "1" : "0";
 }
 
-export function normalizePushSettings(settings = {}) {
+let lastKnownPushSettings = null;
+
+export function normalizePushSettings(settings = {}, previousSettings = {}) {
+  const fallbackFor = (key) =>
+    previousSettings?.[key] !== undefined ? previousSettings[key] : true;
+
   return {
     notificationOn: toBool(
       settings.notificationOn ?? settings.notification_on ?? settings.notification,
-      true,
+      fallbackFor("notificationOn"),
     ),
     likeComment: toBool(
       settings.likeComment ??
         settings.like_comment ??
         settings.like ??
         settings.comment,
-      true,
+      fallbackFor("likeComment"),
     ),
     fromFriends: toBool(
       settings.fromFriends ??
         settings.from_friends ??
         settings.friend_update ??
         settings.message,
-      true,
+      fallbackFor("fromFriends"),
     ),
     requestedFriend: toBool(
       settings.requestedFriend ??
         settings.requested_friend ??
         settings.friend_request ??
         settings.requested_enrollment,
-      true,
+      fallbackFor("requestedFriend"),
     ),
     suggestedFriend: toBool(
       settings.suggestedFriend ??
         settings.suggested_friend ??
         settings.people_you_may_know ??
         settings.approved_course,
-      true,
+      fallbackFor("suggestedFriend"),
     ),
-    birthday: toBool(settings.birthday, true),
-    video: toBool(settings.video ?? settings.new_exercise, true),
-    report: toBool(settings.report ?? settings.announcement, true),
-    soundOn: toBool(settings.soundOn ?? settings.sound_on, true),
+    birthday: toBool(settings.birthday, fallbackFor("birthday")),
+    video: toBool(settings.video ?? settings.new_exercise, fallbackFor("video")),
+    report: toBool(settings.report ?? settings.announcement, fallbackFor("report")),
+    soundOn: toBool(settings.soundOn ?? settings.sound_on, fallbackFor("soundOn")),
     vibrantOn: toBool(
       settings.vibrantOn ?? settings.vibrant_on ?? settings.vibration_on,
-      true,
+      fallbackFor("vibrantOn"),
     ),
-    ledOn: toBool(settings.ledOn ?? settings.led_on, true),
+    ledOn: toBool(settings.ledOn ?? settings.led_on, fallbackFor("ledOn")),
   };
 }
 
@@ -95,8 +103,14 @@ export async function getPushSettings() {
       message: "Backend get_push_settings failed",
     });
 
+    const normalized = normalizePushSettings(
+      extractObject(response),
+      lastKnownPushSettings || undefined,
+    );
+    lastKnownPushSettings = normalized;
+
     return {
-      ...normalizePushSettings(extractObject(response)),
+      ...normalized,
       source: sourceFromResponse(response),
     };
   } catch (error) {
@@ -121,11 +135,17 @@ export async function setPushSettings(settings = {}) {
     });
   }
 
-  return {
-    ...normalizePushSettings({
+  const normalized = normalizePushSettings(
+    {
       ...settings,
       ...extractObject(response),
-    }),
+    },
+    lastKnownPushSettings || normalizePushSettings(settings),
+  );
+  lastKnownPushSettings = normalized;
+
+  return {
+    ...normalized,
     source: sourceFromResponse(response),
   };
 }

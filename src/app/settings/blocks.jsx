@@ -11,6 +11,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -109,6 +110,27 @@ export default function BlocksScreen() {
     }
   };
 
+  const confirmBlockUser = (target) => {
+    const targetId = String(target?.id || "").trim();
+    if (!targetId) {
+      setStatus("Chọn người dùng cần chặn.");
+      return;
+    }
+
+    Alert.alert(
+      "Chặn người dùng",
+      `Bạn có chắc muốn chặn ${target.name || target.username || "người dùng này"}?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Chặn",
+          style: "destructive",
+          onPress: () => blockUser(target),
+        },
+      ],
+    );
+  };
+
   const unblockUser = async (item) => {
     try {
       setActionUserId(item.id);
@@ -121,6 +143,20 @@ export default function BlocksScreen() {
     } finally {
       setActionUserId("");
     }
+  };
+
+  const confirmUnblockUser = (item) => {
+    Alert.alert(
+      "Bỏ chặn người dùng",
+      `Bạn có chắc muốn bỏ chặn ${item.username || "người dùng này"}?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Bỏ chặn",
+          onPress: () => unblockUser(item),
+        },
+      ],
+    );
   };
 
   return (
@@ -198,7 +234,7 @@ export default function BlocksScreen() {
                   </View>
                   <AppButton
                     title="CHẶN"
-                    onPress={() => blockUser(item)}
+                    onPress={() => confirmBlockUser(item)}
                     loading={actionUserId === item.id}
                     style={styles.blockButton}
                     textStyle={styles.unblockButtonText}
@@ -244,7 +280,7 @@ export default function BlocksScreen() {
               </View>
               <AppButton
                 title="BỎ CHẶN"
-                onPress={() => unblockUser(item)}
+                onPress={() => confirmUnblockUser(item)}
                 loading={actionUserId === item.id}
                 style={styles.unblockButton}
                 textStyle={styles.unblockButtonText}

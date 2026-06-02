@@ -2,8 +2,13 @@ import Screen from "@/components/common/Screen";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
+import { logoutSession } from "@/repositories/authRepository";
+import { clearNotificationState } from "@/services/notificationStore";
+import { CACHE_KEY_PROFILE } from "@/utils/cacheStore";
+import { clearAuthSession, getAuthSession } from "@/utils/session";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 function SettingsRow({ icon, title, subtitle, onPress }) {
   return (
@@ -21,6 +26,42 @@ function SettingsRow({ icon, title, subtitle, onPress }) {
 }
 
 export default function SettingsScreen() {
+  const runLogout = async () => {
+    const currentSession = await getAuthSession().catch(() => null);
+    await clearAuthSession();
+    clearNotificationState();
+    await AsyncStorage.removeItem(CACHE_KEY_PROFILE);
+    router.replace("/(auth)/login");
+
+    logoutSession(currentSession).catch((error) => {
+      console.info("LOGOUT_BACKEND_BEST_EFFORT_FAILED", error?.message);
+    });
+  };
+
+  const confirmLogout = () => {
+    Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất khỏi tài khoản này?", [
+      { text: "Hủy", style: "cancel" },
+      { text: "Đăng xuất", style: "destructive", onPress: runLogout },
+    ]);
+  };
+
+  const confirmExit = () => {
+    Alert.alert("Thoát ứng dụng", "Bạn muốn thoát khỏi ứng dụng?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Thoát",
+        style: "destructive",
+        onPress: () => {
+          if (Platform.OS === "web") {
+            Alert.alert("Thoát ứng dụng", "Bạn có thể đóng tab trình duyệt hiện tại.");
+            return;
+          }
+          BackHandler.exitApp();
+        },
+      },
+    ]);
+  };
+
   return (
     <Screen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -62,6 +103,31 @@ export default function SettingsScreen() {
             title="Chặn"
             subtitle="Xem, chặn và bỏ chặn người dùng"
             onPress={() => router.push("/settings/blocks")}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Trợ giúp & hỗ trợ</Text>
+          <SettingsRow
+            icon="document-text-outline"
+            title="Điều khoản & chính sách"
+            subtitle="Các quy định sử dụng hệ thống"
+            onPress={() => router.push("/settings/policies")}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <SettingsRow
+            icon="log-out-outline"
+            title="Đăng xuất"
+            subtitle="Kết thúc phiên đăng nhập hiện tại"
+            onPress={confirmLogout}
+          />
+          <SettingsRow
+            icon="exit-outline"
+            title="Thoát"
+            subtitle="Thoát khỏi ứng dụng"
+            onPress={confirmExit}
           />
         </View>
       </ScrollView>

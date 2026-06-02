@@ -36,7 +36,7 @@ const CONTENT_SETTINGS = [
   {
     key: "birthday",
     title: "Sinh nhật",
-    description: "Thông báo sinh nhật nếu backend có dữ liệu phù hợp.",
+    description: "Thông báo sinh nhật khi hệ thống có dữ liệu phù hợp.",
   },
   {
     key: "video",
@@ -83,7 +83,7 @@ export default function PushSettingsScreen() {
     setIsLoading(true);
     getPushSettings()
       .then((data) => {
-        setSettings(normalizePushSettings(data));
+        setSettings((current) => normalizePushSettings(data, current));
         setStatus("");
       })
       .catch(async (error) => {
@@ -103,7 +103,7 @@ export default function PushSettingsScreen() {
 
     try {
       const saved = await setPushSettings(nextSettings);
-      setSettings(normalizePushSettings(saved));
+      setSettings(normalizePushSettings(saved, previousSettings));
       await loadAndApplyPushSettings();
       setStatus("Đã lưu cài đặt thông báo.");
     } catch (error) {

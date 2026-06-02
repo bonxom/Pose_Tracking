@@ -11,9 +11,11 @@ import {
   getUserInfo,
   getUserPosts,
   updateUserInfo,
+  blockUser,
 } from "@/repositories/userRepository";
 import profileStyles from "@/styles/profile.styles";
 import { CACHE_KEY_PROFILE, readCache, writeCache } from "@/utils/cacheStore";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
@@ -236,6 +238,35 @@ export default function ProfileScreenContent({ userId = "" }) {
     setPreviewImage(profile.coverImage);
   };
 
+  const confirmBlockProfile = () => {
+    if (!profile?.id) return;
+
+    Alert.alert(
+      "Chặn người dùng",
+      `Bạn có chắc muốn chặn ${profile.displayName || profile.username || "người dùng này"}?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Chặn",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await blockUser(profile.id);
+              Alert.alert("Đã chặn", "Người dùng đã được thêm vào danh sách chặn.");
+              router.back();
+            } catch (error) {
+              if (await redirectIfSessionExpired(error, router)) return;
+              Alert.alert(
+                "Không thể chặn",
+                error.message || "Vui lòng thử lại sau.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   if (loading && !profile) {
     return (
       <View style={profileStyles.centerState}>
@@ -300,7 +331,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           onOpenAvatarMenu={() => setAvatarMenuVisible(true)}
           onOpenMenu={() =>
             profile.isOwnProfile
-              ? router.push("/profile/settings")
+              ? router.push("/settings")
               : setMenuVisible(true)
           }
         />
@@ -344,6 +375,11 @@ export default function ProfileScreenContent({ userId = "" }) {
             label: "Sao chép liên kết trang cá nhân",
             icon: "link-outline",
             onPress: handleCopyLink,
+          },
+          {
+            label: "Chặn người dùng",
+            icon: "ban-outline",
+            onPress: confirmBlockProfile,
           },
         ]}
       />

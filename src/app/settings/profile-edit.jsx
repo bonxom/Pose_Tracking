@@ -146,12 +146,12 @@ export default function ProfileEditScreen() {
         } else {
           setCoverImage(uri);
         }
-        setStatus("Ảnh đã chọn đang được preview local. Backend cần URL ảnh hoặc API upload để lưu thật.");
+        setStatus("Ảnh đã chọn chỉ dùng để xem trước. Để lưu ổn định, hãy dùng đường dẫn ảnh trực tuyến.");
       }
     } catch {
       Alert.alert(
         "Không thể chọn ảnh",
-        "Cơ chế chọn ảnh bị lỗi. Upload thật cần backend nhận file hoặc URL ảnh.",
+        "Vui lòng thử lại hoặc nhập đường dẫn ảnh trực tuyến.",
       );
     }
   };
@@ -177,8 +177,8 @@ export default function ProfileEditScreen() {
 
       if (hasLocalImage) {
         Alert.alert(
-          "Ảnh chưa upload lên server",
-          "set_user_info chỉ nhận avatar/coverImage dạng URL. Ảnh chọn từ máy là URI local nên app giữ ảnh cũ trên server.",
+          "Ảnh chưa được cập nhật",
+          "Hiện tại ứng dụng chỉ lưu ảnh đã có đường dẫn trực tuyến. Ảnh chọn từ máy sẽ được giữ để xem trước, còn hồ sơ vẫn dùng ảnh cũ.",
         );
       }
       router.replace("/(tabs)/profile");
@@ -250,7 +250,7 @@ export default function ProfileEditScreen() {
             <View style={styles.section}>
               <SectionHeader title="Liên kết ảnh" />
               <Text style={styles.sectionHint}>
-                Dùng URL ảnh đã upload để backend lưu avatar và ảnh bìa ổn định.
+                Dùng đường dẫn ảnh trực tuyến để lưu avatar và ảnh bìa ổn định.
               </Text>
               <AppInput
                 label="avatar URL"

@@ -99,7 +99,7 @@ export default function MenuScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Menu</Text>
-          <Pressable style={styles.headerIcon} onPress={() => router.push("/settings/push")}>
+          <Pressable style={styles.headerIcon} onPress={() => router.push("/settings")}>
             <Ionicons name="settings" size={22} color="#050505" />
           </Pressable>
         </View>
@@ -131,9 +131,9 @@ export default function MenuScreen() {
           <MenuRow icon="grid-outline" label="Xem thêm" onPress={() => goPlaceholder("Xem thêm")} />
           <MenuRow icon="help-circle-outline" label="Trợ giúp & hỗ trợ" onPress={() => goPlaceholder("Trợ giúp & hỗ trợ")} />
           <MenuRow
-            icon="notifications-outline"
-            label="Cài đặt thông báo đẩy"
-            onPress={() => router.push("/settings/push")}
+            icon="settings-outline"
+            label="Cài đặt"
+            onPress={() => router.push("/settings")}
           />
           <MenuRow
             icon="log-out-outline"
