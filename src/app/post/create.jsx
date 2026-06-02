@@ -180,10 +180,24 @@ export default function CreatePostScreen() {
 
   const removeSelectedVideo = (index) => {
     const removedUri = selectedVideos[index]?.uri || "";
-    setSelectedVideos((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? null : item)),
-    );
-    setActiveVideoUri((current) => (current === removedUri ? "" : current));
+    if (!removedUri) return;
+
+    Alert.alert("Xóa video", "Bạn có chắc muốn xóa video này?", [
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: () => {
+          setSelectedVideos((current) =>
+            current.map((item, itemIndex) => (itemIndex === index ? null : item)),
+          );
+          setActiveVideoUri((current) => (current === removedUri ? "" : current));
+        },
+      },
+    ]);
   };
 
   const handleCreatePost = async () => {

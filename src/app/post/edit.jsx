@@ -293,19 +293,35 @@ export default function EditPostScreen() {
 
   const removeSelectedVideo = (index) => {
     const removedUri = displayedVideos[index]?.uri || "";
-    setActiveVideoUri((current) => (current === removedUri ? "" : current));
+    if (!removedUri) return;
 
-    if (!isReplacingVideos) {
-      setIsReplacingVideos(true);
-      setReplacementVideos(
-        existingVideos.map((item, itemIndex) => (itemIndex === index ? null : item)),
-      );
-      return;
-    }
+    Alert.alert("Xóa video", "Bạn có chắc muốn xóa video này?", [
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: () => {
+          setActiveVideoUri((current) => (current === removedUri ? "" : current));
 
-    setReplacementVideos((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? null : item)),
-    );
+          if (!isReplacingVideos) {
+            setIsReplacingVideos(true);
+            setReplacementVideos(
+              existingVideos.map((item, itemIndex) =>
+                itemIndex === index ? null : item,
+              ),
+            );
+            return;
+          }
+
+          setReplacementVideos((current) =>
+            current.map((item, itemIndex) => (itemIndex === index ? null : item)),
+          );
+        },
+      },
+    ]);
   };
 
   const handleSaveEdit = async () => {
