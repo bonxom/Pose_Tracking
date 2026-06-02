@@ -63,6 +63,15 @@ export default function BlocksScreen() {
 
   useFocusEffect(loadBlocks);
 
+  const goBackToSettings = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/settings");
+  };
+
   const searchUsers = async () => {
     const keyword = searchKeyword.trim();
     if (!keyword) {
@@ -164,7 +173,7 @@ export default function BlocksScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Pressable style={styles.backButton} onPress={goBackToSettings}>
               <ProfileIcon name="chevron-back" size={24} color={colors.ink} />
             </Pressable>
             <Text style={styles.headerTitle}>Cài đặt</Text>

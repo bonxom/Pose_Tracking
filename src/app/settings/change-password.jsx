@@ -42,6 +42,15 @@ export default function ChangePasswordScreen() {
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const goBackToSettings = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/settings");
+  };
+
   const submit = async () => {
     const oldValue = oldPassword.trim();
     const confirmOldValue = confirmOldPassword.trim();
@@ -109,7 +118,7 @@ export default function ChangePasswordScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Pressable style={styles.backButton} onPress={goBackToSettings}>
               <ProfileIcon name="chevron-back" size={24} color={colors.ink} />
             </Pressable>
             <Text style={styles.headerTitle}>Bảo mật và đăng nhập</Text>

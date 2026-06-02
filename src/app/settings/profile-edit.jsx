@@ -94,6 +94,15 @@ export default function ProfileEditScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const goBackToSettings = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/settings");
+  };
+
   const loadProfile = useCallback(async () => {
     setLoading(true);
     setStatus("");
@@ -197,7 +206,7 @@ export default function ProfileEditScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={goBackToSettings} style={styles.backButton}>
           <BackIcon size={24} color={colors.ink} />
         </Pressable>
         <Text style={styles.headerTitle}>Chỉnh sửa trang cá nhân</Text>

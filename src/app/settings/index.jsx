@@ -62,11 +62,23 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const openSearch = () => router.push("/search");
+
   return (
     <Screen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Cài đặt</Text>
+          <View style={styles.headerTop}>
+            <Text style={styles.title}>Cài đặt</Text>
+            <Pressable
+              style={styles.searchButton}
+              onPress={openSearch}
+              accessibilityRole="button"
+              accessibilityLabel="Tìm kiếm"
+            >
+              <ProfileIcon name="search" size={24} color={colors.ink} />
+            </Pressable>
+          </View>
           <Text style={styles.subtitle}>Tài khoản, thông báo, bảo mật và thiết bị.</Text>
         </View>
 
@@ -151,11 +163,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderMuted,
   },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: sizes.md,
+  },
   title: {
+    flex: 1,
     fontSize: 28,
     lineHeight: 34,
     fontWeight: "900",
     color: colors.ink,
+  },
+  searchButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
   },
   subtitle: {
     marginTop: sizes.xs,

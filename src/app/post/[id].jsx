@@ -82,6 +82,15 @@ export default function PostDetailScreen() {
     }
   }, [report]);
 
+  const goBackToFeed = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)/home");
+  };
+
   const handleToggleLike = async () => {
     if (!post) return;
     try {
@@ -270,7 +279,7 @@ export default function PostDetailScreen() {
         ) : null}
         <AppButton
           title="Quay lại"
-          onPress={() => router.back()}
+          onPress={goBackToFeed}
           style={postStyles.actionButton}
         />
       </Screen>
@@ -489,7 +498,7 @@ export default function PostDetailScreen() {
 
         <AppButton
           title="Quay lại"
-          onPress={() => router.back()}
+          onPress={goBackToFeed}
           style={[postStyles.actionButton, postStyles.secondaryButton]}
           textStyle={postStyles.secondaryButtonText}
         />

@@ -6,12 +6,21 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function PoliciesScreen() {
+  const goBackToSettings = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/settings");
+  };
+
   return (
     <Screen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Pressable style={styles.backButton} onPress={goBackToSettings}>
               <ProfileIcon name="chevron-back" size={24} color={colors.ink} />
             </Pressable>
             <Text style={styles.headerTitle}>Cài đặt</Text>

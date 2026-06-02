@@ -200,6 +200,15 @@ export default function PushSettingsScreen() {
     );
   };
 
+  const goBackToSettings = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/settings");
+  };
+
   const closeDetail = () => setSelectedSettingKey("");
 
   const renderContentRow = (item) => {
@@ -281,7 +290,7 @@ export default function PushSettingsScreen() {
     <Screen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Pressable style={styles.backButton} onPress={goBackToSettings}>
             <ProfileIcon name="arrow-back" size={28} color={colors.black} />
           </Pressable>
           <Text style={styles.title}>Cài đặt thông báo</Text>
