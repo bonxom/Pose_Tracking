@@ -54,15 +54,27 @@ export async function getBlocks() {
 export async function setBlock(userId, type = "block") {
   const normalizedUserId = String(userId || "").trim();
   if (!normalizedUserId) {
-    throw new Error("Thiếu user_id cần chặn/bỏ chặn.");
+    throw new Error("Chọn người dùng cần chặn hoặc bỏ chặn.");
   }
 
   const session = await getCurrentSession();
   requireToken(session);
 
+  const ownIds = [
+    session.id,
+    session.user_id,
+    session.identifier,
+  ]
+    .filter(Boolean)
+    .map((id) => String(id));
+
+  if (ownIds.includes(normalizedUserId)) {
+    throw new Error("Bạn không thể chặn chính mình.");
+  }
+
   const response = await backendApi.setBlock({
     token: session.token,
-    user_id: normalizedUserId,
+    userId: normalizedUserId,
     type: type === "block" ? "0" : "1",
   });
 

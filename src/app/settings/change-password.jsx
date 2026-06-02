@@ -36,6 +36,7 @@ function isTooSimilar(oldValue, newValue) {
 
 export default function ChangePasswordScreen() {
   const [oldPassword, setOldPassword] = useState("");
+  const [confirmOldPassword, setConfirmOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState("");
@@ -43,11 +44,22 @@ export default function ChangePasswordScreen() {
 
   const submit = async () => {
     const oldValue = oldPassword.trim();
+    const confirmOldValue = confirmOldPassword.trim();
     const newValue = newPassword.trim();
     const confirmValue = confirmPassword.trim();
 
     if (!oldValue) {
       setStatus("Vui lòng nhập mật khẩu hiện tại.");
+      return;
+    }
+
+    if (!confirmOldValue) {
+      setStatus("Vui lòng nhập lại mật khẩu hiện tại.");
+      return;
+    }
+
+    if (oldValue !== confirmOldValue) {
+      setStatus("Hai lần nhập mật khẩu hiện tại chưa khớp.");
       return;
     }
 
@@ -81,6 +93,7 @@ export default function ChangePasswordScreen() {
       await changePassword(oldValue, newValue);
       setStatus("Đã đổi mật khẩu.");
       setOldPassword("");
+      setConfirmOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error) {
@@ -103,7 +116,8 @@ export default function ChangePasswordScreen() {
           </View>
           <Text style={styles.title}>Đổi mật khẩu</Text>
           <Text style={styles.subtitle}>
-            Mật khẩu mới cần từ 6 đến 10 ký tự, chỉ gồm chữ cái hoặc chữ số và không quá giống mật khẩu hiện tại.
+            Nhập mật khẩu hiện tại 2 lần và chọn mật khẩu mới từ 6 đến
+            10 ký tự, chỉ gồm chữ cái hoặc chữ số.
           </Text>
         </View>
 
@@ -112,6 +126,13 @@ export default function ChangePasswordScreen() {
             label="Mật khẩu hiện tại"
             value={oldPassword}
             onChangeText={setOldPassword}
+            secureTextEntry
+            editable={!isLoading}
+          />
+          <AppInput
+            label="Nhập lại mật khẩu hiện tại"
+            value={confirmOldPassword}
+            onChangeText={setConfirmOldPassword}
             secureTextEntry
             editable={!isLoading}
           />

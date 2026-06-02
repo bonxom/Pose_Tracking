@@ -28,7 +28,10 @@ export function normalizePushSettings(settings = {}) {
       true,
     ),
     fromFriends: toBool(
-      settings.fromFriends ?? settings.from_friends ?? settings.friend_update,
+      settings.fromFriends ??
+        settings.from_friends ??
+        settings.friend_update ??
+        settings.message,
       true,
     ),
     requestedFriend: toBool(
@@ -41,12 +44,13 @@ export function normalizePushSettings(settings = {}) {
     suggestedFriend: toBool(
       settings.suggestedFriend ??
         settings.suggested_friend ??
-        settings.people_you_may_know,
+        settings.people_you_may_know ??
+        settings.approved_course,
       true,
     ),
     birthday: toBool(settings.birthday, true),
-    video: toBool(settings.video, true),
-    report: toBool(settings.report, true),
+    video: toBool(settings.video ?? settings.new_exercise, true),
+    report: toBool(settings.report ?? settings.announcement, true),
     soundOn: toBool(settings.soundOn ?? settings.sound_on, true),
     vibrantOn: toBool(
       settings.vibrantOn ?? settings.vibrant_on ?? settings.vibration_on,
@@ -146,16 +150,18 @@ export async function changePassword(oldPassword, newPassword) {
 export async function checkNewVersion() {
   const session = await getCurrentSession();
 
-  let response = await backendApi.checkNewVersion({
-    token: session?.token || "",
-    last_update: "2026-05-10T00:00:00.000Z",
-  });
+  let response;
+  try {
+    response = await backendApi.checkNewVersion({
+      token: session?.token || "",
+      last_update: "2026-05-10T00:00:00.000Z",
+    });
+  } catch (error) {
+    const message = String(error?.data?.message || error?.message || "");
+    if (!message.includes("property last_update should not exist")) {
+      throw error;
+    }
 
-  if (
-    String(response?.message || "").includes(
-      "property last_update should not exist",
-    )
-  ) {
     console.info(
       "[DATA] check_new_version deployed compatibility: retrying with lastUpdate",
     );

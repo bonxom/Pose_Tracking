@@ -5,6 +5,7 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { getBlocks, setBlock } from "@/repositories/blockRepository";
+import { searchScreenSearch } from "@/repositories/searchRepository";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -39,9 +40,11 @@ function BlockedAvatar({ item }) {
 
 export default function BlocksScreen() {
   const [blocks, setBlocks] = useState([]);
-  const [userId, setUserId] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [actionUserId, setActionUserId] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
@@ -59,18 +62,43 @@ export default function BlocksScreen() {
 
   useFocusEffect(loadBlocks);
 
-  const blockUser = async () => {
-    const targetId = userId.trim();
+  const searchUsers = async () => {
+    const keyword = searchKeyword.trim();
+    if (!keyword) {
+      setStatus("Nhập tên hoặc tài khoản người dùng cần tìm.");
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      setStatus("");
+      const result = await searchScreenSearch(keyword, { count: 8 });
+      const users = (result.users || []).filter((user) => user.id);
+      setSearchResults(users);
+      if (users.length === 0) {
+        setStatus("Không tìm thấy người dùng phù hợp.");
+      }
+    } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
+      setStatus(error.message || "Không thể tìm người dùng.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const blockUser = async (target) => {
+    const targetId = String(target?.id || "").trim();
     if (!targetId) {
-      setStatus("Nhập user_id cần chặn.");
+      setStatus("Chọn người dùng cần chặn.");
       return;
     }
 
     try {
       setActionUserId(targetId);
       await setBlock(targetId, "block");
-      setStatus("Đã chặn người dùng.");
-      setUserId("");
+      setStatus(`Đã chặn ${target.name || target.username || "người dùng"}.`);
+      setSearchKeyword("");
+      setSearchResults([]);
       setIsAdding(false);
       loadBlocks();
     } catch (error) {
@@ -118,6 +146,8 @@ export default function BlocksScreen() {
             onPress={() => {
               setIsAdding((current) => !current);
               setStatus("");
+              setSearchKeyword("");
+              setSearchResults([]);
             }}
           >
             <View style={styles.addIcon}>
@@ -129,17 +159,52 @@ export default function BlocksScreen() {
           {isAdding ? (
             <View style={styles.addForm}>
               <AppInput
-                label="User ID"
-                placeholder="Nhập user_id cần chặn"
-                value={userId}
-                onChangeText={setUserId}
+                label="Tìm người dùng"
+                placeholder="Nhập tên hoặc tài khoản"
+                value={searchKeyword}
+                onChangeText={setSearchKeyword}
                 autoFocus
+                returnKeyType="search"
+                onSubmitEditing={searchUsers}
               />
               <AppButton
-                title="Chặn người dùng"
-                onPress={blockUser}
-                loading={Boolean(actionUserId && actionUserId === userId.trim())}
+                title="Tìm kiếm"
+                onPress={searchUsers}
+                loading={isSearching}
               />
+              {searchResults.map((item) => (
+                <View key={item.id} style={styles.searchResultRow}>
+                  {item.avatar ? (
+                    <Image
+                      source={{ uri: item.avatar }}
+                      style={styles.searchAvatar}
+                    />
+                  ) : (
+                    <View style={styles.searchAvatarFallback}>
+                      <Text style={styles.avatarText}>
+                        {String(item.name || item.id || "?")
+                          .charAt(0)
+                          .toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.blockInfo}>
+                    <Text style={styles.blockName}>
+                      {item.name || item.username}
+                    </Text>
+                    <Text style={styles.blockMeta} numberOfLines={1}>
+                      {item.handle || item.role || item.id}
+                    </Text>
+                  </View>
+                  <AppButton
+                    title="CHẶN"
+                    onPress={() => blockUser(item)}
+                    loading={actionUserId === item.id}
+                    style={styles.blockButton}
+                    textStyle={styles.unblockButtonText}
+                  />
+                </View>
+              ))}
             </View>
           ) : null}
         </View>
@@ -271,6 +336,30 @@ const styles = StyleSheet.create({
     padding: sizes.lg,
     gap: sizes.md,
   },
+  searchResultRow: {
+    minHeight: 66,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: sizes.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+  },
+  searchAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginRight: sizes.md,
+    backgroundColor: colors.surfaceMuted,
+  },
+  searchAvatarFallback: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginRight: sizes.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
+  },
   section: {
     marginTop: sizes.md,
     backgroundColor: colors.white,
@@ -372,6 +461,12 @@ const styles = StyleSheet.create({
   },
   unblockButton: {
     width: 92,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceMuted,
+  },
+  blockButton: {
+    width: 72,
     height: 36,
     borderRadius: 18,
     backgroundColor: colors.surfaceMuted,

@@ -361,7 +361,7 @@ export default function PostDetailScreen() {
               ) : (
                 <>
                   <Text style={postStyles.slotHint}>
-                    Chọn vấn đề gần nhất để gửi report_post tới server.
+                    Chọn vấn đề phù hợp để gửi báo cáo.
                   </Text>
                   <View style={postStyles.mediaList}>
                     {REPORT_CATEGORIES.map((category) => {
