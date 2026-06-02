@@ -18,13 +18,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
-export default function CoursesFeedView() {
+export default function CoursesFeedView({ onGoToMyCourses }) {
   const [courses, setCourses] = useState(feedCacheState.coursesFeedCache);
   const [isLoading, setIsLoading] = useState(
     feedCacheState.coursesFeedCache.length === 0,
@@ -151,10 +152,23 @@ export default function CoursesFeedView() {
         ListHeaderComponent={
           <>
             {/* Page title */}
-            <View style={globalStyles.headerTopRow}>
+            <View style={[globalStyles.headerTopRow, { paddingBottom: 4 }]}>
               <Text style={globalStyles.headerTitle}>Khoá học</Text>
               <SearchButton />
             </View>
+
+            {/* Tab Pills */}
+            <View style={globalStyles.tabPills}>
+              <Pressable
+                style={coursesStyles.tabPill}
+                onPress={onGoToMyCourses}
+              >
+                <Text style={coursesStyles.tabPillText}>Khóa học của tôi</Text>
+              </Pressable>
+            </View>
+
+            {/* Divider */}
+            <View style={coursesStyles.divider} />
 
             {/* Error banner */}
             {errorText ? (
