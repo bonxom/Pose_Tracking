@@ -228,7 +228,12 @@ export default function PostDetailScreen() {
   const handleDeletePost = async () => {
     try {
       await deletePost(post);
-      router.replace("/(tabs)/home");
+      Alert.alert("Thành công", "Đã xóa bài viết thành công.", [
+        {
+          text: "OK",
+          onPress: () => router.replace("/(tabs)/home"),
+        },
+      ]);
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
       setStatusText("Hệ thống đang lỗi, vui lòng thử lại sau");

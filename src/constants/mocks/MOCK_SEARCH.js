@@ -1,3 +1,5 @@
+import { listMockProfiles } from "@/constants/mocks/profiles";
+
 const MOCK_SEARCH_DELAY_MS = 300;
 
 const MOCK_SEARCH_POSTS = [
@@ -105,6 +107,15 @@ let mockSavedSearches = [
   },
 ];
 
+const MOCK_SEARCH_USERS = listMockProfiles().map((profile) => ({
+  id: String(profile.id || ""),
+  name: String(profile.displayName || profile.username || "Người dùng"),
+  handle: String(profile.handle || profile.username || ""),
+  role: String(profile.role || "HV"),
+  avatar: String(profile.avatar || ""),
+  description: String(profile.description || ""),
+}));
+
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -141,23 +152,39 @@ function saveMockSearchKeyword(keyword = "") {
   ].slice(0, 20);
 }
 
-function buildMockSearchUsers(posts = []) {
-  const seen = new Set();
+function buildMockSearchPosts(keyword = "", userId = "") {
+  const normalizedKeyword = String(keyword || "").trim().toLowerCase();
 
-  return posts
-    .map((post) => ({
-      id: String(post.author?.id || ""),
-      name: String(post.author?.username || post.author?.name || "Người dùng"),
-      handle: String(post.author?.username || ""),
-      role: String(post.author?.role || "HV"),
-      avatar: String(post.author?.avatar || ""),
-      description: "",
-    }))
-    .filter((item) => {
-      if (!item.id || seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
+  return MOCK_SEARCH_POSTS.filter((post) => {
+    if (userId && String(post.author?.id || "") !== userId) {
+      return false;
+    }
+
+    const haystack = [post.described, post.author?.username, post.author?.role]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(normalizedKeyword);
+  });
+}
+
+function buildMockSearchUsers(keyword = "") {
+  const normalizedKeyword = String(keyword || "").trim().toLowerCase();
+
+  return MOCK_SEARCH_USERS.filter((user) => {
+    const haystack = [
+      user.name,
+      user.handle,
+      user.role,
+      user.description,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(normalizedKeyword);
+  });
 }
 
 export async function getMockSearchResponse(params = {}) {
@@ -181,30 +208,26 @@ export async function getMockSearchResponse(params = {}) {
     saveMockSearchKeyword(keyword);
   }
 
-  const filtered = MOCK_SEARCH_POSTS.filter((post) => {
-    if (userId && String(post.author?.id || "") !== userId) {
-      return false;
-    }
-
-    const haystack = [post.described, post.author?.username, post.author?.role]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(normalizedKeyword);
-  });
+  const filteredPosts = buildMockSearchPosts(normalizedKeyword, userId);
+  const filteredUsers = buildMockSearchUsers(normalizedKeyword);
+  const slicedPosts = filteredPosts.slice(
+    requestedIndex,
+    requestedIndex + requestedCount,
+  );
+  const slicedUsers = filteredUsers.slice(
+    requestedIndex,
+    requestedIndex + requestedCount,
+  );
 
   return {
     code: "1000",
     message: "OK",
     data: {
-      posts: clone(
-        filtered.slice(requestedIndex, requestedIndex + requestedCount),
-      ),
-      users: clone(buildMockSearchUsers(filtered)),
-      user: clone(buildMockSearchUsers(filtered)),
-      accounts: clone(buildMockSearchUsers(filtered)),
-      people: clone(buildMockSearchUsers(filtered)),
+      posts: clone(slicedPosts),
+      users: clone(slicedUsers),
+      user: clone(slicedUsers),
+      accounts: clone(slicedUsers),
+      people: clone(slicedUsers),
     },
   };
 }

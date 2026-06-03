@@ -5,17 +5,19 @@ import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
 import { getInitials } from "@/utils/formatters";
+import { resolveAvatarUri } from "@/utils/profile";
 import {
   formatNotificationBadge,
   getNotificationBadge,
   getNotificationPage,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
-import { getAuthSession } from "@/utils/session";
+import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
-import { router, Tabs, usePathname } from "expo-router";
-import { useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { router, Tabs, useFocusEffect, usePathname } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function HomeTopSection() {
@@ -23,6 +25,9 @@ function HomeTopSection() {
 
   useEffect(() => {
     getAuthSession().then(setSession).catch(console.warn);
+
+    const unsubscribe = subscribeAuthSession(setSession);
+    return unsubscribe;
   }, []);
 
   const role = String(session?.role || session?.user?.role || "").toUpperCase();
@@ -65,7 +70,6 @@ function TabButton({ onPress, accessibilityState, children }) {
 
 function ProfileTabAvatar({ focused, avatar, name }) {
   const initials = getInitials(name || "Người dùng");
-
   return (
     <View
       style={[
@@ -73,13 +77,21 @@ function ProfileTabAvatar({ focused, avatar, name }) {
         focused && styles.profileAvatarWrapActive,
       ]}
     >
-      {avatar ? (
-        <Image source={{ uri: avatar }} style={styles.profileAvatarImage} />
-      ) : (
+      <View style={styles.profileAvatarFallbackShell}>
         <View style={styles.profileAvatarFallback}>
           <Text style={styles.profileAvatarFallbackText}>{initials}</Text>
         </View>
-      )}
+      </View>
+      {avatar ? (
+        <Image
+          key={avatar}
+          source={{ uri: avatar }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+          style={styles.profileAvatarImage}
+        />
+      ) : null}
     </View>
   );
 }
@@ -104,13 +116,37 @@ export default function TabsLayout() {
 
   useEffect(() => {
     getAuthSession().then(setSession).catch(console.warn);
+
+    const unsubscribe = subscribeAuthSession(setSession);
+    return unsubscribe;
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      getAuthSession()
+        .then((value) => {
+          if (active) {
+            setSession(value);
+          }
+        })
+        .catch(console.warn);
+
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const [notificationBadge, setTabNotificationBadge] = useState(
     getNotificationBadge(),
   );
   const displayName = session?.displayName || session?.username || "Người dùng";
-  const avatar = session?.avatar || session?.user?.avatar || "";
+  const avatar = resolveAvatarUri(
+    session?.avatar || session?.user?.avatar || "",
+    session?.avatarVersion || session?.profileSyncRequestedAt || session?.loggedInAt || "",
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -306,7 +342,22 @@ const styles = StyleSheet.create({
   profileAvatarWrapActive: {
     borderColor: colors.primary,
   },
+  profileAvatarFallbackShell: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14.5,
+    padding: 1,
+    backgroundColor: "#DCE8FF",
+  },
   profileAvatarImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: "100%",
     height: "100%",
     borderRadius: 12.5,
@@ -314,6 +365,7 @@ const styles = StyleSheet.create({
   profileAvatarFallback: {
     width: "100%",
     height: "100%",
+    borderRadius: 13.5,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#E8EEF9",

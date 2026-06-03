@@ -75,7 +75,13 @@ export default function SignupScreen() {
 
       switch (response.code) {
         case "1000": {
-          if (!response.data?.signupRequestId || !response.data?.phonenumber) {
+          const resolvedPhone = response.data?.phonenumber || normalizedPhone;
+          const resolvedSignupRequestId =
+            response.data?.signupRequestId ||
+            response.data?.signup_request_id ||
+            resolvedPhone;
+
+          if (!resolvedSignupRequestId || !resolvedPhone) {
             Alert.alert("Lỗi", "Phản hồi từ máy chủ không hợp lệ.");
             return;
           }
@@ -83,8 +89,8 @@ export default function SignupScreen() {
           router.push({
             pathname: "/(auth)/verify",
             params: {
-              phonenumber: response.data.phonenumber,
-              signupRequestId: response.data.signupRequestId,
+              phonenumber: resolvedPhone,
+              signupRequestId: resolvedSignupRequestId,
               role: normalizedRole,
               token: response.data.token || "",
               verifyCode: response.data.verifyCode || response.data.verify_code || response.data.mock_verify_code || "",

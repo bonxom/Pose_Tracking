@@ -1,25 +1,49 @@
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { initials } from "@/utils/profile";
-import { Image, Pressable, Text, View } from "react-native";
+import { initials, resolveAvatarUri } from "@/utils/profile";
+import { Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { useEffect, useState } from "react";
 
 function Avatar({ uri, name, size = 72, bordered = false }) {
+  const resolvedAvatarUri = resolveAvatarUri(uri);
   const avatarStyle = {
     width: size,
     height: size,
     borderRadius: size / 2,
   };
+  const ring = bordered ? 4 : 0;
+  const shellSize = size + ring * 2;
+  const shellStyle = bordered
+    ? {
+        width: shellSize,
+        height: shellSize,
+        borderRadius: shellSize / 2,
+        padding: ring,
+        backgroundColor: colors.white,
+        overflow: "hidden",
+      }
+    : avatarStyle;
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [resolvedAvatarUri]);
 
   return (
-    <View style={[bordered && profileStyles.fbAvatarBorder, avatarStyle]}>
-      {uri ? (
+    <View style={shellStyle}>
+      {resolvedAvatarUri && !imageFailed ? (
         <Image
-          source={{ uri }}
+          source={{ uri: resolvedAvatarUri }}
           style={[profileStyles.avatarImage, avatarStyle]}
-          onError={(event) =>
-            console.warn("PROFILE_AVATAR_LOAD_ERROR", uri, event.nativeEvent?.error)
-          }
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+          onError={(event) => {
+            console.warn("PROFILE_AVATAR_LOAD_ERROR", resolvedAvatarUri, event.nativeEvent?.error);
+            setImageFailed(true);
+          }}
         />
       ) : (
         <View style={[profileStyles.avatarFallback, avatarStyle]}>
@@ -118,17 +142,12 @@ export default function ProfileHero({
             <ProfileIcon name="image-outline" size={38} color={colors.subtext} />
           </View>
         )}
-        {isOwnProfile ? (
-          <Pressable style={profileStyles.fbCoverCamera} onPress={onOpenCoverMenu}>
-            <ProfileIcon name="camera" size={18} color={colors.ink} />
-          </Pressable>
-        ) : null}
       </View>
 
       <View style={profileStyles.fbHeroInfo}>
         <View style={profileStyles.fbAvatarRow}>
           <View>
-            <Avatar uri={profile.avatar} name={profile.displayName} size={132} bordered />
+            <Avatar uri={profile.avatar} name={profile.displayName} size={120} bordered />
             {isOwnProfile ? (
               <Pressable style={profileStyles.fbAvatarCamera} onPress={onOpenAvatarMenu}>
                 <ProfileIcon name="camera" size={19} color={colors.ink} />
@@ -153,6 +172,15 @@ export default function ProfileHero({
         </View>
         <ProfileDetails profile={profile} />
       </View>
+      {isOwnProfile ? (
+        <Pressable
+          style={profileStyles.fbCoverCameraFloating}
+          onPress={onOpenCoverMenu}
+          hitSlop={12}
+        >
+          <ProfileIcon name="camera" size={18} color={colors.ink} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

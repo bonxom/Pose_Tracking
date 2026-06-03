@@ -10,7 +10,11 @@ import {
   ACTIVE_SOURCES,
   getCurrentSession,
   getSourceLabel,
+<<<<<<< HEAD
   sourceFromResponse,
+=======
+  isServerPost,
+>>>>>>> origin/main
 } from "@/repositories/source";
 
 function apiResult(value, source = ACTIVE_SOURCES.SERVER) {
@@ -23,8 +27,27 @@ function apiResult(value, source = ACTIVE_SOURCES.SERVER) {
   };
 }
 
+<<<<<<< HEAD
 function normalizeApiPostList(response) {
   const source = sourceFromResponse(response);
+=======
+function assertServerSession(session) {
+  if (!session?.token) {
+    throw new Error("Cần đăng nhập server để dùng dữ liệu backend.");
+  }
+}
+
+function shouldUsePostApi(session) {
+  if (!session?.token) return false;
+  if (session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL) {
+    return false;
+  }
+
+  return true;
+}
+
+function normalizeServerPostList(response) {
+>>>>>>> origin/main
   return extractList(response)
     .map((item) => normalizePost(item, source))
     .filter((item) => item.id && item.isValidForFeed);
@@ -71,6 +94,24 @@ function durationMs(video = {}) {
   return value > 1000 ? value : value * 1000;
 }
 
+function normalizeApiBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes"].includes(normalized)) return true;
+    if (["0", "false", "no"].includes(normalized)) return false;
+  }
+
+  if (typeof value === "number") {
+    return value === 1;
+  }
+
+  return Boolean(value);
+}
+
 function buildAddPostFields(session, params = {}) {
   const fields = {
     token: session?.token || "",
@@ -84,7 +125,77 @@ function buildAddPostFields(session, params = {}) {
     fields.exercise_id = params.exerciseId;
   }
 
+  if (params.sourcePostId) {
+    fields.source_post_id = params.sourcePostId;
+  }
+
   return fields;
+}
+
+function validateVideoInput(video = {}, index = 0) {
+  if (isDemoVideo(video)) {
+    throw new Error("Server mode không chấp nhận video demo.");
+  }
+
+  if (!video.uri && !video.file && !video.blob) {
+    throw new Error(`Video ${index + 1} không có dữ liệu file hợp lệ.`);
+  }
+
+  const ms = durationMs(video);
+  if (!ms) {
+    throw new Error(`Không đọc được thời lượng video ${index + 1}.`);
+  }
+
+  if (ms < 10_000) {
+    throw new Error(`Video ${index + 1} phải dài tối thiểu 10 giây.`);
+  }
+
+  return ms;
+}
+
+function isLocalUploadVideo(video = {}) {
+  return Boolean(video?.isLocalUpload || video?.file || video?.blob);
+}
+
+function assertMatchingVideoDurations(firstMs, secondMs) {
+  const allowedDiff = 1_000;
+  if (Math.abs(firstMs - secondMs) > allowedDiff) {
+    throw new Error(
+      "Hai video khác thời lượng. Vui lòng chọn 2 video có thời lượng bằng nhau.",
+    );
+  }
+}
+
+export function validateEditableVideos(videos = []) {
+  const filteredVideos = Array.isArray(videos) ? videos.filter(Boolean) : [];
+  const localVideos = filteredVideos.filter(isLocalUploadVideo);
+
+  if (!localVideos.length) {
+    return true;
+  }
+
+  localVideos.forEach((video, index) => {
+    validateVideoInput(video, index);
+  });
+
+  if (filteredVideos.length !== 2) {
+    return true;
+  }
+
+  const [first, second] = filteredVideos.map(durationMs);
+  if (!first || !second) {
+    if (localVideos.length === 1) {
+      throw new Error(
+        "Không thể kiểm tra thời lượng với video cũ còn lại. Vui lòng thay cả 2 video để hệ thống đối chiếu thời lượng.",
+      );
+    }
+
+    return true;
+  }
+
+  assertMatchingVideoDurations(first, second);
+
+  return true;
 }
 
 export function validateTwoVideos(videos = []) {
@@ -93,29 +204,11 @@ export function validateTwoVideos(videos = []) {
   }
 
   videos.forEach((video, index) => {
-    if (isDemoVideo(video)) {
-      throw new Error("Server mode không chấp nhận video demo.");
-    }
-
-    if (!video.uri && !video.file && !video.blob) {
-      throw new Error(`Video ${index + 1} không có dữ liệu file hợp lệ.`);
-    }
-
-    const ms = durationMs(video);
-    if (!ms) {
-      throw new Error(`Không đọc được thời lượng video ${index + 1}.`);
-    }
-
-    if (ms < 10_000) {
-      throw new Error(`Video ${index + 1} phải dài tối thiểu 10 giây.`);
-    }
+    validateVideoInput(video, index);
   });
 
   const [first, second] = videos.map(durationMs);
-  const allowedDiff = Math.max(3_000, Math.max(first, second) * 0.2);
-  if (Math.abs(first - second) > allowedDiff) {
-    throw new Error("Hai video cần có thời lượng tương đương nhau.");
-  }
+  assertMatchingVideoDurations(first, second);
 
   return true;
 }
@@ -123,7 +216,7 @@ export function validateTwoVideos(videos = []) {
 function extractFeedMeta(response, params, itemCount) {
   const data =
     response?.data && !Array.isArray(response.data) ? response.data : {};
-  const requestedCount = Number(params.count || 20);
+  const requestedCount = Number(params.count || 10);
   const rawLastId =
     data.last_id || data.lastId || response?.last_id || response?.lastId || "";
   const hasMore =
@@ -142,7 +235,7 @@ function extractFeedMeta(response, params, itemCount) {
 
   return {
     lastId: String(rawLastId || params.lastId || params.last_id || ""),
-    hasMore: Boolean(hasMore),
+    hasMore: normalizeApiBoolean(hasMore),
     newItems: Number.isFinite(newItems) ? newItems : 0,
     total: Number(data.total || response?.total || itemCount),
   };
@@ -153,7 +246,7 @@ export async function getFeedPage(params = {}) {
   const response = await backendApi.getListPosts({
     token: session?.token || "",
     index: String(params.index || 0),
-    count: String(params.count || 20),
+    count: String(params.count || 10),
     last_id: params.lastId || params.last_id || "",
     category_id: params.categoryId || params.category_id || "",
   });
@@ -194,6 +287,8 @@ export async function toggleLike(post) {
     throw new Error("Thiếu bài viết để thích/bỏ thích.");
   }
 
+  console.log("token: ", (await getCurrentSession())?.token);
+
   const session = await getCurrentSession();
 
   const response = await backendApi.like({
@@ -216,7 +311,7 @@ export async function toggleLike(post) {
 
 export async function searchPosts(query = "", options = {}) {
   const session = await getCurrentSession();
-  const userId = options.userId || options.user_id || "";
+  const requestedUserId = options.userId || options.user_id || "";
 
   try {
     const response = await backendApi.search({
@@ -224,7 +319,7 @@ export async function searchPosts(query = "", options = {}) {
       keyword: query,
       index: "0",
       count: "20",
-      ...(userId ? { user_id: userId } : {}),
+      ...(requestedUserId ? { user_id: requestedUserId } : {}),
     });
 
     await assertBackendOk(response, { message: "Backend search failed" });
@@ -243,7 +338,7 @@ export async function getSavedSearches() {
     const response = await backendApi.getSavedSearch({
       token: session?.token || "",
       index: "0",
-      count: "20",
+      count: "10",
     });
 
     await assertBackendOk(response, {
@@ -280,6 +375,22 @@ export async function deleteSavedSearch(searchId) {
 
 export async function editPost(post, params = {}) {
   const session = await getCurrentSession();
+<<<<<<< HEAD
+=======
+  assertServerSession(session);
+  const multipartVideos = (params.videos || [])
+    .filter((video) => video && isLocalUploadVideo(video))
+    .map((video, index) => ({
+      ...video,
+      fieldName:
+        video.fieldName || (index === 0 ? "left_video" : "right_video"),
+    }));
+
+  if (params.videos?.length) {
+    validateEditableVideos(params.videos);
+  }
+
+>>>>>>> origin/main
   const fields = {
     token: session?.token || "",
     id: post.id,
@@ -290,11 +401,6 @@ export async function editPost(post, params = {}) {
       post.content ||
       "",
   };
-
-  const multipartVideos = (params.videos || []).map((video, index) => ({
-    ...video,
-    fieldName: index === 0 ? "left_video" : "right_video",
-  }));
 
   const response = await backendApi.editPostMultipart(fields, multipartVideos);
   await assertBackendOk(response, { message: "Backend edit_post failed" });
@@ -337,6 +443,7 @@ export async function reportPost(post, report = "") {
     details: payload.details || payload.subject || "Nội dung không phù hợp",
   });
 
+<<<<<<< HEAD
   const code = String(response?.code || "");
   if (code === "1010") {
     return {
@@ -353,6 +460,11 @@ export async function reportPost(post, report = "") {
   await assertBackendOk(response, { message: "Backend report_post failed" });
 
   return { reported: true, source: sourceFromResponse(response) };
+=======
+  await assertBackendOk(response, { message: "Backend report_post failed" });
+
+  return { reported: true, source: ACTIVE_SOURCES.SERVER };
+>>>>>>> origin/main
 }
 
 export async function checkNewItems(lastId = "") {
@@ -378,7 +490,17 @@ export async function checkNewItems(lastId = "") {
 
   await assertBackendOk(response, { message: "Backend check_new_item failed" });
 
+  const count = Number(
+    response.data?.new_items ?? response.data?.count ?? response.count ?? 0,
+  );
+  const hasNewValue =
+    response.data?.has_new ??
+    response.data?.new_items ??
+    response.has_new ??
+    count;
+
   return {
+<<<<<<< HEAD
     hasNew: Boolean(
       response.data?.new_items || response.data?.has_new || response.has_new,
     ),
@@ -386,6 +508,11 @@ export async function checkNewItems(lastId = "") {
       response.data?.new_items || response.data?.count || response.count || 0,
     ),
     source: sourceFromResponse(response),
+=======
+    hasNew: normalizeApiBoolean(hasNewValue, count > 0),
+    count: Number.isFinite(count) ? count : 0,
+    source: ACTIVE_SOURCES.SERVER,
+>>>>>>> origin/main
     raw: response,
   };
 }
@@ -400,6 +527,20 @@ export async function getExercisePosts() {
 export async function createPost(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
+<<<<<<< HEAD
+=======
+  const allowServer = shouldUsePostApi(session);
+
+  if (!allowServer) {
+    return localPosts.createPost({
+      content: params.content || "",
+      videos,
+      courseId: params.courseId || "",
+      exerciseId: params.exerciseId || "",
+      sourcePostId: params.sourcePostId || "",
+    });
+  }
+>>>>>>> origin/main
 
   try {
     const response = await backendApi.addPost(
@@ -444,6 +585,20 @@ export async function createLocalPost(params) {
 export async function createExerciseSubmission(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
+<<<<<<< HEAD
+=======
+  const allowServer = shouldUsePostApi(session);
+
+  if (!allowServer) {
+    return localPosts.createExerciseSubmission({
+      content: params.content || "",
+      videos,
+      courseId: params.courseId || "",
+      exerciseId: params.exerciseId || "",
+      sourcePostId: params.sourcePostId || "",
+    });
+  }
+>>>>>>> origin/main
 
   try {
     const response = await backendApi.addPost(

@@ -4,15 +4,20 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import AppInput from "@/components/common/AppInput";
 import {
   getUserInfo,
-  updateUserInfo,
+  mergeOwnProfileWithSession,
   validateProfileUserName,
 } from "@/repositories/userRepository";
+import { queueProfileUpdate } from "@/services/profileUpdateService";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { clearAuthSession } from "@/utils/session";
+import {
+  clearAuthSession,
+  subscribeAuthSession,
+} from "@/utils/session";
+import { resolveAvatarUri } from "@/utils/profile";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,10 +29,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-function isLocalAssetUri(value = "") {
-  return /^(file|content|asset-library|ph):\/\//i.test(String(value || ""));
-}
 
 function initials(name = "") {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -48,11 +49,13 @@ function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
 }
 
 function AvatarPreview({ uri, name, onPick }) {
+  const resolvedAvatarUri = resolveAvatarUri(uri);
+
   return (
     <View style={styles.avatarPreviewWrap}>
       <View style={styles.avatarPreview}>
-        {uri ? (
-          <Image source={{ uri }} style={styles.previewImage} />
+        {resolvedAvatarUri ? (
+          <Image source={{ uri: resolvedAvatarUri }} style={styles.previewImage} />
         ) : (
           <View style={styles.avatarFallback}>
             <Text style={styles.avatarFallbackText}>{initials(name)}</Text>
@@ -93,6 +96,21 @@ export default function ProfileEditScreen() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const latestDraftRef = useRef({
+    username: "",
+    avatar: "",
+    coverImage: "",
+    description: "",
+  });
+
+  useEffect(() => {
+    latestDraftRef.current = {
+      username,
+      avatar,
+      coverImage,
+      description,
+    };
+  }, [avatar, coverImage, description, username]);
 
   const goBackToSettings = () => {
     if (router.canGoBack?.()) {
@@ -130,6 +148,40 @@ export default function ProfileEditScreen() {
     }, [loadProfile]),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const applySession = (session) => {
+        if (!active || !session) return;
+
+        const draft = latestDraftRef.current;
+        const merged = mergeOwnProfileWithSession(
+          {
+            displayName: draft.username,
+            username: draft.username,
+            avatar: draft.avatar,
+            coverImage: draft.coverImage,
+            description: draft.description,
+          },
+          session,
+        );
+
+        setUsername(merged.displayName || merged.username || "");
+        setAvatar(merged.avatar || "");
+        setCoverImage(merged.coverImage || "");
+        setDescription(merged.description || "");
+      };
+
+      const unsubscribe = subscribeAuthSession(applySession);
+
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    }, []),
+  );
+
   const pickImage = async (type) => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -155,12 +207,20 @@ export default function ProfileEditScreen() {
         } else {
           setCoverImage(uri);
         }
+<<<<<<< HEAD
         setStatus("Ảnh đã chọn chỉ dùng để xem trước. Để lưu ổn định, hãy dùng đường dẫn ảnh trực tuyến.");
+=======
+        setStatus("Ảnh đã được chọn. Nhấn \"Lưu thay đổi\" để upload file lên server.");
+>>>>>>> origin/main
       }
     } catch {
       Alert.alert(
         "Không thể chọn ảnh",
+<<<<<<< HEAD
         "Vui lòng thử lại hoặc nhập đường dẫn ảnh trực tuyến.",
+=======
+        "Cơ chế chọn ảnh bị lỗi. Vui lòng thử lại.",
+>>>>>>> origin/main
       );
     }
   };
@@ -176,13 +236,13 @@ export default function ProfileEditScreen() {
     setStatus("");
     setUsernameError("");
     try {
-      const hasLocalImage = isLocalAssetUri(avatar) || isLocalAssetUri(coverImage);
-      await updateUserInfo({
+      await queueProfileUpdate({
         userName: username.trim(),
         avatar,
         coverImage,
         description: description.trim().slice(0, 150),
       });
+<<<<<<< HEAD
 
       if (hasLocalImage) {
         Alert.alert(
@@ -190,6 +250,9 @@ export default function ProfileEditScreen() {
           "Hiện tại ứng dụng chỉ lưu ảnh đã có đường dẫn trực tuyến. Ảnh chọn từ máy sẽ được giữ để xem trước, còn hồ sơ vẫn dùng ảnh cũ.",
         );
       }
+=======
+      setStatus("Đã cập nhật giao diện. Backend đang đồng bộ nền...");
+>>>>>>> origin/main
       router.replace("/(tabs)/profile");
     } catch (error) {
       if (error.sessionExpired) {
@@ -256,6 +319,7 @@ export default function ProfileEditScreen() {
               />
             </View>
 
+<<<<<<< HEAD
             <View style={styles.section}>
               <SectionHeader title="Liên kết ảnh" />
               <Text style={styles.sectionHint}>
@@ -283,6 +347,8 @@ export default function ProfileEditScreen() {
               />
             </View>
 
+=======
+>>>>>>> origin/main
             {status ? <Text style={styles.statusText}>{status}</Text> : null}
           </ScrollView>
 
@@ -369,13 +435,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "800",
     color: colors.brand,
-  },
-  sectionHint: {
-    marginTop: sizes.xs,
-    marginBottom: sizes.sm,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.inkMuted,
   },
   avatarPreviewWrap: {
     alignSelf: "center",

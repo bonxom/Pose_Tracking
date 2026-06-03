@@ -4,6 +4,30 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export const CACHE_KEY_HOME_FEED = "cache.home.feed";
 export const CACHE_KEY_COURSES_FEED = "cache.courses.feed";
 export const CACHE_KEY_PROFILE = "cache.profile"; // only used for the current user (me)
+export const CACHE_KEY_CREATEPOST_DRAFT = "cache.createpost.draft";
+
+export function getProfileCacheOwnerKey(session = {}) {
+  return String(
+    session?.id ||
+      session?.user_id ||
+      session?.identifier ||
+      session?.phonenumber ||
+      session?.username ||
+      "",
+  ).trim();
+}
+
+export function isProfileCacheValidForSession(cacheValue, session = {}) {
+  if (!cacheValue?.profile) return false;
+
+  const ownerKey = getProfileCacheOwnerKey(session);
+  if (!ownerKey) return false;
+
+  const cachedOwnerKey = String(cacheValue?.ownerKey || "").trim();
+  if (!cachedOwnerKey) return false;
+
+  return cachedOwnerKey === ownerKey;
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,4 +61,10 @@ export function writeCache(key, value) {
  */
 export function clearCache(key) {
   AsyncStorage.removeItem(key).catch(() => {});
+}
+
+export async function removeCache(key) {
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch {}
 }

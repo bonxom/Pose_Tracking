@@ -10,6 +10,7 @@ import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
+import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession } from "@/utils/session";
 import { router } from "expo-router";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -27,8 +28,15 @@ import {
 import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
+<<<<<<< HEAD
 const DEFAULT_AVATAR_URL =
   "https://sloganhay.com/wp-content/uploads/2026/03/avatar-mac-dinh-facebook-10.jpg";
+=======
+const VIDEO_FALLBACK_SOURCES = [
+  require("../../../assets/cam1.mp4"),
+  require("../../../assets/cam2.mp4"),
+];
+>>>>>>> origin/main
 
 function formatCount(value = 0) {
   const count = Number(value) || 0;
@@ -233,10 +241,7 @@ export default function PostCard({
     if (post.exerciseId) values.add(`#${post.exerciseId}`);
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
-  const avatarUri =
-    typeof post.author?.avatar === "string" && post.author.avatar.trim()
-      ? post.author.avatar.trim()
-      : DEFAULT_AVATAR_URL;
+  const avatarUri = resolveAvatarUri(post.author?.avatar || "");
   const cardScale = removeAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.98, 1],
@@ -267,6 +272,20 @@ export default function PostCard({
     router.push({
       pathname: "/profile/[userId]",
       params: { userId: authorId },
+    });
+  };
+
+  const handlePressHashtag = (tag) => {
+    const normalizedTag = String(tag || "").trim();
+    if (!normalizedTag) return;
+
+    router.push({
+      pathname: "/search",
+      params: {
+        keyword: normalizedTag,
+        autoSearch: "1",
+        tab: "posts",
+      },
     });
   };
 
@@ -360,9 +379,15 @@ export default function PostCard({
         {hashtags.length ? (
           <View style={postStyles.hashtagRow}>
             {hashtags.map((tag) => (
-              <Text key={tag} style={postStyles.hashtagText}>
-                {tag}
-              </Text>
+              <Pressable
+                key={tag}
+                onPress={(event) => {
+                  event.stopPropagation?.();
+                  handlePressHashtag(tag);
+                }}
+              >
+                <Text style={postStyles.hashtagText}>{tag}</Text>
+              </Pressable>
             ))}
           </View>
         ) : null}

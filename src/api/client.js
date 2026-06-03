@@ -17,6 +17,18 @@ import MOCK_LIST_COURSES from "@/constants/mocks/MOCK_LIST_COURSES";
 import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
 import { MOCK_USERS } from "@/constants/mocks/users";
 import {
+  getMockAddPostResponse,
+  getMockCheckNewItemResponse,
+  getMockDeletePostResponse,
+  getMockEditPostResponse,
+  getMockGetCommentResponse,
+  getMockGetListPostsResponse,
+  getMockGetPostResponse,
+  getMockLikePostResponse,
+  getMockReportPostResponse,
+  getMockSetCommentResponse,
+} from "@/constants/mocks/MOCK_POST_API";
+import {
   deleteMockSavedSearchResponse,
   getMockSavedSearchResponse,
   getMockSearchResponse,
@@ -207,6 +219,7 @@ export async function postMultipart(
   return request(path, formData, { ...options, transport: "multipart" });
 }
 
+<<<<<<< HEAD
 function mockResponse(data = null, overrides = {}) {
   return {
     code: "1000",
@@ -332,6 +345,8 @@ async function buildMockCheckNewItemResponse(params = {}) {
   });
 }
 
+=======
+>>>>>>> origin/main
 function buildMockGetUserInfoResponse(params = {}) {
   const list = Array.isArray(MOCK_GET_USER_INFO.data)
     ? MOCK_GET_USER_INFO.data
@@ -509,35 +524,53 @@ export const backendApi = {
   getVerifyCode: (params) => post("/get_verify_code", params),
   checkVerifyCode: (params) => post("/check_verify_code", params),
   changeInfoAfterSignup: (params) => post("/change_info_after_signup", params),
+  changeInfoAfterSignupMultipart: (fields, files = []) =>
+    postMultipart("/change_info_after_signup", fields, files),
   getListPosts: (params) =>
     API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockGetListPostsResponse(params))
+      ? getMockGetListPostsResponse(params)
       : postForm("/get_list_posts", params),
   getPost: (params) =>
     API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockGetPostResponse(params))
+      ? getMockGetPostResponse(params)
       : post("/get_post", params),
   addPost: (fields, files) =>
     API_TYPE === API_TYPES.MOCK
+<<<<<<< HEAD
       ? buildMockAddPostResponse(fields, files)
+=======
+      ? getMockAddPostResponse(fields, files)
+>>>>>>> origin/main
       : postMultipart("/add_post", fields, files, {
           timeout: ADD_POST_TIMEOUT_MS,
         }),
   editPost: (params) =>
     API_TYPE === API_TYPES.MOCK
+<<<<<<< HEAD
       ? buildMockEditPostResponse(params, [])
+=======
+      ? getMockEditPostResponse(params)
+>>>>>>> origin/main
       : post("/edit_post", params, {
           timeout: EDIT_POST_TIMEOUT_MS,
         }),
   editPostMultipart: (fields, files) =>
     API_TYPE === API_TYPES.MOCK
+<<<<<<< HEAD
       ? buildMockEditPostResponse(fields, files)
+=======
+      ? getMockEditPostResponse(fields, files)
+>>>>>>> origin/main
       : postMultipart("/edit_post", fields, files, {
           timeout: EDIT_POST_TIMEOUT_MS,
         }),
   deletePost: (params = {}) => {
     if (API_TYPE === API_TYPES.MOCK) {
+<<<<<<< HEAD
       return buildMockDeletePostResponse(params);
+=======
+      return getMockDeletePostResponse(params);
+>>>>>>> origin/main
     }
 
     const payload = {
@@ -560,6 +593,7 @@ export const backendApi = {
   },
   reportPost: (params) =>
     API_TYPE === API_TYPES.MOCK
+<<<<<<< HEAD
       ? buildMockReportPostResponse(params)
       : post("/report_post", params),
   like: (params) =>
@@ -573,6 +607,21 @@ export const backendApi = {
   setComment: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? buildMockSetCommentResponse(params)
+=======
+      ? getMockReportPostResponse(params)
+      : post("/report_post", params),
+  like: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockLikePostResponse(params)
+      : post("/like_post", params),
+  getComment: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockGetCommentResponse(params)
+      : post("/get_comment", params),
+  setComment: (params) =>
+    API_TYPE === API_TYPES.MOCK
+      ? getMockSetCommentResponse(params)
+>>>>>>> origin/main
       : postForm("/set_comment", params),
   search: (params) =>
     API_TYPE === API_TYPES.MOCK
@@ -614,6 +663,7 @@ export const backendApi = {
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(buildMockGetUserInfoResponse(params))
       : post("/get_user_info", params),
+<<<<<<< HEAD
   setUserInfo: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(buildMockSetUserInfoResponse(params))
@@ -630,6 +680,14 @@ export const backendApi = {
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(mockResponse([]))
       : post("/set_approve_enrollment", params),
+=======
+  setUserInfo: (params) => post("/set_user_info", params),
+  setUserInfoMultipart: (fields, files = []) =>
+    postMultipart("/set_user_info", fields, files),
+  getListBlocks: (params) => post("/get_list_blocks", params),
+  setBlock: (params) => post("/set_block", params),
+  setApproveEnrollment: (params) => post("/set_approve_enrollment", params),
+>>>>>>> origin/main
   getRequestedEnrollment: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve({ ...MOCK_REQUESTED_ENROLLMENT, source: MOCK_SOURCE })
@@ -680,11 +738,16 @@ export const backendApi = {
       : post("/delete_conversation", params),
   checkNewItem: (params) =>
     API_TYPE === API_TYPES.MOCK
+<<<<<<< HEAD
       ? buildMockCheckNewItemResponse(params)
       : post("/check_new_item", {
           last_id: params?.last_id || params?.lastId || "",
           category_id: params?.category_id || params?.categoryId || "",
         }),
+=======
+      ? getMockCheckNewItemResponse(params)
+      : post("/check_new_item", params),
+>>>>>>> origin/main
   getNotification: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? getMockNotificationResponse(params).then((response) => ({

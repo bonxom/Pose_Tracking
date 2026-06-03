@@ -421,6 +421,32 @@ export async function searchPosts(query = "") {
   });
 }
 
+function normalizeHashtagQuery(hashtag = "") {
+  const trimmed = String(hashtag || "").trim().toLowerCase();
+  if (!trimmed) return "";
+  return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+}
+
+function collectPostHashtags(post = {}) {
+  const values = new Set(Array.isArray(post.hashtags) ? post.hashtags : []);
+  if (post.courseId) values.add(`#${post.courseId}`);
+  if (post.exerciseId) values.add(`#${post.exerciseId}`);
+  return Array.from(values).map(normalizeHashtagQuery).filter(Boolean);
+}
+
+export async function searchPostsByHashtag(hashtag = "") {
+  const posts = await getPosts();
+  const normalizedHashtag = normalizeHashtagQuery(hashtag);
+
+  if (!normalizedHashtag) {
+    return [];
+  }
+
+  return posts.filter((post) => {
+    return collectPostHashtags(post).includes(normalizedHashtag);
+  });
+}
+
 export async function toggleLike(postId) {
   const posts = await getOrSeedPosts();
   const nextPosts = posts.map((post) => {

@@ -2,11 +2,13 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import PostCard from "@/components/post/PostCard";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { initials } from "@/utils/profile";
+import { initials, resolveAvatarUri } from "@/utils/profile";
 import { router } from "expo-router";
-import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 
 function Avatar({ uri, name, size = 72 }) {
+  const avatarUri = resolveAvatarUri(uri || "");
   const avatarStyle = {
     width: size,
     height: size,
@@ -15,8 +17,14 @@ function Avatar({ uri, name, size = 72 }) {
 
   return (
     <View style={avatarStyle}>
-      {uri ? (
-        <Image source={{ uri }} style={[profileStyles.avatarImage, avatarStyle]} />
+      {avatarUri ? (
+        <Image
+          source={{ uri: avatarUri }}
+          style={[profileStyles.avatarImage, avatarStyle]}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       ) : (
         <View style={[profileStyles.avatarFallback, avatarStyle]}>
           <Text
