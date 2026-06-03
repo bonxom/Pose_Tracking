@@ -47,6 +47,7 @@ const profileStyles = StyleSheet.create({
     fontWeight: "900",
   },
   fbHero: {
+    position: "relative",
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: profileColors.borderStrong,
@@ -76,6 +77,19 @@ const profileStyles = StyleSheet.create({
     backgroundColor: profileColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
+  },
+  fbCoverCameraFloating: {
+    position: "absolute",
+    top: 142,
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: profileColors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 4,
+    elevation: 4,
   },
   fbHeroInfo: {
     paddingHorizontal: sizes.md,

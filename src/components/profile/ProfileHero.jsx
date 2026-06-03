@@ -142,15 +142,6 @@ export default function ProfileHero({
             <ProfileIcon name="image-outline" size={38} color={colors.subtext} />
           </View>
         )}
-        {isOwnProfile ? (
-          <Pressable
-            style={profileStyles.fbCoverCamera}
-            onPress={onOpenCoverMenu}
-            hitSlop={12}
-          >
-            <ProfileIcon name="camera" size={18} color={colors.ink} />
-          </Pressable>
-        ) : null}
       </View>
 
       <View style={profileStyles.fbHeroInfo}>
@@ -181,6 +172,15 @@ export default function ProfileHero({
         </View>
         <ProfileDetails profile={profile} />
       </View>
+      {isOwnProfile ? (
+        <Pressable
+          style={profileStyles.fbCoverCameraFloating}
+          onPress={onOpenCoverMenu}
+          hitSlop={12}
+        >
+          <ProfileIcon name="camera" size={18} color={colors.ink} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
