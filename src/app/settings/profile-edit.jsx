@@ -4,9 +4,9 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import AppInput from "@/components/common/AppInput";
 import {
   getUserInfo,
-  updateUserInfo,
   validateProfileUserName,
 } from "@/repositories/userRepository";
+import { queueProfileUpdate } from "@/services/profileUpdateService";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { clearAuthSession } from "@/utils/session";
@@ -163,12 +163,13 @@ export default function ProfileEditScreen() {
     setStatus("");
     setUsernameError("");
     try {
-      await updateUserInfo({
+      await queueProfileUpdate({
         userName: username.trim(),
         avatar,
         coverImage,
         description: description.trim().slice(0, 150),
       });
+      setStatus("Đã cập nhật giao diện. Backend đang đồng bộ nền...");
       router.replace("/(tabs)/profile");
     } catch (error) {
       if (error.sessionExpired) {

@@ -94,6 +94,58 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
   };
 }
 
+export function mergeOwnProfileWithSession(profile = {}, session = {}) {
+  const syncState = String(session?.profileSyncStatus || "").trim();
+  const shouldPreferSession =
+    syncState === "pending" || syncState === "error" || !profile?.id;
+
+  return {
+    ...profile,
+    token: firstValue(session?.token, profile?.token, ""),
+    id: firstValue(profile?.id, session?.id, session?.user_id, session?.identifier, ""),
+    username: shouldPreferSession
+      ? firstValue(session?.username, session?.displayName, profile?.username, profile?.displayName, "")
+      : firstValue(profile?.username, profile?.displayName, session?.username, session?.displayName, ""),
+    displayName: shouldPreferSession
+      ? firstValue(session?.displayName, session?.username, profile?.displayName, profile?.username, "")
+      : firstValue(profile?.displayName, profile?.username, session?.displayName, session?.username, ""),
+    avatar: shouldPreferSession
+      ? firstValue(session?.avatar, profile?.avatar, "")
+      : firstValue(profile?.avatar, session?.avatar, ""),
+    coverImage: shouldPreferSession
+      ? firstValue(session?.coverImage, profile?.coverImage, "")
+      : firstValue(profile?.coverImage, session?.coverImage, ""),
+    description: normalizeOptionalText(
+      shouldPreferSession
+        ? firstValue(session?.description, profile?.description, "")
+        : firstValue(profile?.description, session?.description, ""),
+      150,
+    ),
+    address: shouldPreferSession
+      ? firstValue(session?.address, profile?.address, "")
+      : firstValue(profile?.address, session?.address, ""),
+    city: shouldPreferSession
+      ? firstValue(session?.city, profile?.city, "")
+      : firstValue(profile?.city, session?.city, ""),
+    country: shouldPreferSession
+      ? firstValue(session?.country, profile?.country, "")
+      : firstValue(profile?.country, session?.country, ""),
+    profileLink: shouldPreferSession
+      ? firstValue(session?.profileLink, profile?.profileLink, "")
+      : firstValue(profile?.profileLink, session?.profileLink, ""),
+    height: shouldPreferSession
+      ? firstValue(session?.height, profile?.height, "")
+      : firstValue(profile?.height, session?.height, ""),
+    role: shouldPreferSession
+      ? firstValue(session?.role, profile?.role, "HV")
+      : firstValue(profile?.role, session?.role, "HV"),
+    source: profile?.source || session?.source || ACTIVE_SOURCES.SERVER,
+    profileSyncStatus: syncState || "done",
+    profileSyncErrorMessage: session?.profileSyncErrorMessage || "",
+    isProfileSyncPending: syncState === "pending",
+  };
+}
+
 function localUser(session) {
   const mockProfile = resolveMockProfile(session);
   const localProfile = buildLocalProfileShape(session, mockProfile);
@@ -482,6 +534,29 @@ function buildLocalProfileUpdate(session, params, userName, source = ACTIVE_SOUR
   };
 }
 
+export function createOptimisticUserInfo(session = {}, params = {}) {
+  const userName = params.userName || params.user_name || params.username || "";
+  const source = shouldUseServer(session) ? ACTIVE_SOURCES.SERVER : ACTIVE_SOURCES.LOCAL;
+  const optimistic = buildLocalProfileUpdate(session, params, userName, source);
+  const avatarChanged =
+    firstParamValue(params, ["avatar"], session?.avatar || "") !==
+    (session?.avatar || "");
+  const avatarVersion = avatarChanged
+    ? new Date().toISOString()
+    : session?.avatarVersion || session?.loggedInAt || "";
+
+  return {
+    ...optimistic,
+    token: session?.token || optimistic.token || "",
+    source,
+    demoMode: Boolean(session?.demoMode),
+    avatarVersion,
+    profileSyncStatus: shouldUseServer(session) ? "pending" : "done",
+    profileSyncErrorMessage: "",
+    profileSyncRequestedAt: new Date().toISOString(),
+  };
+}
+
 async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
   const attempts = isOwnProfile
     ? [{ token: session.token }]
@@ -538,9 +613,14 @@ export async function getUserInfo(userId = "") {
       throw new Error("Backend trả về hồ sơ không khớp người dùng yêu cầu.");
     }
 
-    return isOwnProfile && !normalized.description && session?.description
-      ? { ...normalized, description: session.description }
-      : normalized;
+    if (isOwnProfile) {
+      const mergedProfile = mergeOwnProfileWithSession(normalized, session);
+      return !mergedProfile.description && session?.description
+        ? { ...mergedProfile, description: session.description }
+        : mergedProfile;
+    }
+
+    return normalized;
   } catch (error) {
     console.info("[DATA] Server get_user_info failed", error.message);
     throwIfExpiredFromApiError(error);
@@ -647,6 +727,11 @@ export async function updateUserInfo(params = {}) {
       role: session.role || normalized.role || "HV",
       demoMode: session.demoMode || false,
       source: ACTIVE_SOURCES.SERVER,
+      avatarVersion:
+        firstParamValue(params, ["avatar"], session?.avatar || "") !==
+        (session?.avatar || "")
+          ? new Date().toISOString()
+          : session?.avatarVersion || session?.loggedInAt || "",
       username: userName || normalized.username || session?.username || "",
       displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
       avatar: normalized.avatar || params.avatar || session?.avatar || "",
@@ -664,6 +749,9 @@ export async function updateUserInfo(params = {}) {
         ),
       address: normalized.address || firstParamValue(params, ["address"], session?.address || ""),
       profileLink: normalized.profileLink || firstParamValue(params, ["profileLink", "link"], session?.profileLink || ""),
+      profileSyncStatus: "done",
+      profileSyncErrorMessage: "",
+      profileSyncRequestedAt: "",
     };
     await saveAuthSession(updated);
     return updated;

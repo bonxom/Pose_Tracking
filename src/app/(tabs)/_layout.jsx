@@ -5,13 +5,14 @@ import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
 import { getInitials } from "@/utils/formatters";
+import { buildAvatarRenderUri } from "@/utils/profile";
 import {
   formatNotificationBadge,
   getNotificationBadge,
   getNotificationPage,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
-import { getAuthSession } from "@/utils/session";
+import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, Tabs, usePathname } from "expo-router";
 import { useEffect, useState } from "react";
@@ -24,6 +25,9 @@ function HomeTopSection() {
 
   useEffect(() => {
     getAuthSession().then(setSession).catch(console.warn);
+
+    const unsubscribe = subscribeAuthSession(setSession);
+    return unsubscribe;
   }, []);
 
   const role = String(session?.role || session?.user?.role || "").toUpperCase();
@@ -87,7 +91,6 @@ function ProfileTabAvatar({ focused, avatar, name }) {
       {avatar ? (
         <Image
           source={{ uri: avatar }}
-          style={styles.profileAvatarImage}
           contentFit="cover"
           cachePolicy="memory-disk"
           transition={150}
@@ -123,13 +126,19 @@ export default function TabsLayout() {
 
   useEffect(() => {
     getAuthSession().then(setSession).catch(console.warn);
+
+    const unsubscribe = subscribeAuthSession(setSession);
+    return unsubscribe;
   }, []);
 
   const [notificationBadge, setTabNotificationBadge] = useState(
     getNotificationBadge(),
   );
   const displayName = session?.displayName || session?.username || "Người dùng";
-  const avatar = session?.avatar || session?.user?.avatar || "";
+  const avatar = buildAvatarRenderUri(
+    session?.avatar || session?.user?.avatar || "",
+    session?.avatarVersion || session?.profileSyncRequestedAt || session?.loggedInAt || "",
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>

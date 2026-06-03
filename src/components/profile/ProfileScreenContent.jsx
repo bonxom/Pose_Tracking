@@ -10,10 +10,17 @@ import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   getUserInfo,
   getUserPosts,
-  updateUserInfo,
+  mergeOwnProfileWithSession,
 } from "@/repositories/userRepository";
+import { queueProfileUpdate } from "@/services/profileUpdateService";
 import profileStyles from "@/styles/profile.styles";
-import { CACHE_KEY_PROFILE, readCache, writeCache } from "@/utils/cacheStore";
+import {
+  CACHE_KEY_PROFILE,
+  getProfileCacheOwnerKey,
+  isProfileCacheValidForSession,
+  readCache,
+  writeCache,
+} from "@/utils/cacheStore";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
@@ -31,6 +38,14 @@ import {
 
 // Module-level in-memory profile cache, keyed by userId ("" = own profile)
 let profileCache = {};
+
+function buildProfileCacheEntry(profile, posts, ownerKey = "") {
+  return {
+    profile,
+    posts,
+    ownerKey,
+  };
+}
 
 export default function ProfileScreenContent({ userId = "" }) {
   const cacheKey = !userId ? CACHE_KEY_PROFILE : null;
@@ -84,6 +99,9 @@ export default function ProfileScreenContent({ userId = "" }) {
 
           const nextProfile = { ...user, isOwnProfile };
           const nextPosts = postPage.items || [];
+          const ownerKey = isOwnProfile
+            ? getProfileCacheOwnerKey(session || nextProfile)
+            : "";
 
           // If the network fetch failed and returned empty local mock data,
           // BUT we already have cached posts in memory, ignore the mock data
@@ -111,9 +129,13 @@ export default function ProfileScreenContent({ userId = "" }) {
           });
 
           // Persist to memory + disk
-          profileCache[userId] = { profile: nextProfile, posts: nextPosts };
+          profileCache[userId] = buildProfileCacheEntry(
+            nextProfile,
+            nextPosts,
+            ownerKey,
+          );
           if (cacheKey) {
-            writeCache(cacheKey, { profile: nextProfile, posts: nextPosts });
+            writeCache(cacheKey, profileCache[userId]);
           }
         });
       } catch (loadError) {
@@ -134,32 +156,97 @@ export default function ProfileScreenContent({ userId = "" }) {
     [userId, cacheKey, executeWithInternetCheck],
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      // If we have in-memory cache, render it instantly then fetch in background
-      if (profileCache[userId]) {
-        setLoading(false);
-        loadProfile(false);
-        return;
+  const syncOwnProfileFromSession = useCallback(async () => {
+    if (userId) return;
+
+    const session = await getAuthSession();
+    if (!session) return;
+    const ownerKey = getProfileCacheOwnerKey(session);
+
+    setProfile((current) => {
+      const nextProfile = mergeOwnProfileWithSession(current || {}, session);
+      if (!nextProfile.id && !nextProfile.displayName && !nextProfile.username) {
+        return current;
       }
 
-      // No in-memory cache: try disk first, then fetch
-      if (cacheKey && !diskCacheLoadedRef.current) {
-        diskCacheLoadedRef.current = true;
-        readCache(cacheKey).then((cached) => {
-          if (cached?.profile) {
+      const nextCache = {
+        profile: nextProfile,
+        posts: profileCache[userId]?.posts || posts,
+        ownerKey,
+      };
+      profileCache[userId] = nextCache;
+      if (cacheKey) {
+        writeCache(cacheKey, nextCache);
+      }
+      return nextProfile;
+    });
+  }, [cacheKey, posts, userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const run = async () => {
+        if (userId) {
+          // If we have in-memory cache, render it instantly then fetch in background
+          if (profileCache[userId]) {
+            setLoading(false);
+            loadProfile(false);
+            return;
+          }
+
+          loadProfile(false);
+          return;
+        }
+
+        const session = await getAuthSession();
+        const ownerKey = getProfileCacheOwnerKey(session);
+        const memoryCache = profileCache[userId];
+        const hasValidMemoryCache =
+          memoryCache && memoryCache.ownerKey && memoryCache.ownerKey === ownerKey;
+
+        if (memoryCache && !hasValidMemoryCache) {
+          delete profileCache[userId];
+          setProfile(null);
+          setPosts([]);
+        }
+
+        await syncOwnProfileFromSession();
+
+        if (!isActive) return;
+
+        // If we have valid in-memory cache, render it instantly then fetch in background
+        if (hasValidMemoryCache) {
+          setLoading(false);
+          loadProfile(false);
+          return;
+        }
+
+        // No valid in-memory cache: try disk first, then fetch
+        if (cacheKey && !diskCacheLoadedRef.current) {
+          diskCacheLoadedRef.current = true;
+          const cached = await readCache(cacheKey);
+          if (!isActive) return;
+
+          if (isProfileCacheValidForSession(cached, session)) {
             profileCache[userId] = cached;
             setProfile(cached.profile);
             setPosts(cached.posts || []);
           }
           setLoading(false);
           loadProfile(false);
-        });
-        return;
-      }
+          return;
+        }
 
-      loadProfile(false);
-    }, [loadProfile, userId, cacheKey]),
+        loadProfile(false);
+      };
+
+      run().catch(console.warn);
+
+      return () => {
+        isActive = false;
+      };
+    }, [cacheKey, loadProfile, syncOwnProfileFromSession, userId]),
   );
 
   const profileLink = useMemo(() => {
@@ -208,8 +295,17 @@ export default function ProfileScreenContent({ userId = "" }) {
           ? { ...profile, avatar: uri }
           : { ...profile, coverImage: uri };
       setProfile(nextProfile);
+      const ownerKey = getProfileCacheOwnerKey(nextProfile);
+      profileCache[userId] = buildProfileCacheEntry(
+        nextProfile,
+        profileCache[userId]?.posts || posts,
+        ownerKey,
+      );
+      if (cacheKey) {
+        writeCache(cacheKey, profileCache[userId]);
+      }
 
-      await updateUserInfo({
+      await queueProfileUpdate({
         userName: profile.displayName || profile.username,
         avatar: nextProfile.avatar,
         coverImage: nextProfile.coverImage,
