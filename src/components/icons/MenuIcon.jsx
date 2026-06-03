@@ -8,7 +8,7 @@ export default function MenuIcon({ focused, size = 24 }) {
       <Path
         d="M4 6.5h16M4 12h16M4 17.5h16"
         stroke={color}
-        strokeWidth={2.4}
+        strokeWidth={2}
         strokeLinecap="round"
       />
     </Svg>

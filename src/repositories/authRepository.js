@@ -1,14 +1,10 @@
+import authApi from "@/api/auth";
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { DEMO_STUDENT, DEMO_TEACHER } from "@/constants/demo";
 import { MOCK_USERS } from "@/constants/mocks/users";
 import { normalizeSession } from "@/repositories/normalizers";
-import {
-  ACTIVE_SOURCES,
-  canFallbackToLocal,
-  getDataSourceMode,
-  shouldUseServer,
-} from "@/repositories/source";
+import { ACTIVE_SOURCES, shouldUseServer } from "@/repositories/source";
 
 function normalizeLocalSession(user) {
   return {
@@ -67,13 +63,13 @@ export async function loginWithPassword(
     Boolean(options.allowLocalFallback) && canFallbackToLocal();
 
   try {
-    const response = await backendApi.login({
-      phonenumber: normalizedPhone,
-      password: normalizedPassword,
+    const response = await authApi.login({
+      phonenumber,
+      password,
       devtoken: DEFAULT_DEVICE_TOKEN,
     });
 
-    if (response?.code === "1000" || response?.code === 1000) {
+    if (response.code === "1000") {
       const session = normalizeSession(response);
       if (!session.token) {
         throw new Error("Backend login response did not include token");
@@ -97,11 +93,7 @@ export async function loginWithPassword(
 
     return {
       code: String(response?.code || "BACKEND_LOGIN_FAILED"),
-      message:
-        response?.message ||
-        (mode === "server"
-          ? "Backend login failed"
-          : "Backend login failed. Use a demo shortcut for local mode."),
+      message: response?.message || "login failed",
       data: null,
       source: ACTIVE_SOURCES.SERVER,
     };

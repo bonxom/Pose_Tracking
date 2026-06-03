@@ -1,5 +1,6 @@
 import { getAuthSession } from "@/utils/session";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -46,6 +47,7 @@ export default function RootLayout() {
   if (isBootstrapping) {
     return (
       <SafeAreaProvider>
+        <StatusBar style="dark" />
         <View
           style={{
             flex: 1,
@@ -62,6 +64,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />

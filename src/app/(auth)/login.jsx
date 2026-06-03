@@ -81,10 +81,8 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    const normalizedPhone = phoneNumber.trim();
-    const normalizedPassword = password.trim();
-    const phoneErr = validatePhoneNumber(normalizedPhone);
-    const passErr = validatePassword(normalizedPassword);
+    const phoneErr = validatePhoneNumber(phoneNumber);
+    const passErr = validatePassword(password);
 
     if (phoneErr || passErr) {
       setPhoneNumberError(phoneErr);
@@ -97,10 +95,7 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      const response = await loginWithPassword(
-        normalizedPhone,
-        normalizedPassword,
-      );
+      const response = await loginWithPassword(phoneNumber, password);
 
       switch (response.code) {
         case "1000": {
