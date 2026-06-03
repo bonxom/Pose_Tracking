@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export const CACHE_KEY_HOME_FEED = "cache.home.feed";
 export const CACHE_KEY_COURSES_FEED = "cache.courses.feed";
 export const CACHE_KEY_PROFILE = "cache.profile"; // only used for the current user (me)
+export const CACHE_KEY_CREATEPOST_DRAFT = "cache.createpost.draft";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 

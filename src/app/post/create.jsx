@@ -24,12 +24,17 @@ import {
 import { getUserInfo } from "@/repositories/userRepository";
 import createStyles from "@/styles/post/create.styles";
 import postStyles from "@/styles/post.styles";
+import {
+  CACHE_KEY_CREATEPOST_DRAFT,
+  readCache,
+  writeCache,
+} from "@/utils/cacheStore";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -42,9 +47,63 @@ import {
   View,
 } from "react-native";
 
+function buildDraftMode(isSubmissionMode) {
+  return isSubmissionMode ? "submission" : "post";
+}
+
+function serializeDraftVideos(videos = []) {
+  return VIDEO_SLOTS.map((_, index) => {
+    const video = videos[index];
+    if (!video?.uri) return null;
+
+    return {
+      id: video.id || `draft_video_${index}`,
+      uri: video.uri,
+      name: video.name || video.fileName || `draft-video-${index + 1}.mp4`,
+      mimeType: video.mimeType || video.type || "video/mp4",
+      angle: video.angle || (index === 0 ? "Góc quay trái" : "Góc quay phải"),
+      fieldName: video.fieldName || (index === 0 ? "left_video" : "right_video"),
+      isLocalUpload: true,
+      duration: Number(video.duration || 0),
+      fileSize: Number(video.fileSize || 0),
+    };
+  });
+}
+
+function hydrateDraftVideos(videos = []) {
+  return VIDEO_SLOTS.map((_, index) => {
+    const video = videos[index];
+    if (!video?.uri) return null;
+
+    return {
+      id: video.id || `draft_video_${index}`,
+      uri: String(video.uri),
+      name: video.name || video.fileName || `draft-video-${index + 1}.mp4`,
+      mimeType: video.mimeType || video.type || "video/mp4",
+      angle: video.angle || (index === 0 ? "Góc quay trái" : "Góc quay phải"),
+      fieldName: video.fieldName || (index === 0 ? "left_video" : "right_video"),
+      isLocalUpload: true,
+      duration: Number(video.duration || 0),
+      fileSize: Number(video.fileSize || 0),
+    };
+  });
+}
+
+function isMatchingDraftContext(draft, context) {
+  if (!draft || typeof draft !== "object") return false;
+
+  return (
+    String(draft.mode || "") === context.mode &&
+    String(draft.courseId || "") === context.courseId &&
+    String(draft.exerciseId || "") === context.exerciseId &&
+    String(draft.sourcePostId || "") === context.sourcePostId
+  );
+}
+
 export default function CreatePostScreen() {
   const params = useLocalSearchParams();
   const isSubmissionMode = params.mode === "submission";
+  const draftLoadedRef = useRef(false);
 
   const [content, setContent] = useState("");
   const [sourcePost, setSourcePost] = useState(null);
@@ -60,6 +119,15 @@ export default function CreatePostScreen() {
   const role = String(session?.role || session?.user?.role || "").toUpperCase();
   const isStudent = role === "HV";
   const isTeacher = role === "GV";
+  const draftContext = useMemo(
+    () => ({
+      mode: buildDraftMode(isSubmissionMode),
+      courseId: String(params.courseId || ""),
+      exerciseId: String(params.exerciseId || ""),
+      sourcePostId: String(params.sourcePostId || ""),
+    }),
+    [isSubmissionMode, params.courseId, params.exerciseId, params.sourcePostId],
+  );
 
   const exercise = useMemo(() => {
     return (
@@ -99,6 +167,30 @@ export default function CreatePostScreen() {
       isMounted = false;
     };
   }, [params.sourcePostId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (draftLoadedRef.current) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    draftLoadedRef.current = true;
+    readCache(CACHE_KEY_CREATEPOST_DRAFT).then((draft) => {
+      if (!isMounted || !isMatchingDraftContext(draft, draftContext)) {
+        return;
+      }
+
+      setContent(typeof draft.content === "string" ? draft.content : "");
+      setSelectedVideos(hydrateDraftVideos(draft.selectedVideos));
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [draftContext]);
 
   useEffect(() => {
     if (!role) return;
@@ -253,6 +345,7 @@ export default function CreatePostScreen() {
               videos: completeVideos,
             });
 
+        writeCache(CACHE_KEY_CREATEPOST_DRAFT, null);
         resolvePostUploading(uploadingId, newPost || null);
       } catch (error) {
         rejectPostUploading(uploadingId);
@@ -275,12 +368,19 @@ export default function CreatePostScreen() {
   };
 
   const handleSaveDraft = () => {
+    writeCache(CACHE_KEY_CREATEPOST_DRAFT, {
+      ...draftContext,
+      content,
+      selectedVideos: serializeDraftVideos(selectedVideos),
+      savedAt: new Date().toISOString(),
+    });
     setShowDraftSheet(false);
     Alert.alert("Đã lưu bản nháp", "Bản nháp của bạn đã được lưu cục bộ.");
     router.back();
   };
 
   const handleDiscard = () => {
+    writeCache(CACHE_KEY_CREATEPOST_DRAFT, null);
     setShowDraftSheet(false);
     router.back();
   };
