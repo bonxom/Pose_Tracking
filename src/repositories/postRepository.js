@@ -10,9 +10,7 @@ import {
   ACTIVE_SOURCES,
   getCurrentSession,
   getSourceLabel,
-  isMockMode,
   isServerPost,
-  shouldUseServer,
 } from "@/repositories/source";
 import * as localPosts from "@/services/postStore";
 
@@ -30,6 +28,15 @@ function assertServerSession(session) {
   if (!session?.token) {
     throw new Error("Cần đăng nhập server để dùng dữ liệu backend.");
   }
+}
+
+function shouldUsePostApi(session) {
+  if (!session?.token) return false;
+  if (session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL) {
+    return false;
+  }
+
+  return true;
 }
 
 function normalizeServerPostList(response) {
@@ -80,6 +87,24 @@ function durationMs(video = {}) {
   return value > 1000 ? value : value * 1000;
 }
 
+function normalizeApiBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes"].includes(normalized)) return true;
+    if (["0", "false", "no"].includes(normalized)) return false;
+  }
+
+  if (typeof value === "number") {
+    return value === 1;
+  }
+
+  return Boolean(value);
+}
+
 function buildAddPostFields(session, params = {}) {
   const fields = {
     token: session.token,
@@ -93,7 +118,77 @@ function buildAddPostFields(session, params = {}) {
     fields.exercise_id = params.exerciseId;
   }
 
+  if (params.sourcePostId) {
+    fields.source_post_id = params.sourcePostId;
+  }
+
   return fields;
+}
+
+function validateVideoInput(video = {}, index = 0) {
+  if (isDemoVideo(video)) {
+    throw new Error("Server mode không chấp nhận video demo.");
+  }
+
+  if (!video.uri && !video.file && !video.blob) {
+    throw new Error(`Video ${index + 1} không có dữ liệu file hợp lệ.`);
+  }
+
+  const ms = durationMs(video);
+  if (!ms) {
+    throw new Error(`Không đọc được thời lượng video ${index + 1}.`);
+  }
+
+  if (ms < 10_000) {
+    throw new Error(`Video ${index + 1} phải dài tối thiểu 10 giây.`);
+  }
+
+  return ms;
+}
+
+function isLocalUploadVideo(video = {}) {
+  return Boolean(video?.isLocalUpload || video?.file || video?.blob);
+}
+
+function assertMatchingVideoDurations(firstMs, secondMs) {
+  const allowedDiff = 1_000;
+  if (Math.abs(firstMs - secondMs) > allowedDiff) {
+    throw new Error(
+      "Hai video khác thời lượng. Vui lòng chọn 2 video có thời lượng bằng nhau.",
+    );
+  }
+}
+
+export function validateEditableVideos(videos = []) {
+  const filteredVideos = Array.isArray(videos) ? videos.filter(Boolean) : [];
+  const localVideos = filteredVideos.filter(isLocalUploadVideo);
+
+  if (!localVideos.length) {
+    return true;
+  }
+
+  localVideos.forEach((video, index) => {
+    validateVideoInput(video, index);
+  });
+
+  if (filteredVideos.length !== 2) {
+    return true;
+  }
+
+  const [first, second] = filteredVideos.map(durationMs);
+  if (!first || !second) {
+    if (localVideos.length === 1) {
+      throw new Error(
+        "Không thể kiểm tra thời lượng với video cũ còn lại. Vui lòng thay cả 2 video để hệ thống đối chiếu thời lượng.",
+      );
+    }
+
+    return true;
+  }
+
+  assertMatchingVideoDurations(first, second);
+
+  return true;
 }
 
 export function validateTwoVideos(videos = []) {
@@ -102,29 +197,11 @@ export function validateTwoVideos(videos = []) {
   }
 
   videos.forEach((video, index) => {
-    if (isDemoVideo(video)) {
-      throw new Error("Server mode không chấp nhận video demo.");
-    }
-
-    if (!video.uri && !video.file && !video.blob) {
-      throw new Error(`Video ${index + 1} không có dữ liệu file hợp lệ.`);
-    }
-
-    const ms = durationMs(video);
-    if (!ms) {
-      throw new Error(`Không đọc được thời lượng video ${index + 1}.`);
-    }
-
-    if (ms < 10_000) {
-      throw new Error(`Video ${index + 1} phải dài tối thiểu 10 giây.`);
-    }
+    validateVideoInput(video, index);
   });
 
   const [first, second] = videos.map(durationMs);
-  const allowedDiff = Math.max(3_000, Math.max(first, second) * 0.2);
-  if (Math.abs(first - second) > allowedDiff) {
-    throw new Error("Hai video cần có thời lượng tương đương nhau.");
-  }
+  assertMatchingVideoDurations(first, second);
 
   return true;
 }
@@ -132,7 +209,7 @@ export function validateTwoVideos(videos = []) {
 function extractFeedMeta(response, params, itemCount) {
   const data =
     response?.data && !Array.isArray(response.data) ? response.data : {};
-  const requestedCount = Number(params.count || 20);
+  const requestedCount = Number(params.count || 10);
   const rawLastId =
     data.last_id || data.lastId || response?.last_id || response?.lastId || "";
   const hasMore =
@@ -151,28 +228,19 @@ function extractFeedMeta(response, params, itemCount) {
 
   return {
     lastId: String(rawLastId || params.lastId || params.last_id || ""),
-    hasMore: Boolean(hasMore),
+    hasMore: normalizeApiBoolean(hasMore),
     newItems: Number.isFinite(newItems) ? newItems : 0,
     total: Number(data.total || response?.total || itemCount),
   };
 }
 
 export async function getFeedPage(params = {}) {
-  if (isMockMode()) {
-    const localResult = await localPosts.getFeedPage(params);
-    return {
-      ...localResult,
-      source: ACTIVE_SOURCES.LOCAL,
-      sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL),
-    };
-  }
-
   const session = await getCurrentSession();
   assertServerSession(session);
   const response = await backendApi.getListPosts({
     token: session.token,
     index: String(params.index || 0),
-    count: String(params.count || 20),
+    count: String(params.count || 10),
     last_id: params.lastId || params.last_id || "",
     category_id: params.categoryId || params.category_id || "",
   });
@@ -194,16 +262,6 @@ export async function getFeedPage(params = {}) {
 }
 
 export async function getPostById(postId) {
-  if (isMockMode()) {
-    const post = await localPosts.getPostById(postId);
-    if (!post) return null;
-    return {
-      ...post,
-      source: ACTIVE_SOURCES.LOCAL,
-      sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL),
-    };
-  }
-
   const session = await getCurrentSession();
   assertServerSession(session);
   const response = await backendApi.getPost({
@@ -219,15 +277,12 @@ export async function getPostById(postId) {
 }
 
 export async function toggleLike(post) {
-  if (isMockMode()) {
-    const postId = typeof post === "string" ? post : post?.id;
-    return localPosts.toggleLike(postId);
-  }
-
   const targetPost = typeof post === "string" ? await getPostById(post) : post;
   if (!targetPost?.id || !isServerPost(targetPost)) {
     throw new Error("Backend mode chỉ hỗ trợ thao tác với bài viết từ server.");
   }
+
+  console.log("token: ", (await getCurrentSession())?.token);
 
   const session = await getCurrentSession();
   assertServerSession(session);
@@ -280,7 +335,7 @@ export async function getSavedSearches() {
     const response = await backendApi.getSavedSearch({
       token: session.token,
       index: "0",
-      count: "20",
+      count: "10",
     });
 
     await assertBackendOk(response, {
@@ -324,8 +379,16 @@ export async function editPost(post, params = {}) {
 
   const session = await getCurrentSession();
   assertServerSession(session);
+  const multipartVideos = (params.videos || [])
+    .filter((video) => video && isLocalUploadVideo(video))
+    .map((video, index) => ({
+      ...video,
+      fieldName:
+        video.fieldName || (index === 0 ? "left_video" : "right_video"),
+    }));
+
   if (params.videos?.length) {
-    validateTwoVideos(params.videos);
+    validateEditableVideos(params.videos);
   }
 
   const fields = {
@@ -338,11 +401,6 @@ export async function editPost(post, params = {}) {
       post.content ||
       "",
   };
-
-  const multipartVideos = (params.videos || []).map((video, index) => ({
-    ...video,
-    fieldName: index === 0 ? "left_video" : "right_video",
-  }));
 
   const response = await backendApi.editPostMultipart(fields, multipartVideos);
   await assertBackendOk(response, { message: "Backend edit_post failed" });
@@ -395,15 +453,6 @@ export async function reportPost(post, reason = "") {
 }
 
 export async function checkNewItems(lastId = "") {
-  if (isMockMode()) {
-    return {
-      hasNew: false,
-      count: 0,
-      source: ACTIVE_SOURCES.LOCAL,
-      raw: null,
-    };
-  }
-
   const session = await getCurrentSession();
 
   assertServerSession(session);
@@ -427,13 +476,18 @@ export async function checkNewItems(lastId = "") {
 
   await assertBackendOk(response, { message: "Backend check_new_item failed" });
 
+  const count = Number(
+    response.data?.new_items ?? response.data?.count ?? response.count ?? 0,
+  );
+  const hasNewValue =
+    response.data?.has_new ??
+    response.data?.new_items ??
+    response.has_new ??
+    count;
+
   return {
-    hasNew: Boolean(
-      response.data?.new_items || response.data?.has_new || response.has_new,
-    ),
-    count: Number(
-      response.data?.new_items || response.data?.count || response.count || 0,
-    ),
+    hasNew: normalizeApiBoolean(hasNewValue, count > 0),
+    count: Number.isFinite(count) ? count : 0,
     source: ACTIVE_SOURCES.SERVER,
     raw: response,
   };
@@ -449,7 +503,7 @@ export async function getExercisePosts() {
 export async function createPost(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
-  const allowServer = shouldUseServer(session);
+  const allowServer = shouldUsePostApi(session);
 
   if (!allowServer) {
     return localPosts.createPost({
@@ -506,7 +560,7 @@ export async function createLocalPost(params) {
 export async function createExerciseSubmission(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
-  const allowServer = shouldUseServer(session);
+  const allowServer = shouldUsePostApi(session);
 
   if (!allowServer) {
     return localPosts.createExerciseSubmission({
