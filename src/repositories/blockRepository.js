@@ -60,11 +60,7 @@ export async function setBlock(userId, type = "block") {
   const session = await getCurrentSession();
   requireToken(session);
 
-  const ownIds = [
-    session.id,
-    session.user_id,
-    session.identifier,
-  ]
+  const ownIds = [session.id, session.user_id, session.identifier]
     .filter(Boolean)
     .map((id) => String(id));
 

@@ -23,7 +23,11 @@ import {
 function BlockedAvatar({ item }) {
   if (item.avatar) {
     return (
-      <Image source={{ uri: item.avatar }} style={styles.avatar} blurRadius={3} />
+      <Image
+        source={{ uri: item.avatar }}
+        style={styles.avatar}
+        blurRadius={3}
+      />
     );
   }
 
@@ -258,8 +262,14 @@ export default function BlocksScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{blocks.length} người dùng bị chặn</Text>
-            <Pressable style={styles.refreshButton} onPress={loadBlocks} disabled={isLoading}>
+            <Text style={styles.sectionTitle}>
+              {blocks.length} người dùng bị chặn
+            </Text>
+            <Pressable
+              style={styles.refreshButton}
+              onPress={loadBlocks}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <ActivityIndicator color={colors.brand} />
               ) : (
@@ -270,7 +280,11 @@ export default function BlocksScreen() {
 
           {!isLoading && blocks.length === 0 ? (
             <View style={styles.emptyBox}>
-              <ProfileIcon name="ban-outline" size={30} color={colors.inkMuted} />
+              <ProfileIcon
+                name="ban-outline"
+                size={30}
+                color={colors.inkMuted}
+              />
               <Text style={styles.emptyTitle}>Chưa có người dùng bị chặn</Text>
               <Text style={styles.emptyText}>
                 Những người bạn chặn sẽ xuất hiện tại đây.
@@ -283,9 +297,6 @@ export default function BlocksScreen() {
               <BlockedAvatar item={item} />
               <View style={styles.blockInfo}>
                 <Text style={styles.blockName}>{item.username}</Text>
-                <Text style={styles.blockMeta} numberOfLines={2}>
-                  {item.role || "Không rõ vai trò"} · {item.id}
-                </Text>
               </View>
               <AppButton
                 title="BỎ CHẶN"
