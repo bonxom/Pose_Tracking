@@ -10,6 +10,7 @@ import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
+import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession } from "@/utils/session";
 import { router } from "expo-router";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -27,8 +28,6 @@ import {
 import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
-const DEFAULT_AVATAR_URL =
-  "https://sloganhay.com/wp-content/uploads/2026/03/avatar-mac-dinh-facebook-10.jpg";
 const VIDEO_FALLBACK_SOURCES = [
   require("../../../assets/cam1.mp4"),
   require("../../../assets/cam2.mp4"),
@@ -237,10 +236,7 @@ export default function PostCard({
     if (post.exerciseId) values.add(`#${post.exerciseId}`);
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
-  const avatarUri =
-    typeof post.author?.avatar === "string" && post.author.avatar.trim()
-      ? post.author.avatar.trim()
-      : DEFAULT_AVATAR_URL;
+  const avatarUri = resolveAvatarUri(post.author?.avatar || "");
   const cardScale = removeAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.98, 1],

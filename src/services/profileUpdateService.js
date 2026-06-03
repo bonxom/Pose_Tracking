@@ -8,6 +8,13 @@ import { Alert } from "react-native";
 
 let latestProfileUpdateTaskId = 0;
 
+function hasAvatarChange(session = {}, params = {}) {
+  return (
+    Object.prototype.hasOwnProperty.call(params, "avatar") &&
+    String(params.avatar || "") !== String(session?.avatar || "")
+  );
+}
+
 async function markProfileUpdateError(taskId, error) {
   if (taskId !== latestProfileUpdateTaskId) {
     return;
@@ -32,10 +39,11 @@ async function markProfileUpdateError(taskId, error) {
   );
 }
 
-export async function queueProfileUpdate(params = {}) {
+export async function queueProfileUpdate(params = {}, options = {}) {
   const session = await getCurrentSession();
   const optimisticProfile = createOptimisticUserInfo(session || {}, params);
   const taskId = Date.now();
+  const avatarChanged = hasAvatarChange(session || {}, params);
 
   latestProfileUpdateTaskId = taskId;
   await saveAuthSession(optimisticProfile);
@@ -48,8 +56,12 @@ export async function queueProfileUpdate(params = {}) {
       }
 
       Alert.alert(
-        "Đồng bộ hoàn tất",
-        "Backend đã cập nhật hồ sơ xong. Thay đổi đã được xác nhận.",
+        options.successTitle ||
+          (avatarChanged ? "Đã cập nhật ảnh đại diện" : "Đồng bộ hoàn tất"),
+        options.successMessage ||
+          (avatarChanged
+            ? "Backend đã cập nhật ảnh đại diện xong. Nhấn xác nhận để hoàn tất."
+            : "Backend đã cập nhật hồ sơ xong. Thay đổi đã được xác nhận."),
       );
     } catch (error) {
       await markProfileUpdateError(taskId, error);

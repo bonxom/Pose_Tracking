@@ -184,6 +184,13 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
     role: shouldPreferSession
       ? firstValue(session?.role, profile?.role, "HV")
       : firstValue(profile?.role, session?.role, "HV"),
+    avatarVersion: firstValue(
+      session?.avatarVersion,
+      profile?.avatarVersion,
+      session?.profileSyncRequestedAt,
+      session?.loggedInAt,
+      "",
+    ),
     source: profile?.source || session?.source || ACTIVE_SOURCES.SERVER,
     profileSyncStatus: syncState || "done",
     profileSyncErrorMessage: session?.profileSyncErrorMessage || "",

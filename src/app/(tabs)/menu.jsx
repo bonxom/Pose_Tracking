@@ -3,7 +3,7 @@ import { clearNotificationState } from "@/services/notificationStore";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
-import { buildAvatarRenderUri, initials } from "@/utils/profile";
+import { initials, resolveAvatarUri } from "@/utils/profile";
 import {
   clearAuthSession,
   getAuthSession,
@@ -105,7 +105,7 @@ export default function MenuScreen() {
     ]);
   };
 
-  const avatarUri = buildAvatarRenderUri(
+  const avatarUri = resolveAvatarUri(
     session?.avatar || "",
     session?.avatarVersion ||
       session?.profileSyncRequestedAt ||

@@ -5,7 +5,7 @@ import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
 import { getInitials } from "@/utils/formatters";
-import { buildAvatarRenderUri } from "@/utils/profile";
+import { resolveAvatarUri } from "@/utils/profile";
 import {
   formatNotificationBadge,
   getNotificationBadge,
@@ -135,7 +135,7 @@ export default function TabsLayout() {
     getNotificationBadge(),
   );
   const displayName = session?.displayName || session?.username || "Người dùng";
-  const avatar = buildAvatarRenderUri(
+  const avatar = resolveAvatarUri(
     session?.avatar || session?.user?.avatar || "",
     session?.avatarVersion || session?.profileSyncRequestedAt || session?.loggedInAt || "",
   );

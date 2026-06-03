@@ -45,12 +45,6 @@ function localLogin(phonenumber, password) {
   };
 }
 
-function isKnownMockCredential(phonenumber, password) {
-  return MOCK_USERS.some(
-    (item) => item.phonenumber === phonenumber && item.password === password,
-  );
-}
-
 export async function loginWithPassword(
   phonenumber,
   password,
@@ -58,18 +52,16 @@ export async function loginWithPassword(
 ) {
   const normalizedPhone = phonenumber?.trim();
   const normalizedPassword = password?.trim();
-  const mode = getDataSourceMode();
-  const allowLocalFallback =
-    Boolean(options.allowLocalFallback) && canFallbackToLocal();
+  const allowLocalFallback = Boolean(options.allowLocalFallback);
 
   try {
     const response = await authApi.login({
-      phonenumber,
-      password,
+      phonenumber: normalizedPhone,
+      password: normalizedPassword,
       devtoken: DEFAULT_DEVICE_TOKEN,
     });
 
-    if (response.code === "1000") {
+    if (response?.code === "1000" || response?.code === 1000) {
       const session = normalizeSession(response);
       if (!session.token) {
         throw new Error("Backend login response did not include token");
@@ -93,7 +85,7 @@ export async function loginWithPassword(
 
     return {
       code: String(response?.code || "BACKEND_LOGIN_FAILED"),
-      message: response?.message || "login failed",
+      message: response?.message || "Backend login failed",
       data: null,
       source: ACTIVE_SOURCES.SERVER,
     };

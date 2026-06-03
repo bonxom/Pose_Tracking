@@ -4,12 +4,18 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import AppInput from "@/components/common/AppInput";
 import {
   getUserInfo,
+  mergeOwnProfileWithSession,
   validateProfileUserName,
 } from "@/repositories/userRepository";
 import { queueProfileUpdate } from "@/services/profileUpdateService";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { clearAuthSession } from "@/utils/session";
+import {
+  clearAuthSession,
+  getAuthSession,
+  subscribeAuthSession,
+} from "@/utils/session";
+import { resolveAvatarUri } from "@/utils/profile";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -44,11 +50,13 @@ function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
 }
 
 function AvatarPreview({ uri, name, onPick }) {
+  const resolvedAvatarUri = resolveAvatarUri(uri);
+
   return (
     <View style={styles.avatarPreviewWrap}>
       <View style={styles.avatarPreview}>
-        {uri ? (
-          <Image source={{ uri }} style={styles.previewImage} />
+        {resolvedAvatarUri ? (
+          <Image source={{ uri: resolvedAvatarUri }} style={styles.previewImage} />
         ) : (
           <View style={styles.avatarFallback}>
             <Text style={styles.avatarFallbackText}>{initials(name)}</Text>
@@ -115,6 +123,40 @@ export default function ProfileEditScreen() {
     useCallback(() => {
       loadProfile();
     }, [loadProfile]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const applySession = (session) => {
+        if (!active || !session) return;
+
+        const merged = mergeOwnProfileWithSession(
+          {
+            displayName: username,
+            username,
+            avatar,
+            coverImage,
+            description,
+          },
+          session,
+        );
+
+        setUsername(merged.displayName || merged.username || "");
+        setAvatar(merged.avatar || "");
+        setCoverImage(merged.coverImage || "");
+        setDescription(merged.description || "");
+      };
+
+      getAuthSession().then(applySession).catch(console.warn);
+      const unsubscribe = subscribeAuthSession(applySession);
+
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    }, [avatar, coverImage, description, username]),
   );
 
   const pickImage = async (type) => {

@@ -1,12 +1,13 @@
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { initials } from "@/utils/profile";
+import { initials, resolveAvatarUri } from "@/utils/profile";
 import { Pressable, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { useEffect, useState } from "react";
 
 function Avatar({ uri, name, size = 72, bordered = false }) {
+  const resolvedAvatarUri = resolveAvatarUri(uri);
   const avatarStyle = {
     width: size,
     height: size,
@@ -28,19 +29,19 @@ function Avatar({ uri, name, size = 72, bordered = false }) {
 
   useEffect(() => {
     setImageFailed(false);
-  }, [uri]);
+  }, [resolvedAvatarUri]);
 
   return (
     <View style={shellStyle}>
-      {uri && !imageFailed ? (
+      {resolvedAvatarUri && !imageFailed ? (
         <Image
-          source={{ uri }}
+          source={{ uri: resolvedAvatarUri }}
           style={[profileStyles.avatarImage, avatarStyle]}
           contentFit="cover"
           cachePolicy="memory-disk"
           transition={150}
           onError={(event) => {
-            console.warn("PROFILE_AVATAR_LOAD_ERROR", uri, event.nativeEvent?.error);
+            console.warn("PROFILE_AVATAR_LOAD_ERROR", resolvedAvatarUri, event.nativeEvent?.error);
             setImageFailed(true);
           }}
         />

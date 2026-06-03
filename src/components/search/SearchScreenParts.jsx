@@ -3,6 +3,7 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import PostCard from "@/components/post/PostCard";
 import colors from "@/constants/colors";
 import searchStyles from "@/styles/search.styles";
+import { resolveAvatarUri } from "@/utils/profile";
 import { memo } from "react";
 import {
   ActivityIndicator,
@@ -108,9 +109,9 @@ export const SearchUserCard = memo(function SearchUserCard({ user, onPress }) {
 
   return (
     <Pressable style={searchStyles.userCard} onPress={onPress}>
-      {user.avatar ? (
+      {resolveAvatarUri(user.avatar || "") ? (
         <Image
-          source={{ uri: user.avatar }}
+          source={{ uri: resolveAvatarUri(user.avatar || "") }}
           style={searchStyles.userAvatar}
           contentFit="cover"
           cachePolicy="memory-disk"

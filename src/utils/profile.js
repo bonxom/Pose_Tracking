@@ -3,6 +3,14 @@ export function initials(name = "") {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
 }
 
+export const DEFAULT_AVATAR_URL =
+  "https://sloganhay.com/wp-content/uploads/2026/03/avatar-mac-dinh-facebook-10.jpg";
+
+export function resolveAvatarUri(uri = "", version = "") {
+  const cleanUri = String(uri || "").trim();
+  return buildAvatarRenderUri(cleanUri || DEFAULT_AVATAR_URL, version);
+}
+
 export function buildAvatarRenderUri(uri = "", version = "") {
   const cleanUri = String(uri || "").trim();
   const cleanVersion = String(version || "").trim();

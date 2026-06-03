@@ -3,9 +3,16 @@ import BackIcon from "@/components/icons/BackIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { getUserInfo } from "@/repositories/userRepository";
-import { clearAuthSession } from "@/utils/session";
-import { initials } from "@/utils/profile";
+import {
+  getUserInfo,
+  mergeOwnProfileWithSession,
+} from "@/repositories/userRepository";
+import {
+  clearAuthSession,
+  getAuthSession,
+  subscribeAuthSession,
+} from "@/utils/session";
+import { initials, resolveAvatarUri } from "@/utils/profile";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -23,11 +30,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 function HeaderAvatar({ profile }) {
+  const avatarUri = resolveAvatarUri(
+    profile?.avatar || "",
+    profile?.avatarVersion || profile?.profileSyncRequestedAt || "",
+  );
+
   return (
     <View style={styles.headerAvatarWrap}>
-      {profile?.avatar ? (
+      {avatarUri ? (
         <Image
-          source={{ uri: profile.avatar }}
+          source={{ uri: avatarUri }}
           style={styles.headerAvatar}
           contentFit="cover"
           cachePolicy="memory-disk"
@@ -81,6 +93,34 @@ export default function ProfileSettingsScreen() {
     useCallback(() => {
       loadProfile();
     }, [loadProfile]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const syncFromSession = async () => {
+        const session = await getAuthSession();
+        if (!active || !session) return;
+
+        setProfile((current) =>
+          mergeOwnProfileWithSession(current || {}, session),
+        );
+      };
+
+      syncFromSession().catch(console.warn);
+      const unsubscribe = subscribeAuthSession((session) => {
+        if (!active || !session) return;
+        setProfile((current) =>
+          mergeOwnProfileWithSession(current || {}, session),
+        );
+      });
+
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    }, []),
   );
 
   const profileLink = useMemo(() => {

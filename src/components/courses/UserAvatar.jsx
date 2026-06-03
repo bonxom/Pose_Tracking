@@ -1,12 +1,15 @@
 import { Text, View } from "react-native";
 import { Image } from "expo-image";
 import coursesStyles from "@/styles/courses.styles";
+import { resolveAvatarUri } from "@/utils/profile";
 
 export default function UserAvatar({ uri, name }) {
-  if (uri) {
+  const avatarUri = resolveAvatarUri(uri || "");
+
+  if (avatarUri) {
     return (
       <Image
-        source={{ uri }}
+        source={{ uri: avatarUri }}
         style={coursesStyles.avatar}
         contentFit="cover"
         cachePolicy="memory-disk"

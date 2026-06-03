@@ -11,6 +11,7 @@ import {
   setNotificationBadge,
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
+import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -97,6 +98,7 @@ function NotificationTypeBadge({ type = "" }) {
 
 function NotificationItem({ item, onPress }) {
   const unread = isUnread(item);
+  const avatarUri = resolveAvatarUri(item.avatar || "");
 
   return (
     <Pressable
@@ -108,8 +110,8 @@ function NotificationItem({ item, onPress }) {
       ]}
     >
       <View style={styles.avatarWrap}>
-        {item.avatar ? (
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
         ) : (
           <Text style={styles.avatarFallback}>{getInitial(item.title)}</Text>
         )}
