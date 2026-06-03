@@ -509,6 +509,8 @@ export const backendApi = {
   getVerifyCode: (params) => post("/get_verify_code", params),
   checkVerifyCode: (params) => post("/check_verify_code", params),
   changeInfoAfterSignup: (params) => post("/change_info_after_signup", params),
+  changeInfoAfterSignupMultipart: (fields, files = []) =>
+    postMultipart("/change_info_after_signup", fields, files),
   getListPosts: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(buildMockGetListPostsResponse(params))
@@ -618,6 +620,10 @@ export const backendApi = {
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(buildMockSetUserInfoResponse(params))
       : post("/set_user_info", params),
+  setUserInfoMultipart: (fields, files = []) =>
+    API_TYPE === API_TYPES.MOCK
+      ? Promise.resolve(buildMockSetUserInfoResponse(fields))
+      : postMultipart("/set_user_info", fields, files),
   getListBlocks: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(buildMockGetListBlocksResponse(params))
@@ -681,21 +687,14 @@ export const backendApi = {
   checkNewItem: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? buildMockCheckNewItemResponse(params)
-      : post("/check_new_item", {
-          last_id: params?.last_id || params?.lastId || "",
-          category_id: params?.category_id || params?.categoryId || "",
-        }),
+      : post("/check_new_item", params),
   getNotification: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? getMockNotificationResponse(params).then((response) => ({
           ...response,
           source: MOCK_SOURCE,
         }))
-      : post("/get_notification", {
-          token: params?.token || "",
-          index: params?.index || "0",
-          count: params?.count || "20",
-        }),
+      : post("/get_notification", params),
   setReadMessage: (params) =>
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(mockResponse([]))

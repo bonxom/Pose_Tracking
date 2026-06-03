@@ -1,15 +1,10 @@
 import colors from "@/constants/colors";
 import Svg, { G, Path } from "react-native-svg";
 
-export default function CoursesIcon({ focused, size = 24 }) {
+export default function CoursesIcon({ focused, size = 28 }) {
   const color = focused ? colors.primary : colors.text;
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill={color}
-    >
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
       {focused ? (
         <G
           clipRule="evenodd"

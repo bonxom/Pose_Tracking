@@ -71,28 +71,42 @@ export default function PostOptionsSheet({
 
   const handleDeletePost = async () => {
     if (!postId || isDeleting) return;
-    try {
-      setIsDeleting(true);
-      const session = await getAuthSession();
-      if (!session?.token) {
-        throw new Error("Không tìm thấy phiên đăng nhập.");
-      }
 
-      const response = await backendApi.deletePost({
-        token: session.token,
-        id: postId,
-      });
-      await assertBackendOk(response, {
-        message: "Backend delete_post failed",
-      });
+    Alert.alert("Xóa bài viết", "Bạn có chắc muốn xóa bài viết này?", [
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setIsDeleting(true);
+            const session = await getAuthSession();
+            if (!session?.token) {
+              throw new Error("Không tìm thấy phiên đăng nhập.");
+            }
 
-      onClose?.();
-      onDeletePost?.(postId);
-    } catch (_error) {
-      Alert.alert("Lỗi", "Hệ thống đang lỗi, vui lòng thử lại sau");
-    } finally {
-      setIsDeleting(false);
-    }
+            const response = await backendApi.deletePost({
+              token: session.token,
+              id: postId,
+            });
+            await assertBackendOk(response, {
+              message: "Backend delete_post failed",
+            });
+
+            onClose?.();
+            onDeletePost?.(postId);
+            Alert.alert("Thành công", "Đã xóa bài viết thành công.");
+          } catch (_error) {
+            Alert.alert("Lỗi", "Hệ thống đang lỗi, vui lòng thử lại sau");
+          } finally {
+            setIsDeleting(false);
+          }
+        },
+      },
+    ]);
   };
 
   return (

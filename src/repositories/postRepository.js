@@ -71,6 +71,24 @@ function durationMs(video = {}) {
   return value > 1000 ? value : value * 1000;
 }
 
+function normalizeApiBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes"].includes(normalized)) return true;
+    if (["0", "false", "no"].includes(normalized)) return false;
+  }
+
+  if (typeof value === "number") {
+    return value === 1;
+  }
+
+  return Boolean(value);
+}
+
 function buildAddPostFields(session, params = {}) {
   const fields = {
     token: session?.token || "",
@@ -82,6 +100,10 @@ function buildAddPostFields(session, params = {}) {
 
   if (params.exerciseId) {
     fields.exercise_id = params.exerciseId;
+  }
+
+  if (params.sourcePostId) {
+    fields.source_post_id = params.sourcePostId;
   }
 
   return fields;
@@ -378,13 +400,18 @@ export async function checkNewItems(lastId = "") {
 
   await assertBackendOk(response, { message: "Backend check_new_item failed" });
 
+  const count = Number(
+    response.data?.new_items ?? response.data?.count ?? response.count ?? 0,
+  );
+  const hasNewValue =
+    response.data?.has_new ??
+    response.data?.new_items ??
+    response.has_new ??
+    count;
+
   return {
-    hasNew: Boolean(
-      response.data?.new_items || response.data?.has_new || response.has_new,
-    ),
-    count: Number(
-      response.data?.new_items || response.data?.count || response.count || 0,
-    ),
+    hasNew: normalizeApiBoolean(hasNewValue, count > 0),
+    count: Number.isFinite(count) ? count : 0,
     source: sourceFromResponse(response),
     raw: response,
   };

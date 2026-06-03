@@ -4,8 +4,8 @@ export const PAGE_SIZE = 20;
 
 export const SEARCH_TABS = [
   { id: "all", label: "Tất cả" },
-  { id: "people", label: "Mọi người" },
   { id: "posts", label: "Bài viết" },
+  { id: "people", label: "Mọi người" },
 ];
 
 function createDefaultSearchCache() {

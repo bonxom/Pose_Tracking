@@ -1,6 +1,7 @@
 import { startInAppNotificationRuntime } from "@/services/pushNotifications";
 import { getAuthSession } from "@/utils/session";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -21,15 +22,13 @@ export default function RootLayout() {
 
         const isAuthenticated = Boolean(session);
         const isAuthGroup = currentGroup === "(auth)";
-        const isSignupSuccess =
-          currentGroup === "(auth)" && segments[1] === "signup-success";
 
         if (!isAuthenticated && !isAuthGroup) {
           router.replace("/(auth)/login");
           return;
         }
 
-        if (isAuthenticated && isAuthGroup && !isSignupSuccess) {
+        if (isAuthenticated && isAuthGroup) {
           router.replace("/(tabs)/home");
         }
       } finally {
@@ -54,6 +53,7 @@ export default function RootLayout() {
   if (isBootstrapping) {
     return (
       <SafeAreaProvider>
+        <StatusBar style="dark" />
         <View
           style={{
             flex: 1,
@@ -70,6 +70,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />

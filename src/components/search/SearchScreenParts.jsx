@@ -3,15 +3,16 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import PostCard from "@/components/post/PostCard";
 import colors from "@/constants/colors";
 import searchStyles from "@/styles/search.styles";
+import { resolveAvatarUri } from "@/utils/profile";
 import { memo } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 
 const SearchTabButton = memo(function SearchTabButton({
   label,
@@ -104,12 +105,18 @@ export const SearchSuggestionRow = memo(function SearchSuggestionRow({
 });
 
 export const SearchUserCard = memo(function SearchUserCard({ user, onPress }) {
-  const subtitle = user.description || "Có bài viết mới";
+  const subtitle = user.description || "";
 
   return (
     <Pressable style={searchStyles.userCard} onPress={onPress}>
-      {user.avatar ? (
-        <Image source={{ uri: user.avatar }} style={searchStyles.userAvatar} />
+      {resolveAvatarUri(user.avatar || "") ? (
+        <Image
+          source={{ uri: resolveAvatarUri(user.avatar || "") }}
+          style={searchStyles.userAvatar}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       ) : (
         <View style={[searchStyles.userAvatar, searchStyles.userAvatarFallback]}>
           <Text style={searchStyles.userAvatarText}>

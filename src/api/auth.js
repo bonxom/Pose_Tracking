@@ -1,108 +1,107 @@
 import { backendApi } from "@/api/client";
-import { API_TYPE, API_TYPES, DEFAULT_DEVICE_TOKEN } from "@/config/env";
 import { MOCK_USERS } from "@/constants/mocks/users";
+import { isBackendMode } from "@/repositories/source";
 import { isPhone } from "@/utils/validation";
-
-// Giáº£ láº­p network delay Ä‘á»ƒ test loading state
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Mock verification code storage (in-memory)
 const MOCK_VERIFY_CODES = new Map();
 
 function isServerAuthMode() {
-  return API_TYPE === API_TYPES.BACKEND;
+  return isBackendMode();
 }
 
 function isOk(response) {
-  return response?.code === "1000" || response?.code === 1000 || response?.success === true;
+  return (
+    response?.code === "1000" ||
+    response?.code === 1000 ||
+    response?.success === true
+  );
 }
 
 function backendError(response, fallbackMessage = "Backend request failed") {
   return {
     code: String(response?.code || "BACKEND_ERROR"),
-    message: response?.message || response?.msg || response?.error || fallbackMessage,
+    message:
+      response?.message || response?.msg || response?.error || fallbackMessage,
     data: null,
+  };
+}
+
+function guessImageMimeType(uri = "") {
+  const clean = String(uri || "").split("?")[0].toLowerCase();
+
+  if (clean.endsWith(".png")) return "image/png";
+  if (clean.endsWith(".webp")) return "image/webp";
+  if (clean.endsWith(".gif")) return "image/gif";
+  if (clean.endsWith(".heic")) return "image/heic";
+  if (clean.endsWith(".heif")) return "image/heif";
+  if (clean.endsWith(".jpg") || clean.endsWith(".jpeg")) return "image/jpeg";
+
+  return "image/jpeg";
+}
+
+function buildAvatarFile(avatar = "") {
+  const uri = String(avatar || "").trim();
+  if (!uri) return null;
+  if (!/^(file|content|asset-library|ph):\/\//i.test(uri)) return null;
+
+  const mimeType = guessImageMimeType(uri);
+  const extByMime = {
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/jpeg": "jpg",
+  };
+  const fileName = `avatar-${Date.now()}.${extByMime[mimeType] || "jpg"}`;
+
+  return {
+    fieldName: "avatar",
+    uri,
+    name: fileName,
+    mimeType,
   };
 }
 
 const authApi = {
   /**
-   * ÄÄƒng nháº­p báº±ng sá»‘ Ä‘iá»‡n thoáº¡i
+   * Đăng nhập bằng số điện thoại
    * @param {string} phonenumber
    * @param {string} password
    * @returns {Promise<{code: string, message: string, data: any}>}
    */
-  login: async (phonenumber, password) => {
-    await delay(800);
-
-    const normalizedPhone = phonenumber?.trim();
-    const normalizedPassword = password?.trim();
-
-    if (!normalizedPhone || !normalizedPassword) {
+  login: async ({ phonenumber, password, devtoken }) => {
+    if (!phonenumber || !password) {
       return {
         code: "1002",
-        message: "Parameter is not enough",
+        message: "Thiếu thông tin đăng nhập",
         data: null,
       };
     }
 
-    if (!isPhone(normalizedPhone)) {
+    if (!isPhone(phonenumber)) {
       return {
         code: "1004",
-        message: "Parameter value is invalid",
+        message: "Số điện thoại không hợp lệ",
         data: null,
       };
     }
 
-    if (isServerAuthMode()) {
-      try {
-        const backendResponse = await backendApi.login({
-          phonenumber: normalizedPhone,
-          password: normalizedPassword,
-          devtoken: DEFAULT_DEVICE_TOKEN,
-        });
-
-        if (isOk(backendResponse) && backendResponse.data) {
-          return {
-            code: "1000",
-            message: backendResponse.message || "OK",
-            data: backendResponse.data,
-          };
-        }
-
-        return backendError(backendResponse, "Backend login failed");
-      } catch (error) {
-        return {
-          code: "NETWORK_ERROR",
-          message: error.message || "Backend unavailable",
-          data: null,
-        };
-      }
-    }
-
-    const user = MOCK_USERS.find((u) => u.phonenumber === normalizedPhone);
-
-    if (user && user.password === normalizedPassword) {
+    try {
+      const backendResponse = await backendApi.login({
+        phonenumber,
+        password,
+        devtoken,
+      });
+      return backendResponse;
+    } catch (error) {
       return {
-        code: "1000",
-        message: "OK",
-        data: user.data,
-      };
-    }
-
-    if (user) {
-      return {
-        code: "1004",
-        message: "Parameter value is invalid",
+        code: "1001",
+        message: error.message || "Backend unavailable",
         data: null,
       };
     }
-
-    return {
-      code: "9995",
-      message: "User is not validated",
-      data: null,
-    };
   },
 
   /**
@@ -115,8 +114,6 @@ const authApi = {
    * @returns {Promise<{code: string, message: string, data: any}>}
    */
   signup: async ({ phonenumber, password, uuid, role }) => {
-    await delay(800);
-
     if (!phonenumber || !password || !uuid || !role) {
       return {
         code: "1002",
@@ -160,10 +157,19 @@ const authApi = {
           message: response.message || "OK",
           data: {
             ...data,
-            signupRequestId: data.signupRequestId || data.signup_request_id || data.id || phonenumber,
+            signupRequestId:
+              data.signupRequestId ||
+              data.signup_request_id ||
+              data.id ||
+              phonenumber,
             phonenumber: data.phonenumber || phonenumber,
             role: data.role || role,
-            token: data.token || data.access_token || data.accessToken || response.token || "",
+            token:
+              data.token ||
+              data.access_token ||
+              data.accessToken ||
+              response.token ||
+              "",
             verifyCode:
               data.verifyCode ||
               data.verify_code ||
@@ -226,8 +232,6 @@ const authApi = {
    * @returns {Promise<{code: string, message: string, data: any}>}
    */
   getVerifyCode: async ({ phonenumber, signupRequestId }) => {
-    await delay(500);
-
     if (!phonenumber || (!signupRequestId && !isServerAuthMode())) {
       return {
         code: "1002",
@@ -247,11 +251,13 @@ const authApi = {
     if (isServerAuthMode()) {
       try {
         const response = await backendApi.getVerifyCode({ phonenumber });
-        return isOk(response) ? {
-          code: "1000",
-          message: response.message || "Mã xác thực đã được gửi.",
-          data: response.data || {},
-        } : backendError(response, "Backend get_verify_code failed");
+        return isOk(response)
+          ? {
+              code: "1000",
+              message: response.message || "Mã xác thực đã được gửi.",
+              data: response.data || {},
+            }
+          : backendError(response, "Backend get_verify_code failed");
       } catch (error) {
         return {
           code: "NETWORK_ERROR",
@@ -293,8 +299,6 @@ const authApi = {
    * @returns {Promise<{code: string, message: string, data: any}>}
    */
   checkVerifyCode: async ({ phonenumber, code, signupRequestId }) => {
-    await delay(800);
-
     if (!phonenumber || !code || (!signupRequestId && !isServerAuthMode())) {
       return {
         code: "1002",
@@ -306,8 +310,10 @@ const authApi = {
     if (isServerAuthMode()) {
       try {
         const candidateBodies = [
+          { phonenumber, codeVerify: code },
           { phonenumber, code },
           { phoneNumber: phonenumber, code },
+          { phoneNumber: phonenumber, codeVerify: code },
           { phone: phonenumber, code },
           { phonenumber, verify_code: code },
           { phonenumber, code_verify: code },
@@ -339,7 +345,8 @@ const authApi = {
           if (lastError && !response) {
             return {
               code: String(lastError.code || "NETWORK_ERROR"),
-              message: lastError.message || "Backend check_verify_code unavailable",
+              message:
+                lastError.message || "Backend check_verify_code unavailable",
               data: null,
             };
           }
@@ -352,10 +359,19 @@ const authApi = {
           message: response.message || "OK",
           data: {
             ...data,
-            token: data.token || data.access_token || data.accessToken || response.token || "",
+            token:
+              data.token ||
+              data.access_token ||
+              data.accessToken ||
+              response.token ||
+              "",
             phonenumber: data.phonenumber || phonenumber,
             role: data.role || "",
-            signupRequestId: data.signupRequestId || data.signup_request_id || signupRequestId || phonenumber,
+            signupRequestId:
+              data.signupRequestId ||
+              data.signup_request_id ||
+              signupRequestId ||
+              phonenumber,
           },
         };
       } catch (error) {
@@ -420,10 +436,20 @@ const authApi = {
    * @param {string} params.signupRequestId
    * @returns {Promise<{code: string, message: string, data: any}>}
    */
-  changeInfoAfterSignup: async ({ token, phonenumber, username, height = "", avatar = "", signupRequestId }) => {
-    await delay(800);
-
-    if (!token || !username || (!phonenumber && !isServerAuthMode()) || (!signupRequestId && !isServerAuthMode())) {
+  changeInfoAfterSignup: async ({
+    token,
+    phonenumber,
+    username,
+    height = "",
+    avatar = "",
+    signupRequestId,
+  }) => {
+    if (
+      !token ||
+      !username ||
+      (!phonenumber && !isServerAuthMode()) ||
+      (!signupRequestId && !isServerAuthMode())
+    ) {
       return {
         code: "1002",
         message: "Parameter is not enough",
@@ -433,24 +459,22 @@ const authApi = {
 
     if (isServerAuthMode()) {
       try {
+        const avatarFile = buildAvatarFile(avatar);
         const candidateBodies = [
           {
             token,
             username,
-            avatar,
             height,
           },
           {
             token,
             user_name: username,
-            avatar,
             cover_image: "",
             height,
           },
           {
             token,
             username,
-            avatar,
           },
         ];
         let response = null;
@@ -458,7 +482,10 @@ const authApi = {
 
         for (const body of candidateBodies) {
           try {
-            response = await backendApi.changeInfoAfterSignup(body);
+            response = await backendApi.changeInfoAfterSignupMultipart(
+              body,
+              avatarFile ? [avatarFile] : [],
+            );
             if (isOk(response)) break;
           } catch (error) {
             lastError = error;
@@ -467,22 +494,28 @@ const authApi = {
 
         if (!isOk(response) && lastError && !response) throw lastError;
 
-        return isOk(response) ? {
-          code: "1000",
-          message: response.message || "OK",
-          data: {
-            ...(response.data || {}),
-            token: response.data?.token || response.token || token,
-            phonenumber: response.data?.phonenumber || phonenumber,
-            username: response.data?.username || response.data?.user_name || username,
-            height: response.data?.height || height || "",
-            avatar: response.data?.avatar || avatar || "",
-          },
-        } : backendError(response, "Backend change_info_after_signup failed");
+        return isOk(response)
+          ? {
+              code: "1000",
+              message: response.message || "OK",
+              data: {
+                ...(response.data || {}),
+                token: response.data?.token || response.token || token,
+                phonenumber: response.data?.phonenumber || phonenumber,
+                username:
+                  response.data?.username ||
+                  response.data?.user_name ||
+                  username,
+                height: response.data?.height || height || "",
+                avatar: response.data?.avatar || avatar || "",
+              },
+            }
+          : backendError(response, "Backend change_info_after_signup failed");
       } catch (error) {
         return {
           code: "NETWORK_ERROR",
-          message: error.message || "Backend change_info_after_signup unavailable",
+          message:
+            error.message || "Backend change_info_after_signup unavailable",
           data: null,
         };
       }
@@ -521,7 +554,6 @@ const authApi = {
       },
     };
 
-    // ThÃªm vÃ o MOCK_USERS (Ä‘á»ƒ láº§n sau login Ä‘Æ°á»£c)
     const exists = MOCK_USERS.findIndex((u) => u.phonenumber === phonenumber);
     if (exists === -1) {
       MOCK_USERS.push(newUser);

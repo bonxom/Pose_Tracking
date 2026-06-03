@@ -87,6 +87,95 @@ export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options 
   };
 }
 
+export function mergeOwnProfileWithSession(profile = {}, session = {}) {
+  const syncState = String(session?.profileSyncStatus || "").trim();
+  const shouldPreferSession =
+    syncState === "pending" || syncState === "error" || !profile?.id;
+
+  return {
+    ...profile,
+    token: firstValue(session?.token, profile?.token, ""),
+    id: firstValue(profile?.id, session?.id, session?.user_id, session?.identifier, ""),
+    username: shouldPreferSession
+      ? firstValue(session?.username, session?.displayName, profile?.username, profile?.displayName, "")
+      : firstValue(profile?.username, profile?.displayName, session?.username, session?.displayName, ""),
+    displayName: shouldPreferSession
+      ? firstValue(session?.displayName, session?.username, profile?.displayName, profile?.username, "")
+      : firstValue(profile?.displayName, profile?.username, session?.displayName, session?.username, ""),
+    avatar: shouldPreferSession
+      ? firstValue(session?.avatar, profile?.avatar, "")
+      : firstValue(profile?.avatar, session?.avatar, ""),
+    coverImage: shouldPreferSession
+      ? firstValue(session?.coverImage, profile?.coverImage, "")
+      : firstValue(profile?.coverImage, session?.coverImage, ""),
+    description: normalizeOptionalText(
+      shouldPreferSession
+        ? firstValue(session?.description, profile?.description, "")
+        : firstValue(profile?.description, session?.description, ""),
+      150,
+    ),
+    address: shouldPreferSession
+      ? firstValue(session?.address, profile?.address, "")
+      : firstValue(profile?.address, session?.address, ""),
+    city: shouldPreferSession
+      ? firstValue(session?.city, profile?.city, "")
+      : firstValue(profile?.city, session?.city, ""),
+    country: shouldPreferSession
+      ? firstValue(session?.country, profile?.country, "")
+      : firstValue(profile?.country, session?.country, ""),
+    profileLink: shouldPreferSession
+      ? firstValue(session?.profileLink, profile?.profileLink, "")
+      : firstValue(profile?.profileLink, session?.profileLink, ""),
+    height: shouldPreferSession
+      ? firstValue(session?.height, profile?.height, "")
+      : firstValue(profile?.height, session?.height, ""),
+    role: shouldPreferSession
+      ? firstValue(session?.role, profile?.role, "HV")
+      : firstValue(profile?.role, session?.role, "HV"),
+    avatarVersion: firstValue(
+      session?.avatarVersion,
+      profile?.avatarVersion,
+      session?.profileSyncRequestedAt,
+      session?.loggedInAt,
+      "",
+    ),
+    source: profile?.source || session?.source || ACTIVE_SOURCES.SERVER,
+    profileSyncStatus: syncState || "done",
+    profileSyncErrorMessage: session?.profileSyncErrorMessage || "",
+    isProfileSyncPending: syncState === "pending",
+  };
+}
+
+export function createOptimisticUserInfo(session = {}, params = {}) {
+  const userName = params.userName || params.user_name || params.username || "";
+  const avatarChanged =
+    firstParamValue(params, ["avatar"], session?.avatar || "") !==
+    (session?.avatar || "");
+
+  return {
+    ...session,
+    ...params,
+    username: userName || session?.username || session?.displayName || "",
+    displayName: userName || session?.displayName || session?.username || "",
+    avatar: firstParamValue(params, ["avatar"], session?.avatar || ""),
+    coverImage: firstParamValue(
+      params,
+      ["coverImage", "cover_image"],
+      session?.coverImage || "",
+    ),
+    description: normalizeOptionalText(
+      firstParamValue(params, ["description"], session?.description || ""),
+      150,
+    ),
+    avatarVersion: avatarChanged
+      ? new Date().toISOString()
+      : session?.avatarVersion || session?.loggedInAt || "",
+    profileSyncStatus: "pending",
+    profileSyncErrorMessage: "",
+    profileSyncRequestedAt: new Date().toISOString(),
+  };
+}
+
 export function validateProfileUserName(value = "") {
   const userName = String(value).trim();
 

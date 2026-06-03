@@ -10,12 +10,17 @@ import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   getUserInfo,
   getUserPosts,
-  updateUserInfo,
-  blockUser,
+  mergeOwnProfileWithSession,
 } from "@/repositories/userRepository";
+import { queueProfileUpdate } from "@/services/profileUpdateService";
 import profileStyles from "@/styles/profile.styles";
-import { CACHE_KEY_PROFILE, readCache, writeCache } from "@/utils/cacheStore";
-import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import {
+  CACHE_KEY_PROFILE,
+  getProfileCacheOwnerKey,
+  isProfileCacheValidForSession,
+  readCache,
+  writeCache,
+} from "@/utils/cacheStore";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
@@ -33,6 +38,14 @@ import {
 
 // Module-level in-memory profile cache, keyed by userId ("" = own profile)
 let profileCache = {};
+
+function buildProfileCacheEntry(profile, posts, ownerKey = "") {
+  return {
+    profile,
+    posts,
+    ownerKey,
+  };
+}
 
 export default function ProfileScreenContent({ userId = "" }) {
   const cacheKey = !userId ? CACHE_KEY_PROFILE : null;
@@ -86,6 +99,9 @@ export default function ProfileScreenContent({ userId = "" }) {
 
           const nextProfile = { ...user, isOwnProfile };
           const nextPosts = postPage.items || [];
+          const ownerKey = isOwnProfile
+            ? getProfileCacheOwnerKey(session || nextProfile)
+            : "";
 
           // If the network fetch failed and returned empty local mock data,
           // BUT we already have cached posts in memory, ignore the mock data
@@ -100,18 +116,12 @@ export default function ProfileScreenContent({ userId = "" }) {
             profileCache[userId].posts?.length > 0
           ) {
             // Throw a network error so useInternetFetch can catch it
-            throw new Error("Không thể kết nối đến máy chủ");
+            throw new Error("KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n mÃ¡y chá»§");
           }
 
-          // Lazy-load update: only re-render if data actually changed
-          setProfile((prev) => {
-            const changed =
-              !prev ||
-              prev.id !== nextProfile.id ||
-              prev.displayName !== nextProfile.displayName ||
-              prev.avatar !== nextProfile.avatar;
-            return changed ? nextProfile : prev;
-          });
+          // Always update profile after a successful fetch so bio/cover/name
+          // changes appear immediately when returning from edit screen.
+          setProfile(nextProfile);
           setPosts((prev) => {
             const prevIds = prev.map((p) => p.id).join(",");
             const nextIds = nextPosts.map((p) => p.id).join(",");
@@ -119,9 +129,13 @@ export default function ProfileScreenContent({ userId = "" }) {
           });
 
           // Persist to memory + disk
-          profileCache[userId] = { profile: nextProfile, posts: nextPosts };
+          profileCache[userId] = buildProfileCacheEntry(
+            nextProfile,
+            nextPosts,
+            ownerKey,
+          );
           if (cacheKey) {
-            writeCache(cacheKey, { profile: nextProfile, posts: nextPosts });
+            writeCache(cacheKey, profileCache[userId]);
           }
         });
       } catch (loadError) {
@@ -132,7 +146,7 @@ export default function ProfileScreenContent({ userId = "" }) {
         }
         // Only show error if we have no cached data to display
         if (!profileCache[userId]) {
-          setError(loadError.message || "Không thể tải hồ sơ.");
+          setError(loadError.message || "KhÃ´ng thá»ƒ táº£i há»“ sÆ¡.");
         }
       } finally {
         setLoading(false);
@@ -142,32 +156,97 @@ export default function ProfileScreenContent({ userId = "" }) {
     [userId, cacheKey, executeWithInternetCheck],
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      // If we have in-memory cache, render it instantly then fetch in background
-      if (profileCache[userId]) {
-        setLoading(false);
-        loadProfile(false);
-        return;
+  const syncOwnProfileFromSession = useCallback(async () => {
+    if (userId) return;
+
+    const session = await getAuthSession();
+    if (!session) return;
+    const ownerKey = getProfileCacheOwnerKey(session);
+
+    setProfile((current) => {
+      const nextProfile = mergeOwnProfileWithSession(current || {}, session);
+      if (!nextProfile.id && !nextProfile.displayName && !nextProfile.username) {
+        return current;
       }
 
-      // No in-memory cache: try disk first, then fetch
-      if (cacheKey && !diskCacheLoadedRef.current) {
-        diskCacheLoadedRef.current = true;
-        readCache(cacheKey).then((cached) => {
-          if (cached?.profile) {
+      const nextCache = {
+        profile: nextProfile,
+        posts: profileCache[userId]?.posts || posts,
+        ownerKey,
+      };
+      profileCache[userId] = nextCache;
+      if (cacheKey) {
+        writeCache(cacheKey, nextCache);
+      }
+      return nextProfile;
+    });
+  }, [cacheKey, posts, userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const run = async () => {
+        if (userId) {
+          // If we have in-memory cache, render it instantly then fetch in background
+          if (profileCache[userId]) {
+            setLoading(false);
+            loadProfile(false);
+            return;
+          }
+
+          loadProfile(false);
+          return;
+        }
+
+        const session = await getAuthSession();
+        const ownerKey = getProfileCacheOwnerKey(session);
+        const memoryCache = profileCache[userId];
+        const hasValidMemoryCache =
+          memoryCache && memoryCache.ownerKey && memoryCache.ownerKey === ownerKey;
+
+        if (memoryCache && !hasValidMemoryCache) {
+          delete profileCache[userId];
+          setProfile(null);
+          setPosts([]);
+        }
+
+        await syncOwnProfileFromSession();
+
+        if (!isActive) return;
+
+        // If we have valid in-memory cache, render it instantly then fetch in background
+        if (hasValidMemoryCache) {
+          setLoading(false);
+          loadProfile(false);
+          return;
+        }
+
+        // No valid in-memory cache: try disk first, then fetch
+        if (cacheKey && !diskCacheLoadedRef.current) {
+          diskCacheLoadedRef.current = true;
+          const cached = await readCache(cacheKey);
+          if (!isActive) return;
+
+          if (isProfileCacheValidForSession(cached, session)) {
             profileCache[userId] = cached;
             setProfile(cached.profile);
             setPosts(cached.posts || []);
           }
           setLoading(false);
           loadProfile(false);
-        });
-        return;
-      }
+          return;
+        }
 
-      loadProfile(false);
-    }, [loadProfile, userId, cacheKey]),
+        loadProfile(false);
+      };
+
+      run().catch(console.warn);
+
+      return () => {
+        isActive = false;
+      };
+    }, [cacheKey, loadProfile, syncOwnProfileFromSession, userId]),
   );
 
   const profileLink = useMemo(() => {
@@ -181,9 +260,9 @@ export default function ProfileScreenContent({ userId = "" }) {
   const handleCopyLink = async () => {
     try {
       Clipboard.setString(profileLink);
-      Alert.alert("Đã sao chép", profileLink);
+      Alert.alert("ÄÃ£ sao chÃ©p", profileLink);
     } catch {
-      Alert.alert("Liên kết trang cá nhân", profileLink);
+      Alert.alert("LiÃªn káº¿t trang cÃ¡ nhÃ¢n", profileLink);
     }
   };
 
@@ -195,8 +274,8 @@ export default function ProfileScreenContent({ userId = "" }) {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permission.status !== "granted") {
         Alert.alert(
-          "Cần quyền truy cập ảnh",
-          "Vui lòng cấp quyền thư viện ảnh để chọn ảnh.",
+          "Cáº§n quyá»n truy cáº­p áº£nh",
+          "Vui lÃ²ng cáº¥p quyá»n thÆ° viá»‡n áº£nh Ä‘á»ƒ chá»n áº£nh.",
         );
         return;
       }
@@ -216,16 +295,25 @@ export default function ProfileScreenContent({ userId = "" }) {
           ? { ...profile, avatar: uri }
           : { ...profile, coverImage: uri };
       setProfile(nextProfile);
+      const ownerKey = getProfileCacheOwnerKey(nextProfile);
+      profileCache[userId] = buildProfileCacheEntry(
+        nextProfile,
+        profileCache[userId]?.posts || posts,
+        ownerKey,
+      );
+      if (cacheKey) {
+        writeCache(cacheKey, profileCache[userId]);
+      }
 
-      await updateUserInfo({
+      await queueProfileUpdate({
         userName: profile.displayName || profile.username,
         avatar: nextProfile.avatar,
         coverImage: nextProfile.coverImage,
       });
     } catch (error) {
       Alert.alert(
-        "Không thể cập nhật ảnh",
-        error.message || "Vui lòng thử lại.",
+        "KhÃ´ng thá»ƒ cáº­p nháº­t áº£nh",
+        error.message || "Vui lÃ²ng thá»­ láº¡i.",
       );
     }
   };
@@ -238,40 +326,22 @@ export default function ProfileScreenContent({ userId = "" }) {
     setPreviewImage(profile.coverImage);
   };
 
-  const confirmBlockProfile = () => {
-    if (!profile?.id) return;
-
-    Alert.alert(
-      "Chặn người dùng",
-      `Bạn có chắc muốn chặn ${profile.displayName || profile.username || "người dùng này"}?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Chặn",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await blockUser(profile.id);
-              Alert.alert("Đã chặn", "Người dùng đã được thêm vào danh sách chặn.");
-              router.back();
-            } catch (error) {
-              if (await redirectIfSessionExpired(error, router)) return;
-              Alert.alert(
-                "Không thể chặn",
-                error.message || "Vui lòng thử lại sau.",
-              );
-            }
-          },
-        },
-      ],
-    );
+  const handleViewAvatar = () => {
+    if (!profile?.avatar) {
+      Alert.alert(
+        "Ảnh đại diện",
+        "Hồ sơ hiện chưa có ảnh đại diện.",
+      );
+      return;
+    }
+    setPreviewImage(profile.avatar);
   };
 
   if (loading && !profile) {
     return (
       <View style={profileStyles.centerState}>
         <ActivityIndicator size="large" color={colors.brand} />
-        <Text style={profileStyles.centerText}>Đang tải hồ sơ...</Text>
+        <Text style={profileStyles.centerText}>Äang táº£i há»“ sÆ¡...</Text>
       </View>
     );
   }
@@ -284,10 +354,10 @@ export default function ProfileScreenContent({ userId = "" }) {
           size={42}
           color={colors.error}
         />
-        <Text style={profileStyles.centerTitle}>Không thể tải hồ sơ</Text>
+        <Text style={profileStyles.centerTitle}>KhÃ´ng thá»ƒ táº£i há»“ sÆ¡</Text>
         <Text style={profileStyles.centerText}>{error}</Text>
         <AppButton
-          title="Thử lại"
+          title="Thá»­ láº¡i"
           onPress={() => loadProfile(false)}
           style={profileStyles.retryButton}
         />
@@ -303,10 +373,10 @@ export default function ProfileScreenContent({ userId = "" }) {
           size={48}
           color={colors.inkMuted}
         />
-        <Text style={profileStyles.centerTitle}>Tài khoản không tồn tại</Text>
+        <Text style={profileStyles.centerTitle}>TÃ i khoáº£n khÃ´ng tá»“n táº¡i</Text>
         <Text style={profileStyles.centerText}>
           {profile?.unavailableReason ||
-            "Hồ sơ này không khả dụng hoặc bạn không có quyền xem."}
+            "Há»“ sÆ¡ nÃ y khÃ´ng kháº£ dá»¥ng hoáº·c báº¡n khÃ´ng cÃ³ quyá»n xem."}
         </Text>
       </View>
     );
@@ -331,7 +401,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           onOpenAvatarMenu={() => setAvatarMenuVisible(true)}
           onOpenMenu={() =>
             profile.isOwnProfile
-              ? router.push("/settings")
+              ? router.push("/profile/settings")
               : setMenuVisible(true)
           }
         />
@@ -358,12 +428,12 @@ export default function ProfileScreenContent({ userId = "" }) {
         onClose={() => setMenuVisible(false)}
         rows={[
           {
-            label: "Chỉnh sửa trang cá nhân",
+            label: "Chá»‰nh sá»­a trang cÃ¡ nhÃ¢n",
             icon: "create-outline",
             onPress: () => router.push("/settings/profile-edit"),
           },
           {
-            label: "Tìm kiếm trên trang cá nhân",
+            label: "TÃ¬m kiáº¿m trÃªn trang cÃ¡ nhÃ¢n",
             icon: "search-outline",
             onPress: () =>
               router.push({
@@ -372,14 +442,9 @@ export default function ProfileScreenContent({ userId = "" }) {
               }),
           },
           {
-            label: "Sao chép liên kết trang cá nhân",
+            label: "Sao chÃ©p liÃªn káº¿t trang cÃ¡ nhÃ¢n",
             icon: "link-outline",
             onPress: handleCopyLink,
-          },
-          {
-            label: "Chặn người dùng",
-            icon: "ban-outline",
-            onPress: confirmBlockProfile,
           },
         ]}
       />
@@ -403,6 +468,11 @@ export default function ProfileScreenContent({ userId = "" }) {
         visible={avatarMenuVisible}
         onClose={() => setAvatarMenuVisible(false)}
         rows={[
+          {
+            label: "Xem ảnh đại diện",
+            icon: "image-outline",
+            onPress: handleViewAvatar,
+          },
           {
             label: "Chọn ảnh đại diện",
             icon: "images-outline",
