@@ -10,12 +10,11 @@ import {
   subscribeAuthSession,
 } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +22,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 
 function MenuShortcut({ icon, label, color = "#0866FF", onPress }) {
   return (
@@ -74,6 +74,24 @@ export default function MenuScreen() {
       unsubscribe();
     };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      getAuthSession()
+        .then((value) => {
+          if (active) {
+            setSession(value);
+          }
+        })
+        .catch(() => {});
+
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const goPlaceholder = (title) => {
     Alert.alert(title, "Mục này có thể nối backend sau.");
@@ -133,7 +151,14 @@ export default function MenuScreen() {
         >
           <View style={styles.avatar}>
             {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+              <Image
+                key={avatarUri}
+                source={{ uri: avatarUri }}
+                style={styles.avatarImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
             ) : (
               <Text style={styles.avatarText}>{initials(displayName)}</Text>
             )}

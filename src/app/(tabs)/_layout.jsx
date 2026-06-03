@@ -14,8 +14,8 @@ import {
 } from "@/repositories/notificationRepository";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
-import { router, Tabs, usePathname } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, Tabs, useFocusEffect, usePathname } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -70,12 +70,6 @@ function TabButton({ onPress, accessibilityState, children }) {
 
 function ProfileTabAvatar({ focused, avatar, name }) {
   const initials = getInitials(name || "Người dùng");
-  const [imageReady, setImageReady] = useState(false);
-
-  useEffect(() => {
-    setImageReady(false);
-  }, [avatar]);
-
   return (
     <View
       style={[
@@ -90,16 +84,12 @@ function ProfileTabAvatar({ focused, avatar, name }) {
       </View>
       {avatar ? (
         <Image
+          key={avatar}
           source={{ uri: avatar }}
           contentFit="cover"
           cachePolicy="memory-disk"
           transition={150}
-          onLoadEnd={() => setImageReady(true)}
-          onError={() => setImageReady(false)}
-          style={[
-            styles.profileAvatarImage,
-            !imageReady && styles.profileAvatarImageHidden,
-          ]}
+          style={styles.profileAvatarImage}
         />
       ) : null}
     </View>
@@ -130,6 +120,24 @@ export default function TabsLayout() {
     const unsubscribe = subscribeAuthSession(setSession);
     return unsubscribe;
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      getAuthSession()
+        .then((value) => {
+          if (active) {
+            setSession(value);
+          }
+        })
+        .catch(console.warn);
+
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const [notificationBadge, setTabNotificationBadge] = useState(
     getNotificationBadge(),
@@ -366,9 +374,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 10,
     fontWeight: "900",
-  },
-  profileAvatarImageHidden: {
-    opacity: 0,
   },
   notificationBadge: {
     position: "absolute",
