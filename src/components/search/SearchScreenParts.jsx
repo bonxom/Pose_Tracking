@@ -105,7 +105,7 @@ export const SearchSuggestionRow = memo(function SearchSuggestionRow({
 });
 
 export const SearchUserCard = memo(function SearchUserCard({ user, onPress }) {
-  const subtitle = user.description || "Có bài viết mới";
+  const subtitle = user.description || "";
 
   return (
     <Pressable style={searchStyles.userCard} onPress={onPress}>

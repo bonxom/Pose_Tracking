@@ -8,14 +8,10 @@ import { Alert } from "react-native";
 
 let latestProfileUpdateTaskId = 0;
 
-function hasAvatarChange(session = {}, params = {}) {
-  return (
-    Object.prototype.hasOwnProperty.call(params, "avatar") &&
-    String(params.avatar || "") !== String(session?.avatar || "")
-  );
-}
+const PROFILE_SYNC_ERROR_MESSAGE =
+  "Hồ sơ đã cập nhật trên giao diện, nhưng chưa đồng bộ xong. Vui lòng thử lại sau.";
 
-async function markProfileUpdateError(taskId, error) {
+async function markProfileUpdateError(taskId) {
   if (taskId !== latestProfileUpdateTaskId) {
     return;
   }
@@ -28,22 +24,16 @@ async function markProfileUpdateError(taskId, error) {
   await saveAuthSession({
     ...session,
     profileSyncStatus: "error",
-    profileSyncErrorMessage:
-      error?.message || "Backend chưa đồng bộ xong hồ sơ. Vui lòng thử lại sau.",
+    profileSyncErrorMessage: PROFILE_SYNC_ERROR_MESSAGE,
   });
 
-  Alert.alert(
-    "Đã lưu giao diện",
-    error?.message ||
-      "Hồ sơ đã cập nhật trên giao diện, nhưng backend chưa đồng bộ xong.",
-  );
+  Alert.alert("Đã lưu giao diện", PROFILE_SYNC_ERROR_MESSAGE);
 }
 
 export async function queueProfileUpdate(params = {}, options = {}) {
   const session = await getCurrentSession();
   const optimisticProfile = createOptimisticUserInfo(session || {}, params);
   const taskId = Date.now();
-  const avatarChanged = hasAvatarChange(session || {}, params);
 
   latestProfileUpdateTaskId = taskId;
   await saveAuthSession(optimisticProfile);
@@ -56,15 +46,11 @@ export async function queueProfileUpdate(params = {}, options = {}) {
       }
 
       Alert.alert(
-        options.successTitle ||
-          (avatarChanged ? "Đã cập nhật ảnh đại diện" : "Đồng bộ hoàn tất"),
-        options.successMessage ||
-          (avatarChanged
-            ? "Backend đã cập nhật ảnh đại diện xong. Nhấn xác nhận để hoàn tất."
-            : "Backend đã cập nhật hồ sơ xong. Thay đổi đã được xác nhận."),
+        options.successTitle || "Cập nhật thành công",
+        options.successMessage || "Cập nhật thành công.",
       );
-    } catch (error) {
-      await markProfileUpdateError(taskId, error);
+    } catch {
+      await markProfileUpdateError(taskId);
     }
   })();
 

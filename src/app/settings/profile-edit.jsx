@@ -12,13 +12,12 @@ import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import {
   clearAuthSession,
-  getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
 import { resolveAvatarUri } from "@/utils/profile";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -97,6 +96,21 @@ export default function ProfileEditScreen() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const latestDraftRef = useRef({
+    username: "",
+    avatar: "",
+    coverImage: "",
+    description: "",
+  });
+
+  useEffect(() => {
+    latestDraftRef.current = {
+      username,
+      avatar,
+      coverImage,
+      description,
+    };
+  }, [avatar, coverImage, description, username]);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -132,13 +146,14 @@ export default function ProfileEditScreen() {
       const applySession = (session) => {
         if (!active || !session) return;
 
+        const draft = latestDraftRef.current;
         const merged = mergeOwnProfileWithSession(
           {
-            displayName: username,
-            username,
-            avatar,
-            coverImage,
-            description,
+            displayName: draft.username,
+            username: draft.username,
+            avatar: draft.avatar,
+            coverImage: draft.coverImage,
+            description: draft.description,
           },
           session,
         );
@@ -149,14 +164,13 @@ export default function ProfileEditScreen() {
         setDescription(merged.description || "");
       };
 
-      getAuthSession().then(applySession).catch(console.warn);
       const unsubscribe = subscribeAuthSession(applySession);
 
       return () => {
         active = false;
         unsubscribe();
       };
-    }, [avatar, coverImage, description, username]),
+    }, []),
   );
 
   const pickImage = async (type) => {

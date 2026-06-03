@@ -143,7 +143,11 @@ export default function ProfileHero({
           </View>
         )}
         {isOwnProfile ? (
-          <Pressable style={profileStyles.fbCoverCamera} onPress={onOpenCoverMenu}>
+          <Pressable
+            style={profileStyles.fbCoverCamera}
+            onPress={onOpenCoverMenu}
+            hitSlop={12}
+          >
             <ProfileIcon name="camera" size={18} color={colors.ink} />
           </Pressable>
         ) : null}
