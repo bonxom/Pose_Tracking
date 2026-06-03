@@ -11,7 +11,6 @@ import sizes from "@/constants/sizes";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
-import { resolveAvatarUri } from "@/utils/profile";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
@@ -87,21 +86,21 @@ export default function PostCard({
     if (post.exerciseId) values.add(`#${post.exerciseId}`);
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
-  const avatarUri = useMemo(() => {
+  const avatarInfo = useMemo(() => {
     const authorId = String(post.author?.id || "").trim();
     const isOwn = Boolean(
       currentUser?.id && authorId && currentUser.id === authorId,
     );
     if (isOwn) {
-      return resolveAvatarUri(
-        currentUser?.avatar || post.author?.avatar || "",
-        currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || "",
-      );
+      return {
+        uri: currentUser?.avatar || post.author?.avatar || "",
+        version: currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || "",
+      };
     }
-    return resolveAvatarUri(
-      post.author?.avatar || "",
-      post.author?.avatarVersion || "",
-    );
+    return {
+      uri: post.author?.avatar || "",
+      version: post.author?.avatarVersion || "",
+    };
   }, [
     post.author?.avatar,
     post.author?.avatarVersion,
@@ -190,7 +189,7 @@ export default function PostCard({
             hitSlop={8}
             style={localStyles.avatarPressable}
           >
-            <UserAvatar uri={avatarUri} size={44} />
+            <UserAvatar uri={avatarInfo.uri} version={avatarInfo.version} size={44} />
           </Pressable>
 
           <View style={postStyles.authorMetaGroup}>

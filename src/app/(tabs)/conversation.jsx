@@ -17,7 +17,6 @@ import {
 } from "@/repositories/conversationRepository";
 import { getCurrentSession } from "@/repositories/source";
 import conversationStyles from "@/styles/conversation/conversation.styles";
-import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
@@ -245,7 +244,6 @@ export default function ConversationsScreen() {
 
   const renderItem = ({ item }) => {
     const isUnread = item.lastmessage.unread === "1";
-    const partnerAvatarUri = resolveAvatarUri(item.partner.avatar);
     const formattedTime = formatMessageTime(item.lastmessage.created);
 
     return (
@@ -257,7 +255,7 @@ export default function ConversationsScreen() {
           pressed && { backgroundColor: "#f3f4f6" },
         ]}
       >
-        <UserAvatar uri={partnerAvatarUri} size={62} />
+        <UserAvatar uri={item.partner.avatar} size={62} />
         <View style={conversationStyles.contentWrapper}>
           <View style={conversationStyles.textContainer}>
             <Text style={conversationStyles.partnerName} numberOfLines={1}>
