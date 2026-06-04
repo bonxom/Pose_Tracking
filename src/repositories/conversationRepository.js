@@ -5,10 +5,10 @@ import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 function normalizeConversation(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   return {
-    id: String(raw.id || raw.conversation_id || raw.partner_id || ""),
-    title: raw.title || raw.username || raw.partner_name || "Cuộc trò chuyện",
-    lastMessage: raw.lastMessage || raw.last_message || raw.message || "",
-    unread: Boolean(raw.unread || raw.is_unread),
+    id: raw.id,
+    title: raw.partner.username,
+    lastMessage: raw.lastmessage.message,
+    unread: raw.lastmessage.unread,
     source,
     raw,
   };
@@ -16,11 +16,10 @@ function normalizeConversation(raw = {}, source = ACTIVE_SOURCES.SERVER) {
 
 function normalizeMessage(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   return {
-    id: String(raw.id || raw.message_id || `${source}_message_${Date.now()}`),
-    sender: raw.sender || raw.sender_id || raw.user_id || "server",
-    text: raw.text || raw.message || raw.content || "",
-    createdAt:
-      raw.createdAt || raw.created_at || raw.time || new Date().toISOString(),
+    id: raw.messageId,
+    sender: raw.sender,
+    text: raw.message,
+    createdAt: raw.created,
     source,
     raw,
   };
@@ -55,7 +54,7 @@ export async function getConversation(conversationId) {
 
   const response = await backendApi.getConversation({
     token: session.token,
-    id: conversationId,
+    conversationId: conversationId,
     index: "0",
     count: "50",
   });
@@ -68,6 +67,7 @@ export async function getConversation(conversationId) {
   const messages = extractList(response).map((item) =>
     normalizeMessage(item, ACTIVE_SOURCES.SERVER),
   );
+  console.log(JSON.stringify(messages, null, 2));
   return {
     id: conversationId,
     title: "Cuộc trò chuyện",

@@ -62,7 +62,9 @@ export default function ConversationListScreen() {
                   <Text style={demoStyles.cardTitle}>{item.title}</Text>
                   <Text style={demoStyles.cardText}>{item.lastMessage}</Text>
                 </View>
-                <Text style={demoStyles.cardText} onPress={() => remove(item)}>Xóa</Text>
+                <Text style={demoStyles.cardText} onPress={() => remove(item)}>
+                  Xóa
+                </Text>
               </View>
             </View>
           </Pressable>

@@ -1,23 +1,24 @@
 import BellIcon from "@/components/icons/BellIcon";
+import ChatTwoBubbleIcon from "@/components/icons/ChatTwoBubbleIcon";
 import CoursesIcon from "@/components/icons/CoursesIcon";
 import HomeIcon from "@/components/icons/HomeIcon";
 import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
-import { getInitials } from "@/utils/formatters";
-import { resolveAvatarUri } from "@/utils/profile";
 import {
   formatNotificationBadge,
   getNotificationBadge,
   getNotificationPage,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
+import { getInitials } from "@/utils/formatters";
+import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router, Tabs, useFocusEffect, usePathname } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function HomeTopSection() {
@@ -209,6 +210,15 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="conversations"
+          options={{
+            tabBarButton: (props) => <TabButton {...props} />,
+            tabBarIcon: ({ focused }) => (
+              <ChatTwoBubbleIcon focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="profile"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
@@ -244,7 +254,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
   },
   homeTitle: {
     color: colors.primary,
@@ -258,7 +267,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   tabBar: {
-    backgroundColor: "#fff",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#CED0D4",
     elevation: 0,
@@ -270,7 +278,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
   },
   tabButton: {
     flex: 1,
