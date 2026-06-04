@@ -1,75 +1,48 @@
 import authApi from "@/api/auth";
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
-import { DEMO_STUDENT, DEMO_TEACHER } from "@/constants/demo";
-import { MOCK_USERS } from "@/constants/mocks/users";
 import { normalizeSession } from "@/repositories/normalizers";
 import { ACTIVE_SOURCES, shouldUseServer } from "@/repositories/source";
 
-function normalizeLocalSession(user) {
-  return {
-    ...user.data,
-    token:
-      user.data.token || `${user.data.role?.toLowerCase() || "hv"}_demo_token`,
-    source: ACTIVE_SOURCES.LOCAL,
-    demoMode: true,
-  };
-}
-
-function localLogin(phonenumber, password) {
-  const user = MOCK_USERS.find((item) => item.phonenumber === phonenumber);
-
-  if (!user) {
-    return {
-      code: "9995",
-      message: "User is not validated",
-      data: null,
-      source: ACTIVE_SOURCES.LOCAL,
-    };
-  }
-
-  if (user.password !== password) {
-    return {
-      code: "1004",
-      message: "Parameter value is invalid",
-      data: null,
-      source: ACTIVE_SOURCES.LOCAL,
-    };
-  }
-
+function normalizeLoginSuccess(response, source = ACTIVE_SOURCES.SERVER) {
   return {
     code: "1000",
-    message: "OK",
-    data: normalizeLocalSession(user),
-    source: ACTIVE_SOURCES.LOCAL,
+    message: response.message || "OK",
+    data: {
+      ...normalizeSession(response),
+      source,
+      demoMode: source === ACTIVE_SOURCES.LOCAL,
+    },
+    source,
   };
 }
 
-export async function loginWithPassword(phonenumber, password) {
+export async function loginWithPassword(
+  phonenumber,
+  password,
+) {
+  const normalizedPhone = phonenumber?.trim();
+  const normalizedPassword = password?.trim();
+
   try {
     const response = await authApi.login({
-      phonenumber,
-      password,
+      phonenumber: normalizedPhone,
+      password: normalizedPassword,
       devtoken: DEFAULT_DEVICE_TOKEN,
     });
 
-    if (response.code === "1000") {
+    if (response?.code === "1000" || response?.code === 1000) {
       const session = normalizeSession(response);
       if (!session.token) {
         throw new Error("Backend login response did not include token");
       }
 
-      return {
-        code: "1000",
-        message: response.message || "OK",
-        data: session,
-        source: ACTIVE_SOURCES.SERVER,
-      };
+      return normalizeLoginSuccess(response, ACTIVE_SOURCES.SERVER);
     }
 
     return {
       code: String(response?.code || "BACKEND_LOGIN_FAILED"),
-      message: response?.message || "login failed",
+      message: response?.message || "Backend login failed",
       data: null,
       source: ACTIVE_SOURCES.SERVER,
     };
@@ -84,11 +57,43 @@ export async function loginWithPassword(phonenumber, password) {
 }
 
 export async function loginDemoStudent() {
-  return localLogin(DEMO_STUDENT.phonenumber, DEMO_STUDENT.password);
+  const response = await backendApi.loginDemoStudent();
+  if (response?.code !== "1000" && response?.code !== 1000) {
+    return {
+      code: String(response?.code || "DEMO_LOGIN_FAILED"),
+      message: response?.message || "Demo login failed",
+      data: null,
+      source:
+        response?.source === "local"
+          ? ACTIVE_SOURCES.LOCAL
+          : ACTIVE_SOURCES.SERVER,
+    };
+  }
+
+  return normalizeLoginSuccess(
+    response,
+    response?.source === "local" ? ACTIVE_SOURCES.LOCAL : ACTIVE_SOURCES.SERVER,
+  );
 }
 
 export async function loginDemoTeacher() {
-  return localLogin(DEMO_TEACHER.phonenumber, DEMO_TEACHER.password);
+  const response = await backendApi.loginDemoTeacher();
+  if (response?.code !== "1000" && response?.code !== 1000) {
+    return {
+      code: String(response?.code || "DEMO_LOGIN_FAILED"),
+      message: response?.message || "Demo login failed",
+      data: null,
+      source:
+        response?.source === "local"
+          ? ACTIVE_SOURCES.LOCAL
+          : ACTIVE_SOURCES.SERVER,
+    };
+  }
+
+  return normalizeLoginSuccess(
+    response,
+    response?.source === "local" ? ACTIVE_SOURCES.LOCAL : ACTIVE_SOURCES.SERVER,
+  );
 }
 
 export async function logoutSession(session) {

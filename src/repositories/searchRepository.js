@@ -1,11 +1,14 @@
 import { backendApi } from "@/api/client";
-import { API_TYPE, API_TYPES } from "@/config/env";
 import {
   deleteSavedSearch as deleteSavedSearchRecord,
   getSavedSearches as getSavedSearchRecords,
 } from "@/repositories/postRepository";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { getCurrentSession } from "@/repositories/source";
+import {
+  ACTIVE_SOURCES,
+  getCurrentSession,
+  sourceFromResponse,
+} from "@/repositories/source";
 import { getUserInfo } from "@/repositories/userRepository";
 import { mapPosts, mapUsersFromResponse } from "@/utils/search";
 
@@ -137,7 +140,7 @@ export async function searchScreenSearch(keyword = "", options = {}) {
   let users = mapUsersFromResponse(response, posts);
 
   if (
-    API_TYPE === API_TYPES.BACKEND &&
+    sourceFromResponse(response) === ACTIVE_SOURCES.SERVER &&
     !options.append &&
     users.length &&
     !response?.data?.users
@@ -155,7 +158,7 @@ export async function searchScreenSearch(keyword = "", options = {}) {
         return name.includes(lowered) || handle.includes(lowered);
       });
     }
-  } catch (e) {
+  } catch (_error) {
     // ignore filter errors and return users as-is
   }
 

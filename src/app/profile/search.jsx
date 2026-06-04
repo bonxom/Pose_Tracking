@@ -6,6 +6,7 @@ import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { toggleLike } from "@/repositories/postRepository";
 import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
+import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { memo, startTransition, useCallback, useState } from "react";
@@ -147,6 +148,7 @@ export default function ProfileSearchScreen() {
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
+  const avatarUri = resolveAvatarUri(profile?.avatar || "");
   const displayName =
     profile?.displayName || profile?.username || "trang cá nhân này";
 
@@ -195,8 +197,8 @@ export default function ProfileSearchScreen() {
             ) : (
               <View style={styles.emptyIntro}>
                 <View style={styles.avatar}>
-                  {profile?.avatar ? (
-                    <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
+                  {avatarUri ? (
+                    <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
                   ) : (
                     <Text style={styles.avatarText}>
                       {String(displayName).trim()[0]?.toUpperCase() || "U"}

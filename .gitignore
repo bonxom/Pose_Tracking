@@ -44,6 +44,6 @@ cam/
 package-lock.json
 package.json
 
-*firebase-adminsdk*.json
 google-services.json
 *firebase-adminsdk*.json
+/local

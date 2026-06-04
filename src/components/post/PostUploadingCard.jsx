@@ -1,15 +1,10 @@
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
+import { resolveAvatarUri } from "@/utils/profile";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 
-const DEFAULT_AVATAR_URL =
-  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5FBH-i9W2GYVsE4y3QPE9QT1JRImQD9QkPg&s";
-
 export default function PostUploadingCard({ avatarUri = "" }) {
-  const resolvedAvatar =
-    typeof avatarUri === "string" && avatarUri.trim()
-      ? avatarUri.trim()
-      : DEFAULT_AVATAR_URL;
+  const resolvedAvatar = resolveAvatarUri(avatarUri);
 
   return (
     <View style={[postStyles.card, localStyles.card]}>

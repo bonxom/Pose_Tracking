@@ -10,31 +10,23 @@ import {
   ACTIVE_SOURCES,
   getCurrentSession,
   getSourceLabel,
-  isMockMode,
-  isServerPost,
-  shouldUseServer,
+  sourceFromResponse,
 } from "@/repositories/source";
-import * as localPosts from "@/services/postStore";
 
-function serverResult(value) {
+function apiResult(value, source = ACTIVE_SOURCES.SERVER) {
   if (value == null) return value;
 
   return {
     ...value,
-    source: ACTIVE_SOURCES.SERVER,
-    sourceLabel: getSourceLabel(ACTIVE_SOURCES.SERVER),
+    source,
+    sourceLabel: getSourceLabel(source),
   };
 }
 
-function assertServerSession(session) {
-  if (!session?.token) {
-    throw new Error("Cần đăng nhập server để dùng dữ liệu backend.");
-  }
-}
-
-function normalizeServerPostList(response) {
+function normalizeApiPostList(response) {
+  const source = sourceFromResponse(response);
   return extractList(response)
-    .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
+    .map((item) => normalizePost(item, source))
     .filter((item) => item.id && item.isValidForFeed);
 }
 
@@ -55,22 +47,21 @@ function hasInvalidThumbInPost(post) {
   return thumbnails.some((thumb) => !isValidThumbnailUrl(thumb));
 }
 
-function normalizeServerFeedList(response) {
-  return normalizeServerPostList(response).filter(
+function normalizeApiFeedList(response) {
+  return normalizeApiPostList(response).filter(
     (post) => !hasInvalidThumbInPost(post),
   );
 }
 
-function normalizeServerPostObject(response) {
-  const post = normalizePost(extractObject(response), ACTIVE_SOURCES.SERVER);
+function normalizeApiPostObject(response) {
+  const post = normalizePost(extractObject(response), sourceFromResponse(response));
   return post.id ? post : null;
 }
 
 function isDemoVideo(video) {
   return (
     !video?.uri ||
-    video.uri.startsWith("demo://") ||
-    video.uri.startsWith("mock://")
+    video.uri.startsWith("demo://")
   );
 }
 
@@ -80,9 +71,27 @@ function durationMs(video = {}) {
   return value > 1000 ? value : value * 1000;
 }
 
+function normalizeApiBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes"].includes(normalized)) return true;
+    if (["0", "false", "no"].includes(normalized)) return false;
+  }
+
+  if (typeof value === "number") {
+    return value === 1;
+  }
+
+  return Boolean(value);
+}
+
 function buildAddPostFields(session, params = {}) {
   const fields = {
-    token: session.token,
+    token: session?.token || "",
     described: params.content || "",
     course_id: params.courseId || "",
     device_slave: DEFAULT_DEVICE_TOKEN,
@@ -91,6 +100,10 @@ function buildAddPostFields(session, params = {}) {
 
   if (params.exerciseId) {
     fields.exercise_id = params.exerciseId;
+  }
+
+  if (params.sourcePostId) {
+    fields.source_post_id = params.sourcePostId;
   }
 
   return fields;
@@ -158,19 +171,9 @@ function extractFeedMeta(response, params, itemCount) {
 }
 
 export async function getFeedPage(params = {}) {
-  if (isMockMode()) {
-    const localResult = await localPosts.getFeedPage(params);
-    return {
-      ...localResult,
-      source: ACTIVE_SOURCES.LOCAL,
-      sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL),
-    };
-  }
-
   const session = await getCurrentSession();
-  assertServerSession(session);
   const response = await backendApi.getListPosts({
-    token: session.token,
+    token: session?.token || "",
     index: String(params.index || 0),
     count: String(params.count || 20),
     last_id: params.lastId || params.last_id || "",
@@ -182,32 +185,21 @@ export async function getFeedPage(params = {}) {
     message: "Backend feed failed",
   });
 
-  const items = normalizeServerFeedList(response);
+  const items = normalizeApiFeedList(response);
   const meta = extractFeedMeta(response, params, items.length);
-  return serverResult({
+  return apiResult({
     items,
     total: meta.total,
     hasMore: meta.hasMore,
     lastId: meta.lastId,
     newItems: meta.newItems,
-  });
+  }, sourceFromResponse(response));
 }
 
 export async function getPostById(postId) {
-  if (isMockMode()) {
-    const post = await localPosts.getPostById(postId);
-    if (!post) return null;
-    return {
-      ...post,
-      source: ACTIVE_SOURCES.LOCAL,
-      sourceLabel: getSourceLabel(ACTIVE_SOURCES.LOCAL),
-    };
-  }
-
   const session = await getCurrentSession();
-  assertServerSession(session);
   const response = await backendApi.getPost({
-    token: session.token,
+    token: session?.token || "",
     id: postId,
   });
 
@@ -215,33 +207,28 @@ export async function getPostById(postId) {
     message: "Backend post detail failed",
   });
 
-  return serverResult(normalizeServerPostObject(response));
+  return apiResult(normalizeApiPostObject(response), sourceFromResponse(response));
 }
 
 export async function toggleLike(post) {
-  if (isMockMode()) {
-    const postId = typeof post === "string" ? post : post?.id;
-    return localPosts.toggleLike(postId);
-  }
-
   const targetPost = typeof post === "string" ? await getPostById(post) : post;
-  if (!targetPost?.id || !isServerPost(targetPost)) {
-    throw new Error("Backend mode chỉ hỗ trợ thao tác với bài viết từ server.");
+  if (!targetPost?.id) {
+    throw new Error("Thiếu bài viết để thích/bỏ thích.");
   }
 
   const session = await getCurrentSession();
-  assertServerSession(session);
 
   const response = await backendApi.like({
-    token: session.token,
+    token: session?.token || "",
     id: targetPost.id,
   });
 
   await assertBackendOk(response, { message: "Backend like failed" });
 
+  const normalized = normalizeApiPostObject(response);
+  if (normalized) return normalized;
+
   const isLiked = !targetPost.isLiked;
-  // console.log("like count: ", targetPost.likeCount);
-  // console.log("comment count: ", targetPost.commentCount);
   return {
     ...targetPost,
     isLiked,
@@ -254,9 +241,8 @@ export async function searchPosts(query = "", options = {}) {
   const userId = options.userId || options.user_id || "";
 
   try {
-    assertServerSession(session);
     const response = await backendApi.search({
-      token: session.token,
+      token: session?.token || "",
       keyword: query,
       index: "0",
       count: "20",
@@ -265,9 +251,9 @@ export async function searchPosts(query = "", options = {}) {
 
     await assertBackendOk(response, { message: "Backend search failed" });
 
-    return normalizeServerPostList(response);
+    return normalizeApiPostList(response);
   } catch (error) {
-    console.info("[DATA] Server search fallback", error.message);
+    console.info("[DATA] Search unavailable", error.message);
     throw error;
   }
 }
@@ -276,9 +262,8 @@ export async function getSavedSearches() {
   const session = await getCurrentSession();
 
   try {
-    assertServerSession(session);
     const response = await backendApi.getSavedSearch({
-      token: session.token,
+      token: session?.token || "",
       index: "0",
       count: "20",
     });
@@ -302,10 +287,8 @@ export async function getSavedSearches() {
 export async function deleteSavedSearch(searchId) {
   const session = await getCurrentSession();
 
-  assertServerSession(session);
-
   const response = await backendApi.delSavedSearch({
-    token: session.token,
+    token: session?.token || "",
     search_id: searchId,
     all: "0",
   });
@@ -318,18 +301,9 @@ export async function deleteSavedSearch(searchId) {
 }
 
 export async function editPost(post, params = {}) {
-  if (!isServerPost(post)) {
-    return localPosts.updatePost(post.id, params);
-  }
-
   const session = await getCurrentSession();
-  assertServerSession(session);
-  if (params.videos?.length) {
-    validateTwoVideos(params.videos);
-  }
-
   const fields = {
-    token: session.token,
+    token: session?.token || "",
     id: post.id,
     described:
       params.content ||
@@ -348,7 +322,7 @@ export async function editPost(post, params = {}) {
   await assertBackendOk(response, { message: "Backend edit_post failed" });
 
   return (
-    normalizeServerPostObject(response) || {
+    normalizeApiPostObject(response) || {
       ...post,
       content: params.content || post.content,
       described: params.described || params.content || post.described,
@@ -357,58 +331,57 @@ export async function editPost(post, params = {}) {
 }
 
 export async function deletePost(post) {
-  if (!isServerPost(post)) {
-    await localPosts.deletePost(post.id);
-    return { deleted: true, source: ACTIVE_SOURCES.LOCAL };
-  }
-
   const session = await getCurrentSession();
-  assertServerSession(session);
   const response = await backendApi.deletePost({
-    token: session.token,
+    token: session?.token || "",
     id: post.id,
   });
 
   await assertBackendOk(response, { message: "Backend delete_post failed" });
 
-  return { deleted: true, source: ACTIVE_SOURCES.SERVER };
+  return { deleted: true, source: sourceFromResponse(response) };
 }
 
-export async function reportPost(post, reason = "") {
-  if (!isServerPost(post)) {
-    await localPosts.reportPost(post.id, reason);
-    return { reported: true, source: ACTIVE_SOURCES.LOCAL };
-  }
-
+export async function reportPost(post, report = "") {
   const session = await getCurrentSession();
-  assertServerSession(session);
+  const payload =
+    report && typeof report === "object"
+      ? report
+      : {
+          subject: report || "Báo cáo bài viết",
+          details: report || "Nội dung không phù hợp",
+        };
+
   const response = await backendApi.reportPost({
-    token: session.token,
+    token: session?.token || "",
     id: post.id,
-    subject: reason || "Báo cáo bài viết",
-    details: reason || "Nội dung không phù hợp",
+    subject: payload.subject || "Báo cáo bài viết",
+    details: payload.details || payload.subject || "Nội dung không phù hợp",
   });
 
-  await assertBackendOk(response, { message: "Backend report_post failed" });
-
-  return { reported: true, source: ACTIVE_SOURCES.SERVER };
-}
-
-export async function checkNewItems(lastId = "") {
-  if (isMockMode()) {
+  const code = String(response?.code || "");
+  if (code === "1010") {
     return {
-      hasNew: false,
-      count: 0,
-      source: ACTIVE_SOURCES.LOCAL,
-      raw: null,
+      reported: true,
+      unavailable: true,
+      source: sourceFromResponse(response),
     };
   }
 
+  if (code === "1000") {
+    return { reported: true, source: ACTIVE_SOURCES.SERVER };
+  }
+
+  await assertBackendOk(response, { message: "Backend report_post failed" });
+
+  return { reported: true, source: sourceFromResponse(response) };
+}
+
+export async function checkNewItems(lastId = "") {
   const session = await getCurrentSession();
 
-  assertServerSession(session);
   let response = await backendApi.checkNewItem({
-    token: session.token,
+    token: session?.token || "",
     last_id: lastId,
     category_id: "",
   });
@@ -427,14 +400,19 @@ export async function checkNewItems(lastId = "") {
 
   await assertBackendOk(response, { message: "Backend check_new_item failed" });
 
+  const count = Number(
+    response.data?.new_items ?? response.data?.count ?? response.count ?? 0,
+  );
+  const hasNewValue =
+    response.data?.has_new ??
+    response.data?.new_items ??
+    response.has_new ??
+    count;
+
   return {
-    hasNew: Boolean(
-      response.data?.new_items || response.data?.has_new || response.has_new,
-    ),
-    count: Number(
-      response.data?.new_items || response.data?.count || response.count || 0,
-    ),
-    source: ACTIVE_SOURCES.SERVER,
+    hasNew: normalizeApiBoolean(hasNewValue, count > 0),
+    count: Number.isFinite(count) ? count : 0,
+    source: sourceFromResponse(response),
     raw: response,
   };
 }
@@ -449,21 +427,8 @@ export async function getExercisePosts() {
 export async function createPost(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
-  const allowServer = shouldUseServer(session);
-
-  if (!allowServer) {
-    return localPosts.createPost({
-      content: params.content || "",
-      videos,
-      courseId: params.courseId || "",
-      exerciseId: params.exerciseId || "",
-      sourcePostId: params.sourcePostId || "",
-    });
-  }
 
   try {
-    assertServerSession(session);
-    validateTwoVideos(videos);
     const response = await backendApi.addPost(
       buildAddPostFields(session, params),
       videos.map((video, index) => ({
@@ -474,16 +439,16 @@ export async function createPost(params) {
 
     await assertBackendOk(response, { message: "Backend add_post failed" });
     return (
-      normalizeServerPostObject(response) || {
+      normalizeApiPostObject(response) || {
         id: String(response?.data?.id || response?.data?.post_id || Date.now()),
-        source: ACTIVE_SOURCES.SERVER,
+        source: sourceFromResponse(response),
         content: params.content || "",
         described: params.content || "",
         videos,
         author: {
-          id: session.id,
-          name: session.displayName || session.username,
-          role: session.role || "HV",
+          id: session?.id || "",
+          name: session?.displayName || session?.username || "Người dùng",
+          role: session?.role || "HV",
         },
         createdAt: new Date().toISOString(),
         likeCount: 0,
@@ -500,27 +465,14 @@ export async function createPost(params) {
 }
 
 export async function createLocalPost(params) {
-  return localPosts.createPost(params);
+  return createPost(params);
 }
 
 export async function createExerciseSubmission(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
-  const allowServer = shouldUseServer(session);
-
-  if (!allowServer) {
-    return localPosts.createExerciseSubmission({
-      content: params.content || "",
-      videos,
-      courseId: params.courseId || "",
-      exerciseId: params.exerciseId || "",
-      sourcePostId: params.sourcePostId || "",
-    });
-  }
 
   try {
-    assertServerSession(session);
-    validateTwoVideos(videos);
     const response = await backendApi.addPost(
       buildAddPostFields(session, params),
       videos.map((video, index) => ({
@@ -532,16 +484,16 @@ export async function createExerciseSubmission(params) {
     await assertBackendOk(response, { message: "Backend add_post failed" });
 
     return (
-      normalizeServerPostObject(response) || {
+      normalizeApiPostObject(response) || {
         id: String(response?.data?.id || response?.data?.post_id || Date.now()),
-        source: ACTIVE_SOURCES.SERVER,
+        source: sourceFromResponse(response),
         content: params.content || "",
         described: params.content || "",
         videos,
         author: {
-          id: session.id,
-          name: session.displayName || session.username,
-          role: session.role || "HV",
+          id: session?.id || "",
+          name: session?.displayName || session?.username || "Người dùng",
+          role: session?.role || "HV",
         },
         createdAt: new Date().toISOString(),
         likeCount: 0,
@@ -553,7 +505,7 @@ export async function createExerciseSubmission(params) {
       }
     );
   } catch (error) {
-    console.info("[DATA] Server add_post failed", error.message);
+    console.info("[DATA] add_post failed", error.message);
     throw error;
   }
 }

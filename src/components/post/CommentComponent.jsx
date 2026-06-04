@@ -2,18 +2,17 @@ import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, getInitials } from "@/utils/formatters";
+import { resolveAvatarUri } from "@/utils/profile";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 export default function CommentComponent({ comment }) {
+  const avatarUri = resolveAvatarUri(comment?.author?.avatar || "");
+
   return (
     <View style={styles.commentRow}>
       <View style={styles.avatar}>
-        {typeof comment?.author?.avatar === "string" &&
-        comment.author.avatar.trim() ? (
-          <Image
-            source={{ uri: comment.author.avatar.trim() }}
-            style={styles.avatarImage}
-          />
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
         ) : (
           <Text style={styles.avatarText}>
             {getInitials(comment.authorName || "U")}

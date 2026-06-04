@@ -25,6 +25,8 @@ const UPLOAD_FILE_FIELD_SETS = [
   ["file", "file"],
 ];
 const PASSWORD = process.env.E2E_PASSWORD || "123456";
+const HV_PASSWORD = process.env.E2E_HV_PASSWORD || PASSWORD;
+const GV_PASSWORD = process.env.E2E_GV_PASSWORD || PASSWORD;
 const DEVICE_TOKEN = process.env.E2E_DEVICE_TOKEN || "expo-web-e2e";
 const VERIFY_FIELDS = ["code", "verify_code", "code_verify", "otp"];
 
@@ -421,9 +423,13 @@ async function signupRole(role, phone, verifyCode) {
 async function loginRole(role, phone) {
   if (!phone) return null;
 
+  const password = role.toLowerCase().includes("gv")
+    ? GV_PASSWORD
+    : HV_PASSWORD;
+
   const result = await request("/login", {
     phonenumber: phone,
-    password: PASSWORD,
+    password,
     devtoken: DEVICE_TOKEN,
   });
   const token = tokenFrom(result);
@@ -605,7 +611,7 @@ async function verifyOptionalMutations(hv, gv, hvContext = {}, gvContext = {}) {
   }
 
   if (hv?.token && hvContext.postId) {
-    const like = await request("/like", {
+    const like = await request("/like_post", {
       token: hv.token,
       id: hvContext.postId,
     });

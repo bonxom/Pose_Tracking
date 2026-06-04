@@ -1,11 +1,5 @@
 import { backendApi } from "@/api/client";
 import { API_BASE_URL } from "@/config/env";
-import { DEMO_STUDENT } from "@/constants/demo";
-import {
-  getMockProfileById,
-  resolveMockProfile,
-  saveMockProfile,
-} from "@/constants/mocks/profiles";
 import {
   extractList,
   extractObject,
@@ -22,26 +16,15 @@ import {
 import {
   ACTIVE_SOURCES,
   getCurrentSession,
-  shouldUseServer,
+  sourceFromResponse,
 } from "@/repositories/source";
-import * as localPosts from "@/services/postStore";
 import { saveAuthSession } from "@/utils/session";
 
-export function normalizeUser(
-  raw = {},
-  source = ACTIVE_SOURCES.SERVER,
-  options = {},
-) {
+export function normalizeUser(raw = {}, source = ACTIVE_SOURCES.SERVER, options = {}) {
   const sessionLike = normalizeSession({ data: raw });
   const session = options.session || {};
   const isOwnProfile = Boolean(options.isOwnProfile);
-  const id = firstValue(
-    raw.id,
-    raw.user_id,
-    raw._id,
-    raw.uuid,
-    isOwnProfile && session.id,
-  );
+  const id = firstValue(raw.id, raw.user_id, raw._id, raw.uuid, isOwnProfile && session.id);
   const username = firstValue(
     raw.user_name,
     raw.username,
@@ -65,17 +48,15 @@ export function normalizeUser(
 
   const isBlocked = Boolean(
     raw.blocked ||
-    raw.is_blocked ||
-    raw.isBlocked ||
-    raw.banned ||
-    raw.is_banned ||
-    raw.locked ||
-    raw.is_locked,
+      raw.is_blocked ||
+      raw.isBlocked ||
+      raw.banned ||
+      raw.is_banned ||
+      raw.locked ||
+      raw.is_locked,
   );
 
-  const normalizedOnline = String(
-    firstValue(raw.online, raw.is_online, "0"),
-  ).toLowerCase();
+  const normalizedOnline = String(firstValue(raw.online, raw.is_online, "0")).toLowerCase();
 
   return {
     ...sessionLike,
@@ -83,25 +64,9 @@ export function normalizeUser(
     token: sessionLike.token || session.token || "",
     source,
     username,
-    displayName: firstValue(
-      raw.displayName,
-      raw.fullname,
-      raw.fullName,
-      raw.name,
-      username,
-    ),
-    avatar: normalizeMediaUrl(
-      firstValue(raw.avatar, raw.avatar_url, raw.image, raw.picture, ""),
-    ),
-    coverImage: normalizeMediaUrl(
-      firstValue(
-        raw.cover_image,
-        raw.coverImage,
-        raw.cover_url,
-        raw.background,
-        "",
-      ),
-    ),
+    displayName: firstValue(raw.displayName, raw.fullname, raw.fullName, raw.name, username),
+    avatar: normalizeMediaUrl(firstValue(raw.avatar, raw.avatar_url, raw.image, raw.picture, "")),
+    coverImage: normalizeMediaUrl(firstValue(raw.cover_image, raw.coverImage, raw.cover_url, raw.background, "")),
     description: normalizeOptionalText(
       firstValue(raw.description, raw.described, raw.bio, raw.about, ""),
       150,
@@ -109,44 +74,106 @@ export function normalizeUser(
     address: firstValue(raw.address, raw.location, raw.province, raw.city, ""),
     city: firstValue(raw.city, raw.province, ""),
     country: firstValue(raw.country, ""),
-    profileLink: firstValue(
-      raw.link,
-      raw.profile_link,
-      raw.website,
-      raw.url,
-      "",
-    ),
-    postCount: toNumber(
-      firstValue(raw.post_count, raw.posts_count, raw.total_posts),
-      0,
-    ),
+    profileLink: firstValue(raw.link, raw.profile_link, raw.website, raw.url, ""),
+    postCount: toNumber(firstValue(raw.post_count, raw.posts_count, raw.total_posts), 0),
     online: ["1", "true", "online", "yes"].includes(normalizedOnline),
     listing: firstValue(raw.listing, raw.is_listing, true),
-    createdAt: firstValue(
-      raw.createdAt,
-      raw.created_at,
-      raw.created,
-      raw.create_time,
-      "",
-    ),
+    createdAt: firstValue(raw.createdAt, raw.created_at, raw.created, raw.create_time, ""),
     isOwnProfile,
     unavailable: isBlocked,
-    unavailableReason: isBlocked
-      ? "Tài khoản không tồn tại hoặc bạn không thể xem hồ sơ này."
-      : "",
+    unavailableReason: isBlocked ? "Tài khoản không tồn tại hoặc bạn không thể xem hồ sơ này." : "",
     height: firstValue(raw.height, session.height, ""),
     raw,
   };
 }
 
-function localUser(session) {
-  const mockProfile = resolveMockProfile(session);
-  const localProfile = buildLocalProfileShape(session, mockProfile);
+export function mergeOwnProfileWithSession(profile = {}, session = {}) {
+  const syncState = String(session?.profileSyncStatus || "").trim();
+  const shouldPreferSession =
+    syncState === "pending" || syncState === "error" || !profile?.id;
 
-  return normalizeUser(localProfile || DEMO_STUDENT, ACTIVE_SOURCES.LOCAL, {
-    session,
-    isOwnProfile: true,
-  });
+  return {
+    ...profile,
+    token: firstValue(session?.token, profile?.token, ""),
+    id: firstValue(profile?.id, session?.id, session?.user_id, session?.identifier, ""),
+    username: shouldPreferSession
+      ? firstValue(session?.username, session?.displayName, profile?.username, profile?.displayName, "")
+      : firstValue(profile?.username, profile?.displayName, session?.username, session?.displayName, ""),
+    displayName: shouldPreferSession
+      ? firstValue(session?.displayName, session?.username, profile?.displayName, profile?.username, "")
+      : firstValue(profile?.displayName, profile?.username, session?.displayName, session?.username, ""),
+    avatar: shouldPreferSession
+      ? firstValue(session?.avatar, profile?.avatar, "")
+      : firstValue(profile?.avatar, session?.avatar, ""),
+    coverImage: shouldPreferSession
+      ? firstValue(session?.coverImage, profile?.coverImage, "")
+      : firstValue(profile?.coverImage, session?.coverImage, ""),
+    description: normalizeOptionalText(
+      shouldPreferSession
+        ? firstValue(session?.description, profile?.description, "")
+        : firstValue(profile?.description, session?.description, ""),
+      150,
+    ),
+    address: shouldPreferSession
+      ? firstValue(session?.address, profile?.address, "")
+      : firstValue(profile?.address, session?.address, ""),
+    city: shouldPreferSession
+      ? firstValue(session?.city, profile?.city, "")
+      : firstValue(profile?.city, session?.city, ""),
+    country: shouldPreferSession
+      ? firstValue(session?.country, profile?.country, "")
+      : firstValue(profile?.country, session?.country, ""),
+    profileLink: shouldPreferSession
+      ? firstValue(session?.profileLink, profile?.profileLink, "")
+      : firstValue(profile?.profileLink, session?.profileLink, ""),
+    height: shouldPreferSession
+      ? firstValue(session?.height, profile?.height, "")
+      : firstValue(profile?.height, session?.height, ""),
+    role: shouldPreferSession
+      ? firstValue(session?.role, profile?.role, "HV")
+      : firstValue(profile?.role, session?.role, "HV"),
+    avatarVersion: firstValue(
+      session?.avatarVersion,
+      profile?.avatarVersion,
+      session?.profileSyncRequestedAt,
+      session?.loggedInAt,
+      "",
+    ),
+    source: profile?.source || session?.source || ACTIVE_SOURCES.SERVER,
+    profileSyncStatus: syncState || "done",
+    profileSyncErrorMessage: session?.profileSyncErrorMessage || "",
+    isProfileSyncPending: syncState === "pending",
+  };
+}
+
+export function createOptimisticUserInfo(session = {}, params = {}) {
+  const userName = params.userName || params.user_name || params.username || "";
+  const avatarChanged =
+    firstParamValue(params, ["avatar"], session?.avatar || "") !==
+    (session?.avatar || "");
+
+  return {
+    ...session,
+    ...params,
+    username: userName || session?.username || session?.displayName || "",
+    displayName: userName || session?.displayName || session?.username || "",
+    avatar: firstParamValue(params, ["avatar"], session?.avatar || ""),
+    coverImage: firstParamValue(
+      params,
+      ["coverImage", "cover_image"],
+      session?.coverImage || "",
+    ),
+    description: normalizeOptionalText(
+      firstParamValue(params, ["description"], session?.description || ""),
+      150,
+    ),
+    avatarVersion: avatarChanged
+      ? new Date().toISOString()
+      : session?.avatarVersion || session?.loggedInAt || "",
+    profileSyncStatus: "pending",
+    profileSyncErrorMessage: "",
+    profileSyncRequestedAt: new Date().toISOString(),
+  };
 }
 
 export function validateProfileUserName(value = "") {
@@ -183,13 +210,6 @@ function mapForbiddenNameError(error) {
   }
 
   return error;
-}
-
-function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  const mockProfile = getMockProfileById(userId);
-  return normalizeUser(mockProfile || { id: userId }, source, {
-    isOwnProfile: false,
-  });
 }
 
 function isSameUser(left, right) {
@@ -246,9 +266,7 @@ function getBackendErrorData(error) {
 
 function getBackendErrorMessage(error) {
   const data = getBackendErrorData(error);
-  return String(
-    data?.message || data?.msg || data?.error || error?.message || "",
-  );
+  return String(data?.message || data?.msg || data?.error || error?.message || "");
 }
 
 function rejectsField(error, fieldName) {
@@ -258,11 +276,7 @@ function rejectsField(error, fieldName) {
 }
 
 function hasOwnValue(object = {}, key) {
-  return (
-    Object.prototype.hasOwnProperty.call(object, key) &&
-    object[key] !== undefined &&
-    object[key] !== null
-  );
+  return Object.prototype.hasOwnProperty.call(object, key) && object[key] !== undefined && object[key] !== null;
 }
 
 function shouldRetryGetUserInfoWithoutUserId(error) {
@@ -281,83 +295,11 @@ function firstParamValue(params = {}, keys = [], fallback = "") {
   return key ? params[key] : fallback;
 }
 
-function buildLocalProfileShape(session = {}, mockProfile = {}) {
-  return {
-    ...(mockProfile || {}),
-    ...(session || {}),
-    id: firstValue(
-      session?.id,
-      session?.user_id,
-      session?.identifier,
-      mockProfile?.id,
-      mockProfile?.identifier,
-      DEMO_STUDENT.id,
-    ),
-    username: firstValue(
-      session?.username,
-      session?.displayName,
-      mockProfile?.username,
-      mockProfile?.displayName,
-      DEMO_STUDENT.username,
-    ),
-    displayName: firstValue(
-      session?.displayName,
-      session?.username,
-      mockProfile?.displayName,
-      mockProfile?.username,
-      DEMO_STUDENT.displayName,
-    ),
-    avatar: firstValue(session?.avatar, mockProfile?.avatar, ""),
-    coverImage: firstValue(session?.coverImage, mockProfile?.coverImage, ""),
-    description: firstValue(session?.description, mockProfile?.description, ""),
-    address: firstValue(session?.address, mockProfile?.address, ""),
-    city: firstValue(session?.city, mockProfile?.city, ""),
-    country: firstValue(session?.country, mockProfile?.country, ""),
-    profileLink: firstValue(session?.profileLink, mockProfile?.profileLink, ""),
-    postCount: firstValue(session?.postCount, mockProfile?.postCount, 0),
-    online: firstValue(session?.online, mockProfile?.online, false),
-    listing: firstValue(session?.listing, mockProfile?.listing, true),
-    role: firstValue(session?.role, mockProfile?.role, "HV"),
-    phonenumber: firstValue(session?.phonenumber, mockProfile?.phonenumber, ""),
-    identifier: firstValue(
-      session?.identifier,
-      mockProfile?.identifier,
-      session?.phonenumber,
-      "",
-    ),
-    handle: firstValue(session?.handle, mockProfile?.handle, ""),
-    height: firstValue(session?.height, mockProfile?.height, ""),
-    demoMode: true,
-  };
-}
-
 function throwIfExpiredFromApiError(error) {
   const data = getBackendErrorData(error);
   if (isInvalidSessionResponse(data || error)) {
     throw new SessionExpiredError(data?.message || error?.message);
   }
-}
-
-async function getLocalUserPosts(
-  targetUserId,
-  includeLocked,
-  source = ACTIVE_SOURCES.LOCAL_FALLBACK,
-) {
-  const posts = await localPosts.getPosts();
-  const filtered = posts.filter((post) => {
-    const matchesUser =
-      !targetUserId || isSameUser(post.author?.id, targetUserId);
-    const canSeeLocked = includeLocked || post.canComment !== false;
-    return matchesUser && canSeeLocked;
-  });
-
-  return {
-    items: filtered,
-    total: filtered.length,
-    hasMore: false,
-    lastId: filtered[0]?.id || "",
-    source,
-  };
 }
 
 function isLocalAssetUri(value = "") {
@@ -385,11 +327,7 @@ function normalizeMediaUrl(value = "") {
 
 function buildSetUserInfoPayload(session, params, userName, options = {}) {
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
-  const coverImage = firstParamValue(
-    params,
-    ["coverImage", "cover_image"],
-    session?.coverImage || "",
-  );
+  const coverImage = firstParamValue(params, ["coverImage", "cover_image"], session?.coverImage || "");
   const usernameKey = options.usernameKey || "username";
   const coverImageKey = options.coverImageKey || "coverImage";
   const payload = {
@@ -398,9 +336,7 @@ function buildSetUserInfoPayload(session, params, userName, options = {}) {
   };
 
   payload[usernameKey] = userName;
-  payload[coverImageKey] = isLocalAssetUri(coverImage)
-    ? session?.coverImage || ""
-    : coverImage;
+  payload[coverImageKey] = isLocalAssetUri(coverImage) ? session?.coverImage || "" : coverImage;
 
   if (!options.minimal) {
     const descriptionKey = options.descriptionKey || "description";
@@ -416,26 +352,10 @@ function buildSetUserInfoPayload(session, params, userName, options = {}) {
 async function setUserInfoWithCompatibility(session, params, userName) {
   const hasDescription = hasOwnValue(params, "description");
   const attempts = [
-    {
-      usernameKey: "username",
-      coverImageKey: "coverImage",
-      descriptionKey: "description",
-    },
-    {
-      usernameKey: "username",
-      coverImageKey: "coverImage",
-      descriptionKey: "described",
-    },
-    {
-      usernameKey: "user_name",
-      coverImageKey: "cover_image",
-      descriptionKey: "description",
-    },
-    {
-      usernameKey: "user_name",
-      coverImageKey: "cover_image",
-      descriptionKey: "described",
-    },
+    { usernameKey: "username", coverImageKey: "coverImage", descriptionKey: "description" },
+    { usernameKey: "username", coverImageKey: "coverImage", descriptionKey: "described" },
+    { usernameKey: "user_name", coverImageKey: "cover_image", descriptionKey: "description" },
+    { usernameKey: "user_name", coverImageKey: "cover_image", descriptionKey: "described" },
   ];
 
   if (!hasDescription) {
@@ -452,9 +372,7 @@ async function setUserInfoWithCompatibility(session, params, userName) {
       const response = await backendApi.setUserInfo(
         buildSetUserInfoPayload(session, params, userName, options),
       );
-      await assertBackendOk(response, {
-        message: "Backend set_user_info failed",
-      });
+      await assertBackendOk(response, { message: "Backend set_user_info failed" });
       return response;
     } catch (error) {
       throwIfExpiredFromApiError(error);
@@ -479,83 +397,13 @@ async function setUserInfoWithCompatibility(session, params, userName) {
   throw lastError || new Error("Backend set_user_info failed");
 }
 
-function buildLocalProfileUpdate(
-  session,
-  params,
-  userName,
-  source = ACTIVE_SOURCES.LOCAL,
-) {
-  const currentProfile = buildLocalProfileShape(
-    session,
-    resolveMockProfile(session),
-  );
-  const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
-  const coverImage = firstParamValue(
-    params,
-    ["coverImage", "cover_image"],
-    session?.coverImage || "",
-  );
-  const description = normalizeOptionalText(
-    firstParamValue(params, ["description"], session?.description || ""),
-    150,
-  );
-  const address = firstParamValue(params, ["address"], session?.address || "");
-  const profileLink = firstParamValue(
-    params,
-    ["profileLink", "link"],
-    session?.profileLink || "",
-  );
-
-  return {
-    ...currentProfile,
-    ...session,
-    ...params,
-    id: firstValue(
-      session?.id,
-      currentProfile?.id,
-      session?.identifier,
-      session?.phonenumber,
-      "",
-    ),
-    username: userName || session?.username || currentProfile?.username || "",
-    displayName:
-      userName ||
-      session?.displayName ||
-      session?.username ||
-      currentProfile?.displayName ||
-      "",
-    avatar,
-    coverImage,
-    description,
-    address,
-    profileLink,
-    phonenumber: firstValue(
-      session?.phonenumber,
-      currentProfile?.phonenumber,
-      "",
-    ),
-    identifier: firstValue(
-      session?.identifier,
-      currentProfile?.identifier,
-      session?.phonenumber,
-      "",
-    ),
-    role: firstValue(session?.role, currentProfile?.role, "HV"),
-    handle: firstValue(session?.handle, currentProfile?.handle, ""),
-    height: firstValue(session?.height, currentProfile?.height, ""),
-    source,
-    demoMode: true,
-    profileSavedLocally: source !== ACTIVE_SOURCES.SERVER,
-  };
-}
-
 async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
   const attempts = isOwnProfile
-    ? [{ token: session.token }]
+    ? [{ token: session?.token || "" }]
     : [
-        { token: session.token, userId: targetUserId },
-        { token: session.token, user_id: targetUserId },
-        { token: session.token },
+        { token: session?.token || "", userId: targetUserId },
+        { token: session?.token || "", user_id: targetUserId },
+        { token: session?.token || "" },
       ];
 
   let lastError = null;
@@ -563,16 +411,13 @@ async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
   for (let index = 0; index < attempts.length; index += 1) {
     try {
       const response = await backendApi.getUserInfo(attempts[index]);
-      await assertBackendOk(response, {
-        message: "Backend get_user_info failed",
-      });
+      await assertBackendOk(response, { message: "Backend get_user_info failed" });
       return response;
     } catch (error) {
       throwIfExpiredFromApiError(error);
       lastError = error;
 
-      const canRetry =
-        !isOwnProfile && shouldRetryGetUserInfoWithoutUserId(error);
+      const canRetry = !isOwnProfile && shouldRetryGetUserInfoWithoutUserId(error);
 
       if (!canRetry) {
         throw error;
@@ -585,38 +430,17 @@ async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
 
 export async function getUserInfo(userId = "") {
   const session = await getCurrentSession();
-  console.log(JSON.stringify(session, null, 2));
   const targetUserId = String(userId || "");
-  const isOwnProfile =
-    !targetUserId ||
-    isSameUser(
-      targetUserId,
-      session?.id || session?.user_id || session?.identifier,
-    );
-
-  if (!shouldUseServer(session)) {
-    if (isOwnProfile) {
-      return localUser(session);
-    }
-
-    return fallbackUserById(targetUserId, ACTIVE_SOURCES.LOCAL);
-  }
+  const isOwnProfile = !targetUserId || isSameUser(targetUserId, session?.id || session?.user_id || session?.identifier);
 
   try {
-    const response = await getUserInfoFromBackend(
-      session,
-      targetUserId,
-      isOwnProfile,
-    );
+    const response = await getUserInfoFromBackend(session, targetUserId, isOwnProfile);
 
-    const normalized = normalizeUser(
-      extractObject(response),
-      ACTIVE_SOURCES.SERVER,
-      {
-        session,
-        isOwnProfile,
-      },
-    );
+    const responseSource = sourceFromResponse(response);
+    const normalized = normalizeUser(extractObject(response), responseSource, {
+      session,
+      isOwnProfile,
+    });
 
     if (!isOwnProfile && !matchesUserIdentity(targetUserId, normalized)) {
       throw new Error("Backend trả về hồ sơ không khớp người dùng yêu cầu.");
@@ -630,10 +454,7 @@ export async function getUserInfo(userId = "") {
     throwIfExpiredFromApiError(error);
 
     if (!isOwnProfile) {
-      const fallbackProfile = await resolveBackendProfileFromPosts(
-        session,
-        targetUserId,
-      );
+      const fallbackProfile = await resolveBackendProfileFromPosts(session, targetUserId);
       if (fallbackProfile) {
         return fallbackProfile;
       }
@@ -645,7 +466,7 @@ export async function getUserInfo(userId = "") {
 
 async function getBackendCompatibilityPosts(session, params = {}) {
   const response = await backendApi.getListPosts({
-    token: session.token,
+    token: session?.token || "",
     index: String(params.index || 0),
     count: String(params.count || 100),
     last_id: params.lastId || params.last_id || "",
@@ -658,8 +479,9 @@ async function getBackendCompatibilityPosts(session, params = {}) {
     message: "Backend get_list_posts failed",
   });
 
+  const responseSource = sourceFromResponse(response);
   const items = extractList(response)
-    .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
+    .map((item) => normalizePost(item, responseSource))
     .filter((post) => post.id);
 
   return {
@@ -667,7 +489,7 @@ async function getBackendCompatibilityPosts(session, params = {}) {
     total: toNumber(response?.data?.total || response?.total, items.length),
     hasMore: Boolean(response?.data?.has_more || response?.has_more),
     lastId: String(response?.data?.last_id || response?.last_id || ""),
-    source: ACTIVE_SOURCES.SERVER,
+    source: responseSource,
   };
 }
 
@@ -695,7 +517,7 @@ async function resolveBackendProfileFromPosts(session, targetUserId) {
         avatar: firstPost.author?.avatar,
         role: firstPost.author?.role,
       },
-      ACTIVE_SOURCES.SERVER,
+      page.source || ACTIVE_SOURCES.SERVER,
       { session, isOwnProfile: false },
     ),
     postCount: matchedPosts.length,
@@ -711,59 +533,26 @@ export async function updateUserInfo(params = {}) {
     throw new Error(validationError);
   }
 
-  if (!shouldUseServer(session)) {
-    const updated = buildLocalProfileUpdate(
-      session,
-      params,
-      userName,
-      ACTIVE_SOURCES.LOCAL,
-    );
-    saveMockProfile(updated);
-    await saveAuthSession(updated);
-    return updated;
-  }
-
   try {
-    const response = await setUserInfoWithCompatibility(
-      session,
-      params,
-      userName,
-    );
+    const response = await setUserInfoWithCompatibility(session, params, userName);
 
-    const normalized = normalizeUser(
-      extractObject(response),
-      ACTIVE_SOURCES.SERVER,
-      {
-        session,
-        isOwnProfile: true,
-      },
-    );
+    const responseSource = sourceFromResponse(response);
+    const normalized = normalizeUser(extractObject(response), responseSource, {
+      session,
+      isOwnProfile: true,
+    });
     const updated = {
       ...session,
       ...normalized,
       token: session.token || normalized.token || "",
       phonenumber: session.phonenumber || normalized.phonenumber || "",
-      identifier:
-        session.identifier ||
-        normalized.identifier ||
-        session.id ||
-        normalized.id ||
-        "",
+      identifier: session.identifier || normalized.identifier || session.id || normalized.id || "",
       role: session.role || normalized.role || "HV",
       demoMode: session.demoMode || false,
-      source: ACTIVE_SOURCES.SERVER,
+      source: responseSource,
       username: userName || normalized.username || session?.username || "",
-      displayName:
-        userName ||
-        normalized.displayName ||
-        session?.displayName ||
-        session?.username ||
-        "",
-      avatar:
-        normalized.avatar ||
-        (isLocalAssetUri(params.avatar) ? session?.avatar : params.avatar) ||
-        session?.avatar ||
-        "",
+      displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
+      avatar: normalized.avatar || (isLocalAssetUri(params.avatar) ? session?.avatar : params.avatar) || session?.avatar || "",
       coverImage:
         normalized.coverImage ||
         (isLocalAssetUri(params.coverImage || params.cover_image)
@@ -777,16 +566,8 @@ export async function updateUserInfo(params = {}) {
           firstParamValue(params, ["description"], session?.description || ""),
           150,
         ),
-      address:
-        normalized.address ||
-        firstParamValue(params, ["address"], session?.address || ""),
-      profileLink:
-        normalized.profileLink ||
-        firstParamValue(
-          params,
-          ["profileLink", "link"],
-          session?.profileLink || "",
-        ),
+      address: normalized.address || firstParamValue(params, ["address"], session?.address || ""),
+      profileLink: normalized.profileLink || firstParamValue(params, ["profileLink", "link"], session?.profileLink || ""),
     };
     await saveAuthSession(updated);
     return updated;
@@ -798,19 +579,11 @@ export async function updateUserInfo(params = {}) {
 
 export async function getUserPosts(userId = "", paging = {}) {
   const session = await getCurrentSession();
-  const targetUserId = String(
-    userId || session?.id || session?.user_id || session?.identifier || "",
-  );
+  const targetUserId = String(userId || session?.id || session?.user_id || session?.identifier || "");
   const includeLocked = paging.includeLocked !== false;
 
-  if (!shouldUseServer(session)) {
-    return getLocalUserPosts(targetUserId, includeLocked, ACTIVE_SOURCES.LOCAL);
-  }
-
   const mapVisibleItems = (items = []) =>
-    items.filter(
-      (post) => post.id && (includeLocked || post.canComment !== false),
-    );
+    items.filter((post) => post.id && (includeLocked || post.canComment !== false));
 
   try {
     const directPage = await getBackendCompatibilityPosts(session, {
@@ -843,7 +616,7 @@ export async function getUserPosts(userId = "", paging = {}) {
       total: matchedItems.length,
       hasMore: false,
       lastId: matchedItems[matchedItems.length - 1]?.id || "",
-      source: ACTIVE_SOURCES.SERVER,
+      source: compatibilityPage.source,
     };
   } catch (error) {
     console.info("[DATA] Server user posts failed", error.message);
@@ -855,42 +628,29 @@ export async function getUserPosts(userId = "", paging = {}) {
 export async function searchUserProfile(userId = "", keyword = "") {
   const session = await getCurrentSession();
   const normalizedKeyword = String(keyword || "").trim();
-  const targetUserId = String(
-    userId || session?.id || session?.user_id || session?.identifier || "",
-  );
+  const targetUserId = String(userId || session?.id || session?.user_id || session?.identifier || "");
 
   if (!normalizedKeyword) {
     return [];
   }
 
-  if (!shouldUseServer(session)) {
-    const items = await localPosts.searchPosts(normalizedKeyword);
-    return targetUserId
-      ? items.filter((post) => isSameUser(post.author?.id, targetUserId))
-      : items;
-  }
-
   try {
     const response = await backendApi.search({
-      token: session.token,
+      token: session?.token || "",
       keyword: normalizedKeyword,
       user_id: targetUserId,
       index: "0",
       count: "20",
     });
 
-    await assertBackendOk(response, {
-      allowNoData: true,
-      message: "Backend search failed",
-    });
+    await assertBackendOk(response, { allowNoData: true, message: "Backend search failed" });
 
-    const directItems = extractList(response)
-      .map((item) => normalizePost(item, ACTIVE_SOURCES.SERVER))
+    const responseSource = sourceFromResponse(response);
+    return extractList(response)
+      .map((item) => normalizePost(item, responseSource))
       .filter((post) => post.id);
-
-    return directItems;
   } catch (error) {
-    console.info("[DATA] Profile search fallback", error.message);
+    console.info("[DATA] Profile search unavailable", error.message);
     throwIfExpiredFromApiError(error);
     throw error;
   }

@@ -10,10 +10,36 @@ import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+
+const REPORT_CATEGORIES = [
+  "Ảnh khỏa thân",
+  "Bạo lực",
+  "Quấy rối",
+  "Tự tử/Tự gây thương tích",
+  "Tin giả",
+  "Spam",
+  "Bán hàng trái phép",
+  "Ngôn từ gây thù ghét",
+  "Khủng bố",
+  "Vấn đề khác",
+];
+
+const REPORT_DETAILS = [
+  "Quyền sở hữu trí tuệ",
+  "Gian lận hoặc lừa đảo",
+  "Chế giễu nạn nhân",
+  "Bắt nạt",
+  "Lạm dụng trẻ em",
+  "Hoạt động tình dục",
+  "Tự tử/Tự gây thương tích",
+  "Ngôn từ gây thù ghét",
+  "Quảng bá hành vi sử dụng ma túy",
+  "Hình ảnh thân mật không có sự đồng thuận",
+];
 
 export default function PostDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, report } = useLocalSearchParams();
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState("");
@@ -21,7 +47,9 @@ export default function PostDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [editVideos, setEditVideos] = useState([]);
-  const [reportReason, setReportReason] = useState("");
+  const [isReportOpen, setIsReportOpen] = useState(report === "1");
+  const [reportCategory, setReportCategory] = useState("");
+  const [reportDetail, setReportDetail] = useState("");
   const [statusText, setStatusText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -47,6 +75,21 @@ export default function PostDetailScreen() {
   useEffect(() => {
     loadPost();
   }, [loadPost]);
+
+  useEffect(() => {
+    if (report === "1") {
+      setIsReportOpen(true);
+    }
+  }, [report]);
+
+  const goBackToFeed = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)/home");
+  };
 
   const handleToggleLike = async () => {
     if (!post) return;
@@ -185,7 +228,12 @@ export default function PostDetailScreen() {
   const handleDeletePost = async () => {
     try {
       await deletePost(post);
-      router.replace("/(tabs)/home");
+      Alert.alert("Thành công", "Đã xóa bài viết thành công.", [
+        {
+          text: "OK",
+          onPress: () => router.replace("/(tabs)/home"),
+        },
+      ]);
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
       setStatusText("Hệ thống đang lỗi, vui lòng thử lại sau");
@@ -193,9 +241,25 @@ export default function PostDetailScreen() {
   };
 
   const handleReportPost = async () => {
+    if (!reportCategory) {
+      setStatusText("Vui lòng chọn lý do báo cáo.");
+      return;
+    }
+
     try {
-      await reportPost(post, reportReason.trim() || "Báo cáo nội dung bài viết");
-      setReportReason("");
+      const result = await reportPost(post, {
+        subject: reportCategory,
+        details: reportDetail.trim() || reportCategory,
+      });
+      setReportCategory("");
+      setReportDetail("");
+      setIsReportOpen(false);
+      if (result?.unavailable) {
+        setPost(null);
+        setComments([]);
+        setStatusText("Bài viết không còn khả dụng.");
+        return;
+      }
       setStatusText("Đã gửi báo cáo.");
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
@@ -214,7 +278,15 @@ export default function PostDetailScreen() {
   if (!post) {
     return (
       <Screen style={postStyles.screen}>
-        <Text style={postStyles.title}>Bài viết không tồn tại</Text>
+        <Text style={postStyles.title}>Bài viết không khả dụng</Text>
+        {statusText ? (
+          <Text style={postStyles.warningText}>{statusText}</Text>
+        ) : null}
+        <AppButton
+          title="Quay lại"
+          onPress={goBackToFeed}
+          style={postStyles.actionButton}
+        />
       </Screen>
     );
   }
@@ -232,6 +304,7 @@ export default function PostDetailScreen() {
           onPressComment={() => router.push(`/post/comment/${post.id}`)}
           onSubmitExercise={handleSubmitExercise}
           onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
+          onReportPost={!canOwnerEdit ? () => setIsReportOpen(true) : undefined}
         />
 
         {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
@@ -307,12 +380,83 @@ export default function PostDetailScreen() {
             </>
           ) : (
             <>
-              <AppInput
-                placeholder="Lý do báo cáo..."
-                value={reportReason}
-                onChangeText={setReportReason}
-              />
-              <AppButton title="Báo cáo bài viết" onPress={handleReportPost} style={postStyles.actionButton} />
+              {!isReportOpen ? (
+                <AppButton
+                  title="Báo cáo bài viết"
+                  onPress={() => setIsReportOpen(true)}
+                  style={postStyles.actionButton}
+                />
+              ) : (
+                <>
+                  <Text style={postStyles.slotHint}>
+                    Chọn vấn đề phù hợp để gửi báo cáo.
+                  </Text>
+                  <View style={postStyles.mediaList}>
+                    {REPORT_CATEGORIES.map((category) => {
+                      const isSelected = reportCategory === category;
+                      return (
+                        <Pressable
+                          key={category}
+                          style={[
+                            postStyles.mediaCard,
+                            isSelected && postStyles.selectedMediaCard,
+                          ]}
+                          onPress={() => setReportCategory(category)}
+                        >
+                          <Text style={postStyles.mediaTitle}>{category}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={postStyles.slotHint}>
+                    Nếu cần, chọn thêm mô tả chi tiết.
+                  </Text>
+                  <View style={postStyles.mediaList}>
+                    {REPORT_DETAILS.map((detail) => {
+                      const isSelected = reportDetail === detail;
+                      return (
+                        <Pressable
+                          key={detail}
+                          style={[
+                            postStyles.mediaCard,
+                            isSelected && postStyles.selectedMediaCard,
+                          ]}
+                          onPress={() => setReportDetail(detail)}
+                        >
+                          <Text style={postStyles.mediaTitle}>{detail}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <AppInput
+                    placeholder="Chi tiết khác (không bắt buộc)"
+                    value={
+                      REPORT_DETAILS.includes(reportDetail) ? "" : reportDetail
+                    }
+                    onChangeText={setReportDetail}
+                    multiline
+                    numberOfLines={3}
+                    style={postStyles.textArea}
+                  />
+                  <View style={postStyles.actionRow}>
+                    <AppButton
+                      title="Gửi báo cáo"
+                      onPress={handleReportPost}
+                      style={postStyles.actionButton}
+                    />
+                    <AppButton
+                      title="Hủy"
+                      onPress={() => {
+                        setIsReportOpen(false);
+                        setReportCategory("");
+                        setReportDetail("");
+                      }}
+                      style={[postStyles.actionButton, postStyles.secondaryButton]}
+                      textStyle={postStyles.secondaryButtonText}
+                    />
+                  </View>
+                </>
+              )}
             </>
           )}
         </View>
@@ -359,7 +503,7 @@ export default function PostDetailScreen() {
 
         <AppButton
           title="Quay lại"
-          onPress={() => router.back()}
+          onPress={goBackToFeed}
           style={[postStyles.actionButton, postStyles.secondaryButton]}
           textStyle={postStyles.secondaryButtonText}
         />

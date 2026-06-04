@@ -19,6 +19,7 @@ export default function RootLayout() {
   const navRouter = useRouter();
   const segments = useSegments();
   const pathname = usePathname();
+  const currentGroup = segments[0];
 
   const pathnameRef = useRef(pathname);
   const toastTimerRef = useRef(null);
@@ -37,13 +38,11 @@ export default function RootLayout() {
     const syncSessionAndGuardRoute = async () => {
       try {
         const session = await getAuthSession();
+
         if (!isMounted) return;
 
-        const currentGroup = segments[0];
         const authenticated = Boolean(session);
         const isAuthGroup = currentGroup === "(auth)";
-        const isSignupSuccess =
-          currentGroup === "(auth)" && segments[1] === "signup-success";
 
         setIsAuthenticated(authenticated);
 
@@ -52,7 +51,7 @@ export default function RootLayout() {
           return;
         }
 
-        if (authenticated && isAuthGroup && !isSignupSuccess) {
+        if (authenticated && isAuthGroup) {
           navRouter.replace("/(tabs)/home");
         }
       } finally {
@@ -67,7 +66,7 @@ export default function RootLayout() {
     return () => {
       isMounted = false;
     };
-  }, [navRouter, segments]);
+  }, [currentGroup, navRouter]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -82,11 +81,6 @@ export default function RootLayout() {
         router.push("/(tabs)/notifications");
       },
       onNewInAppNotification: ({ notification }) => {
-        console.log("SHOW_NOTIFICATION_TOAST", {
-          notification,
-          path: pathnameRef.current,
-        });
-
         setNotificationToast({
           title: notification?.title || "Bạn có thông báo mới",
           body: notification?.body || "Có thông báo mới.",
@@ -134,6 +128,8 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <StatusBar style="dark" />
+
       <View style={{ flex: 1 }}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
@@ -191,7 +187,13 @@ export default function RootLayout() {
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontSize: 16, fontWeight: "800", color: "#1877F2" }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "800",
+                      color: "#1877F2",
+                    }}
+                  >
                     {getToastInitial(notificationToast.title)}
                   </Text>
                 </View>

@@ -1,12 +1,19 @@
 import Screen from "@/components/common/Screen";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
+import {
+  normalizeVideoSlots,
+  PostVideoFullscreenModal,
+  PostVideoPreview,
+  PostVideoUploadSlot,
+  VIDEO_SLOTS,
+} from "@/components/post/PostVideoSlots";
 import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
 import EarthIcon from "@/components/icons/EarthIcon";
 import colors from "@/constants/colors";
 import {
   editPost,
   getPostById,
-  validateTwoVideos,
+  validateEditableVideos,
 } from "@/repositories/postRepository";
 import {
   enqueuePostUploading,
@@ -18,17 +25,16 @@ import createStyles from "@/styles/post/create.styles";
 import postStyles from "@/styles/post.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { createVideoPlayer } from "expo-video";
 import { router, useLocalSearchParams } from "expo-router";
-import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -37,100 +43,101 @@ import {
   View,
 } from "react-native";
 
-function VideoThumbnail({ video, onPress }) {
-  const thumbnailUri =
-    typeof video?.thumb === "string" && video.thumb.trim()
-      ? video.thumb.trim()
-      : typeof video?.thumbnail === "string" && video.thumbnail.trim()
-        ? video.thumbnail.trim()
-        : "";
-
-  return (
-    <Pressable style={createStyles.videoPreviewFrame} onPress={onPress}>
-      {thumbnailUri ? (
-        <Image source={{ uri: thumbnailUri }} style={createStyles.videoPreview} />
-      ) : (
-        <View style={createStyles.videoPreviewFallback}>
-          <Ionicons name="videocam-outline" size={24} color={colors.white} />
-          <Text style={createStyles.videoPreviewFallbackText}>
-            Chưa có thumbnail
-          </Text>
-        </View>
-      )}
-      <View style={createStyles.videoPlayBadge}>
-        <Text style={createStyles.videoPlayText}>Xem video</Text>
-      </View>
-    </Pressable>
-  );
+function normalizeDurationMs(value) {
+  const duration = Number(value || 0);
+  if (!Number.isFinite(duration) || duration <= 0) return 0;
+  return duration > 1000 ? Math.round(duration) : Math.round(duration * 1000);
 }
 
-function FullscreenVideoModal({ visible, uri, onClose }) {
-  const [isReady, setIsReady] = useState(false);
-  const player = useVideoPlayer(visible ? uri || null : null, (videoPlayer) => {
-    videoPlayer.loop = true;
-    videoPlayer.muted = false;
-    videoPlayer.pause();
-  });
+async function readDurationFromVideoUri(uri) {
+  if (!uri) return 0;
 
-  useEffect(() => {
-    player.pause();
-  }, [player, uri]);
-
-  useEffect(() => {
-    if (visible && uri) {
-      setIsReady(false);
-      return;
-    }
-    setIsReady(true);
-  }, [visible, uri]);
-
-  useEffect(() => {
-    const sub = player.addListener("statusChange", ({ status }) => {
-      if (status === "error") {
-        setIsReady(true);
-      }
+  if (typeof document !== "undefined") {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () =>
+        resolve(normalizeDurationMs(video.duration || 0));
+      video.onerror = () => resolve(0);
+      video.src = uri;
     });
+  }
 
-    return () => {
-      sub.remove();
+  const player = createVideoPlayer({ uri });
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeoutId;
+    let sourceLoadSubscription;
+    let statusChangeSubscription;
+
+    const finish = (value = 0) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      sourceLoadSubscription?.remove();
+      statusChangeSubscription?.remove();
+      try {
+        player.release();
+      } catch {}
+      resolve(normalizeDurationMs(value));
     };
-  }, [player]);
 
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={createStyles.fullscreenBackdrop}>
-        <Pressable
-          style={createStyles.closeButton}
-          onPress={onClose}
-          hitSlop={8}
-        >
-          <Ionicons name="close" size={28} color={colors.white} />
-        </Pressable>
+    const resolvePlayerDuration = (value = 0) => {
+      const duration = Number(value || player.duration || 0);
+      if (Number.isFinite(duration) && duration > 0) {
+        finish(duration);
+      }
+    };
 
-        {uri ? (
-          <>
-            <VideoView
-              player={player}
-              style={createStyles.fullscreenVideo}
-              contentFit="contain"
-              nativeControls
-              onFirstFrameRender={() => setIsReady(true)}
-            />
-            {!isReady ? (
-              <View style={createStyles.videoLoadingOverlay}>
-                <ActivityIndicator size="large" color={colors.white} />
-              </View>
-            ) : null}
-          </>
-        ) : null}
-      </View>
-    </Modal>
+    sourceLoadSubscription = player.addListener("sourceLoad", (payload) => {
+      resolvePlayerDuration(payload?.duration);
+    });
+    statusChangeSubscription = player.addListener(
+      "statusChange",
+      (payload) => {
+        resolvePlayerDuration();
+        if (payload?.error) {
+          finish(0);
+        }
+      },
+    );
+    timeoutId = setTimeout(() => finish(0), 8000);
+
+    resolvePlayerDuration();
+  });
+}
+
+async function hydrateVideoDurations(videos = []) {
+  if (!Array.isArray(videos) || !videos.length) {
+    return videos;
+  }
+
+  const nextVideos = await Promise.all(
+    videos.map(async (video) => {
+      if (!video) return null;
+
+      const duration = normalizeDurationMs(video.duration || video.durationMs);
+      if (duration) {
+        return {
+          ...video,
+          duration,
+        };
+      }
+
+      const probedDuration = await readDurationFromVideoUri(video.uri);
+      if (!probedDuration) {
+        return video;
+      }
+
+      return {
+        ...video,
+        duration: probedDuration,
+      };
+    }),
   );
+
+  return nextVideos;
 }
 
 export default function EditPostScreen() {
@@ -140,19 +147,22 @@ export default function EditPostScreen() {
   const [post, setPost] = useState(null);
   const [content, setContent] = useState("");
   const [initialContent, setInitialContent] = useState("");
-  const [replacementVideos, setReplacementVideos] = useState([]);
+  const [replacementVideos, setReplacementVideos] = useState([null, null]);
   const [isReplacingVideos, setIsReplacingVideos] = useState(false);
   const [session, setSession] = useState(null);
   const [profileUser, setProfileUser] = useState(null);
   const [statusText, setStatusText] = useState("");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [textAreaHeight, setTextAreaHeight] = useState(26);
-  const [isSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
 
-  const existingVideos = useMemo(() => post?.videos || [], [post?.videos]);
+  const existingVideos = useMemo(
+    () => normalizeVideoSlots(post?.videos || []),
+    [post?.videos],
+  );
   const displayedVideos = isReplacingVideos ? replacementVideos : existingVideos;
   const selectedVideoCount = displayedVideos.filter(Boolean).length;
   const replacementVideoCount = replacementVideos.filter(Boolean).length;
@@ -184,10 +194,17 @@ export default function EditPostScreen() {
           throw new Error("Bài viết không tồn tại.");
         }
 
+        const hydratedVideos = await hydrateVideoDurations(
+          normalizeVideoSlots(loadedPost.videos || []),
+        );
+
         const initialText = loadedPost.content || loadedPost.described || "";
 
         if (isMounted) {
-          setPost(loadedPost);
+          setPost({
+            ...loadedPost,
+            videos: hydratedVideos,
+          });
           setContent(initialText);
           setInitialContent(initialText);
           setStatusText("");
@@ -231,16 +248,9 @@ export default function EditPostScreen() {
   }, []);
 
   const readVideoDuration = async (asset) => {
-    if (asset.duration) return asset.duration;
-    if (typeof document === "undefined" || !asset.uri) return 0;
-
-    return new Promise((resolve) => {
-      const video = document.createElement("video");
-      video.preload = "metadata";
-      video.onloadedmetadata = () => resolve(Math.round(video.duration * 1000));
-      video.onerror = () => resolve(0);
-      video.src = asset.uri;
-    });
+    const duration = normalizeDurationMs(asset.duration || asset.durationMs);
+    if (duration) return duration;
+    return readDurationFromVideoUri(asset.uri);
   };
 
   const buildVideoItem = async (asset, slotIndex) => {
@@ -252,24 +262,21 @@ export default function EditPostScreen() {
       name: asset.fileName || `edit-video-${slotIndex + 1}.mp4`,
       mimeType: asset.mimeType || "video/mp4",
       angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
+      fieldName: slotIndex === 0 ? "left_video" : "right_video",
+      isLocalUpload: true,
       duration,
       fileSize: asset.fileSize || 0,
     };
   };
 
-  const pickVideo = async () => {
+  const pickVideo = async (slotIndex) => {
     if (!isReplacingVideos) {
       setIsReplacingVideos(true);
-      setReplacementVideos([]);
-    }
-
-    if (replacementVideoCount >= 2) {
-      Alert.alert("Giới hạn video", "Bạn chỉ có thể chọn tối đa 2 video.");
-      return;
+      setReplacementVideos(existingVideos);
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ["videos"],
       allowsEditing: false,
       quality: 1,
     });
@@ -278,29 +285,47 @@ export default function EditPostScreen() {
       return;
     }
 
-    const video = await buildVideoItem(result.assets[0], replacementVideoCount);
-    setReplacementVideos((current) => [...current, video].slice(0, 2));
-  };
-
-  const removeSelectedVideo = (index) => {
-    setActiveVideoUri("");
-
-    if (isReplacingVideos) {
-      setReplacementVideos((current) =>
-        current.filter((_, itemIndex) => itemIndex !== index),
-      );
-      return;
-    }
-
-    const seededVideos = existingVideos.slice(0, 2).filter(Boolean);
-    setIsReplacingVideos(true);
-    setReplacementVideos(
-      seededVideos.filter((_, itemIndex) => itemIndex !== index),
+    const video = await buildVideoItem(result.assets[0], slotIndex);
+    setReplacementVideos((current) =>
+      current.map((item, index) => (index === slotIndex ? video : item)),
     );
   };
 
+  const removeSelectedVideo = (index) => {
+    const removedUri = displayedVideos[index]?.uri || "";
+    if (!removedUri) return;
+
+    Alert.alert("Xóa video", "Bạn có chắc muốn xóa video này?", [
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: () => {
+          setActiveVideoUri((current) => (current === removedUri ? "" : current));
+
+          if (!isReplacingVideos) {
+            setIsReplacingVideos(true);
+            setReplacementVideos(
+              existingVideos.map((item, itemIndex) =>
+                itemIndex === index ? null : item,
+              ),
+            );
+            return;
+          }
+
+          setReplacementVideos((current) =>
+            current.map((item, itemIndex) => (itemIndex === index ? null : item)),
+          );
+        },
+      },
+    ]);
+  };
+
   const handleSaveEdit = async () => {
-    if (!post) return;
+    if (!post || isSubmitting) return;
 
     const trimmedContent = content.trim();
     if (!trimmedContent) {
@@ -313,11 +338,16 @@ export default function EditPostScreen() {
       return;
     }
 
-    const nextVideos = isReplacingVideos ? replacementVideos : undefined;
+    setIsSubmitting(true);
+
+    let nextVideos = isReplacingVideos ? replacementVideos : undefined;
     if (nextVideos?.length) {
       try {
-        validateTwoVideos(nextVideos);
+        nextVideos = await hydrateVideoDurations(nextVideos);
+        setReplacementVideos(nextVideos);
+        validateEditableVideos(nextVideos);
       } catch (error) {
+        setIsSubmitting(false);
         Alert.alert(
           "Video chưa hợp lệ",
           error?.message || "Vui lòng kiểm tra lại video trước khi cập nhật.",
@@ -351,7 +381,10 @@ export default function EditPostScreen() {
   };
 
   const hasContentChanged = content.trim() !== initialContent.trim();
-  const hasDraftChanges = hasContentChanged || replacementVideoCount > 0;
+  const hasVideoChanges =
+    isReplacingVideos &&
+    replacementVideos.some((video, index) => video?.uri !== existingVideos[index]?.uri);
+  const hasDraftChanges = hasContentChanged || hasVideoChanges;
 
   const handleBack = () => {
     if (hasDraftChanges) {
@@ -377,7 +410,7 @@ export default function EditPostScreen() {
     !content.trim() ||
     (isReplacingVideos && replacementVideoCount !== 2);
 
-  const bottomToolbarInset = 56 + keyboardOffset;
+  const bottomToolbarInset = keyboardOffset;
 
   if (isLoading) {
     return (
@@ -478,36 +511,39 @@ export default function EditPostScreen() {
             }}
           />
 
-          {selectedVideoCount > 0 ? (
-            <View style={createStyles.videoGrid}>
-              {displayedVideos.slice(0, 2).map((video, index) => {
-                if (!video?.uri) return null;
-                return (
-                  <View key={video.id} style={createStyles.videoCard}>
-                    <Pressable
-                      style={createStyles.videoRemoveButton}
-                      onPress={() => removeSelectedVideo(index)}
-                      hitSlop={8}
-                    >
-                      <CircleWithCrossIcon />
-                    </Pressable>
-                    <VideoThumbnail
-                      video={video}
-                      onPress={() => setActiveVideoUri(video.uri)}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          ) : null}
-        </ScrollView>
+          <View style={createStyles.videoGrid}>
+            {VIDEO_SLOTS.map((slot, index) => {
+              const video = displayedVideos[index];
 
-        <View style={[createStyles.bottomToolbar, { bottom: keyboardOffset }]}> 
-          <Pressable onPress={pickVideo} style={createStyles.libraryButton} hitSlop={8}>
-            <MaterialIcons name="photo-library" size={30} color={colors.subtext} />
-            <Text style={createStyles.libraryText}>Video ({selectedVideoCount}/2)</Text>
-          </Pressable>
-        </View>
+              return (
+                <View key={slot.key} style={createStyles.videoCard}>
+                  {video?.uri ? (
+                    <>
+                      <Pressable
+                        style={createStyles.videoRemoveButton}
+                        onPress={() => removeSelectedVideo(index)}
+                        hitSlop={8}
+                      >
+                        <CircleWithCrossIcon />
+                      </Pressable>
+                      <PostVideoPreview
+                        video={video}
+                        label={slot.label}
+                        onPress={() => setActiveVideoUri(video.uri)}
+                      />
+                    </>
+                  ) : (
+                    <PostVideoUploadSlot
+                      label={slot.label}
+                      emptyText={slot.emptyText}
+                      onPress={() => pickVideo(index)}
+                    />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
       </View>
 
       <DraftActionSheet
@@ -519,7 +555,7 @@ export default function EditPostScreen() {
         discardIconName="close-outline"
         discardLabel="Bỏ thay đổi"
       />
-      <FullscreenVideoModal
+      <PostVideoFullscreenModal
         visible={Boolean(activeVideoUri)}
         uri={activeVideoUri}
         onClose={() => setActiveVideoUri("")}

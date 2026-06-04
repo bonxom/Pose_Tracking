@@ -1,29 +1,17 @@
 import { backendApi } from "@/api/client";
-import * as localPosts from "@/services/postStore";
 import { extractList, normalizeComment } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { ACTIVE_SOURCES, getCurrentSession, isServerPost } from "@/repositories/source";
-
-function assertServerSession(session) {
-  if (!session?.token) {
-    throw new Error("Cần đăng nhập server để dùng bình luận backend.");
-  }
-}
+import { getCurrentSession, sourceFromResponse } from "@/repositories/source";
 
 export async function getComments(postOrId, options = {}) {
   const postId = typeof postOrId === "string" ? postOrId : postOrId?.id;
 
-  if (!isServerPost(postOrId)) {
-    return localPosts.getComments(postId, options);
-  }
-
   const safeIndex = Math.max(0, Number(options.index) || 0);
   const safeCount = Math.max(1, Number(options.count) || 20);
   const session = await getCurrentSession();
-  assertServerSession(session);
 
   const response = await backendApi.getComment({
-    token: session.token,
+    token: session?.token || "",
     id: postId,
     index: String(safeIndex),
     count: String(safeCount),
@@ -41,7 +29,7 @@ export async function getComments(postOrId, options = {}) {
   const isBlocked = String(root?.is_blocked ?? nested?.is_blocked ?? "0") === "1";
   const deduped = new Map();
   rawComments.forEach((item) => {
-    const normalized = normalizeComment(item, ACTIVE_SOURCES.SERVER);
+    const normalized = normalizeComment(item, sourceFromResponse(response));
     if (!normalized?.id || deduped.has(normalized.id)) return;
     deduped.set(normalized.id, normalized);
   });
@@ -56,18 +44,13 @@ export async function getComments(postOrId, options = {}) {
   };
 }
 
-export async function addComment(postOrId, commentText, extra = {}) {
+export async function addComment(postOrId, commentText, _extra = {}) {
   const postId = typeof postOrId === "string" ? postOrId : postOrId?.id;
 
-  if (!isServerPost(postOrId)) {
-    return localPosts.addComment(postId, commentText, extra);
-  }
-
   const session = await getCurrentSession();
-  assertServerSession(session);
 
   const response = await backendApi.setComment({
-    token: session.token,
+    token: session?.token || "",
     id: postId,
     comment: commentText.trim(),
     index: "0",
@@ -79,6 +62,6 @@ export async function addComment(postOrId, commentText, extra = {}) {
 
   return {
     post: null,
-    comment: normalizeComment(createdComment, ACTIVE_SOURCES.SERVER),
+    comment: normalizeComment(createdComment, sourceFromResponse(response)),
   };
 }

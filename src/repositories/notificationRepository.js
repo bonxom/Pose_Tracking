@@ -2,7 +2,11 @@ import { backendApi } from "@/api/client";
 import { API_BASE_URL, API_TYPE, API_TYPES } from "@/config/env";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
+import {
+  ACTIVE_SOURCES,
+  getCurrentSession,
+  sourceFromResponse,
+} from "@/repositories/source";
 
 function isNotificationSessionExpired(error) {
   const code = String(
@@ -82,7 +86,7 @@ function emitNotificationCache() {
     try {
       listener(notificationCache);
     } catch {
-      // Ignore listener errors.
+      // Ignore UI listener errors.
     }
   });
 }
@@ -119,7 +123,9 @@ export function isNotificationUnread(item = {}) {
 
   if (item.raw?.unread !== undefined) return toBoolFlag(item.raw.unread, true);
   if (item.raw?.read !== undefined) return !toBoolFlag(item.raw.read, false);
-  if (item.raw?.is_read !== undefined) return !toBoolFlag(item.raw.is_read, false);
+  if (item.raw?.is_read !== undefined) {
+    return !toBoolFlag(item.raw.is_read, false);
+  }
 
   return true;
 }
@@ -225,7 +231,6 @@ export function markNotificationReadLocal(notificationId) {
     return notificationCache;
   }
 
-  // Badge là tổng unread toàn hệ thống, không phải số unread trong page hiện tại.
   const unreadCount = Math.max(0, Number(notificationCache.unreadCount || 0) - 1);
 
   notificationCache = {
@@ -242,7 +247,8 @@ export function markNotificationReadLocal(notificationId) {
 
 function firstNonEmpty(...values) {
   return values.find(
-    (value) => value !== undefined && value !== null && String(value).trim() !== "",
+    (value) =>
+      value !== undefined && value !== null && String(value).trim() !== "",
   );
 }
 
@@ -250,11 +256,20 @@ function normalizeImageUrl(value = "") {
   const url = String(value || "").trim();
 
   if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("data:")
+  ) {
     return url;
   }
 
-  const baseUrl = API_BASE_URL.replace(/\/it4788\/?$/, "").replace(/\/+$/, "");
+  const baseUrl = String(API_BASE_URL || "")
+    .replace(/\/it4788\/?$/, "")
+    .replace(/\/+$/, "");
+
+  if (!baseUrl) return url;
+
   const cleanPath = url.replace(/^\/+/, "");
 
   return `${baseUrl}/${cleanPath}`;
@@ -320,7 +335,7 @@ function getNotificationAvatar(raw = {}) {
 }
 
 function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERVER) {
-  const type = raw.type || raw.notification_type || "info";
+  const type = String(raw.type || raw.notification_type || "info");
 
   const notificationId = String(
     raw.notificationId ||
@@ -349,7 +364,21 @@ function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERV
         ? !toBoolFlag(readValue, false)
         : true;
 
-  const notificationData = {
+  const lowerType = type.toLowerCase();
+
+  const targetType =
+    raw.targetType ||
+    raw.target_type ||
+    (lowerType.includes("post") ||
+    lowerType.includes("comment") ||
+    lowerType.includes("like") ||
+    objectId
+      ? "post"
+      : lowerType.includes("course")
+        ? "course"
+        : "info");
+
+  return {
     id: notificationId,
     notificationId,
     source,
@@ -376,23 +405,11 @@ function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERV
     unread,
     isRead: !unread,
     is_read: unread ? "0" : "1",
-    targetType:
-      raw.targetType ||
-      raw.target_type ||
-      (type.includes("post") ||
-      type.includes("comment") ||
-      type.includes("like") ||
-      objectId
-        ? "post"
-        : type.includes("course")
-          ? "course"
-          : "info"),
+    targetType,
     targetId: objectId,
     objectId,
     raw,
   };
-
-  return notificationData;
 }
 
 function normalizeNotificationPage(response, source) {
@@ -404,10 +421,7 @@ function normalizeNotificationPage(response, source) {
     response?.data && !Array.isArray(response.data) ? response.data : {};
 
   const badgeValue =
-    data.badge ??
-    data.unread ??
-    response?.badge ??
-    response?.unread;
+    data.badge ?? data.unread ?? response?.badge ?? response?.unread;
 
   const badgeNumber = toNumberOrUndefined(badgeValue);
 
@@ -445,7 +459,6 @@ export async function getNotificationPage(params = {}) {
     const response = await backendApi.getNotification({
       index: String(params.index || 0),
       count: String(params.count || 20),
-      // last_update: params.lastUpdate || params.last_update || "",
     });
 
     await assertBackendOk(response, {
@@ -474,6 +487,7 @@ export async function getNotificationPage(params = {}) {
       token: session.token,
       index: String(params.index || 0),
       count: String(params.count || 20),
+      last_update: params.lastUpdate || params.last_update || "",
     });
 
     await assertBackendOk(response, {
@@ -481,14 +495,14 @@ export async function getNotificationPage(params = {}) {
       message: "Backend notification failed",
     });
 
-    const page = normalizeNotificationPage(response, ACTIVE_SOURCES.SERVER);
+    const page = normalizeNotificationPage(response, sourceFromResponse(response));
 
     return saveNotificationCache(page, {
       append: Number(params.index || 0) > 0,
       mergeWithExisting: Boolean(params.mergeWithExisting),
     });
   } catch (error) {
-    console.info("[DATA] Server notification fallback", {
+    console.info("[DATA] Notification unavailable", {
       message: error?.message,
       status: error?.status,
       code: error?.code,
@@ -517,19 +531,27 @@ export async function markNotificationRead(notificationId) {
     throw new Error("Thiếu notificationId.");
   }
 
-  console.log("SET_READ_NOTIFICATION_BODY", {
-    token: session.token,
-    notificationId: id,
-  });
+  let response;
 
-  const response = await backendApi.setReadNotification({
-    token: session.token,
-    notificationId: id,
-  });
+  try {
+    response = await backendApi.setReadNotification({
+      token: session.token,
+      notificationId: id,
+    });
 
-  await assertBackendOk(response, {
-    message: "Backend set_read_notification failed",
-  });
+    await assertBackendOk(response, {
+      message: "Backend set_read_notification failed",
+    });
+  } catch (error) {
+    response = await backendApi.setReadNotification({
+      token: session.token,
+      notification_id: id,
+    });
+
+    await assertBackendOk(response, {
+      message: "Backend set_read_notification failed",
+    });
+  }
 
   const backendBadge = toNumberOrUndefined(response?.data?.badge);
 
@@ -545,8 +567,10 @@ export async function markNotificationRead(notificationId) {
   }
 
   return {
+    read: true,
     badge: backendBadge,
     lastUpdate: response?.data?.lastUpdate || "",
+    source: sourceFromResponse(response),
     response,
   };
 }

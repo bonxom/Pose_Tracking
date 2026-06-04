@@ -1,42 +1,93 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
-import { DEMO_PUSH_SETTINGS as localPushSettings } from "@/constants/demo";
 import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
+import { getCurrentSession, sourceFromResponse } from "@/repositories/source";
 
 function toBool(value, fallback = true) {
   if (value === undefined || value === null) return fallback;
   if (typeof value === "boolean") return value;
-  return String(value) === "1" || String(value).toLowerCase() === "true";
+
+  const normalized = String(value).trim().toLowerCase();
+
+  if (normalized === "1" || normalized === "true") return true;
+  if (normalized === "0" || normalized === "false") return false;
+
+  return fallback;
 }
 
 function settingValue(value) {
   return value ? "1" : "0";
 }
 
-export function normalizePushSettings(settings = {}) {
+function requireToken(session, message = "Cần đăng nhập để dùng cài đặt.") {
+  if (!session?.token) {
+    throw new Error(message);
+  }
+}
+
+let lastKnownPushSettings = null;
+
+export function normalizePushSettings(settings = {}, previousSettings = {}) {
+  const fallbackFor = (key) =>
+    previousSettings?.[key] !== undefined ? previousSettings[key] : true;
+
   return {
-    likeComment: toBool(settings.likeComment ?? settings.like_comment, true),
-    fromFriends: toBool(settings.fromFriends ?? settings.from_friends, true),
+    notificationOn: toBool(
+      settings.notificationOn ??
+        settings.notification_on ??
+        settings.notification,
+      fallbackFor("notificationOn"),
+    ),
+    likeComment: toBool(
+      settings.likeComment ??
+        settings.like_comment ??
+        settings.like ??
+        settings.comment,
+      fallbackFor("likeComment"),
+    ),
+    fromFriends: toBool(
+      settings.fromFriends ??
+        settings.from_friends ??
+        settings.friend_update ??
+        settings.message,
+      fallbackFor("fromFriends"),
+    ),
     requestedFriend: toBool(
-      settings.requestedFriend ?? settings.requested_friend,
-      true,
+      settings.requestedFriend ??
+        settings.requested_friend ??
+        settings.friend_request ??
+        settings.requested_enrollment,
+      fallbackFor("requestedFriend"),
     ),
     suggestedFriend: toBool(
-      settings.suggestedFriend ?? settings.suggested_friend,
-      true,
+      settings.suggestedFriend ??
+        settings.suggested_friend ??
+        settings.people_you_may_know ??
+        settings.approved_course,
+      fallbackFor("suggestedFriend"),
     ),
-    birthday: toBool(settings.birthday, true),
-    video: toBool(settings.video, true),
-    report: toBool(settings.report, true),
-    soundOn: toBool(settings.soundOn ?? settings.sound_on, true),
-    notificationOn: toBool(
-      settings.notificationOn ?? settings.notification_on,
-      true,
+    birthday: toBool(settings.birthday, fallbackFor("birthday")),
+    video: toBool(
+      settings.video ?? settings.new_exercise,
+      fallbackFor("video"),
     ),
-    vibrantOn: toBool(settings.vibrantOn ?? settings.vibrant_on, true),
-    ledOn: toBool(settings.ledOn ?? settings.led_on, true),
+    report: toBool(
+      settings.report ?? settings.announcement,
+      fallbackFor("report"),
+    ),
+    soundOn: toBool(
+      settings.soundOn ?? settings.sound_on,
+      fallbackFor("soundOn"),
+    ),
+    vibrantOn: toBool(
+      settings.vibrantOn ?? settings.vibrant_on ?? settings.vibration_on,
+      fallbackFor("vibrantOn"),
+    ),
+    ledOn: toBool(
+      settings.ledOn ?? settings.led_on,
+      fallbackFor("ledOn"),
+    ),
   };
 }
 
@@ -60,40 +111,32 @@ function serializePushSettings(settings = {}) {
 
 export async function getPushSettings() {
   const session = await getCurrentSession();
+  requireToken(session, "Cần đăng nhập để tải cài đặt thông báo.");
 
-  if (!session?.token) {
-    return {
-      ...normalizePushSettings(localPushSettings),
-      source: ACTIVE_SOURCES.LOCAL,
-    };
-  }
+  const response = await backendApi.getPushSettings({
+    token: session.token,
+  });
 
-  try {
-    const response = await backendApi.getPushSettings({ token: session.token });
+  await assertBackendOk(response, {
+    message: "Backend get_push_settings failed",
+  });
 
-    await assertBackendOk(response, {
-      message: "Backend get_push_settings failed",
-    });
+  const normalized = normalizePushSettings(
+    extractObject(response),
+    lastKnownPushSettings || undefined,
+  );
 
-    return {
-      ...normalizePushSettings({
-        ...localPushSettings,
-        ...extractObject(response),
-      }),
-      source: ACTIVE_SOURCES.SERVER,
-    };
-  } catch (error) {
-    console.info("[DATA] Server push settings fallback", error.message);
-    throw error;
-  }
+  lastKnownPushSettings = normalized;
+
+  return {
+    ...normalized,
+    source: sourceFromResponse(response),
+  };
 }
 
 export async function setPushSettings(settings = {}) {
   const session = await getCurrentSession();
-
-  if (!session?.token) {
-    throw new Error("Bạn cần đăng nhập để lưu cài đặt thông báo.");
-  }
+  requireToken(session, "Cần đăng nhập để lưu cài đặt thông báo.");
 
   const response = await backendApi.setPushSettings({
     token: session.token,
@@ -104,28 +147,31 @@ export async function setPushSettings(settings = {}) {
 
   // Backend trả 1010 khi setting đã giống giá trị yêu cầu.
   // Trường hợp này vẫn coi là lưu thành công.
-  if (code === "1000" || code === "1010") {
-    return {
-      ...normalizePushSettings(settings),
-      source: ACTIVE_SOURCES.SERVER,
-    };
+  if (code !== "1000" && code !== "1010") {
+    await assertBackendOk(response, {
+      message: "Backend set_push_settings failed",
+    });
   }
 
-  // Log response for diagnostics before assertion so we can capture unexpected server payloads
-  console.info("[DATA] setPushSettings response:", response);
+  const normalized = normalizePushSettings(
+    {
+      ...settings,
+      ...extractObject(response),
+    },
+    lastKnownPushSettings || normalizePushSettings(settings),
+  );
 
-  await assertBackendOk(response, {
-    message: "Backend set_push_settings failed",
-  });
+  lastKnownPushSettings = normalized;
 
   return {
-    ...normalizePushSettings(settings),
-    source: ACTIVE_SOURCES.SERVER,
+    ...normalized,
+    source: sourceFromResponse(response),
   };
 }
 
 export async function changePassword(oldPassword, newPassword) {
   const session = await getCurrentSession();
+  requireToken(session, "Cần đăng nhập để đổi mật khẩu.");
 
   const response = await backendApi.changePassword({
     token: session.token,
@@ -137,25 +183,33 @@ export async function changePassword(oldPassword, newPassword) {
     message: "Backend change_password failed",
   });
 
-  return { changed: true, source: ACTIVE_SOURCES.SERVER };
+  return {
+    changed: true,
+    source: sourceFromResponse(response),
+  };
 }
 
 export async function checkNewVersion() {
   const session = await getCurrentSession();
 
-  let response = await backendApi.checkNewVersion({
-    token: session?.token || "",
-    last_update: "2026-05-10T00:00:00.000Z",
-  });
+  let response;
 
-  if (
-    String(response?.message || "").includes(
-      "property last_update should not exist",
-    )
-  ) {
+  try {
+    response = await backendApi.checkNewVersion({
+      token: session?.token || "",
+      last_update: "2026-05-10T00:00:00.000Z",
+    });
+  } catch (error) {
+    const message = String(error?.data?.message || error?.message || "");
+
+    if (!message.includes("property last_update should not exist")) {
+      throw error;
+    }
+
     console.info(
       "[DATA] check_new_version deployed compatibility: retrying with lastUpdate",
     );
+
     response = await backendApi.checkNewVersion({
       token: session?.token || "",
       lastUpdate: "2026-05-10T00:00:00.000Z",
@@ -174,10 +228,7 @@ export async function setDeviceToken(
   devtype = "1",
 ) {
   const session = await getCurrentSession();
-
-  if (!session?.token) {
-    return null;
-  }
+  requireToken(session, "Cần đăng nhập để gửi device token.");
 
   const response = await backendApi.setDevtoken({
     token: session.token,
@@ -185,7 +236,14 @@ export async function setDeviceToken(
     devtype,
   });
 
-  await assertBackendOk(response, { message: "Backend set_devtoken failed" });
+  await assertBackendOk(response, {
+    message: "Backend set_devtoken failed",
+  });
 
-  return { registered: true, devtoken, devtype, source: ACTIVE_SOURCES.SERVER };
+  return {
+    registered: true,
+    devtoken,
+    devtype,
+    source: sourceFromResponse(response),
+  };
 }

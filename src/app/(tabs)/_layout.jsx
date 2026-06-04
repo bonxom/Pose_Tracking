@@ -9,13 +9,14 @@ import {
   getNotificationBadge,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
-
 import { getInitials } from "@/utils/formatters";
-import { getAuthSession } from "@/utils/session";
+import { resolveAvatarUri } from "@/utils/profile";
+import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
-import { router, Tabs, usePathname } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { router, Tabs, useFocusEffect, usePathname } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function HomeTopSection() {
@@ -23,6 +24,9 @@ function HomeTopSection() {
 
   useEffect(() => {
     getAuthSession().then(setSession).catch(console.warn);
+
+    const unsubscribe = subscribeAuthSession(setSession);
+    return unsubscribe;
   }, []);
 
   const role = String(session?.role || session?.user?.role || "").toUpperCase();
@@ -31,6 +35,7 @@ function HomeTopSection() {
   return (
     <View style={styles.homeHeader}>
       <Text style={styles.homeTitle}>Pose Tracking</Text>
+
       <View style={styles.headerActions}>
         {canCreatePost ? (
           <Pressable
@@ -41,6 +46,7 @@ function HomeTopSection() {
             <FontAwesome name="plus-square-o" size={24} color={colors.text} />
           </Pressable>
         ) : null}
+
         <Pressable
           style={styles.searchBtn}
           hitSlop={8}
@@ -55,6 +61,7 @@ function HomeTopSection() {
 
 function TabButton({ onPress, accessibilityState, children }) {
   const focused = accessibilityState?.selected;
+
   return (
     <Pressable onPress={onPress} style={styles.tabButton}>
       {children}
@@ -73,25 +80,30 @@ function ProfileTabAvatar({ focused, avatar, name }) {
         focused && styles.profileAvatarWrapActive,
       ]}
     >
-      {avatar ? (
-        <Image source={{ uri: avatar }} style={styles.profileAvatarImage} />
-      ) : (
+      <View style={styles.profileAvatarFallbackShell}>
         <View style={styles.profileAvatarFallback}>
           <Text style={styles.profileAvatarFallbackText}>{initials}</Text>
         </View>
-      )}
+      </View>
+
+      {avatar ? (
+        <Image
+          key={avatar}
+          source={{ uri: avatar }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+          style={styles.profileAvatarImage}
+        />
+      ) : null}
     </View>
   );
 }
 
 export default function TabsLayout() {
   const pathname = usePathname();
-  const pathnameRef = useRef(pathname);
-
-  useEffect(() => {
-    pathnameRef.current = pathname;
-  }, [pathname]);
   const isHome = pathname === "/home" || pathname === "/";
+
   const [session, setSession] = useState(null);
   const [notificationBadge, setTabNotificationBadge] = useState(
     getNotificationBadge(),
@@ -107,14 +119,43 @@ export default function TabsLayout() {
 
   useEffect(() => {
     getAuthSession().then(setSession).catch(console.warn);
+
+    const unsubscribe = subscribeAuthSession(setSession);
+    return unsubscribe;
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      getAuthSession()
+        .then((value) => {
+          if (active) {
+            setSession(value);
+          }
+        })
+        .catch(console.warn);
+
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
   const displayName = session?.displayName || session?.username || "Người dùng";
-  const avatar = session?.avatar || session?.user?.avatar || "";
+
+  const avatar = resolveAvatarUri(
+    session?.avatar || session?.user?.avatar || "",
+    session?.avatarVersion ||
+      session?.profileSyncRequestedAt ||
+      session?.loggedInAt ||
+      "",
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {isHome && <HomeTopSection />}
+
       <Tabs
         screenOptions={{
           tabBarPosition: "top",
@@ -146,6 +187,7 @@ export default function TabsLayout() {
             ),
           }}
         />
+
         <Tabs.Screen
           name="courses"
           options={{
@@ -153,6 +195,7 @@ export default function TabsLayout() {
             tabBarIcon: ({ focused }) => <CoursesIcon focused={focused} />,
           }}
         />
+
         <Tabs.Screen
           name="notifications"
           options={{
@@ -172,6 +215,7 @@ export default function TabsLayout() {
             ),
           }}
         />
+
         <Tabs.Screen
           name="profile"
           options={{
@@ -185,6 +229,7 @@ export default function TabsLayout() {
             ),
           }}
         />
+
         <Tabs.Screen
           name="menu"
           options={{
@@ -221,14 +266,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
   },
-  tabBar: {
-    backgroundColor: "#fff",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#CED0D4",
-    elevation: 0,
-    shadowOpacity: 0,
-    height: 52,
-    paddingTop: 0,
+  actionBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   tabItem: {
     flex: 1,
@@ -247,7 +289,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   notificationTabIcon: {
     width: 36,
     height: 28,
@@ -283,13 +324,8 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: "transparent",
   },
-  indicatorActive: { backgroundColor: colors.primary },
-  notificationIconWrap: {
-    width: 36,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
+  indicatorActive: {
+    backgroundColor: colors.primary,
   },
   profileAvatarWrap: {
     width: 29,
@@ -306,7 +342,22 @@ const styles = StyleSheet.create({
   profileAvatarWrapActive: {
     borderColor: colors.primary,
   },
+  profileAvatarFallbackShell: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14.5,
+    padding: 1,
+    backgroundColor: "#DCE8FF",
+  },
   profileAvatarImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: "100%",
     height: "100%",
     borderRadius: 12.5,
@@ -314,6 +365,7 @@ const styles = StyleSheet.create({
   profileAvatarFallback: {
     width: "100%",
     height: "100%",
+    borderRadius: 13.5,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#E8EEF9",
@@ -322,25 +374,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 10,
     fontWeight: "900",
-  },
-  notificationBadge: {
-    position: "absolute",
-    top: -4,
-    right: 0,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 5,
-    backgroundColor: "#E41E3F",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notificationBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    lineHeight: 12,
-    fontWeight: "800",
   },
 });

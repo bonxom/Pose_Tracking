@@ -1,9 +1,13 @@
 import Screen from "@/components/common/Screen";
-import { loginDemoStudent, loginDemoTeacher, loginWithPassword } from "@/repositories/authRepository";
-import { getDataSourceMode } from "@/repositories/source";
+import {
+  loginDemoStudent,
+  loginDemoTeacher,
+  loginWithPassword,
+} from "@/repositories/authRepository";
 import { registerDeviceForPush } from "@/services/pushNotifications";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
+import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
 import { saveAuthSession } from "@/utils/session";
 import { validatePassword, validatePhoneNumber } from "@/utils/validation";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,19 +25,20 @@ import {
 
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
+
 export default function LoginScreen() {
-  const dataSourceMode = getDataSourceMode();
-  const isServerMode = dataSourceMode === "server";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [phoneNumberError, setPhoneNumberError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showDevFallback, setShowDevFallback] = useState(!isServerMode);
+  const [showDevFallback, setShowDevFallback] = useState(false);
 
   const persistAndNavigate = async (data) => {
     try {
+      await removeCache(CACHE_KEY_PROFILE);
+
       await saveAuthSession({
         id: data.id,
         token: data.token,
@@ -47,8 +52,10 @@ export default function LoginScreen() {
         handle: data.handle,
         source: data.source,
         demoMode: Boolean(data.demoMode),
+        avatarVersion: new Date().toISOString(),
         loggedInAt: new Date().toISOString(),
       });
+
       if (!data.demoMode) {
         registerDeviceForPush().catch((error) =>
           console.warn("Cannot register push token:", error),
@@ -66,6 +73,7 @@ export default function LoginScreen() {
     setPassword(nextPassword);
     setPhoneNumberError("");
     setPasswordError("");
+
     const response = await loginFn();
 
     if (response.code === "1000") {
@@ -101,17 +109,21 @@ export default function LoginScreen() {
           Alert.alert("Thành công", "Đăng nhập thành công");
           break;
         }
+
         case "9995":
           setPhoneNumberError(
             "Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.",
           );
           break;
+
         case "1004":
           setPhoneNumberError("Số điện thoại hoặc mật khẩu không chính xác.");
           break;
+
         case "1002":
           setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
           break;
+
         default:
           Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
       }
@@ -130,6 +142,7 @@ export default function LoginScreen() {
         <Text style={styles.languageText}>English · 中文(台灣) ·</Text>
         <Text style={styles.languageLink}>Xem thêm...</Text>
       </View>
+
       <View style={styles.inputRow}>
         <TextInput
           placeholder="Số điện thoại"
@@ -148,6 +161,7 @@ export default function LoginScreen() {
           editable={!isLoading}
         />
       </View>
+
       {!!phoneNumberError && (
         <Text style={styles.errorText}>{phoneNumberError}</Text>
       )}
@@ -167,6 +181,7 @@ export default function LoginScreen() {
           style={[styles.input, { flex: 1 }]}
           editable={!isLoading}
         />
+
         {password.length > 0 && (
           <Pressable
             onPress={() => setShowPassword(!showPassword)}
@@ -180,6 +195,7 @@ export default function LoginScreen() {
           </Pressable>
         )}
       </View>
+
       {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
 
       <Pressable
@@ -206,6 +222,7 @@ export default function LoginScreen() {
             <Text style={styles.errorText}>
               Local fallback chỉ dùng khi backend/OTP chưa sẵn sàng.
             </Text>
+
             <Pressable
               style={[styles.createButton, { borderColor: "#2563EB" }]}
               onPress={() =>
@@ -217,6 +234,7 @@ export default function LoginScreen() {
                 Use demo student account · 0900000001 / 123456
               </Text>
             </Pressable>
+
             <Pressable
               style={[styles.createButton, { borderColor: "#94A3B8" }]}
               onPress={() =>

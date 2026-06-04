@@ -1,6 +1,5 @@
 import NoInternetView from "@/components/common/NoInternetView";
 import SearchIcon from "@/components/icons/SearchIcon";
-import { API_TYPE, API_TYPES } from "@/config/env";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   getNotificationCache,
@@ -13,6 +12,7 @@ import {
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
+import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -97,6 +97,7 @@ function NotificationTypeBadge({ type = "" }) {
 
 function NotificationItem({ item, onPress }) {
   const unread = isUnread(item);
+  const avatarUri = resolveAvatarUri(item.avatar || "");
 
   return (
     <Pressable
@@ -108,8 +109,8 @@ function NotificationItem({ item, onPress }) {
       ]}
     >
       <View style={styles.avatarWrap}>
-        {item.avatar ? (
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
         ) : (
           <Text style={styles.avatarFallback}>{getInitial(item.title)}</Text>
         )}
@@ -161,9 +162,10 @@ export default function NotificationsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
-  const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
   const [, setLastUpdate] = useState(initialCache.lastUpdate);
   const [hasNewNotification, setHasNewNotification] = useState(false);
+
+  const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
 
   const listRef = useRef(null);
   const latestBadgeRef = useRef(Number(initialCache.unreadCount || 0));
@@ -232,10 +234,8 @@ export default function NotificationsScreen() {
         setHasMore(page.hasMore);
         setLastUpdate(page.lastUpdate);
       } catch (err) {
-        if (API_TYPE !== API_TYPES.MOCK) {
-          if (await handleNotificationAuthError(err)) {
-            return;
-          }
+        if (await handleNotificationAuthError(err)) {
+          return;
         }
 
         setError(err?.message || "Không tải được thông báo.");
@@ -254,7 +254,9 @@ export default function NotificationsScreen() {
 
     try {
       setIsLoadingMore(true);
+
       let page;
+
       await executeWithInternetCheck(async () => {
         page = await getNotificationPage({
           index: items.length,
@@ -268,13 +270,11 @@ export default function NotificationsScreen() {
       setHasMore(page.hasMore);
       setLastUpdate(page.lastUpdate);
     } catch (err) {
-      if (API_TYPE !== API_TYPES.MOCK) {
-        if (await handleNotificationAuthError(err)) {
-          setItems([]);
-          setBadge(0);
-          setHasMore(false);
-          return;
-        }
+      if (await handleNotificationAuthError(err)) {
+        setItems([]);
+        setBadge(0);
+        setHasMore(false);
+        return;
       }
 
       setError(err?.message || "Không tải thêm được thông báo.");
@@ -283,12 +283,12 @@ export default function NotificationsScreen() {
     }
   }, [
     executeWithInternetCheck,
+    handleNotificationAuthError,
     hasMore,
     isLoading,
-    isRefreshing,
     isLoadingMore,
+    isRefreshing,
     items.length,
-    handleNotificationAuthError,
   ]);
 
   const refreshNewNotifications = useCallback(async () => {
@@ -386,10 +386,8 @@ export default function NotificationsScreen() {
             setNotificationBadge(nextBadge);
           }
         } catch (err) {
-          if (API_TYPE !== API_TYPES.MOCK) {
-            if (await handleNotificationAuthError(err)) {
-              return;
-            }
+          if (await handleNotificationAuthError(err)) {
+            return;
           }
 
           console.warn("Failed to mark notification read:", err);
@@ -449,6 +447,7 @@ export default function NotificationsScreen() {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <Text style={styles.title}>Thông báo</Text>
+
           <Pressable
             onPress={() => router.push("/search")}
             hitSlop={8}
@@ -500,9 +499,7 @@ export default function NotificationsScreen() {
           style={styles.newNotificationPill}
           onPress={refreshNewNotifications}
         >
-          <Text style={styles.newNotificationPillText}>
-            Có thông báo mới
-          </Text>
+          <Text style={styles.newNotificationPillText}>Có thông báo mới</Text>
         </Pressable>
       ) : null}
 
@@ -515,6 +512,7 @@ export default function NotificationsScreen() {
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>
+
           <Pressable style={styles.retryButton} onPress={() => loadPage()}>
             <Text style={styles.retryButtonText}>Thử lại</Text>
           </Pressable>
