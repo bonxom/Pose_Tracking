@@ -1,5 +1,5 @@
 import { backendApi } from "@/api/client";
-import { API_BASE_URL, API_TYPE, API_TYPES } from "@/config/env";
+import { API_BASE_URL } from "@/config/env";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import {
@@ -455,25 +455,6 @@ export async function getNotifications() {
 }
 
 export async function getNotificationPage(params = {}) {
-  if (API_TYPE === API_TYPES.MOCK) {
-    const response = await backendApi.getNotification({
-      index: String(params.index || 0),
-      count: String(params.count || 20),
-    });
-
-    await assertBackendOk(response, {
-      allowNoData: true,
-      message: "Mock notification failed",
-    });
-
-    const page = normalizeNotificationPage(response, ACTIVE_SOURCES.LOCAL);
-
-    return saveNotificationCache(page, {
-      append: Number(params.index || 0) > 0,
-      mergeWithExisting: Boolean(params.mergeWithExisting),
-    });
-  }
-
   const session = await getCurrentSession();
 
   if (!session?.token) {
@@ -487,7 +468,6 @@ export async function getNotificationPage(params = {}) {
       token: session.token,
       index: String(params.index || 0),
       count: String(params.count || 20),
-      last_update: params.lastUpdate || params.last_update || "",
     });
 
     await assertBackendOk(response, {
@@ -542,7 +522,7 @@ export async function markNotificationRead(notificationId) {
     await assertBackendOk(response, {
       message: "Backend set_read_notification failed",
     });
-  } catch (error) {
+  } catch (_error) {
     response = await backendApi.setReadNotification({
       token: session.token,
       notification_id: id,

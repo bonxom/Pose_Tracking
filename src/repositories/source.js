@@ -69,3 +69,28 @@ export function isServerPost(post) {
 export function getDataSourceLabel(source) {
   return getSourceLabel(source);
 }
+
+export function sourceFromResponse(response, fallback = ACTIVE_SOURCES.SERVER) {
+  const rawSource = String(
+    response?.source ||
+      response?.data?.source ||
+      response?.meta?.source ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (rawSource.includes("local") || rawSource.includes("mock")) {
+    return ACTIVE_SOURCES.LOCAL;
+  }
+
+  if (rawSource.includes("fallback")) {
+    return ACTIVE_SOURCES.LOCAL_FALLBACK;
+  }
+
+  if (rawSource.includes("server") || rawSource.includes("remote")) {
+    return ACTIVE_SOURCES.SERVER;
+  }
+
+  return fallback;
+}
