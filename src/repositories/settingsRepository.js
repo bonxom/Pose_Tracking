@@ -157,7 +157,7 @@ export async function changePassword(oldPassword, newPassword) {
   const response = await backendApi.changePassword({
     token: session.token,
     password: oldPassword,
-    new_password: newPassword,
+    newPassword: newPassword,
   });
 
   await assertBackendOk(response, {

@@ -83,7 +83,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    lineHeight: 22,
     fontWeight: "900",
     color: colors.ink,
   },
