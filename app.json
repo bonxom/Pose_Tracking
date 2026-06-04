@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Pose_Tracking",
-    "slug": "Pose_Tracking",
+    "name": "Pose Tracking",
+    "slug": "pose-tracking",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/MainIcon.png",
+    "icon": "./assets/images/Splash.png",
     "scheme": "posetracking",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -12,17 +12,17 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/Foreground.png",
-        "backgroundImage": "./assets/images/Background.png",
-        "monochromeImage": "./assets/images/MainIcon.png"
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.Pose_Tracking"
+      "package": "com.anonymous.posetracking"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/Combine.png"
+      "favicon": "./assets/images/Favicon.png"
     },
     "plugins": [
       "expo-router",
@@ -31,15 +31,16 @@
         {
           "backgroundColor": "#E6F4FE",
           "android": {
-            "image": "./assets/images/splashCombine.png",
-            "imageWidth": 150
+            "image": "./assets/images/Splash.png",
+            "imageWidth": 200
           }
         }
       ],
       "expo-secure-store",
       "expo-image",
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      "./plugins/withAndroidGradleJavaHome"
     ],
     "experiments": {
       "typedRoutes": true,
