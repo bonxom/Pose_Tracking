@@ -1,6 +1,8 @@
 # dependencies
 node_modules/
 .agent/
+plugins/
+patches/
 
 # Expo
 .expo/
@@ -42,4 +44,3 @@ cam/
  
 # Ignore package metadata and lockfiles (user requested)
 package-lock.json
-package.json
