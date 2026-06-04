@@ -10,20 +10,11 @@ import {
 } from "@/repositories/settingsRepository";
 import { getCurrentSession } from "@/repositories/source";
 import Constants from "expo-constants";
-import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
 
 const VOICE_SOUND = "voice_notification.wav";
 const SMS_SOUND = "sms_notification.wav";
-
-function getNotificationSound(settings = {}) {
-  return toBool(settings.soundOn, true) ? VOICE_SOUND : SMS_SOUND;
-}
-
-function getNotificationChannelId(settings = {}) {
-  return toBool(settings.soundOn, true) ? "push-voice" : "push-sms";
-}
 
 let currentSettings = normalizePushSettings({});
 let pollingTimer = null;
@@ -33,8 +24,34 @@ let responseSubscription = null;
 let lastUnreadCount = null;
 let lastNotificationIds = new Set();
 
+function toBool(value, fallback = true) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === "1" || normalized === "true";
+}
+
+function getNotificationSound(settings = {}) {
+  return toBool(settings.soundOn, true) ? VOICE_SOUND : undefined;
+}
+
+function getNotificationChannelId(settings = {}) {
+  return toBool(settings.soundOn, true) ? "push-voice" : "push-sms";
+}
+
+function getProjectId() {
+  return (
+    Constants?.expoConfig?.extra?.eas?.projectId ||
+    Constants?.easConfig?.projectId ||
+    Constants?.manifest2?.extra?.eas?.projectId ||
+    null
+  );
+}
+
 function isNotificationsPath(path = "") {
   const currentPath = String(path || "");
+
   return (
     currentPath === "/notifications" ||
     currentPath === "/(tabs)/notifications" ||
@@ -74,7 +91,7 @@ function normalizeNotificationPreview(item = {}) {
       raw.title ||
       raw.message ||
       raw.content ||
-      "Bạn có thông báo mới",
+      "Báº¡n cÃ³ thÃ´ng bÃ¡o má»›i",
   ).trim();
 
   const body = String(
@@ -179,12 +196,6 @@ function normalizeReceivedPushNotification(notification = {}) {
   });
 }
 
-function toBool(value, fallback = true) {
-  if (value === undefined || value === null) return fallback;
-  if (typeof value === "boolean") return value;
-  return String(value) === "1" || String(value).toLowerCase() === "true";
-}
-
 async function applyAndroidChannel(settings = currentSettings) {
   if (Platform.OS !== "android") return;
 
@@ -192,7 +203,7 @@ async function applyAndroidChannel(settings = currentSettings) {
   const ledOn = toBool(settings.ledOn, true);
 
   await Notifications.setNotificationChannelAsync("push-voice", {
-    name: "Thông báo giọng nói",
+    name: "ThÃ´ng bÃ¡o giá»ng nÃ³i",
     importance: Notifications.AndroidImportance.HIGH,
     sound: VOICE_SOUND,
     enableVibrate: vibrateOn,
@@ -202,7 +213,7 @@ async function applyAndroidChannel(settings = currentSettings) {
   });
 
   await Notifications.setNotificationChannelAsync("push-sms", {
-    name: "Thông báo SMS",
+    name: "ThÃ´ng bÃ¡o SMS",
     importance: Notifications.AndroidImportance.HIGH,
     sound: SMS_SOUND,
     enableVibrate: vibrateOn,
@@ -229,7 +240,7 @@ export async function loadAndApplyPushSettings() {
       return {
         shouldShowBanner: notificationOn,
         shouldShowList: notificationOn,
-        shouldPlaySound: notificationOn,
+        shouldPlaySound: notificationOn && toBool(currentSettings.soundOn, true),
         shouldSetBadge: notificationOn,
       };
     },
@@ -239,12 +250,6 @@ export async function loadAndApplyPushSettings() {
 }
 
 export async function registerDeviceForPush() {
-  console.log("PUSH_REGISTER_START", {
-    platform: Platform.OS,
-    isDevice: Device.isDevice,
-    appOwnership: Constants.appOwnership,
-  });
-
   const session = await getCurrentSession();
 
   if (!session?.token) {
@@ -259,13 +264,9 @@ export async function registerDeviceForPush() {
   const permission = await Notifications.getPermissionsAsync();
   let status = permission.status;
 
-  console.log("PUSH_PERMISSION_EXISTING", permission);
-
   if (status !== "granted") {
     const requested = await Notifications.requestPermissionsAsync();
     status = requested.status;
-
-    console.log("PUSH_PERMISSION_REQUESTED", requested);
   }
 
   if (status !== "granted") {
@@ -274,17 +275,18 @@ export async function registerDeviceForPush() {
   }
 
   try {
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ||
-      Constants.easConfig?.projectId;
-
-    console.log("PUSH_PROJECT_ID", projectId);
+    const projectId = getProjectId();
 
     const tokenResult = await Notifications.getExpoPushTokenAsync(
       projectId ? { projectId } : undefined,
     );
 
-    const devtoken = tokenResult.data;
+    const devtoken = tokenResult?.data;
+
+    if (!devtoken) {
+      console.log("GET_EXPO_PUSH_TOKEN_EMPTY");
+      return null;
+    }
 
     console.log("====================================");
     console.log("EXPO_PUSH_TOKEN:", devtoken);
@@ -294,8 +296,8 @@ export async function registerDeviceForPush() {
     await setDeviceToken(devtoken, devtype);
 
     console.log("SET_DEV_TOKEN_OK", {
-      devtype,
       devtoken,
+      devtype,
     });
 
     return devtoken;
@@ -313,12 +315,14 @@ async function showLocalNotificationForNewItems(notification) {
   if (!toBool(currentSettings.notificationOn, true)) return;
 
   const preview = normalizeNotificationPreview(notification);
+  const channelId = getNotificationChannelId(currentSettings);
+  const sound = getNotificationSound(currentSettings);
 
   await Notifications.scheduleNotificationAsync({
     content: {
       title: preview.title,
       body: preview.body,
-      sound: getNotificationSound(currentSettings),
+      sound,
       data: {
         screen: "notifications",
         notificationId: preview.id,
@@ -331,7 +335,7 @@ async function showLocalNotificationForNewItems(notification) {
       Platform.OS === "android"
         ? {
             seconds: 1,
-            channelId: getNotificationChannelId(currentSettings),
+            channelId,
           }
         : null,
   });
@@ -369,8 +373,8 @@ export async function refreshNotificationBadge({
     const preview =
       latestNewNotification ||
       normalizeNotificationPreview({
-        title: "Bạn có thông báo mới",
-        body: "Có thông báo mới. Nhấn để xem chi tiết.",
+        title: "Báº¡n cÃ³ thÃ´ng bÃ¡o má»›i",
+        body: "CÃ³ thÃ´ng bÃ¡o má»›i. Nháº¥n Ä‘á»ƒ xem chi tiáº¿t.",
       });
 
     onNewInAppNotification?.({
@@ -380,6 +384,8 @@ export async function refreshNotificationBadge({
       page,
     });
 
+    // KhÃ´ng báº­t dÃ²ng dÆ°á»›i náº¿u backend/Expo Ä‘Ã£ gá»­i push tháº­t,
+    // vÃ¬ sáº½ bá»‹ double notification trong Android drawer.
     // await showLocalNotificationForNewItems(preview);
   }
 
@@ -461,9 +467,6 @@ export function startInAppNotificationRuntime({
     (response) => {
       try {
         const data = response?.notification?.request?.content?.data || {};
-
-        console.log("PUSH_NOTIFICATION_PRESSED", data);
-
         onOpen?.(data);
       } catch (error) {
         console.log("PUSH_NOTIFICATION_PRESS_ERROR", error?.message);
