@@ -5,7 +5,7 @@ export function initials(name = "") {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
 }
 
-const DEFAULT_AVATAR_SOURCE = require("../../assets/images/defaultAvatar.png");
+const DEFAULT_AVATAR_SOURCE = require("@/assets/images/defaultAvatar.png");
 
 export function resolveAvatarUri(uri = "", version = "") {
   const cleanUri = String(uri || "").trim();
