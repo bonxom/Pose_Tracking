@@ -72,7 +72,6 @@ export default function VerifyScreen() {
         const nextVerifyCode =
           response.data?.verifyCode ||
           response.data?.verify_code ||
-          response.data?.mock_verify_code ||
           "";
         if (nextVerifyCode) {
           setCurrentVerifyCode(nextVerifyCode);
