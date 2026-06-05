@@ -24,10 +24,9 @@ Các tính năng có API không bắt buộc phải là tab top-level. UI team c
 
 ```bash
 EXPO_PUBLIC_API_TYPE=backend # mặc định, gọi backend thật
-EXPO_PUBLIC_API_TYPE=mock    # repository mock/local, không gọi backend
 ```
 
-`API_TYPE=mock|backend` là alias tiện cho Docker `up` nếu môi trường hỗ trợ. Biến cũ `EXPO_PUBLIC_DATA_SOURCE=server|local|auto` vẫn hoạt động, nhưng UI mới nên dùng `EXPO_PUBLIC_API_TYPE`.
+`API_TYPE=backend` là alias tiện cho Docker `up` nếu môi trường hỗ trợ. UI mới nên dùng `EXPO_PUBLIC_API_TYPE`.
 
 ### Mức độ hoàn chỉnh của mock mode
 
@@ -39,8 +38,6 @@ EXPO_PUBLIC_API_TYPE=mock    # repository mock/local, không gọi backend
 - profile/settings hỗ trợ edit profile, push settings, đổi mật khẩu local, set device token
 - notifications hỗ trợ pagination, read state, unread count, nhãn `99+`
 - blocks/conversations hỗ trợ block/unblock, read, delete message, delete conversation, local-only send
-
-API client sẽ ném lỗi `MOCK_MODE_BACKEND_DISABLED` nếu có code path cố gọi backend thật trong `EXPO_PUBLIC_API_TYPE=mock`.
 
 Helper ở `src/repositories/source.js`:
 

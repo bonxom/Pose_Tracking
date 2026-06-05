@@ -65,6 +65,8 @@ export default function ChangeInfoAfterSignupScreen() {
 
     if (!normalizedUsername) {
       nextUsernameError = "Tên người dùng không được bỏ trống.";
+    } else if (/\d/.test(normalizedUsername)) {
+      nextUsernameError = "Tên người dùng không được chứa số.";
     }
 
     if (normalizedHeight && !/^\d+$/.test(normalizedHeight)) {

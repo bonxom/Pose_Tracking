@@ -89,12 +89,10 @@ export default function LoginScreen() {
           break;
         }
         case "9995":
-          setPhoneNumberError(
-            "Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.",
-          );
+          setPasswordError("Tài khoản chưa được xác thực hoặc không tồn tại.");
           break;
         case "1004":
-          setPhoneNumberError("Số điện thoại hoặc mật khẩu không chính xác.");
+          setPasswordError("Số điện thoại hoặc mật khẩu không chính xác.");
           break;
         case "1002":
           setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
