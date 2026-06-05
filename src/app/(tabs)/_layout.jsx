@@ -4,20 +4,20 @@ import HomeIcon from "@/components/icons/HomeIcon";
 import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
-import { getInitials } from "@/utils/formatters";
-import { resolveAvatarUri } from "@/utils/profile";
 import {
   formatNotificationBadge,
   getNotificationBadge,
   getNotificationPage,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
+import { getInitials } from "@/utils/formatters";
+import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router, Tabs, useFocusEffect, usePathname } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function HomeTopSection() {
