@@ -43,6 +43,7 @@ export default function PostCard({
   detail = false,
   flat = false,
 }) {
+  console.log(post.videos)
   const [isExpanded, setIsExpanded] = useState(detail);
   const [currentUser, setCurrentUser] = useState(null);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
