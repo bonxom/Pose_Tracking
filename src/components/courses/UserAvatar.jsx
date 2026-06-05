@@ -1,7 +1,6 @@
-import { Text, View } from "react-native";
-import { Image } from "expo-image";
 import coursesStyles from "@/styles/courses.styles";
 import { resolveAvatarUri } from "@/utils/profile";
+import { Image } from "react-native";
 
 export default function UserAvatar({ uri, name }) {
   const avatarUri = resolveAvatarUri(uri || "");
@@ -18,10 +17,5 @@ export default function UserAvatar({ uri, name }) {
     );
   }
 
-  const initial = (name || "?").charAt(0).toUpperCase();
-  return (
-    <View style={coursesStyles.avatarPlaceholder}>
-      <Text style={coursesStyles.avatarPlaceholderText}>{initial}</Text>
-    </View>
-  );
+  return <Image source={require("@/assets/images/defaultAvatar.png")} style={coursesStyles.avatar} />;
 }

@@ -1,25 +1,20 @@
 import AppButton from "@/components/common/AppButton";
-import CloseIcon from "@/components/icons/CloseIcon";
 import EarthIcon from "@/components/icons/EarthIcon";
 import EllipsisHorizontalIcon from "@/components/icons/EllipsisHorizontalIcon";
-import PlayVideoIcon from "@/components/icons/PlayVideoIcon";
-import VideoCamOutlineIcon from "@/components/icons/VideoCamOutlineIcon";
 import CommentButton from "@/components/post/CommentButton";
 import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
+import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession } from "@/utils/session";
 import { router } from "expo-router";
-import { VideoView, useVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Image,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -28,148 +23,12 @@ import {
 import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
-const VIDEO_FALLBACK_SOURCES = [
-  require("../../../assets/cam1.mp4"),
-  require("../../../assets/cam2.mp4"),
-];
 
 function formatCount(value = 0) {
   const count = Number(value) || 0;
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
   if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
   return String(count);
-}
-
-function PostVideoTile({ video, index, fallbackSource }) {
-  const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
-  const [isFullscreenReady, setIsFullscreenReady] = useState(false);
-  const rawVideoUri = typeof video?.uri === "string" ? video.uri.trim() : "";
-  const rawThumbUri =
-    typeof video?.thumb === "string" && video.thumb.trim()
-      ? video.thumb.trim()
-      : typeof video?.thumbnail === "string" && video.thumbnail.trim()
-        ? video.thumbnail.trim()
-        : "";
-  const [videoSource, setVideoSource] = useState(rawVideoUri || fallbackSource);
-  const fullscreenPlayer = useVideoPlayer(
-    isFullscreenVisible ? videoSource : null,
-    (player) => {
-      player.loop = true;
-      player.muted = false;
-      player.pause();
-    },
-  );
-
-  useEffect(() => {
-    setVideoSource(rawVideoUri || fallbackSource);
-    setIsFullscreenReady(false);
-  }, [rawVideoUri, fallbackSource]);
-
-  useEffect(() => {
-    fullscreenPlayer.pause();
-  }, [videoSource, fullscreenPlayer]);
-
-  useEffect(() => {
-    const applyFallback = () => {
-      setVideoSource((current) =>
-        current === fallbackSource ? current : fallbackSource,
-      );
-    };
-
-    const handleStatusChange = ({ status }) => {
-      if (status === "error") {
-        setIsFullscreenReady(true);
-        applyFallback();
-      }
-    };
-
-    const fullscreenSub = fullscreenPlayer.addListener(
-      "statusChange",
-      handleStatusChange,
-    );
-
-    return () => {
-      fullscreenSub.remove();
-    };
-  }, [fallbackSource, fullscreenPlayer]);
-
-  const openFullscreen = () => {
-    setIsFullscreenVisible(true);
-    setIsFullscreenReady(false);
-    fullscreenPlayer.pause();
-  };
-
-  const closeFullscreen = () => {
-    setIsFullscreenVisible(false);
-    fullscreenPlayer.pause();
-  };
-
-  if (!videoSource) return null;
-
-  return (
-    <>
-      <Pressable style={localStyles.videoCard} onPress={openFullscreen}>
-        {rawThumbUri ? (
-          <Image
-            source={{ uri: rawThumbUri }}
-            style={localStyles.videoPreview}
-          />
-        ) : (
-          <View style={localStyles.videoPreviewFallback}>
-            <VideoCamOutlineIcon />
-            <Text style={localStyles.videoPreviewFallbackText}>
-              Chưa có thumbnail
-            </Text>
-          </View>
-        )}
-        {rawThumbUri ? (
-          <View pointerEvents="none" style={localStyles.playIconOverlay}>
-            <PlayVideoIcon size={42} />
-          </View>
-        ) : null}
-
-        <View style={localStyles.videoLabel}>
-          <Text style={localStyles.videoLabelText}>
-            {video.angle || `Video ${index + 1}`}
-          </Text>
-        </View>
-      </Pressable>
-
-      <Modal
-        visible={isFullscreenVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeFullscreen}
-      >
-        <View style={localStyles.fullscreenBackdrop}>
-          <Pressable
-            style={localStyles.closeButton}
-            onPress={closeFullscreen}
-            hitSlop={8}
-          >
-            <CloseIcon />
-          </Pressable>
-
-          {isFullscreenVisible && videoSource ? (
-            <>
-              <VideoView
-                player={fullscreenPlayer}
-                style={localStyles.fullscreenVideo}
-                contentFit="contain"
-                nativeControls
-                onFirstFrameRender={() => setIsFullscreenReady(true)}
-              />
-              {!isFullscreenReady ? (
-                <View style={localStyles.videoLoadingOverlay}>
-                  <ActivityIndicator size="large" color={colors.white} />
-                </View>
-              ) : null}
-            </>
-          ) : null}
-        </View>
-      </Modal>
-    </>
-  );
 }
 
 export default function PostCard({
@@ -184,6 +43,7 @@ export default function PostCard({
   detail = false,
   flat = false,
 }) {
+  console.log(post.videos)
   const [isExpanded, setIsExpanded] = useState(detail);
   const [currentUser, setCurrentUser] = useState(null);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
@@ -395,14 +255,10 @@ export default function PostCard({
             ]}
           >
             {post.videos.slice(0, 2).map((video, index) => (
-              <PostVideoTile
+              <VideoTile
                 key={video.id || `${video.uri}_${index}`}
                 video={video}
                 index={index}
-                fallbackSource={
-                  VIDEO_FALLBACK_SOURCES[index] ||
-                  VIDEO_FALLBACK_SOURCES[VIDEO_FALLBACK_SOURCES.length - 1]
-                }
               />
             ))}
           </View>
@@ -526,83 +382,9 @@ const localStyles = StyleSheet.create({
   videoGridFullBleed: {
     marginHorizontal: -16,
   },
-  videoCard: {
-    flex: 1,
-    aspectRatio: 1,
-    backgroundColor: colors.black,
-    overflow: "hidden",
-    position: "relative",
-  },
-  videoPreview: {
-    width: "100%",
-    height: "100%",
-  },
-  videoPreviewFallback: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.overlayBlack65,
-    gap: 8,
-  },
-  videoPreviewFallbackText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  playIconOverlay: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  videoLoadingOverlay: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.overlayBlack40,
-  },
-  videoLabel: {
-    position: "absolute",
-    left: 8,
-    bottom: 8,
-    backgroundColor: colors.overlayBlack65,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  videoLabelText: {
-    color: colors.white,
-    fontSize: 11,
-    fontWeight: "700",
-  },
   likeSummaryInline: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  fullscreenBackdrop: {
-    flex: 1,
-    backgroundColor: colors.black,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 42,
-    right: 16,
-    zIndex: 2,
-    padding: 6,
-  },
-  fullscreenVideo: {
-    width: "100%",
-    height: "100%",
   },
 });
