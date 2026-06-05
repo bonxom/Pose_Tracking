@@ -73,7 +73,6 @@ File: `src/repositories/authRepository.js`
 |---|---|---|---|
 | `loginWithPassword(phonenumber, password)` | Login form | phone/password | Session normalize `{ id, token, username, role, phonenumber, source }` |
 | `logoutSession(session)` | Logout button | session hiện tại | Best-effort backend logout |
-| `loginDemoStudent()`, `loginDemoTeacher()` | Developer fallback only | none | Local demo session |
 
 Đã xác minh: HV/GV login và logout thật thành công qua HTTPS với credential truyền bằng env vars.
 
