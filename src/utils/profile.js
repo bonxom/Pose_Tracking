@@ -1,4 +1,4 @@
-import { Image, Platform } from "react-native";
+import { Image } from "react-native";
 
 export function initials(name = "") {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -7,29 +7,10 @@ export function initials(name = "") {
 
 const DEFAULT_AVATAR_SOURCE = require("@/assets/images/defaultAvatar.png");
 
-function resolveDefaultAvatarUri() {
-  if (Platform.OS === "web") return "";
-
-  try {
-    const directResolver = Image?.resolveAssetSource;
-    if (typeof directResolver === "function") {
-      return directResolver(DEFAULT_AVATAR_SOURCE)?.uri || "";
-    }
-
-    const defaultResolver = Image?.default?.resolveAssetSource;
-    if (typeof defaultResolver === "function") {
-      return defaultResolver(DEFAULT_AVATAR_SOURCE)?.uri || "";
-    }
-  } catch {
-    return "";
-  }
-
-  return "";
-}
-
 export function resolveAvatarUri(uri = "", version = "") {
   const cleanUri = String(uri || "").trim();
-  if (!cleanUri) return resolveDefaultAvatarUri();
+  if (!cleanUri)
+    return Image.resolveAssetSource(DEFAULT_AVATAR_SOURCE)?.uri || "";
   return buildAvatarRenderUri(cleanUri, version);
 }
 

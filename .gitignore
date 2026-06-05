@@ -44,6 +44,3 @@ cam/
  
 # Ignore package metadata and lockfiles (user requested)
 package-lock.json
-
-google-services.json
-*firebase-adminsdk*.json
