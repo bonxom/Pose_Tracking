@@ -1,105 +1,12 @@
+import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
-import { Ionicons } from "@expo/vector-icons";
-import { VideoView, useVideoPlayer } from "expo-video";
-import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
-
-// ─── Video Tile (inline, Option B – will be refactored later) ──────────────
-function CourseVideoTile({ uri, label }) {
-  const [isReady, setIsReady] = useState(false);
-  const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
-  const [videoSource, setVideoSource] = useState(uri);
-
-  const previewPlayer = useVideoPlayer(videoSource, (player) => {
-    player.loop = true;
-    player.muted = true;
-    player.pause();
-  });
-
-  const fullscreenPlayer = useVideoPlayer(videoSource, (player) => {
-    player.loop = true;
-    player.muted = false;
-    player.pause();
-  });
-
-  useEffect(() => {
-    setVideoSource(uri);
-    setIsReady(false);
-  }, [uri]);
-
-  useEffect(() => {
-    previewPlayer.pause();
-    fullscreenPlayer.pause();
-  }, [videoSource, previewPlayer, fullscreenPlayer]);
-
-  const openFullscreen = () => {
-    setIsFullscreenVisible(true);
-    fullscreenPlayer.pause();
-  };
-
-  const closeFullscreen = () => {
-    setIsFullscreenVisible(false);
-    fullscreenPlayer.pause();
-  };
-
-  if (!videoSource) return null;
-
-  return (
-    <>
-      <Pressable style={localStyles.videoCard} onPress={openFullscreen}>
-        <VideoView
-          player={previewPlayer}
-          style={localStyles.videoPreview}
-          contentFit="cover"
-          nativeControls={false}
-          onFirstFrameRender={() => setIsReady(true)}
-        />
-
-        {!isReady ? (
-          <View style={localStyles.videoLoadingOverlay}>
-            <ActivityIndicator size="small" color={colors.white} />
-          </View>
-        ) : null}
-
-        <View style={localStyles.videoLabel}>
-          <Text style={localStyles.videoLabelText}>{label}</Text>
-        </View>
-      </Pressable>
-
-      <Modal
-        visible={isFullscreenVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeFullscreen}
-      >
-        <View style={localStyles.fullscreenBackdrop}>
-          <Pressable
-            style={localStyles.closeButton}
-            onPress={closeFullscreen}
-            hitSlop={8}
-          >
-            <Ionicons name="close" size={28} color={colors.white} />
-          </Pressable>
-
-          <VideoView
-            player={fullscreenPlayer}
-            style={localStyles.fullscreenVideo}
-            contentFit="contain"
-            nativeControls
-          />
-        </View>
-      </Modal>
-    </>
-  );
-}
 
 // ─── Join Button ────────────────────────────────────────────────────────────
 function joinButtonProps(item) {
@@ -118,8 +25,8 @@ export default function CourseCard({ item, onJoin, flat = false }) {
 
   // Build video list from left_video / right_video (skip empty strings)
   const videos = [
-    item.left_video ? { uri: item.left_video, label: "Trái" } : null,
-    item.right_video ? { uri: item.right_video, label: "Phải" } : null,
+    item.left_video ? { uri: item.left_video, thumb: item.left_video_thumb, angle: "Góc quay trái" } : null,
+    item.right_video ? { uri: item.right_video, thumb: item.right_video_thumb, angle: "Góc quay phải" } : null,
   ].filter(Boolean);
 
   return (
@@ -156,13 +63,17 @@ export default function CourseCard({ item, onJoin, flat = false }) {
       ) : null}
 
       {/* ── Videos ── */}
-      {/* {videos.length > 0 ? (
+      {videos.length > 0 ? (
         <View style={[localStyles.videoGrid, flat && localStyles.videoGridFullBleed]}>
-          {videos.map((v) => (
-            <CourseVideoTile key={v.uri} uri={v.uri} label={v.label} />
+          {videos.slice(0, 2).map((video, index) => (
+            <VideoTile
+              key={video.uri || `${video.uri}_${index}`}
+              video={video}
+              index={index}
+            />
           ))}
         </View>
-      ) : null} */}
+      ) : null}
 
       {/* ── Action bar ── */}
       <View style={localStyles.actionRow}>
@@ -267,54 +178,6 @@ const localStyles = StyleSheet.create({
   },
   videoGridFullBleed: {
     marginHorizontal: -16,
-  },
-  videoCard: {
-    flex: 1,
-    aspectRatio: 1,
-    backgroundColor: colors.black,
-    overflow: "hidden",
-    position: "relative",
-  },
-  videoPreview: {
-    width: "100%",
-    height: "100%",
-  },
-  videoLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.overlayBlack40,
-  },
-  videoLabel: {
-    position: "absolute",
-    left: 8,
-    bottom: 8,
-    backgroundColor: colors.overlayBlack65,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  videoLabelText: {
-    color: colors.white,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  fullscreenBackdrop: {
-    flex: 1,
-    backgroundColor: colors.black,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 42,
-    right: 16,
-    zIndex: 2,
-    padding: 6,
-  },
-  fullscreenVideo: {
-    width: "100%",
-    height: "100%",
   },
 
   // Action bar
