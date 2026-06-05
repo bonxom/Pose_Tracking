@@ -1,12 +1,106 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
-import { DEMO_PUSH_SETTINGS as localPushSettings } from "@/constants/demo";
 import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
+function toBool(value, fallback = true) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  const normalized = String(value).toLowerCase();
+  if (normalized === "1" || normalized === "true") return true;
+  if (normalized === "0" || normalized === "false") return false;
+  return fallback;
+}
+
+function settingValue(value) {
+  return value ? "1" : "0";
+}
+
+let lastKnownPushSettings = null;
+
+function sourceFromResponse(response) {
+  return response?.source === ACTIVE_SOURCES.LOCAL
+    ? ACTIVE_SOURCES.LOCAL
+    : ACTIVE_SOURCES.SERVER;
+}
+
+export function normalizePushSettings(settings = {}, previousSettings = {}) {
+  const fallbackFor = (key) =>
+    previousSettings?.[key] !== undefined ? previousSettings[key] : true;
+
+  return {
+    notificationOn: toBool(
+      settings.notificationOn ?? settings.notification_on ?? settings.notification,
+      fallbackFor("notificationOn"),
+    ),
+    likeComment: toBool(
+      settings.likeComment ??
+        settings.like_comment ??
+        settings.like ??
+        settings.comment,
+      fallbackFor("likeComment"),
+    ),
+    fromFriends: toBool(
+      settings.fromFriends ??
+        settings.from_friends ??
+        settings.friend_update ??
+        settings.message,
+      fallbackFor("fromFriends"),
+    ),
+    requestedFriend: toBool(
+      settings.requestedFriend ??
+        settings.requested_friend ??
+        settings.friend_request ??
+        settings.requested_enrollment,
+      fallbackFor("requestedFriend"),
+    ),
+    suggestedFriend: toBool(
+      settings.suggestedFriend ??
+        settings.suggested_friend ??
+        settings.people_you_may_know ??
+        settings.approved_course,
+      fallbackFor("suggestedFriend"),
+    ),
+    birthday: toBool(settings.birthday, fallbackFor("birthday")),
+    video: toBool(settings.video ?? settings.new_exercise, fallbackFor("video")),
+    report: toBool(settings.report ?? settings.announcement, fallbackFor("report")),
+    soundOn: toBool(settings.soundOn ?? settings.sound_on, fallbackFor("soundOn")),
+    vibrantOn: toBool(
+      settings.vibrantOn ?? settings.vibrant_on ?? settings.vibration_on,
+      fallbackFor("vibrantOn"),
+    ),
+    ledOn: toBool(settings.ledOn ?? settings.led_on, fallbackFor("ledOn")),
+  };
+}
+
+function serializePushSettings(settings = {}) {
+  const normalized = normalizePushSettings(settings);
+
+  return {
+    notificationOn: settingValue(normalized.notificationOn),
+    likeComment: settingValue(normalized.likeComment),
+    fromFriends: settingValue(normalized.fromFriends),
+    requestedFriend: settingValue(normalized.requestedFriend),
+    suggestedFriend: settingValue(normalized.suggestedFriend),
+    birthday: settingValue(normalized.birthday),
+    video: settingValue(normalized.video),
+    report: settingValue(normalized.report),
+    soundOn: settingValue(normalized.soundOn),
+    vibrantOn: settingValue(normalized.vibrantOn),
+    ledOn: settingValue(normalized.ledOn),
+  };
+}
+
+function requireToken(session, message = "Cần đăng nhập để dùng cài đặt.") {
+  if (!session?.token) {
+    throw new Error(message);
+  }
+}
+
 export async function getPushSettings() {
   const session = await getCurrentSession();
+  requireToken(session, "Cần đăng nhập để tải cài đặt thông báo.");
 
   try {
     const response = await backendApi.getPushSettings({ token: session.token });
@@ -15,46 +109,68 @@ export async function getPushSettings() {
       message: "Backend get_push_settings failed",
     });
 
+    const normalized = normalizePushSettings(
+      extractObject(response),
+      lastKnownPushSettings || undefined,
+    );
+    lastKnownPushSettings = normalized;
+
     return {
-      ...localPushSettings,
-      ...extractObject(response),
-      source: ACTIVE_SOURCES.SERVER,
+      ...normalized,
+      source: sourceFromResponse(response),
     };
   } catch (error) {
-    console.info("[DATA] Server push settings fallback", error.message);
+    console.info("[DATA] Push settings unavailable", error.message);
     throw error;
   }
 }
 
 export async function setPushSettings(settings = {}) {
   const session = await getCurrentSession();
+  requireToken(session, "Cần đăng nhập để lưu cài đặt thông báo.");
 
   const response = await backendApi.setPushSettings({
     token: session.token,
-    ...settings,
+    ...serializePushSettings(settings),
   });
 
-  await assertBackendOk(response, {
-    message: "Backend set_push_settings failed",
-  });
+  const code = String(response?.code || "");
+  if (code !== "1000" && code !== "1010") {
+    await assertBackendOk(response, {
+      message: "Backend set_push_settings failed",
+    });
+  }
 
-  return { ...localPushSettings, ...settings, source: ACTIVE_SOURCES.SERVER };
+  const normalized = normalizePushSettings(
+    {
+      ...settings,
+      ...extractObject(response),
+    },
+    lastKnownPushSettings || normalizePushSettings(settings),
+  );
+  lastKnownPushSettings = normalized;
+
+  return {
+    ...normalized,
+    source: sourceFromResponse(response),
+  };
 }
 
 export async function changePassword(oldPassword, newPassword) {
   const session = await getCurrentSession();
+  requireToken(session, "Cần đăng nhập để đổi mật khẩu.");
 
   const response = await backendApi.changePassword({
     token: session.token,
     password: oldPassword,
-    new_password: newPassword,
+    newPassword: newPassword,
   });
 
   await assertBackendOk(response, {
     message: "Backend change_password failed",
   });
 
-  return { changed: true, source: ACTIVE_SOURCES.SERVER };
+  return { changed: true, source: sourceFromResponse(response) };
 }
 
 export async function checkNewVersion() {
