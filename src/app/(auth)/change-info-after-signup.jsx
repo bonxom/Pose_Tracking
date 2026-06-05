@@ -33,6 +33,15 @@ export default function ChangeInfoAfterSignupScreen() {
   const [heightError, setHeightError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleBack = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(auth)/signup");
+  };
+
   const handlePickAvatar = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -176,6 +185,10 @@ export default function ChangeInfoAfterSignupScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
+        <Pressable style={styles.backButton} onPress={handleBack} disabled={isLoading}>
+          <Text style={styles.backText}>←</Text>
+        </Pressable>
+
         <Text style={styles.title}>Hoàn thành thông tin</Text>
         <Text style={styles.subtitle}>
           Nhập tên người dùng. Ảnh đại diện và chiều cao có thể bỏ qua.
@@ -240,6 +253,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 24,
     gap: 16,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  backText: {
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: "900",
+    color: "#0F172A",
   },
   title: {
     fontSize: 24,
