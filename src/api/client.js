@@ -5,7 +5,6 @@ import {
   API_TYPE,
   API_TYPES,
 } from "@/config/env";
-import { DEMO_BLOCKS, DEMO_PUSH_SETTINGS } from "@/constants/demo";
 import MOCK_ACCOUNTS from "@/constants/mocks/MOCK_ACCOUNTS";
 import MOCK_GET_USER_INFO from "@/constants/mocks/MOCK_GET_USER_INFO";
 import MOCK_LIST_COURSES from "@/constants/mocks/MOCK_LIST_COURSES";
@@ -35,8 +34,6 @@ import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLME
 
 const ADD_POST_TIMEOUT_MS = 10 * 60 * 1000;
 const EDIT_POST_TIMEOUT_MS = ADD_POST_TIMEOUT_MS;
-let mockBlocks = DEMO_BLOCKS.map((item) => ({ ...item }));
-let mockPushSettings = { ...DEMO_PUSH_SETTINGS };
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -283,65 +280,6 @@ function buildMockLoginResponse(params = {}) {
   };
 }
 
-function buildMockResponse(data = null) {
-  return {
-    code: "1000",
-    message: "OK",
-    data,
-    source: "local",
-  };
-}
-
-function buildMockGetListBlocksResponse() {
-  return buildMockResponse(mockBlocks);
-}
-
-function buildMockSetBlockResponse(params = {}) {
-  const targetId = String(params.userId || params.user_id || params.id || "");
-
-  if (!targetId) {
-    return {
-      code: "1002",
-      message: "Parameter is not enough",
-      source: "local",
-    };
-  }
-
-  if (String(params.type) === "1") {
-    mockBlocks = mockBlocks.filter((item) => String(item.id) !== targetId);
-    return buildMockResponse([]);
-  }
-
-  if (!mockBlocks.some((item) => String(item.id) === targetId)) {
-    mockBlocks = [
-      {
-        id: targetId,
-        username: `Mock user ${targetId.slice(0, 6)}`,
-        role: "HV",
-        avatar: "",
-      },
-      ...mockBlocks,
-    ];
-  }
-
-  return buildMockResponse([]);
-}
-
-function buildMockPushSettingsResponse() {
-  return buildMockResponse(mockPushSettings);
-}
-
-function buildMockSetPushSettingsResponse(params = {}) {
-  mockPushSettings = {
-    ...mockPushSettings,
-    ...Object.fromEntries(
-      Object.entries(params).filter(([key]) => key !== "token"),
-    ),
-  };
-
-  return buildMockResponse(mockPushSettings);
-}
-
 export const backendApi = {
   login: (params) =>
     API_TYPE === API_TYPES.MOCK
@@ -448,14 +386,8 @@ export const backendApi = {
   setUserInfo: (params) => post("/set_user_info", params),
   setUserInfoMultipart: (fields, files = []) =>
     postMultipart("/set_user_info", fields, files),
-  getListBlocks: (params) =>
-    API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockGetListBlocksResponse(params))
-      : post("/get_list_blocks", params),
-  setBlock: (params) =>
-    API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockSetBlockResponse(params))
-      : post("/set_block", params),
+  getListBlocks: (params) => post("/get_list_blocks", params),
+  setBlock: (params) => post("/set_block", params),
   setApproveEnrollment: (params) => post("/set_approve_enrollment", params),
   getRequestedEnrollment: (params) =>
     API_TYPE === API_TYPES.MOCK
@@ -466,18 +398,9 @@ export const backendApi = {
     API_TYPE === API_TYPES.MOCK
       ? Promise.resolve(MOCK_LIST_COURSES)
       : post("/get_list_courses", params),
-  getPushSettings: (params) =>
-    API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockPushSettingsResponse(params))
-      : post("/get_push_settings", params),
-  setPushSettings: (params) =>
-    API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockSetPushSettingsResponse(params))
-      : post("/set_push_settings", params),
-  changePassword: (params) =>
-    API_TYPE === API_TYPES.MOCK
-      ? Promise.resolve(buildMockResponse([]))
-      : post("/change_password", params),
+  getPushSettings: (params) => post("/get_push_settings", params),
+  setPushSettings: (params) => post("/set_push_settings", params),
+  changePassword: (params) => post("/change_password", params),
   checkNewVersion: (params) => post("/check_new_version", params),
   setDevtoken: (params) =>
     API_TYPE === API_TYPES.MOCK
