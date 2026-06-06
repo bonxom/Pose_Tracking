@@ -12,7 +12,7 @@ import {
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
 import { resolveAvatarUri } from "@/utils/profile";
-import { clearAuthSession } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -270,7 +270,7 @@ export default function NotificationsScreen() {
       return false;
     }
 
-    await clearAuthSession();
+    await clearCurrentUserSession();
 
     router.replace("/login");
 

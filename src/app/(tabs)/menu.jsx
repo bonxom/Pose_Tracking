@@ -1,14 +1,12 @@
 import { logoutSession } from "@/repositories/authRepository";
-import { clearNotificationState } from "@/services/notificationStore";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
 import { resolveAvatarUri } from "@/utils/profile";
 import {
-  clearAuthSession,
   getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -104,9 +102,7 @@ export default function MenuScreen() {
     const currentSession = session || (await getAuthSession().catch(() => null));
 
     try {
-      await clearAuthSession();
-      clearNotificationState();
-      await removeCache(CACHE_KEY_PROFILE);
+      await clearCurrentUserSession();
     } finally {
       router.replace("/(auth)/login");
     }

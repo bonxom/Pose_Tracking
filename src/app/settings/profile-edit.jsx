@@ -11,10 +11,11 @@ import { queueProfileUpdate } from "@/services/profileUpdateService";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import {
-  clearAuthSession,
+  getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
 import { resolveAvatarUri } from "@/utils/profile";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -101,18 +102,55 @@ export default function ProfileEditScreen() {
     };
   }, [avatar, coverImage, description, username]);
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
+  const applyProfileSnapshot = useCallback((profileLike = {}) => {
+    setUsername(profileLike.displayName || profileLike.username || "");
+    setAvatar(profileLike.avatar || "");
+    setCoverImage(profileLike.coverImage || "");
+    setDescription(profileLike.description || "");
+  }, []);
+
+  const hydrateFromSession = useCallback(async () => {
+    const session = await getAuthSession();
+    if (!session) return false;
+
+    const draft = latestDraftRef.current;
+    const merged = mergeOwnProfileWithSession(
+      {
+        displayName: draft.username,
+        username: draft.username,
+        avatar: draft.avatar,
+        coverImage: draft.coverImage,
+        description: draft.description,
+      },
+      session,
+    );
+
+    const hasSnapshot = Boolean(
+      merged.displayName ||
+        merged.username ||
+        merged.avatar ||
+        merged.coverImage ||
+        merged.description,
+    );
+
+    if (hasSnapshot) {
+      applyProfileSnapshot(merged);
+    }
+
+    return hasSnapshot;
+  }, [applyProfileSnapshot]);
+
+  const loadProfile = useCallback(async ({ showLoader = true } = {}) => {
+    if (showLoader) {
+      setLoading(true);
+    }
     setStatus("");
     try {
       const user = await getUserInfo();
-      setUsername(user.displayName || user.username || "");
-      setAvatar(user.avatar || "");
-      setCoverImage(user.coverImage || "");
-      setDescription(user.description || "");
+      applyProfileSnapshot(user);
     } catch (error) {
       if (error.sessionExpired) {
-        await clearAuthSession();
+        await clearCurrentUserSession();
         router.replace("/(auth)/login");
         return;
       }
@@ -120,12 +158,29 @@ export default function ProfileEditScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyProfileSnapshot]);
 
   useFocusEffect(
     useCallback(() => {
-      loadProfile();
-    }, [loadProfile]),
+      let active = true;
+
+      const run = async () => {
+        const hasSessionSnapshot = await hydrateFromSession();
+        if (!active) return;
+
+        if (hasSessionSnapshot) {
+          setLoading(false);
+        }
+
+        await loadProfile({ showLoader: !hasSessionSnapshot });
+      };
+
+      run().catch(console.warn);
+
+      return () => {
+        active = false;
+      };
+    }, [hydrateFromSession, loadProfile]),
   );
 
   useFocusEffect(
@@ -147,10 +202,7 @@ export default function ProfileEditScreen() {
           session,
         );
 
-        setUsername(merged.displayName || merged.username || "");
-        setAvatar(merged.avatar || "");
-        setCoverImage(merged.coverImage || "");
-        setDescription(merged.description || "");
+        applyProfileSnapshot(merged);
       };
 
       const unsubscribe = subscribeAuthSession(applySession);
@@ -159,7 +211,7 @@ export default function ProfileEditScreen() {
         active = false;
         unsubscribe();
       };
-    }, []),
+    }, [applyProfileSnapshot]),
   );
 
   const pickImage = async (type) => {
@@ -218,7 +270,7 @@ export default function ProfileEditScreen() {
       router.replace("/(tabs)/profile");
     } catch (error) {
       if (error.sessionExpired) {
-        await clearAuthSession();
+        await clearCurrentUserSession();
         router.replace("/(auth)/login");
         return;
       }

@@ -7,7 +7,7 @@ import sizes from "@/constants/sizes";
 import { toggleLike } from "@/repositories/postRepository";
 import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
 import { resolveAvatarUri } from "@/utils/profile";
-import { clearAuthSession } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { memo, startTransition, useCallback, useState } from "react";
 import {
@@ -99,7 +99,7 @@ export default function ProfileSearchScreen() {
       });
     } catch (searchError) {
       if (searchError.sessionExpired) {
-        await clearAuthSession();
+        await clearCurrentUserSession();
         router.replace("/(auth)/login");
         return;
       }

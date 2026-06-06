@@ -2,7 +2,7 @@ import authApi from "@/api/auth";
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import { setDeviceToken } from "@/repositories/settingsRepository";
-import { saveAuthSession } from "@/utils/session";
+import { getAuthSession, saveAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
@@ -92,6 +92,7 @@ export default function ChangeInfoAfterSignupScreen() {
     setIsLoading(true);
 
     try {
+      const previousSession = await getAuthSession();
       const optimisticSession = {
         id: phonenumber || `local_user_${Date.now()}`,
         token,
@@ -128,6 +129,8 @@ export default function ChangeInfoAfterSignupScreen() {
           });
 
           if (response.code !== "1000") {
+            await saveAuthSession(previousSession ?? null);
+            Alert.alert("Cập nhật thất bại");
             return;
           }
 
@@ -155,11 +158,16 @@ export default function ChangeInfoAfterSignupScreen() {
               loggedInAt: new Date().toISOString(),
             });
             setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
+            Alert.alert("Cập nhật thành công");
           } catch (storageError) {
             console.warn("Cannot persist session:", storageError);
+            await saveAuthSession(previousSession ?? null);
+            Alert.alert("Cập nhật thất bại");
           }
         } catch (backgroundError) {
           console.warn("Background signup sync failed:", backgroundError);
+          await saveAuthSession(previousSession ?? null);
+          Alert.alert("Cập nhật thất bại");
         }
       })();
 
@@ -286,3 +294,4 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 });
+

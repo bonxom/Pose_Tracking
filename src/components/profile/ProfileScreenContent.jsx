@@ -21,7 +21,9 @@ import {
   readCache,
   writeCache,
 } from "@/utils/cacheStore";
-import { clearAuthSession, getAuthSession } from "@/utils/session";
+import { profileCacheState } from "@/state/profileCacheState";
+import { getAuthSession } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
@@ -36,9 +38,6 @@ import {
   View,
 } from "react-native";
 
-// Module-level in-memory profile cache, keyed by userId ("" = own profile)
-let profileCache = {};
-
 function buildProfileCacheEntry(profile, posts, ownerKey = "") {
   return {
     profile,
@@ -51,10 +50,10 @@ export default function ProfileScreenContent({ userId = "" }) {
   const cacheKey = !userId ? CACHE_KEY_PROFILE : null;
 
   const [profile, setProfile] = useState(
-    () => profileCache[userId]?.profile ?? null,
+    () => profileCacheState[userId]?.profile ?? null,
   );
-  const [posts, setPosts] = useState(() => profileCache[userId]?.posts ?? []);
-  const [loading, setLoading] = useState(!profileCache[userId]);
+  const [posts, setPosts] = useState(() => profileCacheState[userId]?.posts ?? []);
+  const [loading, setLoading] = useState(!profileCacheState[userId]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
@@ -112,8 +111,8 @@ export default function ProfileScreenContent({ userId = "" }) {
 
           if (
             isFallback &&
-            profileCache[userId] &&
-            profileCache[userId].posts?.length > 0
+            profileCacheState[userId] &&
+            profileCacheState[userId].posts?.length > 0
           ) {
             // Throw a network error so useInternetFetch can catch it
             throw new Error("KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n mÃ¡y chá»§");
@@ -129,23 +128,23 @@ export default function ProfileScreenContent({ userId = "" }) {
           });
 
           // Persist to memory + disk
-          profileCache[userId] = buildProfileCacheEntry(
+          profileCacheState[userId] = buildProfileCacheEntry(
             nextProfile,
             nextPosts,
             ownerKey,
           );
           if (cacheKey) {
-            writeCache(cacheKey, profileCache[userId]);
+            writeCache(cacheKey, profileCacheState[userId]);
           }
         });
       } catch (loadError) {
         if (loadError.sessionExpired) {
-          await clearAuthSession();
+          await clearCurrentUserSession();
           router.replace("/(auth)/login");
           return;
         }
         // Only show error if we have no cached data to display
-        if (!profileCache[userId]) {
+        if (!profileCacheState[userId]) {
           setError(loadError.message || "KhÃ´ng thá»ƒ táº£i há»“ sÆ¡.");
         }
       } finally {
@@ -171,10 +170,10 @@ export default function ProfileScreenContent({ userId = "" }) {
 
       const nextCache = {
         profile: nextProfile,
-        posts: profileCache[userId]?.posts || posts,
+        posts: profileCacheState[userId]?.posts || posts,
         ownerKey,
       };
-      profileCache[userId] = nextCache;
+      profileCacheState[userId] = nextCache;
       if (cacheKey) {
         writeCache(cacheKey, nextCache);
       }
@@ -189,7 +188,7 @@ export default function ProfileScreenContent({ userId = "" }) {
       const run = async () => {
         if (userId) {
           // If we have in-memory cache, render it instantly then fetch in background
-          if (profileCache[userId]) {
+          if (profileCacheState[userId]) {
             setLoading(false);
             loadProfile(false);
             return;
@@ -201,12 +200,12 @@ export default function ProfileScreenContent({ userId = "" }) {
 
         const session = await getAuthSession();
         const ownerKey = getProfileCacheOwnerKey(session);
-        const memoryCache = profileCache[userId];
+        const memoryCache = profileCacheState[userId];
         const hasValidMemoryCache =
           memoryCache && memoryCache.ownerKey && memoryCache.ownerKey === ownerKey;
 
         if (memoryCache && !hasValidMemoryCache) {
-          delete profileCache[userId];
+          delete profileCacheState[userId];
           setProfile(null);
           setPosts([]);
         }
@@ -229,7 +228,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           if (!isActive) return;
 
           if (isProfileCacheValidForSession(cached, session)) {
-            profileCache[userId] = cached;
+            profileCacheState[userId] = cached;
             setProfile(cached.profile);
             setPosts(cached.posts || []);
           }
@@ -296,13 +295,13 @@ export default function ProfileScreenContent({ userId = "" }) {
           : { ...profile, coverImage: uri };
       setProfile(nextProfile);
       const ownerKey = getProfileCacheOwnerKey(nextProfile);
-      profileCache[userId] = buildProfileCacheEntry(
+      profileCacheState[userId] = buildProfileCacheEntry(
         nextProfile,
-        profileCache[userId]?.posts || posts,
+        profileCacheState[userId]?.posts || posts,
         ownerKey,
       );
       if (cacheKey) {
-        writeCache(cacheKey, profileCache[userId]);
+        writeCache(cacheKey, profileCacheState[userId]);
       }
 
       await queueProfileUpdate({
@@ -488,3 +487,4 @@ export default function ProfileScreenContent({ userId = "" }) {
     </View>
   );
 }
+

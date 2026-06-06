@@ -8,10 +8,10 @@ import {
   mergeOwnProfileWithSession,
 } from "@/repositories/userRepository";
 import {
-  clearAuthSession,
   getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { resolveAvatarUri } from "@/utils/profile";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
@@ -73,7 +73,7 @@ export default function ProfileSettingsScreen() {
       setProfile(user);
     } catch (error) {
       if (error.sessionExpired) {
-        await clearAuthSession();
+        await clearCurrentUserSession();
         router.replace("/(auth)/login");
         return;
       }

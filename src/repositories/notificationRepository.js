@@ -44,6 +44,18 @@ export function getNotificationBadge() {
   return notificationBadge;
 }
 
+export function clearNotificationCache() {
+  notificationCache = {
+    items: [],
+    unreadCount: 0,
+    lastUpdate: "",
+    hasMore: false,
+    hasLoaded: false,
+    source: ACTIVE_SOURCES.LOCAL,
+  };
+  setNotificationBadge(0);
+}
+
 export function setNotificationBadge(value) {
   const nextValue = Math.max(0, Number(value) || 0);
   notificationBadge = nextValue;

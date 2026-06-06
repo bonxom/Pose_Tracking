@@ -8,8 +8,8 @@ import { setDeviceToken } from "@/repositories/settingsRepository";
 import { getDataSourceMode } from "@/repositories/source";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
-import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
 import { saveAuthSession } from "@/utils/session";
+import { clearCurrentUserSessionArtifacts } from "@/utils/userSessionCleanup";
 import { validatePassword, validatePhoneNumber } from "@/utils/validation";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -39,7 +39,7 @@ export default function LoginScreen() {
 
   const persistAndNavigate = async (data) => {
     try {
-      await removeCache(CACHE_KEY_PROFILE);
+      await clearCurrentUserSessionArtifacts();
       await saveAuthSession({
         id: data.id,
         token: data.token,
