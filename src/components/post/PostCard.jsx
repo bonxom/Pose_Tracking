@@ -43,7 +43,6 @@ export default function PostCard({
   detail = false,
   flat = false,
 }) {
-  console.log(post.videos)
   const [isExpanded, setIsExpanded] = useState(detail);
   const [currentUser, setCurrentUser] = useState(null);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
@@ -176,7 +175,6 @@ export default function PostCard({
                 metaIsFresh && postStyles.freshMetaText,
               ]}
             >
-              {post.author?.handle || "@nguoidung"} ·{" "}
               {formatRelativeTime(post.createdAt)} · <EarthIcon />
             </Text>
           </View>
