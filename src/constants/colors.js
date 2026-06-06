@@ -42,6 +42,7 @@ const colors = {
   overlayBlack40: "rgba(0, 0, 0, 0.4)",
   overlayBlack65: "rgba(0, 0, 0, 0.65)",
   blue: "#0865fe",
+  searchInput: "#f1f2f6"
 };
 
 export default colors;
