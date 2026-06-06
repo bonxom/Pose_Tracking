@@ -19,7 +19,7 @@ export default function StudentCard({
       style={coursesStyles.userCard}
       onPress={() => onPressCard && onPressCard(id, name)}
     >
-      <UserAvatar uri={avatar} name={name} />
+      <UserAvatar uri={avatar} />
       <View style={coursesStyles.cardBody}>
         <View style={coursesStyles.cardTopRow}>
           <Text

@@ -1,12 +1,12 @@
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
   View
 } from "react-native";
+import UserAvatar from "./UserAvatar";
 
 // ─── Join Button ────────────────────────────────────────────────────────────
 function joinButtonProps(item) {
@@ -33,18 +33,7 @@ export default function CourseCard({ item, onJoin, flat = false }) {
     <View style={[localStyles.card, flat && localStyles.flatCard]}>
       {/* ── Creator header ── */}
       <View style={localStyles.headerRow}>
-        {item.avatar ? (
-          <Image
-            source={{ uri: item.avatar }}
-            style={localStyles.avatarImage}
-          />
-        ) : (
-          <View style={localStyles.avatarFallback}>
-            <Text style={localStyles.avatarFallbackText}>
-              {(item.username || "GV").slice(0, 2).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <UserAvatar uri={item.avatar} />
 
         <View style={{ flex: 1, marginLeft: 10, gap: 2 }}>
           <Text style={localStyles.username} numberOfLines={1}>
