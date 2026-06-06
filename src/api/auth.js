@@ -105,12 +105,12 @@ const authApi = {
   },
 
   /**
-   * ÄÄƒng kÃ½ má»›i
+   * Đăng ký mới
    * @param {Object} params
    * @param {string} params.phonenumber
    * @param {string} params.password
    * @param {string} params.uuid
-   * @param {string} params.role - "GV" hoáº·c "HV"
+   * @param {string} params.role - "GV" hoặc "HV"
    * @returns {Promise<{code: string, message: string, data: any}>}
    */
   signup: async ({ phonenumber, password, uuid, role }) => {
@@ -189,7 +189,7 @@ const authApi = {
       }
     }
 
-    // Cháº·n duplicate phone number
+    // Chặn duplicate phone number
     const existingUser = MOCK_USERS.find((u) => u.phonenumber === phonenumber);
     if (existingUser) {
       return {
@@ -199,11 +199,11 @@ const authApi = {
       };
     }
 
-    // Mock verify code (in thá»±c táº¿ sáº½ gá»­i SMS/email)
+    // Mock verify code (thực tế sẽ gửi SMS/email)
     const mockVerifyCode = "123456";
     const signupRequestId = `signup_${Date.now()}`;
 
-    // LÆ°u vÃ o memory Ä‘á»ƒ check sau (lÆ°u cáº£ password Ä‘á»ƒ sá»­ dá»¥ng sau)
+    // Lưu vào memory để check sau (lưu cả password để sử dụng sau)
     MOCK_VERIFY_CODES.set(signupRequestId, {
       phonenumber,
       password,
@@ -219,13 +219,13 @@ const authApi = {
         signupRequestId,
         phonenumber,
         role,
-        mock_verify_code: mockVerifyCode, // Cho dev dÃ¹ng
+        mock_verify_code: mockVerifyCode, // Cho dev dùng
       },
     };
   },
 
   /**
-   * Gá»­i láº¡i mÃ£ xÃ¡c thá»±c (pháº£i cÃ³ signupRequestId)
+   * Gửi lại mã xác thực (phải có signupRequestId)
    * @param {Object} params
    * @param {string} params.phonenumber
    * @param {string} params.signupRequestId
@@ -267,7 +267,7 @@ const authApi = {
       }
     }
 
-    // Verify request tá»“n táº¡i
+    // Verify request tồn tại
     const stored = MOCK_VERIFY_CODES.get(signupRequestId);
     if (!stored) {
       return {
@@ -277,7 +277,7 @@ const authApi = {
       };
     }
 
-    // Mock: mÃ£ xÃ¡c thá»±c
+    // Mock: mã xác thực
     const mockCode = "123456";
     console.warn("[MOCK] Verify code sent:", mockCode);
 
@@ -291,7 +291,7 @@ const authApi = {
   },
 
   /**
-   * Kiá»ƒm tra mÃ£ xÃ¡c thá»±c
+   * Kiểm tra mã xác thực
    * @param {Object} params
    * @param {string} params.phonenumber
    * @param {string} params.code
@@ -393,7 +393,7 @@ const authApi = {
       };
     }
 
-    // Check phone khá»›p vá»›i request
+    // Check phone khớp với request
     if (stored.phonenumber !== phonenumber) {
       return {
         code: "1004",
@@ -411,7 +411,7 @@ const authApi = {
       };
     }
 
-    // Code Ä‘Ãºng -> tráº£ vá» user data Ä‘á»ƒ tiáº¿p tá»¥c change-info
+    // Code đúng -> trả về user data để tiếp tục change-info
     return {
       code: "1000",
       message: "OK",
@@ -420,13 +420,13 @@ const authApi = {
         token: `token_${Date.now()}`,
         phonenumber,
         role: stored.role,
-        signupRequestId, // Tráº£ vá» Ä‘á»ƒ láº¥y password sau
+        signupRequestId, // Trả về để lấy password sau
       },
     };
   },
 
   /**
-   * HoÃ n thÃ nh Ä‘Äƒng kÃ½ (cáº­p nháº­t thÃ´ng tin)
+   * Hoàn thành đăng ký (cập nhật thông tin)
    * @param {Object} params
    * @param {string} params.token
    * @param {string} params.phonenumber
@@ -521,7 +521,7 @@ const authApi = {
       }
     }
 
-    // Láº¥y password tá»« signup request
+    // Lấy password từ signup request
     const signupData = MOCK_VERIFY_CODES.get(signupRequestId);
     if (!signupData) {
       return {
@@ -534,10 +534,10 @@ const authApi = {
     const password = signupData.password;
     const role = signupData.role;
 
-    // Mock: lÆ°u user vÃ o MOCK_USERS (thá»±c táº¿ sáº½ lÃ  DB)
+    // Mock: lưu user vào MOCK_USERS (thực tế sẽ là DB)
     const newUser = {
       phonenumber,
-      password, // LÆ°u password tháº­t tá»« signup
+      password, // Lưu password thật từ signup
       role,
       verified: true,
       data: {
@@ -561,7 +561,7 @@ const authApi = {
       MOCK_USERS[exists] = newUser;
     }
 
-    // XÃ³a signup request sau khi hoÃ n thÃ nh
+    // Xóa signup request sau khi hoàn thành
     MOCK_VERIFY_CODES.delete(signupRequestId);
 
     return {

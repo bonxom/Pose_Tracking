@@ -356,7 +356,7 @@ export default function ProfileScreenContent({ userId = "" }) {
         <Text style={profileStyles.centerTitle}>Không thể tải hồ sơ</Text>
         <Text style={profileStyles.centerText}>{error}</Text>
         <AppButton
-          title="Thá»­ láº¡i"
+          title="Thử lại"
           onPress={() => loadProfile(false)}
           style={profileStyles.retryButton}
         />
