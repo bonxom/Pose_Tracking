@@ -321,29 +321,38 @@ export default function EditPostScreen() {
           throw new Error("Bài viết không tồn tại.");
         }
 
-        const hydratedVideos = await hydrateVideoDurations(
-          normalizeVideoSlots(loadedPost.videos || []),
-        );
-        // console.log(
-        //   "EDIT_POST_VIDEO_DURATIONS",
-        //   hydratedVideos.map((video, index) => ({
-        //     slot: VIDEO_SLOTS[index]?.label || `Video ${index + 1}`,
-        //     duration: Number(video?.duration || 0),
-        //     uri: video?.uri || "",
-        //   })),
-        // );
-
         const initialText = loadedPost.content || loadedPost.described || "";
 
         if (isMounted) {
-          setPost({
-            ...loadedPost,
-            videos: hydratedVideos,
-          });
+          setPost(loadedPost);
           setContent(initialText);
           setInitialContent(initialText);
           setStatusText("");
+          setIsLoading(false);
         }
+
+        void (async () => {
+          try {
+            const hydratedVideos = await hydrateVideoDurations(
+              normalizeVideoSlots(loadedPost.videos || []),
+            );
+
+            if (!isMounted) return;
+
+            setPost((current) => {
+              if (!current?.id || current.id !== loadedPost.id) {
+                return current;
+              }
+
+              return {
+                ...current,
+                videos: hydratedVideos,
+              };
+            });
+          } catch (error) {
+            console.warn("Failed to hydrate edit post videos:", error);
+          }
+        })();
       } catch (error) {
         if (await redirectIfSessionExpired(error, router)) return;
         console.warn("Failed to load edit post data:", error);
@@ -351,7 +360,7 @@ export default function EditPostScreen() {
           setStatusText(error.message || "Không thể tải dữ liệu bài viết.");
         }
       } finally {
-        if (isMounted) {
+        if (isMounted && !post) {
           setIsLoading(false);
         }
       }
