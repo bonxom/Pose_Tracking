@@ -1,15 +1,11 @@
-import AppButton from "@/components/common/AppButton";
-import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import {
   deleteMessage,
   getConversation,
   sendLocalMessage,
 } from "@/repositories/conversationRepository";
-import { ACTIVE_SOURCES } from "@/repositories/source";
 import demoStyles from "@/styles/demo.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import { getAuthSession } from "@/utils/session";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -20,12 +16,10 @@ export default function ConversationDetailScreen() {
   const [conversation, setConversation] = useState(null);
   const [text, setText] = useState("");
   const [status, setStatus] = useState("");
-  const [session, setSession] = useState(null);
 
   const load = useCallback(() => {
     const loadConversation = async () => {
       try {
-        setSession(await getAuthSession());
         setConversation(await getConversation(conversationId));
       } catch (error) {
         if (await redirectIfSessionExpired(error, router)) return;
@@ -67,9 +61,6 @@ export default function ConversationDetailScreen() {
     }
   };
 
-  const isLocalSession =
-    session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL;
-
   return (
     <Screen style={demoStyles.screen}>
       <ScrollView contentContainerStyle={demoStyles.scrollContent}>
@@ -98,30 +89,6 @@ export default function ConversationDetailScreen() {
             </Text>
           </View>
         ))}
-
-        {isLocalSession ? (
-          <View style={demoStyles.card}>
-            <Text style={demoStyles.cardTitle}>Local-only composer</Text>
-            <Text style={demoStyles.cardText}>
-              Spec 40 API không có send_message, nên ô gửi này chỉ hiện trong
-              local/dev mode.
-            </Text>
-            <AppInput
-              placeholder="Nhập tin nhắn local..."
-              value={text}
-              onChangeText={setText}
-            />
-            <AppButton title="Gửi local" onPress={send} />
-          </View>
-        ) : (
-          <View style={demoStyles.card}>
-            <Text style={demoStyles.cardTitle}>Không có API gửi tin nhắn</Text>
-            <Text style={demoStyles.cardText}>
-              Server mode chỉ hỗ trợ danh sách, chi tiết, đọc và xóa theo 40
-              API.
-            </Text>
-          </View>
-        )}
       </ScrollView>
     </Screen>
   );

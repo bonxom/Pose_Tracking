@@ -210,7 +210,7 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="conversations"
+          name="conversation"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => (

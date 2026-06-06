@@ -3,24 +3,19 @@ import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
-function normalizeConversation(raw = {}, source = ACTIVE_SOURCES.SERVER) {
+function normalizeConversationList(data) {
   return {
-    id: raw.id,
-    title: raw.partner.username,
-    lastMessage: raw.lastmessage.message,
-    unread: raw.lastmessage.unread,
-    source,
-    raw,
+    messages: data.data,
+    numNewMessage: data.numNewMessage,
   };
 }
 
-function normalizeMessage(raw = {}, source = ACTIVE_SOURCES.SERVER) {
+function normalizeMessage(raw = {}) {
   return {
     id: raw.messageId,
     sender: raw.sender,
     text: raw.message,
     createdAt: raw.created,
-    source,
     raw,
   };
 }
@@ -32,7 +27,7 @@ export async function getConversationList() {
     const response = await backendApi.getListConversation({
       token: session.token,
       index: "0",
-      count: "30",
+      count: "20",
     });
 
     await assertBackendOk(response, {
@@ -40,9 +35,7 @@ export async function getConversationList() {
       message: "Backend get_list_conversation failed",
     });
 
-    return extractList(response).map((item) =>
-      normalizeConversation(item, ACTIVE_SOURCES.SERVER),
-    );
+    return normalizeConversationList(response.data);
   } catch (error) {
     console.info("[DATA] Server conversation list fallback", error.message);
     throw error;
@@ -65,7 +58,7 @@ export async function getConversation(conversationId) {
   });
 
   const messages = extractList(response).map((item) =>
-    normalizeMessage(item, ACTIVE_SOURCES.SERVER),
+    normalizeMessage(item),
   );
   console.log(JSON.stringify(messages, null, 2));
   return {
@@ -104,7 +97,7 @@ export async function deleteConversation(conversationId) {
 
   const response = await backendApi.deleteConversation({
     token: session.token,
-    id: conversationId,
+    conversationId: conversationId,
   });
 
   await assertBackendOk(response, {
