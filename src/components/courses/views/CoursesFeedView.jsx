@@ -1,21 +1,20 @@
-import CourseCard from "@/components/courses/CourseCard";
 import NoInternetView from "@/components/common/NoInternetView";
+import CourseCard from "@/components/courses/CourseCard";
 import colors from "@/constants/colors";
+import { useInternetFetch } from "@/hooks/useNetInfo";
 import { getListCourses, requestCourse } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
-import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { CACHE_KEY_COURSES_FEED, readCache, writeCache } from "@/utils/cacheStore";
-import { useInternetFetch } from "@/hooks/useNetInfo";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 
 let coursesFeedCache = [];

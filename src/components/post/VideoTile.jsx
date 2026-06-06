@@ -9,37 +9,22 @@ import {
   Image,
   Modal,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 import AppButton from "../common/AppButton";
 
-export default function VideoTile({ video, index }) {
-  const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
+function FullscreenVideoPlayer({ videoSource, visible, onClose }) {
   const [isFullscreenReady, setIsFullscreenReady] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const rawVideoUri = video?.uri ? video.uri.trim() : "";
-  const rawThumbUri = video?.thumb ? video.thumb : "";
-  const [videoSource, setVideoSource] = useState(rawVideoUri);
-  const fullscreenPlayer = useVideoPlayer(
-    isFullscreenVisible ? videoSource : null,
-    (player) => {
-      player.loop = true;
-      player.muted = false;
-      player.pause();
-    },
-  );
 
-  useEffect(() => {
-    setVideoSource(rawVideoUri);
-    setIsFullscreenReady(false);
-    setHasError(false);
-  }, [rawVideoUri]);
-
-  useEffect(() => {
-    fullscreenPlayer.pause();
-  }, [videoSource, fullscreenPlayer]);
+  const player = useVideoPlayer(videoSource, (playerInstance) => {
+    playerInstance.loop = true;
+    playerInstance.muted = false;
+    playerInstance.play();
+  });
 
   useEffect(() => {
     const handleStatusChange = ({ status }) => {
@@ -49,36 +34,82 @@ export default function VideoTile({ video, index }) {
       }
     };
 
-    const fullscreenSub = fullscreenPlayer.addListener(
-      "statusChange",
-      handleStatusChange,
-    );
-
+    const sub = player.addListener("statusChange", handleStatusChange);
     return () => {
-      fullscreenSub.remove();
+      sub.remove();
     };
-  }, [fullscreenPlayer]);
+  }, [player]);
 
   const handleRetry = () => {
     setHasError(false);
     setIsFullscreenReady(false);
-    fullscreenPlayer.replace(videoSource);
-    fullscreenPlayer.play();
+    player.replace(videoSource);
   };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+    >
+      <View style={styles.fullscreenBackdrop}>
+        <Pressable
+          style={styles.closeButton}
+          onPress={onClose}
+          hitSlop={8}
+        >
+          <CloseIcon />
+        </Pressable>
+
+        {hasError ? (
+          <View style={styles.videoErrorOverlay}>
+            <Text style={styles.videoErrorText}>
+              Không thể tải video
+            </Text>
+            <AppButton
+              title="Thử lại"
+              onPress={handleRetry}
+              style={styles.retryButton}
+            />
+          </View>
+        ) : (
+          <>
+            <VideoView
+              player={player}
+              style={styles.fullscreenVideo}
+              contentFit="contain"
+              nativeControls
+              onFirstFrameRender={() => setIsFullscreenReady(true)}
+            />
+            {!isFullscreenReady ? (
+              <View style={styles.videoLoadingOverlay}>
+                <ActivityIndicator size="large" color={colors.white} />
+              </View>
+            ) : null}
+          </>
+        )}
+      </View>
+    </Modal>
+  );
+}
+
+export default function VideoTile({ video, index }) {
+  const [isFullscreenVisible, setIsFullscreenVisible] = useState(false);
+  const rawVideoUri = video?.uri ? video.uri.trim() : "";
+  const rawThumbUri = video?.thumb ? video.thumb : "";
 
   const openFullscreen = () => {
     setIsFullscreenVisible(true);
-    setIsFullscreenReady(false);
-    setHasError(false);
-    fullscreenPlayer.pause();
   };
 
   const closeFullscreen = () => {
     setIsFullscreenVisible(false);
-    fullscreenPlayer.pause();
   };
 
-  if (!videoSource) return null;
+  if (!rawVideoUri) return null;
 
   return (
     <>
@@ -109,54 +140,13 @@ export default function VideoTile({ video, index }) {
         </View>
       </Pressable>
 
-      <Modal
-        visible={isFullscreenVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeFullscreen}
-      >
-        <View style={styles.fullscreenBackdrop}>
-          <Pressable
-            style={styles.closeButton}
-            onPress={closeFullscreen}
-            hitSlop={8}
-          >
-            <CloseIcon />
-          </Pressable>
-
-          {isFullscreenVisible && videoSource ? (
-            <>
-              {hasError ? (
-                <View style={styles.videoErrorOverlay}>
-                  <Text style={styles.videoErrorText}>
-                    Không thể tải video
-                  </Text>
-                  <AppButton
-                    title="Thử lại"
-                    onPress={handleRetry}
-                    style={styles.retryButton}
-                  />
-                </View>
-              ) : (
-                <>
-                  <VideoView
-                    player={fullscreenPlayer}
-                    style={styles.fullscreenVideo}
-                    contentFit="contain"
-                    nativeControls
-                    onFirstFrameRender={() => setIsFullscreenReady(true)}
-                  />
-                  {!isFullscreenReady ? (
-                    <View style={styles.videoLoadingOverlay}>
-                      <ActivityIndicator size="large" color={colors.white} />
-                    </View>
-                  ) : null}
-                </>
-              )}
-            </>
-          ) : null}
-        </View>
-      </Modal>
+      {isFullscreenVisible && (
+        <FullscreenVideoPlayer
+          videoSource={rawVideoUri}
+          visible={isFullscreenVisible}
+          onClose={closeFullscreen}
+        />
+      )}
     </>
   );
 }
@@ -220,6 +210,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   fullscreenBackdrop: {
+    marginTop: StatusBar.currentHeight,
     flex: 1,
     backgroundColor: colors.black,
     alignItems: "center",
@@ -235,5 +226,24 @@ const styles = StyleSheet.create({
   fullscreenVideo: {
     width: "100%",
     height: "100%",
+  },
+  videoErrorOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.black,
+    gap: 16,
+  },
+  videoErrorText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  retryButton: {
+    minWidth: 120,
   },
 });
