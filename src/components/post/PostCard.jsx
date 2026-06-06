@@ -159,17 +159,23 @@ export default function PostCard({
       pointerEvents={isDeleteAnimating ? "none" : "auto"}
     >
       <View style={postStyles.headerRow}>
-        <Pressable
+        <View
           style={localStyles.authorPressable}
-          onPress={handleOpenAuthorProfile}
-          disabled={!authorId}
         >
-          <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
+          <Pressable
+            onPress={handleOpenAuthorProfile}
+            disabled={!authorId}
+            hitSlop={8}
+          >
+            <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
+          </Pressable>
 
           <View style={postStyles.authorMetaGroup}>
-            <Text style={postStyles.authorName}>
+            <Pressable onPress={handleOpenAuthorProfile} disabled={!authorId}>
+              <Text style={postStyles.authorName}>
               {post.author?.name || "Người dùng"}
-            </Text>
+              </Text>
+            </Pressable>
             <Text
               style={[
                 postStyles.metaText,
@@ -180,7 +186,7 @@ export default function PostCard({
               {formatRelativeTime(post.createdAt)} · <EarthIcon />
             </Text>
           </View>
-        </Pressable>
+        </View>
 
         <View style={postStyles.roleBadge}>
           <Text style={postStyles.roleBadgeText}>
