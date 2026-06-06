@@ -83,6 +83,27 @@ function getNotificationTime(item = {}) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function isGenericNotificationBody(value = "") {
+  const text = String(value || "").trim();
+
+  return (
+    !text ||
+    text === "Có thông báo mới." ||
+    text === "Có thông báo mới" ||
+    text === "Bạn có thông báo mới." ||
+    text === "Bạn có thông báo mới"
+  );
+}
+
+function firstUsefulBody(...values) {
+  return (
+    values.find((value) => {
+      const text = String(value || "").trim();
+      return text && !isGenericNotificationBody(text);
+    }) || ""
+  );
+}
+
 function normalizeNotificationPreview(item = {}) {
   const raw = item.raw || {};
 
@@ -95,18 +116,26 @@ function normalizeNotificationPreview(item = {}) {
   ).trim();
 
   const body = String(
-    item.description ||
-      item.body ||
-      raw.description ||
-      raw.comment_content ||
-      raw.commentContent ||
-      raw.post_title ||
-      raw.postTitle ||
-      raw.post_content ||
-      raw.postContent ||
-      raw.content ||
-      raw.message ||
-      "",
+    firstUsefulBody(
+      item.description,
+      raw.description,
+
+      raw.comment_content,
+      raw.commentContent,
+
+      raw.post_content,
+      raw.postContent,
+      raw.post_description,
+      raw.postDescription,
+
+      raw.content,
+      raw.message,
+
+      raw.post_title,
+      raw.postTitle,
+
+      item.body,
+    ),
   ).trim();
 
   const avatar = String(
@@ -163,6 +192,11 @@ function normalizeReceivedPushNotification(notification = {}) {
   const content = notification?.request?.content || {};
   const data = content.data || {};
 
+  console.log("PUSH_TOAST_BODY_DEBUG", {
+    contentBody: content.body,
+    data,
+  });
+
   return normalizeNotificationPreview({
     id:
       data.notificationId ||
@@ -172,11 +206,16 @@ function normalizeReceivedPushNotification(notification = {}) {
     notificationId: data.notificationId || data.notification_id || data.id,
     title: content.title || data.title || data.message,
     body:
-      content.body ||
       data.description ||
-      data.body ||
+      data.described ||
+      data.post_described ||
+      data.postDescription ||
+      data.post_content ||
+      data.postContent ||
       data.content ||
-      data.message,
+      data.message ||
+      data.body ||
+      content.body,
     avatar:
       data.avatar ||
       data.user_avatar ||

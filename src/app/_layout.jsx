@@ -1,4 +1,7 @@
 import {
+  getPostById,
+} from "@/repositories/postRepository";
+import {
   resetInAppNotificationRuntime,
   startInAppNotificationRuntime,
   stopInAppNotificationRuntime,
@@ -13,6 +16,56 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 function getToastInitial(value = "") {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed[0].toUpperCase() : "N";
+}
+
+function isGenericToastBody(value = "") {
+  const text = String(value || "").trim();
+
+  return (
+    !text ||
+    text === "Có thông báo mới." ||
+    text === "Có thông báo mới" ||
+    text === "Bạn có thông báo mới." ||
+    text === "Bạn có thông báo mới"
+  );
+}
+
+function getNotificationTargetId(notification = {}) {
+  return String(
+    notification.targetId ||
+      notification.objectId ||
+      notification.raw?.objectId ||
+      notification.raw?.object_id ||
+      notification.raw?.targetId ||
+      notification.raw?.target_id ||
+      notification.raw?.postId ||
+      notification.raw?.post_id ||
+      "",
+  ).trim();
+}
+
+async function buildToastNotification(notification = {}) {
+  const targetId = getNotificationTargetId(notification);
+
+  let body = String(notification.body || "").trim();
+
+  if (isGenericToastBody(body) && targetId) {
+    try {
+      const post = await getPostById(targetId);
+      const postDescription = String(post?.described || "").trim();
+
+      body = postDescription ? `“${postDescription}”` : "";
+    } catch (error) {
+      console.log("LOAD_NOTIFICATION_POST_BODY_ERROR", error?.message);
+      body = "";
+    }
+  }
+
+  return {
+    title: notification?.title || "Bạn có thông báo mới",
+    body: isGenericToastBody(body) ? "" : body,
+    avatar: notification?.avatar || "",
+  };
 }
 
 export default function RootLayout() {
@@ -87,19 +140,17 @@ export default function RootLayout() {
           path: pathnameRef.current,
         });
 
-        setNotificationToast({
-          title: notification?.title || "Bạn có thông báo mới",
-          body: notification?.body || "Có thông báo mới.",
-          avatar: notification?.avatar || "",
+        buildToastNotification(notification).then((toast) => {
+          setNotificationToast(toast);
+
+          if (toastTimerRef.current) {
+            clearTimeout(toastTimerRef.current);
+          }
+
+          toastTimerRef.current = setTimeout(() => {
+            setNotificationToast(null);
+          }, 3500);
         });
-
-        if (toastTimerRef.current) {
-          clearTimeout(toastTimerRef.current);
-        }
-
-        toastTimerRef.current = setTimeout(() => {
-          setNotificationToast(null);
-        }, 3500);
       },
     });
 
