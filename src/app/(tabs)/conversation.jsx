@@ -11,6 +11,7 @@ import {
   deleteConversation,
   getConversationList,
   markConversationRead,
+  subscribeConversations,
 } from "@/repositories/conversationRepository";
 import { getCurrentSession } from "@/repositories/source";
 import conversationStyles from "@/styles/conversation.styles";
@@ -19,7 +20,7 @@ import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 
 function formatMessageTime(dateString) {
   if (!dateString) return "";
@@ -58,10 +59,10 @@ function formatMessageTime(dateString) {
 
 export default function ConversationsScreen() {
   const [items, setItems] = useState([]);
-  const [conversationBadge, setConversationBadge] = useState(0);
   const [error, setError] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Modal states
   const [selectedItem, setSelectedItem] = useState(null);
@@ -69,24 +70,46 @@ export default function ConversationsScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const load = useCallback(() => {
-    getConversationList()
-      .then((data) => {
-        setItems(data.messages);
-        setConversationBadge(data.numNewMessage);
-      })
-      .catch(async (err) => {
-        if (await redirectIfSessionExpired(err, router)) return;
-        setError(err.message);
-      });
+  // Subscribe to conversations cache and badge updates
+  useEffect(() => {
+    const unsubscribe = subscribeConversations((cache) => {
+      setItems(cache.messages || []);
+    });
+    return unsubscribe;
   }, []);
 
-  useFocusEffect(load);
+  const load = useCallback(async () => {
+    try {
+      await getConversationList();
+    } catch (err) {
+      if (await redirectIfSessionExpired(err, router)) return;
+      setError(err.message);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   useEffect(() => {
     getCurrentSession()
       .then(setCurrentUser)
       .catch(() => {});
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await getConversationList();
+      setError("");
+    } catch (err) {
+      if (await redirectIfSessionExpired(err, router)) return;
+      setError(err.message || "Không thể tải dữ liệu.");
+    } finally {
+      setIsRefreshing(false);
+    }
   }, []);
 
   const open = async (item) => {
@@ -102,12 +125,21 @@ export default function ConversationsScreen() {
   const remove = async (item) => {
     try {
       await deleteConversation(item.id);
-      load();
     } catch (err) {
       if (await redirectIfSessionExpired(err, router)) return;
       setError(err.message || "Không thể xóa cuộc trò chuyện.");
     }
   };
+
+  const filteredItems = useMemo(() => {
+    const query = searchKeyword.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((item) => {
+      const username = String(item?.partner?.username || "").toLowerCase();
+      const lastMsg = String(item?.lastmessage?.message || "").toLowerCase();
+      return username.includes(query) || lastMsg.includes(query);
+    });
+  }, [items, searchKeyword]);
 
   const handleLongPress = (item) => {
     setSelectedItem(item);
@@ -215,12 +247,15 @@ export default function ConversationsScreen() {
 
       {error && <Text style={conversationStyles.errorText}>{error}</Text>}
 
-      {/* Conversations List */}
+      {/* Conversations List with Pull to Refresh */}
       <FlatList
-        data={items}
+        data={filteredItems}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={conversationStyles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
         ListEmptyComponent={
           <View style={conversationStyles.emptyContainer}>
             <Text style={conversationStyles.emptyText}>Chưa có cuộc trò chuyện nào.</Text>

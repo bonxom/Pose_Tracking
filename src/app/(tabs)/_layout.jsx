@@ -1,3 +1,4 @@
+import IconWithBadge from "@/components/common/IconWithBadge";
 import BellIcon from "@/components/icons/BellIcon";
 import ChatTwoBubbleIcon from "@/components/icons/ChatTwoBubbleIcon";
 import CoursesIcon from "@/components/icons/CoursesIcon";
@@ -6,18 +7,21 @@ import MenuIcon from "@/components/icons/MenuIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
 import {
-  formatNotificationBadge,
+  getConversationList,
+  subscribeConversations,
+} from "@/repositories/conversationRepository";
+import {
   getNotificationBadge,
   getNotificationPage,
-  subscribeNotificationBadge,
+  subscribeNotificationBadge
 } from "@/repositories/notificationRepository";
 import { getInitials } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { router, Tabs, useFocusEffect, usePathname } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { router, Tabs, usePathname } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -102,6 +106,11 @@ export default function TabsLayout() {
   const isHome = pathname === "/home" || pathname === "/";
   const [session, setSession] = useState(null);
 
+  const [notificationBadge, setTabNotificationBadge] = useState(
+    getNotificationBadge(),
+  );
+  const [conversationBadge, setConversationBadge] = useState(0);
+
   useEffect(() => {
     const unsubscribe = subscribeNotificationBadge(setTabNotificationBadge);
 
@@ -116,33 +125,23 @@ export default function TabsLayout() {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = subscribeConversations((cache) => {
+      setConversationBadge(cache.numNewMessage);
+    });
+
+    getConversationList().catch((error) => {
+      console.log("LOAD_CONVERSATION_BADGE_ERROR", error?.message);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     getAuthSession().then(setSession).catch(console.warn);
 
     const unsubscribe = subscribeAuthSession(setSession);
     return unsubscribe;
   }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-
-      getAuthSession()
-        .then((value) => {
-          if (active) {
-            setSession(value);
-          }
-        })
-        .catch(console.warn);
-
-      return () => {
-        active = false;
-      };
-    }, []),
-  );
-
-  const [notificationBadge, setTabNotificationBadge] = useState(
-    getNotificationBadge(),
-  );
   const displayName = session?.displayName || session?.username || "Người dùng";
   const avatar = resolveAvatarUri(
     session?.avatar || session?.user?.avatar || "",
@@ -195,17 +194,10 @@ export default function TabsLayout() {
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => (
-              <View style={styles.notificationTabIcon}>
-                <BellIcon focused={focused} />
-
-                {notificationBadge > 0 ? (
-                  <View style={styles.notificationTabBadge}>
-                    <Text style={styles.notificationTabBadgeText}>
-                      {formatNotificationBadge(notificationBadge)}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
+              <IconWithBadge
+                icon={<BellIcon focused={focused} />}
+                badge={notificationBadge}
+              />
             ),
           }}
         />
@@ -214,7 +206,10 @@ export default function TabsLayout() {
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
             tabBarIcon: ({ focused }) => (
-              <ChatTwoBubbleIcon focused={focused} />
+              <IconWithBadge
+                icon={<ChatTwoBubbleIcon focused={focused} />}
+                badge={conversationBadge}
+              />
             ),
           }}
         />
@@ -235,7 +230,7 @@ export default function TabsLayout() {
           name="menu"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <MenuIcon focused={focused} />,
+            tabBarIcon: ({ focused }) => <MenuIcon focused={focused} si />,
           }}
         />
       </Tabs>
@@ -298,26 +293,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     position: "relative",
   },
-  notificationTabBadge: {
-    position: "absolute",
-    top: -8,
-    right: -8,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 5,
-    backgroundColor: "#E41E3F",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notificationTabBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    lineHeight: 12,
-    fontWeight: "800",
-  },
   indicator: {
     position: "absolute",
     bottom: 0,
@@ -327,13 +302,6 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   indicatorActive: { backgroundColor: colors.primary },
-  notificationIconWrap: {
-    width: 36,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
   profileAvatarWrap: {
     width: 29,
     height: 29,
@@ -381,25 +349,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 10,
     fontWeight: "900",
-  },
-  notificationBadge: {
-    position: "absolute",
-    top: -4,
-    right: 0,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 5,
-    backgroundColor: "#E41E3F",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notificationBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    lineHeight: 12,
-    fontWeight: "800",
   },
 });

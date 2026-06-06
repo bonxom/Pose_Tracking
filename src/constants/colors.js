@@ -28,12 +28,14 @@ const colors = {
   borderStrong: "#CED0D4",
   borderMuted: "#DADDE1",
   borderInput: "#CCD0D5",
+  searchInput: "#f1f2f6",
 
   error: "#DC2626",
   success: "#16A34A",
   disabled: "#CBD5E1",
   overlay: "rgba(0,0,0,0.32)",
   overlayLight: "rgba(255,255,255,0.18)",
+  badgeIcon: "#de2334",
 
   white: "#FFFFFF",
   black: "#000000",
@@ -41,8 +43,7 @@ const colors = {
   divider: "#838689",
   overlayBlack40: "rgba(0, 0, 0, 0.4)",
   overlayBlack65: "rgba(0, 0, 0, 0.65)",
-  blue: "#0865fe",
-  searchInput: "#f1f2f6"
+  blue: "#0865fe"
 };
 
 export default colors;

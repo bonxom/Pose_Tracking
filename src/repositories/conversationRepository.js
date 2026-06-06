@@ -4,9 +4,14 @@ import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 function normalizeConversationList(data) {
+  const messages = data?.data || (Array.isArray(data) ? data : []);
+  const numNewMessage = messages.filter(
+    (item) => String(item?.lastmessage?.unread) === "1"
+  ).length;
+
   return {
-    messages: data.data,
-    numNewMessage: data.numNewMessage,
+    messages,
+    numNewMessage,
   };
 }
 
@@ -18,6 +23,36 @@ function normalizeMessage(raw = {}) {
     createdAt: raw.created,
     raw,
   };
+}
+
+// Conversation list cache
+let conversationCache = {
+  messages: [],
+  numNewMessage: 0,
+  hasLoaded: false,
+};
+
+const conversationListeners = new Set();
+
+export function getConversationCache() {
+  return conversationCache;
+}
+
+export function subscribeConversations(listener) {
+  conversationListeners.add(listener);
+  // Emit current cache immediately
+  listener(conversationCache);
+  return () => {
+    conversationListeners.delete(listener);
+  };
+}
+
+function emitConversations(data) {
+  conversationCache = {
+    ...data,
+    hasLoaded: true,
+  };
+  conversationListeners.forEach((listener) => listener(conversationCache));
 }
 
 export async function getConversationList() {
@@ -35,7 +70,9 @@ export async function getConversationList() {
       message: "Backend get_list_conversation failed",
     });
 
-    return normalizeConversationList(response.data);
+    const data = normalizeConversationList(response.data);
+    emitConversations(data);
+    return data;
   } catch (error) {
     console.info("[DATA] Server conversation list fallback", error.message);
     throw error;
@@ -93,6 +130,19 @@ export async function deleteMessage(messageId) {
 }
 
 export async function deleteConversation(conversationId) {
+  // Optimistic update of local cache
+  const current = { ...conversationCache };
+  const conversationToDelete = current.messages.find((msg) => msg.id === conversationId);
+  const wasUnread = conversationToDelete?.lastmessage?.unread === "1";
+
+  const updatedMessages = current.messages.filter((msg) => msg.id !== conversationId);
+  const nextUnread = wasUnread ? Math.max(0, current.numNewMessage - 1) : current.numNewMessage;
+
+  emitConversations({
+    messages: updatedMessages,
+    numNewMessage: nextUnread,
+  });
+
   const session = await getCurrentSession();
 
   const response = await backendApi.deleteConversation({
@@ -108,11 +158,36 @@ export async function deleteConversation(conversationId) {
 }
 
 export async function markConversationRead(conversationId) {
+  // Optimistic update of local cache
+  const current = { ...conversationCache };
+  let changed = false;
+  const updatedMessages = current.messages.map((msg) => {
+    if (msg.id === conversationId && msg.lastmessage.unread === "1") {
+      changed = true;
+      return {
+        ...msg,
+        lastmessage: {
+          ...msg.lastmessage,
+          unread: "0",
+        },
+      };
+    }
+    return msg;
+  });
+
+  if (changed) {
+    const nextUnread = Math.max(0, current.numNewMessage - 1);
+    emitConversations({
+      messages: updatedMessages,
+      numNewMessage: nextUnread,
+    });
+  }
+
   const session = await getCurrentSession();
 
   const response = await backendApi.setReadMessage({
     token: session.token,
-    id: conversationId,
+    conversationId: conversationId,
   });
 
   await assertBackendOk(response, {
