@@ -1,6 +1,7 @@
 import IconButton from "@/components/common/IconButton";
 import Screen from "@/components/common/Screen";
 import SearchInput from "@/components/common/SearchInput";
+import UserAvatar from "@/components/courses/UserAvatar";
 import CameraIcon from "@/components/icons/CameraIcon";
 import EditIcon from "@/components/icons/EditIcon";
 import TrashIcon from "@/components/icons/TrashIcon";
@@ -17,7 +18,6 @@ import { getCurrentSession } from "@/repositories/source";
 import conversationStyles from "@/styles/conversation.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
@@ -182,12 +182,7 @@ export default function ConversationsScreen() {
           pressed && { backgroundColor: "#f3f4f6" },
         ]}
       >
-        <View style={conversationStyles.avatarWrapper}>
-          <Image
-            source={{ uri: partnerAvatarUri }}
-            style={conversationStyles.avatarNormal}
-          />
-        </View>
+        <UserAvatar uri={partnerAvatarUri} size={62} />
         <View style={conversationStyles.contentWrapper}>
           <View style={conversationStyles.textContainer}>
             <Text style={conversationStyles.partnerName} numberOfLines={1}>
@@ -219,12 +214,7 @@ export default function ConversationsScreen() {
       {/* Header matching iOS sketch style */}
       <View style={conversationStyles.header}>
         <View style={conversationStyles.headerLeft}>
-          <View style={conversationStyles.headerAvatarContainer}>
-            <Image
-              source={{ uri: resolveAvatarUri(currentUser?.avatar) }}
-              style={conversationStyles.headerAvatar}
-            />
-          </View>
+          <UserAvatar uri={currentUser?.avatar} />
           <Text style={conversationStyles.headerTitle}>Chat</Text>
         </View>
         <View style={conversationStyles.headerRight}>

@@ -14,18 +14,6 @@ const conversationStyles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  headerAvatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#f3f4f6",
-    overflow: "hidden",
-  },
-  headerAvatar: {
-    width: "100%",
-    height: "100%",
-  },
   headerTitle: {
     fontSize: 24,
     fontWeight: "bold",
@@ -44,30 +32,15 @@ const conversationStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     gap: 12,
     backgroundColor: "#ffffff",
-  },
-  avatarWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarNormal: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
   },
   contentWrapper: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f9fafb",
-    paddingBottom: 12,
     gap: 12,
   },
   textContainer: {
@@ -103,11 +76,6 @@ const conversationStyles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: colors.blue,
-  },
-  readStatusAvatar: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
   },
   errorText: {
     marginHorizontal: 16,
