@@ -10,7 +10,6 @@ import {
   getNotificationPage,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
-import { getInitials } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
@@ -68,8 +67,7 @@ function TabButton({ onPress, accessibilityState, children }) {
   );
 }
 
-function ProfileTabAvatar({ focused, avatar, name }) {
-  const initials = getInitials(name || "Người dùng");
+function ProfileTabAvatar({ focused, avatar }) {
   return (
     <View
       style={[
@@ -77,21 +75,14 @@ function ProfileTabAvatar({ focused, avatar, name }) {
         focused && styles.profileAvatarWrapActive,
       ]}
     >
-      <View style={styles.profileAvatarFallbackShell}>
-        <View style={styles.profileAvatarFallback}>
-          <Text style={styles.profileAvatarFallbackText}>{initials}</Text>
-        </View>
-      </View>
-      {avatar ? (
-        <Image
-          key={avatar}
-          source={{ uri: avatar }}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-          style={styles.profileAvatarImage}
-        />
-      ) : null}
+      <Image
+        key={avatar}
+        source={{ uri: avatar }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+        style={styles.profileAvatarImage}
+      />
     </View>
   );
 }
@@ -142,7 +133,6 @@ export default function TabsLayout() {
   const [notificationBadge, setTabNotificationBadge] = useState(
     getNotificationBadge(),
   );
-  const displayName = session?.displayName || session?.username || "Người dùng";
   const avatar = resolveAvatarUri(
     session?.avatar || session?.user?.avatar || "",
     session?.avatarVersion || session?.profileSyncRequestedAt || session?.loggedInAt || "",
@@ -216,7 +206,6 @@ export default function TabsLayout() {
               <ProfileTabAvatar
                 focused={focused}
                 avatar={avatar}
-                name={displayName}
               />
             ),
           }}
@@ -396,3 +385,4 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+

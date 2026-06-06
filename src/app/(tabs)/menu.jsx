@@ -3,7 +3,7 @@ import { clearNotificationState } from "@/services/notificationStore";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
-import { initials, resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri } from "@/utils/profile";
 import {
   clearAuthSession,
   getAuthSession,
@@ -150,18 +150,14 @@ export default function MenuScreen() {
           onPress={() => router.push("/(tabs)/profile")}
         >
           <View style={styles.avatar}>
-            {avatarUri ? (
-              <Image
-                key={avatarUri}
-                source={{ uri: avatarUri }}
-                style={styles.avatarImage}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={150}
-              />
-            ) : (
-              <Text style={styles.avatarText}>{initials(displayName)}</Text>
-            )}
+            <Image
+              key={avatarUri}
+              source={{ uri: avatarUri }}
+              style={styles.avatarImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           </View>
           <View style={styles.profileTextBlock}>
             <Text style={styles.profileName}>{displayName}</Text>

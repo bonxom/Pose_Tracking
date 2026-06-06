@@ -1,5 +1,6 @@
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
+import { resolveAvatarUri } from "@/utils/profile";
 import {
   Image,
   Pressable,
@@ -22,6 +23,10 @@ function joinButtonProps(item) {
 // ─── CourseCard ──────────────────────────────────────────────────────────────
 export default function CourseCard({ item, onJoin, flat = false }) {
   const { title: btnTitle, disabled: btnDisabled } = joinButtonProps(item);
+  const avatarUri = resolveAvatarUri(
+    item.avatar || "",
+    item.avatarVersion || item.profileSyncRequestedAt || "",
+  );
 
   // Build video list from left_video / right_video (skip empty strings)
   const videos = [
@@ -33,18 +38,10 @@ export default function CourseCard({ item, onJoin, flat = false }) {
     <View style={[localStyles.card, flat && localStyles.flatCard]}>
       {/* ── Creator header ── */}
       <View style={localStyles.headerRow}>
-        {item.avatar ? (
-          <Image
-            source={{ uri: item.avatar }}
-            style={localStyles.avatarImage}
-          />
-        ) : (
-          <View style={localStyles.avatarFallback}>
-            <Text style={localStyles.avatarFallbackText}>
-              {(item.username || "GV").slice(0, 2).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <Image
+          source={{ uri: avatarUri }}
+          style={localStyles.avatarImage}
+        />
 
         <View style={{ flex: 1, marginLeft: 10, gap: 2 }}>
           <Text style={localStyles.username} numberOfLines={1}>

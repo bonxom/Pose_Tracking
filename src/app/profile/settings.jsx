@@ -12,7 +12,7 @@ import {
   getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
-import { initials, resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri } from "@/utils/profile";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -37,19 +37,13 @@ function HeaderAvatar({ profile }) {
 
   return (
     <View style={styles.headerAvatarWrap}>
-      {avatarUri ? (
-        <Image
-          source={{ uri: avatarUri }}
-          style={styles.headerAvatar}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-        />
-      ) : (
-        <View style={styles.headerAvatarFallback}>
-          <Text style={styles.headerAvatarText}>{initials(profile?.displayName || profile?.username)}</Text>
-        </View>
-      )}
+      <Image
+        source={{ uri: avatarUri }}
+        style={styles.headerAvatar}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+      />
       <View style={styles.headerAvatarBadge}>
         <ProfileIcon name="chevron-down" size={10} color={colors.ink} />
       </View>

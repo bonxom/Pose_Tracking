@@ -860,7 +860,6 @@ export async function updateUserInfo(params = {}) {
       ACTIVE_SOURCES.LOCAL,
     );
     saveMockProfile(updated);
-    await saveAuthSession(updated);
     return updated;
   }
 
@@ -919,7 +918,6 @@ export async function updateUserInfo(params = {}) {
       profileSyncErrorMessage: "",
       profileSyncRequestedAt: "",
     };
-    await saveAuthSession(updated);
     return updated;
   } catch (error) {
     const mappedError = mapForbiddenNameError(error);

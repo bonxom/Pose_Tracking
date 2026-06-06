@@ -1,7 +1,7 @@
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import postStyles from "@/styles/post.styles";
-import { formatRelativeTime, getInitials } from "@/utils/formatters";
+import { formatRelativeTime } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
 import { Image, StyleSheet, Text, View } from "react-native";
 
@@ -11,13 +11,7 @@ export default function CommentComponent({ comment }) {
   return (
     <View style={styles.commentRow}>
       <View style={styles.avatar}>
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-        ) : (
-          <Text style={styles.avatarText}>
-            {getInitials(comment.authorName || "U")}
-          </Text>
-        )}
+        <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
       </View>
 
       <View style={styles.contentColumn}>

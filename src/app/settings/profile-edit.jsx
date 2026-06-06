@@ -30,11 +30,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-function initials(name = "") {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
-}
-
 function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
   return (
     <View style={styles.sectionHeader}>
@@ -54,13 +49,7 @@ function AvatarPreview({ uri, name, onPick }) {
   return (
     <View style={styles.avatarPreviewWrap}>
       <View style={styles.avatarPreview}>
-        {resolvedAvatarUri ? (
-          <Image source={{ uri: resolvedAvatarUri }} style={styles.previewImage} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarFallbackText}>{initials(name)}</Text>
-          </View>
-        )}
+        <Image source={{ uri: resolvedAvatarUri }} style={styles.previewImage} />
       </View>
       <Pressable style={styles.cameraFab} onPress={onPick}>
         <ProfileIcon name="camera" size={20} color={colors.ink} />

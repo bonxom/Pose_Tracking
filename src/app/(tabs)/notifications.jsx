@@ -56,11 +56,6 @@ function formatTimeAgo(value) {
   return new Date(value).toLocaleDateString("vi-VN");
 }
 
-function getInitial(title = "") {
-  const trimmed = String(title).trim();
-  return trimmed ? trimmed[0].toUpperCase() : "N";
-}
-
 function NotificationTypeBadge({ type = "" }) {
   const normalizedType = String(type).toLowerCase();
 
@@ -98,7 +93,10 @@ function NotificationTypeBadge({ type = "" }) {
 
 function NotificationItem({ item, onPress }) {
   const unread = isUnread(item);
-  const avatarUri = resolveAvatarUri(item.avatar || "");
+  const avatarUri = resolveAvatarUri(
+    item.avatar || "",
+    item.avatarVersion || item.profileSyncRequestedAt || "",
+  );
 
   return (
     <Pressable
@@ -110,11 +108,7 @@ function NotificationItem({ item, onPress }) {
       ]}
     >
       <View style={styles.avatarWrap}>
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
-        ) : (
-          <Text style={styles.avatarFallback}>{getInitial(item.title)}</Text>
-        )}
+        <Image source={{ uri: avatarUri }} style={styles.avatar} />
 
         <NotificationTypeBadge type={item.type} />
       </View>

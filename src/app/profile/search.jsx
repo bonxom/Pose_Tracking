@@ -148,7 +148,10 @@ export default function ProfileSearchScreen() {
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
-  const avatarUri = resolveAvatarUri(profile?.avatar || "");
+  const avatarUri = resolveAvatarUri(
+    profile?.avatar || "",
+    profile?.avatarVersion || profile?.profileSyncRequestedAt || "",
+  );
   const displayName =
     profile?.displayName || profile?.username || "trang cá nhân này";
 
@@ -197,13 +200,7 @@ export default function ProfileSearchScreen() {
             ) : (
               <View style={styles.emptyIntro}>
                 <View style={styles.avatar}>
-                  {avatarUri ? (
-                    <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-                  ) : (
-                    <Text style={styles.avatarText}>
-                      {String(displayName).trim()[0]?.toUpperCase() || "U"}
-                    </Text>
-                  )}
+                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
                 </View>
                 <Text style={styles.emptyTitle}>
                   {hasSearched ? "Không tìm thấy kết quả" : "Bạn đang tìm gì à?"}

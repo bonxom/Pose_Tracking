@@ -3,10 +3,11 @@ import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
 import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import demoStyles from "@/styles/demo.styles";
+import { resolveAvatarUri } from "@/utils/profile";
 import { router, useFocusEffect } from "expo-router";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { useCallback, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Image, ScrollView, Text, View } from "react-native";
 
 export default function BlocksScreen() {
   const [blocks, setBlocks] = useState([]);
@@ -69,11 +70,17 @@ export default function BlocksScreen() {
         <View style={demoStyles.card}>
           <Text style={demoStyles.cardTitle}>{blocks.length} người dùng bị chặn</Text>
           {blocks.map((item) => (
-            <View key={item.id} style={demoStyles.resultRow}>
+              <View key={item.id} style={demoStyles.resultRow}>
               <View style={demoStyles.row}>
-                <View style={[demoStyles.avatar, { opacity: 0.35 }]}>
-                  <Text style={demoStyles.avatarText}>?</Text>
-                </View>
+                <Image
+                  source={{
+                    uri: resolveAvatarUri(
+                      item.avatar || "",
+                      item.avatarVersion || item.profileSyncRequestedAt || "",
+                    ),
+                  }}
+                  style={demoStyles.avatar}
+                />
                 <View style={{ flex: 1 }}>
                   <Text style={demoStyles.cardTitle}>{item.username}</Text>
                   <Text style={demoStyles.cardText}>{item.role || "Không rõ vai trò"} · {item.id}</Text>

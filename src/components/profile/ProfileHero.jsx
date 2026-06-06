@@ -1,13 +1,12 @@
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { initials, resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri } from "@/utils/profile";
 import { Pressable, Text, View } from "react-native";
 import { Image } from "expo-image";
-import { useEffect, useState } from "react";
 
-function Avatar({ uri, name, size = 72, bordered = false }) {
-  const resolvedAvatarUri = resolveAvatarUri(uri);
+function Avatar({ uri, version = "", size = 72, bordered = false }) {
+  const resolvedAvatarUri = resolveAvatarUri(uri, version);
   const avatarStyle = {
     width: size,
     height: size,
@@ -25,38 +24,16 @@ function Avatar({ uri, name, size = 72, bordered = false }) {
         overflow: "hidden",
       }
     : avatarStyle;
-  const [imageFailed, setImageFailed] = useState(false);
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [resolvedAvatarUri]);
 
   return (
     <View style={shellStyle}>
-      {resolvedAvatarUri && !imageFailed ? (
-        <Image
-          source={{ uri: resolvedAvatarUri }}
-          style={[profileStyles.avatarImage, avatarStyle]}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-          onError={(event) => {
-            console.warn("PROFILE_AVATAR_LOAD_ERROR", resolvedAvatarUri, event.nativeEvent?.error);
-            setImageFailed(true);
-          }}
-        />
-      ) : (
-        <View style={[profileStyles.avatarFallback, avatarStyle]}>
-          <Text
-            style={[
-              profileStyles.avatarFallbackText,
-              { fontSize: Math.max(14, size * 0.34) },
-            ]}
-          >
-            {initials(name)}
-          </Text>
-        </View>
-      )}
+      <Image
+        source={{ uri: resolvedAvatarUri }}
+        style={[profileStyles.avatarImage, avatarStyle]}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+      />
     </View>
   );
 }
@@ -147,7 +124,12 @@ export default function ProfileHero({
       <View style={profileStyles.fbHeroInfo}>
         <View style={profileStyles.fbAvatarRow}>
           <View>
-            <Avatar uri={profile.avatar} name={profile.displayName} size={120} bordered />
+            <Avatar
+              uri={profile.avatar}
+              version={profile.avatarVersion || profile.profileSyncRequestedAt || ""}
+              size={120}
+              bordered
+            />
             {isOwnProfile ? (
               <Pressable style={profileStyles.fbAvatarCamera} onPress={onOpenAvatarMenu}>
                 <ProfileIcon name="camera" size={19} color={colors.ink} />
