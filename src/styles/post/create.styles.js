@@ -123,6 +123,10 @@ const createStyles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  videoTapOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
   videoPreviewFallback: {
     width: "100%",
     height: "100%",
@@ -170,6 +174,11 @@ const createStyles = StyleSheet.create({
     color: colors.white,
     fontSize: 12,
     fontWeight: "700",
+  },
+  videoPlayIconOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
   },
   videoAngleBadge: {
     position: "absolute",

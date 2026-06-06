@@ -114,6 +114,7 @@ export default function CreatePostScreen() {
   const [textAreaHeight, setTextAreaHeight] = useState(26);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
+  const [videoValidationError, setVideoValidationError] = useState("");
 
   const selectedVideoCount = selectedVideos.filter(Boolean).length;
   const role = String(session?.role || session?.user?.role || "").toUpperCase();
@@ -253,6 +254,30 @@ export default function CreatePostScreen() {
     };
   };
 
+  const validateSelectedVideoPair = (videos = [], { shouldAlert = false } = {}) => {
+    const completeVideos = videos.filter(Boolean);
+
+    if (completeVideos.length !== 2) {
+      setVideoValidationError("");
+      return true;
+    }
+
+    try {
+      validateTwoVideos(completeVideos);
+      setVideoValidationError("");
+      return true;
+    } catch (error) {
+      const message =
+        error?.message ||
+        "Hai video phải có thời lượng giống nhau trước khi đăng bài.";
+      setVideoValidationError(message);
+      if (shouldAlert) {
+        Alert.alert("Video chưa hợp lệ", message);
+      }
+      return false;
+    }
+  };
+
   const pickCreateVideo = async (slotIndex) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["videos"],
@@ -265,9 +290,13 @@ export default function CreatePostScreen() {
     }
 
     const video = await buildVideoItem(result.assets[0], slotIndex);
-    setSelectedVideos((current) =>
-      current.map((item, index) => (index === slotIndex ? video : item)),
-    );
+    setSelectedVideos((current) => {
+      const nextVideos = current.map((item, index) =>
+        index === slotIndex ? video : item,
+      );
+      validateSelectedVideoPair(nextVideos, { shouldAlert: true });
+      return nextVideos;
+    });
   };
 
   const removeSelectedVideo = (index) => {
@@ -283,9 +312,13 @@ export default function CreatePostScreen() {
         text: "Xóa",
         style: "destructive",
         onPress: () => {
-          setSelectedVideos((current) =>
-            current.map((item, itemIndex) => (itemIndex === index ? null : item)),
-          );
+          setSelectedVideos((current) => {
+            const nextVideos = current.map((item, itemIndex) =>
+              itemIndex === index ? null : item,
+            );
+            validateSelectedVideoPair(nextVideos);
+            return nextVideos;
+          });
           setActiveVideoUri((current) => (current === removedUri ? "" : current));
         },
       },
@@ -385,7 +418,7 @@ export default function CreatePostScreen() {
     router.back();
   };
 
-  const isSubmitDisabled = selectedVideoCount !== 2;
+  const isSubmitDisabled = selectedVideoCount !== 2 || Boolean(videoValidationError);
   const bottomToolbarInset = keyboardOffset;
 
   return (
@@ -495,6 +528,7 @@ export default function CreatePostScreen() {
                         video={video}
                         label={slot.label}
                         onPress={() => setActiveVideoUri(video.uri)}
+                        showPlayIcon
                       />
                     </>
                   ) : (
