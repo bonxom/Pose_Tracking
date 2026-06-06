@@ -4,15 +4,20 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import AppInput from "@/components/common/AppInput";
 import {
   getUserInfo,
-  updateUserInfo,
+  mergeOwnProfileWithSession,
   validateProfileUserName,
 } from "@/repositories/userRepository";
+import { queueProfileUpdate } from "@/services/profileUpdateService";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { clearAuthSession } from "@/utils/session";
+import {
+  clearAuthSession,
+  subscribeAuthSession,
+} from "@/utils/session";
+import { resolveAvatarUri } from "@/utils/profile";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,10 +29,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-function isLocalAssetUri(value = "") {
-  return /^(file|content|asset-library|ph):\/\//i.test(String(value || ""));
-}
 
 function initials(name = "") {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -48,11 +49,13 @@ function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
 }
 
 function AvatarPreview({ uri, name, onPick }) {
+  const resolvedAvatarUri = resolveAvatarUri(uri);
+
   return (
     <View style={styles.avatarPreviewWrap}>
       <View style={styles.avatarPreview}>
-        {uri ? (
-          <Image source={{ uri }} style={styles.previewImage} />
+        {resolvedAvatarUri ? (
+          <Image source={{ uri: resolvedAvatarUri }} style={styles.previewImage} />
         ) : (
           <View style={styles.avatarFallback}>
             <Text style={styles.avatarFallbackText}>{initials(name)}</Text>
@@ -93,6 +96,21 @@ export default function ProfileEditScreen() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const latestDraftRef = useRef({
+    username: "",
+    avatar: "",
+    coverImage: "",
+    description: "",
+  });
+
+  useEffect(() => {
+    latestDraftRef.current = {
+      username,
+      avatar,
+      coverImage,
+      description,
+    };
+  }, [avatar, coverImage, description, username]);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -121,6 +139,40 @@ export default function ProfileEditScreen() {
     }, [loadProfile]),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const applySession = (session) => {
+        if (!active || !session) return;
+
+        const draft = latestDraftRef.current;
+        const merged = mergeOwnProfileWithSession(
+          {
+            displayName: draft.username,
+            username: draft.username,
+            avatar: draft.avatar,
+            coverImage: draft.coverImage,
+            description: draft.description,
+          },
+          session,
+        );
+
+        setUsername(merged.displayName || merged.username || "");
+        setAvatar(merged.avatar || "");
+        setCoverImage(merged.coverImage || "");
+        setDescription(merged.description || "");
+      };
+
+      const unsubscribe = subscribeAuthSession(applySession);
+
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    }, []),
+  );
+
   const pickImage = async (type) => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -146,12 +198,12 @@ export default function ProfileEditScreen() {
         } else {
           setCoverImage(uri);
         }
-        setStatus("Ảnh đã chọn đang được preview local. Backend cần URL ảnh hoặc API upload để lưu thật.");
+        setStatus("Ảnh đã được chọn. Nhấn \"Lưu thay đổi\" để upload file lên server.");
       }
     } catch {
       Alert.alert(
         "Không thể chọn ảnh",
-        "Cơ chế chọn ảnh bị lỗi. Upload thật cần backend nhận file hoặc URL ảnh.",
+        "Cơ chế chọn ảnh bị lỗi. Vui lòng thử lại.",
       );
     }
   };
@@ -167,20 +219,13 @@ export default function ProfileEditScreen() {
     setStatus("");
     setUsernameError("");
     try {
-      const hasLocalImage = isLocalAssetUri(avatar) || isLocalAssetUri(coverImage);
-      await updateUserInfo({
+      await queueProfileUpdate({
         userName: username.trim(),
         avatar,
         coverImage,
         description: description.trim().slice(0, 150),
       });
-
-      if (hasLocalImage) {
-        Alert.alert(
-          "Ảnh chưa upload lên server",
-          "set_user_info chỉ nhận avatar/coverImage dạng URL. Ảnh chọn từ máy là URI local nên app giữ ảnh cũ trên server.",
-        );
-      }
+      setStatus("Đã cập nhật giao diện. Backend đang đồng bộ nền...");
       router.replace("/(tabs)/profile");
     } catch (error) {
       if (error.sessionExpired) {
@@ -244,33 +289,6 @@ export default function ProfileEditScreen() {
                 multiline
                 containerStyle={styles.inputGroup}
                 style={[styles.input, styles.multilineInput]}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <SectionHeader title="Liên kết ảnh" />
-              <Text style={styles.sectionHint}>
-                Dùng URL ảnh đã upload để backend lưu avatar và ảnh bìa ổn định.
-              </Text>
-              <AppInput
-                label="avatar URL"
-                value={isLocalAssetUri(avatar) ? "" : avatar}
-                onChangeText={setAvatar}
-                placeholder="https://..."
-                autoCapitalize="none"
-                keyboardType="url"
-                containerStyle={styles.inputGroup}
-                style={styles.input}
-              />
-              <AppInput
-                label="coverImage URL"
-                value={isLocalAssetUri(coverImage) ? "" : coverImage}
-                onChangeText={setCoverImage}
-                placeholder="https://..."
-                autoCapitalize="none"
-                keyboardType="url"
-                containerStyle={styles.inputGroup}
-                style={styles.input}
               />
             </View>
 
@@ -360,13 +378,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "800",
     color: colors.brand,
-  },
-  sectionHint: {
-    marginTop: sizes.xs,
-    marginBottom: sizes.sm,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.inkMuted,
   },
   avatarPreviewWrap: {
     alignSelf: "center",

@@ -18,7 +18,7 @@ const PROBE_FRIEND_USER_ID =
   process.env.PROBE_FRIEND_USER_ID || process.env.PROBE_TARGET_USER_ID || "";
 
 const loginBody = {
-  phonenumber: process.env.PROBE_PHONE || "0900000001",
+  phonenumber: process.env.PROBE_PHONE || "",
   password: process.env.PROBE_PASSWORD || "123456",
   devtoken: process.env.PROBE_DEVICE_TOKEN || "expo-web-demo",
 };

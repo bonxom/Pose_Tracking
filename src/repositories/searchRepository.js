@@ -5,7 +5,8 @@ import {
   getSavedSearches as getSavedSearchRecords,
 } from "@/repositories/postRepository";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import { getCurrentSession } from "@/repositories/source";
+import { getCurrentSession, isMockMode } from "@/repositories/source";
+import * as localPosts from "@/services/postStore";
 import { getUserInfo } from "@/repositories/userRepository";
 import { mapPosts, mapUsersFromResponse } from "@/utils/search";
 
@@ -51,6 +52,42 @@ function normalizeSearchUser(profile = {}, fallback = {}) {
         fallback.description ||
         "",
     ),
+  };
+}
+
+function hasBackendSearchUsers(response = {}) {
+  const data = response?.data || {};
+
+  return (
+    Array.isArray(data.users) ||
+    Array.isArray(data.user) ||
+    Array.isArray(data.accounts) ||
+    Array.isArray(data.people)
+  );
+}
+
+function isHashtagKeyword(keyword = "") {
+  return String(keyword || "").trim().startsWith("#");
+}
+
+function normalizeHashtagKeyword(keyword = "") {
+  const trimmed = String(keyword || "").trim().toLowerCase();
+  if (!trimmed) return "";
+  return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+}
+
+async function searchMockHashtagPosts(keyword = "", options = {}) {
+  const normalizedHashtag = normalizeHashtagKeyword(keyword);
+  const index = Math.max(0, Number(options.index || 0));
+  const count = Math.max(1, Number(options.count || 20));
+  const matchedPosts = await localPosts.searchPostsByHashtag(normalizedHashtag);
+  const posts = matchedPosts.slice(index, index + count);
+
+  return {
+    posts,
+    users: [],
+    nextIndex: index + count,
+    hasMore: index + count < matchedPosts.length,
   };
 }
 
@@ -118,12 +155,20 @@ export async function searchScreenSearch(keyword = "", options = {}) {
     };
   }
 
+  if (isMockMode() && isHashtagKeyword(trimmedKeyword)) {
+    return searchMockHashtagPosts(trimmedKeyword, options);
+  }
+
   const index = Number(options.index || 0);
   const count = Number(options.count || 20);
+  const requestedUserId = String(
+    options.userId || options.user_id || options.scopeUserId || "",
+  ).trim();
 
   const response = await backendApi.search({
     token,
     keyword: trimmedKeyword,
+    ...(requestedUserId ? { user_id: requestedUserId } : {}),
     index: String(index),
     count: String(count),
   });
@@ -135,12 +180,13 @@ export async function searchScreenSearch(keyword = "", options = {}) {
 
   const posts = mapPosts(response);
   let users = mapUsersFromResponse(response, posts);
+  const backendHasUsers = hasBackendSearchUsers(response);
 
   if (
     API_TYPE === API_TYPES.BACKEND &&
     !options.append &&
     users.length &&
-    !response?.data?.users
+    !backendHasUsers
   ) {
     users = await hydrateSearchUsers(users);
   }
@@ -148,7 +194,7 @@ export async function searchScreenSearch(keyword = "", options = {}) {
   // Client-side filter: only include users whose name or handle contains the keyword
   try {
     const lowered = String(trimmedKeyword || "").trim().toLowerCase();
-    if (lowered) {
+    if (lowered && !backendHasUsers) {
       users = users.filter((u) => {
         const name = String(u?.name || "").toLowerCase();
         const handle = String(u?.handle || "").replace(/^@/, "").toLowerCase();
@@ -163,6 +209,6 @@ export async function searchScreenSearch(keyword = "", options = {}) {
     posts,
     users,
     nextIndex: index + count,
-    hasMore: posts.length >= count,
+    hasMore: posts.length >= count || users.length >= count,
   };
 }

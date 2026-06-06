@@ -1,14 +1,8 @@
-import {
-  DEMO_COURSE,
-  DEMO_EXERCISES,
-  DEMO_SCORING_TEMPLATES,
-  DEMO_VIDEO_PLACEHOLDERS,
-} from "@/constants/demo";
-import { DEFAULT_POSTS } from "@/constants/mocks/posts";
 import { getAuthSession } from "@/utils/session";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
+const DEFAULT_POSTS = [];
 const POSTS_STORAGE_KEY = "pose_tracking.posts.v4";
 const CREATE_DRAFT_STORAGE_KEY = "pose_tracking.post_draft.v1";
 const COMMENT_DRAFT_STORAGE_KEY = "pose_tracking.comment_drafts.v1";
@@ -338,7 +332,13 @@ export async function reportPost(postId, reason = "") {
   return true;
 }
 
-function buildScoringComment(scoreTemplate = DEMO_SCORING_TEMPLATES[0]) {
+function buildScoringComment(
+  scoreTemplate = {
+    score: 0,
+    mistakes: [],
+    suggestions: [],
+  },
+) {
   const mistakes = scoreTemplate.mistakes.join("; ");
   const suggestions = scoreTemplate.suggestions.join("; ");
 
@@ -355,20 +355,22 @@ function buildScoringComment(scoreTemplate = DEMO_SCORING_TEMPLATES[0]) {
 
 export async function createExerciseSubmission({
   content = "",
-  courseId = DEMO_COURSE.id,
-  exerciseId = DEMO_EXERCISES[0].id,
+  courseId = "",
+  exerciseId = "",
   sourcePostId = "",
-  videos = DEMO_VIDEO_PLACEHOLDERS,
+  videos = [],
+  courseTitle = "",
+  exerciseTitle = "Bài tập",
 }) {
-  const exercise =
-    DEMO_EXERCISES.find((item) => item.id === exerciseId) || DEMO_EXERCISES[0];
-  const scoreTemplate = DEMO_SCORING_TEMPLATES[0];
+  const scoreTemplate = {
+    score: 0,
+    label: "",
+    mistakes: [],
+    suggestions: [],
+  };
   const scoringComment = buildScoringComment(scoreTemplate);
-  const normalizedVideos =
-    videos.length >= 2 ? videos : DEMO_VIDEO_PLACEHOLDERS;
-  const body = content.trim()
-    ? content.trim()
-    : `${DEMO_COURSE.hashtag} ${exercise.hashtag} Em nộp bài luyện tập với 2 góc quay để hệ thống chấm tự động.`;
+  const normalizedVideos = videos.filter(Boolean).slice(0, 2);
+  const body = content.trim() ? content.trim() : "Nộp bài tập.";
 
   return createPost({
     content: body,
@@ -378,9 +380,9 @@ export async function createExerciseSubmission({
     sourcePostId,
     type: "submission",
     canSubmit: false,
-    courseTitle: DEMO_COURSE.title,
-    exerciseTitle: exercise.title,
-    hashtags: [DEMO_COURSE.hashtag, exercise.hashtag],
+    courseTitle,
+    exerciseTitle,
+    hashtags: [courseId, exerciseId].filter(Boolean).map((item) => `#${item}`),
     scoreSummary: {
       score: scoreTemplate.score,
       label: scoreTemplate.label,
@@ -418,6 +420,32 @@ export async function searchPosts(query = "") {
       .toLowerCase();
 
     return haystack.includes(normalizedQuery);
+  });
+}
+
+function normalizeHashtagQuery(hashtag = "") {
+  const trimmed = String(hashtag || "").trim().toLowerCase();
+  if (!trimmed) return "";
+  return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+}
+
+function collectPostHashtags(post = {}) {
+  const values = new Set(Array.isArray(post.hashtags) ? post.hashtags : []);
+  if (post.courseId) values.add(`#${post.courseId}`);
+  if (post.exerciseId) values.add(`#${post.exerciseId}`);
+  return Array.from(values).map(normalizeHashtagQuery).filter(Boolean);
+}
+
+export async function searchPostsByHashtag(hashtag = "") {
+  const posts = await getPosts();
+  const normalizedHashtag = normalizeHashtagQuery(hashtag);
+
+  if (!normalizedHashtag) {
+    return [];
+  }
+
+  return posts.filter((post) => {
+    return collectPostHashtags(post).includes(normalizedHashtag);
   });
 }
 

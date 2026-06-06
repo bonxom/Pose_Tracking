@@ -1,11 +1,5 @@
 import { backendApi } from "@/api/client";
 import { API_BASE_URL } from "@/config/env";
-import { DEMO_STUDENT } from "@/constants/demo";
-import {
-  getMockProfileById,
-  resolveMockProfile,
-  saveMockProfile,
-} from "@/constants/mocks/profiles";
 import {
   extractList,
   extractObject,
@@ -139,11 +133,69 @@ export function normalizeUser(
   };
 }
 
-function localUser(session) {
-  const mockProfile = resolveMockProfile(session);
-  const localProfile = buildLocalProfileShape(session, mockProfile);
+export function mergeOwnProfileWithSession(profile = {}, session = {}) {
+  const syncState = String(session?.profileSyncStatus || "").trim();
+  const shouldPreferSession =
+    syncState === "pending" || syncState === "error" || !profile?.id;
 
-  return normalizeUser(localProfile || DEMO_STUDENT, ACTIVE_SOURCES.LOCAL, {
+  return {
+    ...profile,
+    token: firstValue(session?.token, profile?.token, ""),
+    id: firstValue(profile?.id, session?.id, session?.user_id, session?.identifier, ""),
+    username: shouldPreferSession
+      ? firstValue(session?.username, session?.displayName, profile?.username, profile?.displayName, "")
+      : firstValue(profile?.username, profile?.displayName, session?.username, session?.displayName, ""),
+    displayName: shouldPreferSession
+      ? firstValue(session?.displayName, session?.username, profile?.displayName, profile?.username, "")
+      : firstValue(profile?.displayName, profile?.username, session?.displayName, session?.username, ""),
+    avatar: shouldPreferSession
+      ? firstValue(session?.avatar, profile?.avatar, "")
+      : firstValue(profile?.avatar, session?.avatar, ""),
+    coverImage: shouldPreferSession
+      ? firstValue(session?.coverImage, profile?.coverImage, "")
+      : firstValue(profile?.coverImage, session?.coverImage, ""),
+    description: normalizeOptionalText(
+      shouldPreferSession
+        ? firstValue(session?.description, profile?.description, "")
+        : firstValue(profile?.description, session?.description, ""),
+      150,
+    ),
+    address: shouldPreferSession
+      ? firstValue(session?.address, profile?.address, "")
+      : firstValue(profile?.address, session?.address, ""),
+    city: shouldPreferSession
+      ? firstValue(session?.city, profile?.city, "")
+      : firstValue(profile?.city, session?.city, ""),
+    country: shouldPreferSession
+      ? firstValue(session?.country, profile?.country, "")
+      : firstValue(profile?.country, session?.country, ""),
+    profileLink: shouldPreferSession
+      ? firstValue(session?.profileLink, profile?.profileLink, "")
+      : firstValue(profile?.profileLink, session?.profileLink, ""),
+    height: shouldPreferSession
+      ? firstValue(session?.height, profile?.height, "")
+      : firstValue(profile?.height, session?.height, ""),
+    role: shouldPreferSession
+      ? firstValue(session?.role, profile?.role, "HV")
+      : firstValue(profile?.role, session?.role, "HV"),
+    avatarVersion: firstValue(
+      session?.avatarVersion,
+      profile?.avatarVersion,
+      session?.profileSyncRequestedAt,
+      session?.loggedInAt,
+      "",
+    ),
+    source: profile?.source || session?.source || ACTIVE_SOURCES.SERVER,
+    profileSyncStatus: syncState || "done",
+    profileSyncErrorMessage: session?.profileSyncErrorMessage || "",
+    isProfileSyncPending: syncState === "pending",
+  };
+}
+
+function localUser(session) {
+  const localProfile = buildLocalProfileShape(session);
+
+  return normalizeUser(localProfile, ACTIVE_SOURCES.LOCAL, {
     session,
     isOwnProfile: true,
   });
@@ -186,8 +238,7 @@ function mapForbiddenNameError(error) {
 }
 
 function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  const mockProfile = getMockProfileById(userId);
-  return normalizeUser(mockProfile || { id: userId }, source, {
+  return normalizeUser({ id: userId }, source, {
     isOwnProfile: false,
   });
 }
@@ -281,53 +332,48 @@ function firstParamValue(params = {}, keys = [], fallback = "") {
   return key ? params[key] : fallback;
 }
 
-function buildLocalProfileShape(session = {}, mockProfile = {}) {
+function buildLocalProfileShape(session = {}) {
   return {
-    ...(mockProfile || {}),
     ...(session || {}),
     id: firstValue(
       session?.id,
       session?.user_id,
       session?.identifier,
-      mockProfile?.id,
-      mockProfile?.identifier,
-      DEMO_STUDENT.id,
+      session?.phonenumber,
+      "local_user",
     ),
     username: firstValue(
       session?.username,
       session?.displayName,
-      mockProfile?.username,
-      mockProfile?.displayName,
-      DEMO_STUDENT.username,
+      session?.phonenumber,
+      "Nguoi dung",
     ),
     displayName: firstValue(
       session?.displayName,
       session?.username,
-      mockProfile?.displayName,
-      mockProfile?.username,
-      DEMO_STUDENT.displayName,
+      session?.phonenumber,
+      "Nguoi dung",
     ),
-    avatar: firstValue(session?.avatar, mockProfile?.avatar, ""),
-    coverImage: firstValue(session?.coverImage, mockProfile?.coverImage, ""),
-    description: firstValue(session?.description, mockProfile?.description, ""),
-    address: firstValue(session?.address, mockProfile?.address, ""),
-    city: firstValue(session?.city, mockProfile?.city, ""),
-    country: firstValue(session?.country, mockProfile?.country, ""),
-    profileLink: firstValue(session?.profileLink, mockProfile?.profileLink, ""),
-    postCount: firstValue(session?.postCount, mockProfile?.postCount, 0),
-    online: firstValue(session?.online, mockProfile?.online, false),
-    listing: firstValue(session?.listing, mockProfile?.listing, true),
-    role: firstValue(session?.role, mockProfile?.role, "HV"),
-    phonenumber: firstValue(session?.phonenumber, mockProfile?.phonenumber, ""),
+    avatar: firstValue(session?.avatar, ""),
+    coverImage: firstValue(session?.coverImage, ""),
+    description: firstValue(session?.description, ""),
+    address: firstValue(session?.address, ""),
+    city: firstValue(session?.city, ""),
+    country: firstValue(session?.country, ""),
+    profileLink: firstValue(session?.profileLink, ""),
+    postCount: firstValue(session?.postCount, 0),
+    online: firstValue(session?.online, false),
+    listing: firstValue(session?.listing, true),
+    role: firstValue(session?.role, "HV"),
+    phonenumber: firstValue(session?.phonenumber, ""),
     identifier: firstValue(
       session?.identifier,
-      mockProfile?.identifier,
       session?.phonenumber,
       "",
     ),
-    handle: firstValue(session?.handle, mockProfile?.handle, ""),
-    height: firstValue(session?.height, mockProfile?.height, ""),
-    demoMode: true,
+    handle: firstValue(session?.handle, ""),
+    height: firstValue(session?.height, ""),
+    demoMode: Boolean(session?.demoMode),
   };
 }
 
@@ -383,7 +429,47 @@ function normalizeMediaUrl(value = "") {
   }
 }
 
-function buildSetUserInfoPayload(session, params, userName, options = {}) {
+function guessImageMimeType(uri = "") {
+  const clean = String(uri || "").split("?")[0].toLowerCase();
+
+  if (clean.endsWith(".png")) return "image/png";
+  if (clean.endsWith(".webp")) return "image/webp";
+  if (clean.endsWith(".gif")) return "image/gif";
+  if (clean.endsWith(".heic")) return "image/heic";
+  if (clean.endsWith(".heif")) return "image/heif";
+  if (clean.endsWith(".jpg") || clean.endsWith(".jpeg")) return "image/jpeg";
+
+  return "image/jpeg";
+}
+
+function buildImageFilePayload(uri = "", fieldName = "image") {
+  const cleanUri = String(uri || "").trim();
+  if (!cleanUri) return null;
+
+  const extByMime = {
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/jpeg": "jpg",
+  };
+  const mimeType = guessImageMimeType(cleanUri);
+  const uriWithoutQuery = cleanUri.split("?")[0];
+  const lastSegment = uriWithoutQuery.split("/").pop() || "";
+  const hasExt = /\.[a-z0-9]+$/i.test(lastSegment);
+  const extension = extByMime[mimeType] || "jpg";
+  const fileName = hasExt ? lastSegment : `${fieldName}-${Date.now()}.${extension}`;
+
+  return {
+    fieldName,
+    uri: cleanUri,
+    name: fileName,
+    mimeType,
+  };
+}
+
+function buildSetUserInfoRequest(session, params, userName, options = {}) {
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(
     params,
@@ -392,25 +478,36 @@ function buildSetUserInfoPayload(session, params, userName, options = {}) {
   );
   const usernameKey = options.usernameKey || "username";
   const coverImageKey = options.coverImageKey || "coverImage";
-  const payload = {
+  const fields = {
     token: session.token,
-    avatar: isLocalAssetUri(avatar) ? session?.avatar || "" : avatar,
   };
+  const files = [];
 
-  payload[usernameKey] = userName;
-  payload[coverImageKey] = isLocalAssetUri(coverImage)
-    ? session?.coverImage || ""
-    : coverImage;
+  fields[usernameKey] = userName;
+
+  if (isLocalAssetUri(avatar)) {
+    const avatarFile = buildImageFilePayload(avatar, "avatar");
+    if (avatarFile) files.push(avatarFile);
+  } else {
+    fields.avatar = avatar;
+  }
+
+  if (isLocalAssetUri(coverImage)) {
+    const coverFile = buildImageFilePayload(coverImage, coverImageKey);
+    if (coverFile) files.push(coverFile);
+  } else {
+    fields[coverImageKey] = coverImage;
+  }
 
   if (!options.minimal) {
     const descriptionKey = options.descriptionKey || "description";
-    payload[descriptionKey] = normalizeOptionalText(
+    fields[descriptionKey] = normalizeOptionalText(
       firstParamValue(params, ["description"], ""),
       150,
     );
   }
 
-  return payload;
+  return { fields, files };
 }
 
 async function setUserInfoWithCompatibility(session, params, userName) {
@@ -449,8 +546,10 @@ async function setUserInfoWithCompatibility(session, params, userName) {
 
   for (const options of attempts) {
     try {
-      const response = await backendApi.setUserInfo(
-        buildSetUserInfoPayload(session, params, userName, options),
+      const request = buildSetUserInfoRequest(session, params, userName, options);
+      const response = await backendApi.setUserInfoMultipart(
+        request.fields,
+        request.files,
       );
       await assertBackendOk(response, {
         message: "Backend set_user_info failed",
@@ -463,6 +562,7 @@ async function setUserInfoWithCompatibility(session, params, userName) {
       const canRetry =
         rejectsField(error, "username") ||
         rejectsField(error, "user_name") ||
+        rejectsField(error, "avatar") ||
         rejectsField(error, "coverImage") ||
         rejectsField(error, "cover_image") ||
         rejectsField(error, "description") ||
@@ -485,10 +585,7 @@ function buildLocalProfileUpdate(
   userName,
   source = ACTIVE_SOURCES.LOCAL,
 ) {
-  const currentProfile = buildLocalProfileShape(
-    session,
-    resolveMockProfile(session),
-  );
+  const currentProfile = buildLocalProfileShape(session);
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(
     params,
@@ -546,6 +643,29 @@ function buildLocalProfileUpdate(
     source,
     demoMode: true,
     profileSavedLocally: source !== ACTIVE_SOURCES.SERVER,
+  };
+}
+
+export function createOptimisticUserInfo(session = {}, params = {}) {
+  const userName = params.userName || params.user_name || params.username || "";
+  const source = shouldUseServer(session) ? ACTIVE_SOURCES.SERVER : ACTIVE_SOURCES.LOCAL;
+  const optimistic = buildLocalProfileUpdate(session, params, userName, source);
+  const avatarChanged =
+    firstParamValue(params, ["avatar"], session?.avatar || "") !==
+    (session?.avatar || "");
+  const avatarVersion = avatarChanged
+    ? new Date().toISOString()
+    : session?.avatarVersion || session?.loggedInAt || "";
+
+  return {
+    ...optimistic,
+    token: session?.token || optimistic.token || "",
+    source,
+    demoMode: Boolean(session?.demoMode),
+    avatarVersion,
+    profileSyncStatus: shouldUseServer(session) ? "pending" : "done",
+    profileSyncErrorMessage: "",
+    profileSyncRequestedAt: new Date().toISOString(),
   };
 }
 
@@ -622,9 +742,14 @@ export async function getUserInfo(userId = "") {
       throw new Error("Backend trả về hồ sơ không khớp người dùng yêu cầu.");
     }
 
-    return isOwnProfile && !normalized.description && session?.description
-      ? { ...normalized, description: session.description }
-      : normalized;
+    if (isOwnProfile) {
+      const mergedProfile = mergeOwnProfileWithSession(normalized, session);
+      return !mergedProfile.description && session?.description
+        ? { ...mergedProfile, description: session.description }
+        : mergedProfile;
+    }
+
+    return normalized;
   } catch (error) {
     console.info("[DATA] Server get_user_info failed", error.message);
     throwIfExpiredFromApiError(error);
@@ -718,7 +843,6 @@ export async function updateUserInfo(params = {}) {
       userName,
       ACTIVE_SOURCES.LOCAL,
     );
-    saveMockProfile(updated);
     await saveAuthSession(updated);
     return updated;
   }
@@ -752,23 +876,18 @@ export async function updateUserInfo(params = {}) {
       role: session.role || normalized.role || "HV",
       demoMode: session.demoMode || false,
       source: ACTIVE_SOURCES.SERVER,
+      avatarVersion:
+        firstParamValue(params, ["avatar"], session?.avatar || "") !==
+        (session?.avatar || "")
+          ? new Date().toISOString()
+          : session?.avatarVersion || session?.loggedInAt || "",
       username: userName || normalized.username || session?.username || "",
-      displayName:
-        userName ||
-        normalized.displayName ||
-        session?.displayName ||
-        session?.username ||
-        "",
-      avatar:
-        normalized.avatar ||
-        (isLocalAssetUri(params.avatar) ? session?.avatar : params.avatar) ||
-        session?.avatar ||
-        "",
+      displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
+      avatar: normalized.avatar || params.avatar || session?.avatar || "",
       coverImage:
         normalized.coverImage ||
-        (isLocalAssetUri(params.coverImage || params.cover_image)
-          ? session?.coverImage
-          : params.coverImage || params.cover_image) ||
+        params.coverImage ||
+        params.cover_image ||
         session?.coverImage ||
         "",
       description:
@@ -777,16 +896,11 @@ export async function updateUserInfo(params = {}) {
           firstParamValue(params, ["description"], session?.description || ""),
           150,
         ),
-      address:
-        normalized.address ||
-        firstParamValue(params, ["address"], session?.address || ""),
-      profileLink:
-        normalized.profileLink ||
-        firstParamValue(
-          params,
-          ["profileLink", "link"],
-          session?.profileLink || "",
-        ),
+      address: normalized.address || firstParamValue(params, ["address"], session?.address || ""),
+      profileLink: normalized.profileLink || firstParamValue(params, ["profileLink", "link"], session?.profileLink || ""),
+      profileSyncStatus: "done",
+      profileSyncErrorMessage: "",
+      profileSyncRequestedAt: "",
     };
     await saveAuthSession(updated);
     return updated;

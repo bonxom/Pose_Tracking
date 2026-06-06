@@ -64,6 +64,54 @@ const homeStyles = StyleSheet.create({
     height: sizes.dividerWidth,
     backgroundColor: colors.border,
   },
+  loadingCard: {
+    marginHorizontal: sizes.md,
+    marginVertical: sizes.md,
+    padding: sizes.md,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    gap: sizes.sm,
+  },
+  loadingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: sizes.sm,
+  },
+  loadingAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#E9EEF5",
+  },
+  loadingMeta: {
+    flex: 1,
+    gap: sizes.xs,
+  },
+  loadingBlock: {
+    height: 180,
+    borderRadius: 14,
+    backgroundColor: "#E9EEF5",
+  },
+  loadingLinePrimary: {
+    width: "48%",
+    height: 14,
+    borderRadius: 999,
+    backgroundColor: "#E9EEF5",
+  },
+  loadingLineSecondary: {
+    width: "36%",
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: "#E9EEF5",
+  },
+  loadingLineTertiary: {
+    width: "72%",
+    height: 14,
+    borderRadius: 999,
+    backgroundColor: "#E9EEF5",
+  },
 });
 
 export default homeStyles;

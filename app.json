@@ -1,12 +1,11 @@
 {
   "expo": {
-    "name": "Pose_Tracking",
-    "slug": "Pose_Tracking",
+    "name": "Pose Tracking",
+    "slug": "pose-tracking",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Splash.png",
     "scheme": "posetracking",
-    "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -26,18 +25,19 @@
       }
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/Favicon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#E6F4FE",
           "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "image": "./assets/images/Splash.png",
+            "imageWidth": 200
           }
         }
       ],

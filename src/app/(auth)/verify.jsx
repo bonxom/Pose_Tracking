@@ -6,7 +6,7 @@ import authStyles from "@/styles/auth/base.styles";
 import { validateVerifyCode } from "@/utils/validation";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Text } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 
 export default function VerifyScreen() {
   const [code, setCode] = useState("");
@@ -21,6 +21,17 @@ export default function VerifyScreen() {
   const role = typeof params.role === "string" ? params.role : "";
   const verifyCode = typeof params.verifyCode === "string" ? params.verifyCode : "";
   const signupToken = typeof params.token === "string" ? params.token : "";
+  const resolvedSignupRequestId = signupRequestId || phonenumber;
+  const [currentVerifyCode, setCurrentVerifyCode] = useState(verifyCode);
+
+  const handleBack = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(auth)/signup");
+  };
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -41,7 +52,7 @@ export default function VerifyScreen() {
       params: {
         token: data.token || "",
         phonenumber: data.phonenumber || phonenumber,
-        signupRequestId: data.signupRequestId || signupRequestId,
+        signupRequestId: data.signupRequestId || resolvedSignupRequestId,
         role: data.role || role,
         verifiedLocally: data.verifiedLocally || "",
       },
@@ -49,12 +60,22 @@ export default function VerifyScreen() {
   };
 
   const handleResend = async () => {
-    if (!canResend || !phonenumber || !signupRequestId) return;
+    if (!canResend || !phonenumber) return;
 
     setIsLoading(true);
     try {
-      const response = await authApi.getVerifyCode({ phonenumber, signupRequestId });
+      const response = await authApi.getVerifyCode({
+        phonenumber,
+        signupRequestId: resolvedSignupRequestId,
+      });
       if (response.code === "1000") {
+        const nextVerifyCode =
+          response.data?.verifyCode ||
+          response.data?.verify_code ||
+          "";
+        if (nextVerifyCode) {
+          setCurrentVerifyCode(nextVerifyCode);
+        }
         setCountdown(60);
         setCanResend(false);
         Alert.alert("Thành công", response.message || "Đã gửi lại mã xác thực.");
@@ -77,7 +98,7 @@ export default function VerifyScreen() {
       return;
     }
 
-    if (!signupRequestId || !phonenumber) {
+    if (!phonenumber) {
       setError("Dữ liệu phiên không hợp lệ. Vui lòng đăng ký lại.");
       return;
     }
@@ -87,12 +108,13 @@ export default function VerifyScreen() {
 
     try {
       const matchesDisplayedCode =
-        verifyCode && normalizedCode.toLowerCase() === verifyCode.toLowerCase();
+        currentVerifyCode &&
+        normalizedCode.toLowerCase() === currentVerifyCode.toLowerCase();
 
       const response = await authApi.checkVerifyCode({
         phonenumber,
         code: normalizedCode,
-        signupRequestId,
+        signupRequestId: resolvedSignupRequestId,
       });
 
       if (response.code === "1000") {
@@ -101,9 +123,9 @@ export default function VerifyScreen() {
         if (!token) {
           if (matchesDisplayedCode) {
             goToChangeInfo({
-              token: signupToken || `local_verify_${signupRequestId || Date.now()}`,
+              token: signupToken || `local_verify_${resolvedSignupRequestId || Date.now()}`,
               phonenumber,
-              signupRequestId,
+              signupRequestId: resolvedSignupRequestId,
               role,
               verifiedLocally: "1",
             });
@@ -118,9 +140,9 @@ export default function VerifyScreen() {
 
       if (matchesDisplayedCode) {
         goToChangeInfo({
-          token: signupToken || `local_verify_${signupRequestId || Date.now()}`,
+          token: signupToken || `local_verify_${resolvedSignupRequestId || Date.now()}`,
           phonenumber,
-          signupRequestId,
+          signupRequestId: resolvedSignupRequestId,
           role,
           verifiedLocally: "1",
         });
@@ -140,13 +162,14 @@ export default function VerifyScreen() {
       Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
     } catch (verifyError) {
       const matchesDisplayedCode =
-        verifyCode && normalizedCode.toLowerCase() === verifyCode.toLowerCase();
+        currentVerifyCode &&
+        normalizedCode.toLowerCase() === currentVerifyCode.toLowerCase();
 
       if (matchesDisplayedCode) {
         goToChangeInfo({
-          token: signupToken || `local_verify_${signupRequestId || Date.now()}`,
+          token: signupToken || `local_verify_${resolvedSignupRequestId || Date.now()}`,
           phonenumber,
-          signupRequestId,
+          signupRequestId: resolvedSignupRequestId,
           role,
           verifiedLocally: "1",
         });
@@ -161,10 +184,29 @@ export default function VerifyScreen() {
 
   return (
     <Screen style={authStyles.container}>
-      <Text style={authStyles.title}>Xác minh</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+        <Pressable
+          onPress={handleBack}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#F1F5F9",
+            marginRight: 12,
+          }}
+        >
+          <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A" }}>
+            ←
+          </Text>
+        </Pressable>
+
+        <Text style={[authStyles.title, { marginBottom: 0 }]}>Xác minh</Text>
+      </View>
       <Text style={authStyles.subtitle}>
         Nhập mã xác thực gửi tới số điện thoại {phonenumber}.
-        {verifyCode ? ` Mã xác minh: ${verifyCode}.` : " Mã xác minh mặc định: 123456."}
+        {currentVerifyCode ? ` Mã xác minh: ${currentVerifyCode}.` : " Mã xác minh mặc định: 123456."}
       </Text>
 
       <AppInput

@@ -1,6 +1,4 @@
-import {
-  getPostById,
-} from "@/repositories/postRepository";
+import { getPostById } from "@/repositories/postRepository";
 import {
   resetInAppNotificationRuntime,
   startInAppNotificationRuntime,
@@ -90,13 +88,14 @@ export default function RootLayout() {
     const syncSessionAndGuardRoute = async () => {
       try {
         const session = await getAuthSession();
-        if (!isMounted) return;
+
+        if (!isMounted) {
+          return;
+        }
 
         const currentGroup = segments[0];
         const authenticated = Boolean(session);
         const isAuthGroup = currentGroup === "(auth)";
-        const isSignupSuccess =
-          currentGroup === "(auth)" && segments[1] === "signup-success";
 
         setIsAuthenticated(authenticated);
 
@@ -105,7 +104,7 @@ export default function RootLayout() {
           return;
         }
 
-        if (authenticated && isAuthGroup && !isSignupSuccess) {
+        if (authenticated && isAuthGroup) {
           navRouter.replace("/(tabs)/home");
         }
       } finally {
@@ -242,7 +241,13 @@ export default function RootLayout() {
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontSize: 16, fontWeight: "800", color: "#1877F2" }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "800",
+                      color: "#1877F2",
+                    }}
+                  >
                     {getToastInitial(notificationToast.title)}
                   </Text>
                 </View>
@@ -251,7 +256,11 @@ export default function RootLayout() {
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text
                   numberOfLines={1}
-                  style={{ fontSize: 15, fontWeight: "800", color: "#111827" }}
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "800",
+                    color: "#111827",
+                  }}
                 >
                   {notificationToast.title}
                 </Text>
@@ -259,7 +268,11 @@ export default function RootLayout() {
                 {notificationToast.body ? (
                   <Text
                     numberOfLines={2}
-                    style={{ marginTop: 3, fontSize: 13, color: "#4B5563" }}
+                    style={{
+                      marginTop: 3,
+                      fontSize: 13,
+                      color: "#4B5563",
+                    }}
                   >
                     {notificationToast.body}
                   </Text>

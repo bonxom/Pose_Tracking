@@ -1,14 +1,33 @@
 import { backendApi } from "@/api/client";
 import { DEFAULT_DEVICE_TOKEN } from "@/config/env";
-import { DEMO_PUSH_SETTINGS as localPushSettings } from "@/constants/demo";
 import { extractObject } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
+const localPushSettings = {
+  notificationOn: true,
+  likeComment: true,
+  fromFriends: true,
+  requestedFriend: true,
+  suggestedFriend: true,
+  birthday: true,
+  video: true,
+  report: true,
+  soundOn: true,
+  vibrantOn: true,
+  ledOn: true,
+};
+
 function toBool(value, fallback = true) {
   if (value === undefined || value === null) return fallback;
   if (typeof value === "boolean") return value;
-  return String(value) === "1" || String(value).toLowerCase() === "true";
+
+  const normalized = String(value).trim().toLowerCase();
+
+  if (normalized === "1" || normalized === "true") return true;
+  if (normalized === "0" || normalized === "false") return false;
+
+  return fallback;
 }
 
 function settingValue(value) {
@@ -111,7 +130,6 @@ export async function setPushSettings(settings = {}) {
     };
   }
 
-  // Log response for diagnostics before assertion so we can capture unexpected server payloads
   console.info("[DATA] setPushSettings response:", response);
 
   await assertBackendOk(response, {
@@ -156,6 +174,7 @@ export async function checkNewVersion() {
     console.info(
       "[DATA] check_new_version deployed compatibility: retrying with lastUpdate",
     );
+
     response = await backendApi.checkNewVersion({
       token: session?.token || "",
       lastUpdate: "2026-05-10T00:00:00.000Z",
@@ -185,7 +204,14 @@ export async function setDeviceToken(
     devtype,
   });
 
-  await assertBackendOk(response, { message: "Backend set_devtoken failed" });
+  await assertBackendOk(response, {
+    message: "Backend set_devtoken failed",
+  });
 
-  return { registered: true, devtoken, devtype, source: ACTIVE_SOURCES.SERVER };
+  return {
+    registered: true,
+    devtoken,
+    devtype,
+    source: ACTIVE_SOURCES.SERVER,
+  };
 }

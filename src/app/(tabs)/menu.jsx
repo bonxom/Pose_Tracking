@@ -2,16 +2,19 @@ import { logoutSession } from "@/repositories/authRepository";
 import { clearNotificationState } from "@/services/notificationStore";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { clearAuthSession, getAuthSession } from "@/utils/session";
-import { CACHE_KEY_PROFILE } from "@/utils/cacheStore";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
+import { initials, resolveAvatarUri } from "@/utils/profile";
+import {
+  clearAuthSession,
+  getAuthSession,
+  subscribeAuthSession,
+} from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,11 +22,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-function initials(name = "") {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
-}
+import { Image } from "expo-image";
 
 function MenuShortcut({ icon, label, color = "#0866FF", onPress }) {
   return (
@@ -38,10 +37,18 @@ function MenuRow({ icon, label, onPress, danger = false, trailing = true }) {
   return (
     <Pressable style={styles.menuRow} onPress={onPress}>
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
-        <Ionicons name={icon} size={22} color={danger ? "#DC2626" : "#394150"} />
+        <Ionicons
+          name={icon}
+          size={22}
+          color={danger ? "#DC2626" : "#394150"}
+        />
       </View>
-      <Text style={[styles.rowText, danger && styles.rowTextDanger]}>{label}</Text>
-      {trailing ? <Ionicons name="chevron-down" size={20} color="#65676B" /> : null}
+      <Text style={[styles.rowText, danger && styles.rowTextDanger]}>
+        {label}
+      </Text>
+      {trailing ? (
+        <Ionicons name="chevron-down" size={20} color="#65676B" />
+      ) : null}
     </Pressable>
   );
 }
@@ -57,10 +64,34 @@ export default function MenuScreen() {
         if (mounted) setSession(value);
       })
       .catch(() => {});
+
+    const unsubscribe = subscribeAuthSession((value) => {
+      if (mounted) setSession(value);
+    });
+
     return () => {
       mounted = false;
+      unsubscribe();
     };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      getAuthSession()
+        .then((value) => {
+          if (active) {
+            setSession(value);
+          }
+        })
+        .catch(() => {});
+
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const goPlaceholder = (title) => {
     Alert.alert(title, "Mục này có thể nối backend sau.");
@@ -75,7 +106,7 @@ export default function MenuScreen() {
     try {
       await clearAuthSession();
       clearNotificationState();
-      await AsyncStorage.removeItem(CACHE_KEY_PROFILE);
+      await removeCache(CACHE_KEY_PROFILE);
     } finally {
       router.replace("/(auth)/login");
     }
@@ -92,6 +123,13 @@ export default function MenuScreen() {
     ]);
   };
 
+  const avatarUri = resolveAvatarUri(
+    session?.avatar || "",
+    session?.avatarVersion ||
+      session?.profileSyncRequestedAt ||
+      session?.loggedInAt ||
+      "",
+  );
   const displayName = session?.displayName || session?.username || "Người dùng";
 
   return (
@@ -99,15 +137,28 @@ export default function MenuScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Menu</Text>
-          <Pressable style={styles.headerIcon} onPress={() => router.push("/settings/push")}>
+          <Pressable
+            style={styles.headerIcon}
+            onPress={() => router.push("/settings/push")}
+          >
             <Ionicons name="settings" size={22} color="#050505" />
           </Pressable>
         </View>
 
-        <Pressable style={styles.profileRow} onPress={() => router.push("/(tabs)/profile")}>
+        <Pressable
+          style={styles.profileRow}
+          onPress={() => router.push("/(tabs)/profile")}
+        >
           <View style={styles.avatar}>
-            {session?.avatar ? (
-              <Image source={{ uri: session.avatar }} style={styles.avatarImage} />
+            {avatarUri ? (
+              <Image
+                key={avatarUri}
+                source={{ uri: avatarUri }}
+                style={styles.avatarImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
             ) : (
               <Text style={styles.avatarText}>{initials(displayName)}</Text>
             )}
@@ -120,16 +171,49 @@ export default function MenuScreen() {
         </Pressable>
 
         <View style={styles.shortcutGrid}>
-          <MenuShortcut icon="notifications" label="Thông báo" color="#F59E0B" onPress={() => router.push("/(tabs)/notifications")} />
-          <MenuShortcut icon="bookmark" label="Đã lưu" color="#A855F7" onPress={() => goPlaceholder("Đã lưu")} />
-          <MenuShortcut icon="flag" label="Trang" color="#F97316" onPress={() => goPlaceholder("Trang")} />
-          <MenuShortcut icon="calendar" label="Sự kiện" color="#EF4444" onPress={() => goPlaceholder("Sự kiện")} />
-          <MenuShortcut icon="game-controller" label="Chơi game" color="#2563EB" onPress={() => goPlaceholder("Chơi game")} />
+          <MenuShortcut
+            icon="notifications"
+            label="Thông báo"
+            color="#F59E0B"
+            onPress={() => router.push("/(tabs)/notifications")}
+          />
+          <MenuShortcut
+            icon="bookmark"
+            label="Đã lưu"
+            color="#A855F7"
+            onPress={() => goPlaceholder("Đã lưu")}
+          />
+          <MenuShortcut
+            icon="flag"
+            label="Trang"
+            color="#F97316"
+            onPress={() => goPlaceholder("Trang")}
+          />
+          <MenuShortcut
+            icon="calendar"
+            label="Sự kiện"
+            color="#EF4444"
+            onPress={() => goPlaceholder("Sự kiện")}
+          />
+          <MenuShortcut
+            icon="game-controller"
+            label="Chơi game"
+            color="#2563EB"
+            onPress={() => goPlaceholder("Chơi game")}
+          />
         </View>
 
         <View style={styles.section}>
-          <MenuRow icon="grid-outline" label="Xem thêm" onPress={() => goPlaceholder("Xem thêm")} />
-          <MenuRow icon="help-circle-outline" label="Trợ giúp & hỗ trợ" onPress={() => goPlaceholder("Trợ giúp & hỗ trợ")} />
+          <MenuRow
+            icon="grid-outline"
+            label="Xem thêm"
+            onPress={() => goPlaceholder("Xem thêm")}
+          />
+          <MenuRow
+            icon="help-circle-outline"
+            label="Trợ giúp & hỗ trợ"
+            onPress={() => goPlaceholder("Trợ giúp & hỗ trợ")}
+          />
           <MenuRow
             icon="notifications-outline"
             label="Cài đặt thông báo đẩy"
