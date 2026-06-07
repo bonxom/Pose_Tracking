@@ -34,7 +34,8 @@ const CONTENT_SETTINGS = [
     key: "fromFriends",
     icon: "people-outline",
     title: "Cập nhật từ bạn bè",
-    description: "Bài viết, video và tương tác mới từ những người bạn theo dõi.",
+    description:
+      "Bài viết, video và tương tác mới từ những người bạn theo dõi.",
     example: "Bạn bè của bạn vừa đăng một bài tập mới.",
   },
   {
@@ -230,7 +231,9 @@ export default function PushSettingsScreen() {
           disabled={disabled}
           onPress={() => setSelectedSettingKey(item.key)}
         >
-          <Text style={[styles.rowTitle, disabled ? styles.disabledText : null]}>
+          <Text
+            style={[styles.rowTitle, disabled ? styles.disabledText : null]}
+          >
             {item.title}
           </Text>
           <StatusText enabled={settings[item.key]} disabled={disabled} />
@@ -240,11 +243,6 @@ export default function PushSettingsScreen() {
           value={settings[item.key]}
           disabled={disabled || Boolean(savingKey)}
           onChange={() => toggle(item.key)}
-        />
-        <ProfileIcon
-          name="chevron-forward"
-          size={18}
-          color={disabled ? colors.placeholder : colors.inkMuted}
         />
       </View>
     );
@@ -267,7 +265,9 @@ export default function PushSettingsScreen() {
           />
         </View>
         <View style={styles.rowBody}>
-          <Text style={[styles.rowTitle, disabled ? styles.disabledText : null]}>
+          <Text
+            style={[styles.rowTitle, disabled ? styles.disabledText : null]}
+          >
             {item.title}
           </Text>
           <Text style={styles.rowMeta}>

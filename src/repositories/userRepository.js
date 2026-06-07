@@ -147,13 +147,43 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
   return {
     ...profile,
     token: firstValue(session?.token, profile?.token, ""),
-    id: firstValue(profile?.id, session?.id, session?.user_id, session?.identifier, ""),
+    id: firstValue(
+      profile?.id,
+      session?.id,
+      session?.user_id,
+      session?.identifier,
+      "",
+    ),
     username: shouldPreferSession
-      ? firstValue(session?.username, session?.displayName, profile?.username, profile?.displayName, "")
-      : firstValue(profile?.username, profile?.displayName, session?.username, session?.displayName, ""),
+      ? firstValue(
+          session?.username,
+          session?.displayName,
+          profile?.username,
+          profile?.displayName,
+          "",
+        )
+      : firstValue(
+          profile?.username,
+          profile?.displayName,
+          session?.username,
+          session?.displayName,
+          "",
+        ),
     displayName: shouldPreferSession
-      ? firstValue(session?.displayName, session?.username, profile?.displayName, profile?.username, "")
-      : firstValue(profile?.displayName, profile?.username, session?.displayName, session?.username, ""),
+      ? firstValue(
+          session?.displayName,
+          session?.username,
+          profile?.displayName,
+          profile?.username,
+          "",
+        )
+      : firstValue(
+          profile?.displayName,
+          profile?.username,
+          session?.displayName,
+          session?.username,
+          "",
+        ),
     avatar: shouldPreferSession
       ? firstValue(session?.avatar, profile?.avatar, "")
       : firstValue(profile?.avatar, session?.avatar, ""),
@@ -443,7 +473,9 @@ function normalizeMediaUrl(value = "") {
 }
 
 function guessImageMimeType(uri = "") {
-  const clean = String(uri || "").split("?")[0].toLowerCase();
+  const clean = String(uri || "")
+    .split("?")[0]
+    .toLowerCase();
 
   if (clean.endsWith(".png")) return "image/png";
   if (clean.endsWith(".webp")) return "image/webp";
@@ -472,7 +504,9 @@ function buildImageFilePayload(uri = "", fieldName = "image") {
   const lastSegment = uriWithoutQuery.split("/").pop() || "";
   const hasExt = /\.[a-z0-9]+$/i.test(lastSegment);
   const extension = extByMime[mimeType] || "jpg";
-  const fileName = hasExt ? lastSegment : `${fieldName}-${Date.now()}.${extension}`;
+  const fileName = hasExt
+    ? lastSegment
+    : `${fieldName}-${Date.now()}.${extension}`;
 
   return {
     fieldName,
@@ -524,68 +558,39 @@ function buildSetUserInfoRequest(session, params, userName, options = {}) {
 }
 
 async function setUserInfoWithCompatibility(session, params, userName) {
-  const hasDescription = hasOwnValue(params, "description");
-  const attempts = [
-    {
-      usernameKey: "username",
-      coverImageKey: "coverImage",
-      descriptionKey: "description",
-    },
-    {
-      usernameKey: "username",
-      coverImageKey: "coverImage",
-      descriptionKey: "described",
-    },
-    {
-      usernameKey: "user_name",
-      coverImageKey: "cover_image",
-      descriptionKey: "description",
-    },
-    {
-      usernameKey: "user_name",
-      coverImageKey: "cover_image",
-      descriptionKey: "described",
-    },
-  ];
-
-  if (!hasDescription) {
-    attempts.push(
-      { usernameKey: "username", coverImageKey: "coverImage", minimal: true },
-      { usernameKey: "user_name", coverImageKey: "cover_image", minimal: true },
-    );
-  }
-
   let lastError = null;
 
-  for (const options of attempts) {
-    try {
-      const request = buildSetUserInfoRequest(session, params, userName, options);
-      const response = await backendApi.setUserInfoMultipart(
-        request.fields,
-        request.files,
-      );
-      await assertBackendOk(response, {
-        message: "Backend set_user_info failed",
-      });
-      return response;
-    } catch (error) {
-      throwIfExpiredFromApiError(error);
-      lastError = error;
+  try {
+    const request = buildSetUserInfoRequest(session, params, userName, {
+      usernameKey: "username",
+      coverImageKey: "coverImage",
+      descriptionKey: "description",
+    });
+    const response = await backendApi.setUserInfoMultipart(
+      request.fields,
+      request.files,
+    );
+    await assertBackendOk(response, {
+      message: "Backend set_user_info failed",
+    });
+    return response;
+  } catch (error) {
+    throwIfExpiredFromApiError(error);
+    lastError = error;
 
-      const canRetry =
-        rejectsField(error, "username") ||
-        rejectsField(error, "user_name") ||
-        rejectsField(error, "avatar") ||
-        rejectsField(error, "coverImage") ||
-        rejectsField(error, "cover_image") ||
-        rejectsField(error, "description") ||
-        rejectsField(error, "described") ||
-        error.status === 400 ||
-        String(error?.message || "").includes("1004");
+    const canRetry =
+      rejectsField(error, "username") ||
+      rejectsField(error, "user_name") ||
+      rejectsField(error, "avatar") ||
+      rejectsField(error, "coverImage") ||
+      rejectsField(error, "cover_image") ||
+      rejectsField(error, "description") ||
+      rejectsField(error, "described") ||
+      error.status === 400 ||
+      String(error?.message || "").includes("1004");
 
-      if (!canRetry) {
-        throw error;
-      }
+    if (!canRetry) {
+      throw error;
     }
   }
 
@@ -664,7 +669,9 @@ function buildLocalProfileUpdate(
 
 export function createOptimisticUserInfo(session = {}, params = {}) {
   const userName = params.userName || params.user_name || params.username || "";
-  const source = shouldUseServer(session) ? ACTIVE_SOURCES.SERVER : ACTIVE_SOURCES.LOCAL;
+  const source = shouldUseServer(session)
+    ? ACTIVE_SOURCES.SERVER
+    : ACTIVE_SOURCES.LOCAL;
   const optimistic = buildLocalProfileUpdate(session, params, userName, source);
   const avatarChanged =
     firstParamValue(params, ["avatar"], session?.avatar || "") !==
@@ -683,40 +690,6 @@ export function createOptimisticUserInfo(session = {}, params = {}) {
     profileSyncErrorMessage: "",
     profileSyncRequestedAt: new Date().toISOString(),
   };
-}
-
-async function getUserInfoFromBackend(session, targetUserId, isOwnProfile) {
-  const attempts = isOwnProfile
-    ? [{ token: session.token }]
-    : [
-        { token: session.token, userId: targetUserId },
-        { token: session.token, user_id: targetUserId },
-        { token: session.token },
-      ];
-
-  let lastError = null;
-
-  for (let index = 0; index < attempts.length; index += 1) {
-    try {
-      const response = await backendApi.getUserInfo(attempts[index]);
-      await assertBackendOk(response, {
-        message: "Backend get_user_info failed",
-      });
-      return response;
-    } catch (error) {
-      throwIfExpiredFromApiError(error);
-      lastError = error;
-
-      const canRetry =
-        !isOwnProfile && shouldRetryGetUserInfoWithoutUserId(error);
-
-      if (!canRetry) {
-        throw error;
-      }
-    }
-  }
-
-  throw lastError || new Error("Backend get_user_info failed");
 }
 
 export async function getUserInfo(userId = "") {
@@ -739,11 +712,10 @@ export async function getUserInfo(userId = "") {
   }
 
   try {
-    const response = await getUserInfoFromBackend(
-      session,
-      targetUserId,
-      isOwnProfile,
-    );
+    const response = await backendApi.getUserInfo({
+      token: session.token,
+      userId: userId,
+    });
 
     const normalized = normalizeUser(
       extractObject(response),
@@ -899,7 +871,12 @@ export async function updateUserInfo(params = {}) {
           ? new Date().toISOString()
           : session?.avatarVersion || session?.loggedInAt || "",
       username: userName || normalized.username || session?.username || "",
-      displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
+      displayName:
+        userName ||
+        normalized.displayName ||
+        session?.displayName ||
+        session?.username ||
+        "",
       avatar: normalized.avatar || params.avatar || session?.avatar || "",
       coverImage:
         normalized.coverImage ||
@@ -913,8 +890,16 @@ export async function updateUserInfo(params = {}) {
           firstParamValue(params, ["description"], session?.description || ""),
           150,
         ),
-      address: normalized.address || firstParamValue(params, ["address"], session?.address || ""),
-      profileLink: normalized.profileLink || firstParamValue(params, ["profileLink", "link"], session?.profileLink || ""),
+      address:
+        normalized.address ||
+        firstParamValue(params, ["address"], session?.address || ""),
+      profileLink:
+        normalized.profileLink ||
+        firstParamValue(
+          params,
+          ["profileLink", "link"],
+          session?.profileLink || "",
+        ),
       profileSyncStatus: "done",
       profileSyncErrorMessage: "",
       profileSyncRequestedAt: "",
