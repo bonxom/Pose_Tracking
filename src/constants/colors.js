@@ -16,6 +16,8 @@ const colors = {
   surfaceIcon: "#EEF1F5",
   surfaceOverlay: "#D1D5DB",
 
+  bubbleLeft: "#f3f5f9",
+
   text: "#0F172A",
   subtext: "#64748B",
   ink: "#050505",
@@ -43,7 +45,7 @@ const colors = {
   divider: "#838689",
   overlayBlack40: "rgba(0, 0, 0, 0.4)",
   overlayBlack65: "rgba(0, 0, 0, 0.65)",
-  blue: "#0865fe"
+  blue: "#0865fe",
 };
 
 export default colors;

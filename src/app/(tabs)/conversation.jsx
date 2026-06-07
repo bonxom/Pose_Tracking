@@ -15,7 +15,7 @@ import {
   subscribeConversations,
 } from "@/repositories/conversationRepository";
 import { getCurrentSession } from "@/repositories/source";
-import conversationStyles from "@/styles/conversation.styles";
+import conversationStyles from "@/styles/conversation/conversation.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
@@ -90,7 +90,7 @@ export default function ConversationsScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   useEffect(() => {
@@ -112,14 +112,15 @@ export default function ConversationsScreen() {
     }
   }, []);
 
-  const open = async (item) => {
-    try {
-      await markConversationRead(item.id);
-    } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
-      // Opening the thread is still useful if read-state is blocked by backend.
-    }
+  const open = (item) => {
     router.push(`/conversation/${item.id}`);
+    setTimeout(async () => {
+      try {
+        await markConversationRead(item.id);
+      } catch (err) {
+        if (await redirectIfSessionExpired(err, router)) return;
+      }
+    }, 300);
   };
 
   const remove = async (item) => {
@@ -191,19 +192,22 @@ export default function ConversationsScreen() {
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Text
                 style={[
-                  isUnread ? conversationStyles.messageTextUnread : conversationStyles.messageTextRead,
-                  { flexShrink: 1 }
+                  isUnread
+                    ? conversationStyles.messageTextUnread
+                    : conversationStyles.messageTextRead,
+                  { flexShrink: 1 },
                 ]}
                 numberOfLines={1}
               >
                 {item.lastmessage.message}
               </Text>
-              <Text style={conversationStyles.timeText}> · {formattedTime}</Text>
+              <Text style={conversationStyles.timeText}>
+                {" "}
+                · {formattedTime}
+              </Text>
             </View>
           </View>
-          {isUnread && (
-            <View style={conversationStyles.unreadDot} />
-          )}
+          {isUnread && <View style={conversationStyles.unreadDot} />}
         </View>
       </Pressable>
     );
@@ -229,6 +233,7 @@ export default function ConversationsScreen() {
         onChangeText={setSearchKeyword}
         placeholder="Tìm kiếm"
         onClear={() => setSearchKeyword("")}
+        autoFocus={false}
       />
 
       {error && <Text style={conversationStyles.errorText}>{error}</Text>}
@@ -244,7 +249,9 @@ export default function ConversationsScreen() {
         }
         ListEmptyComponent={
           <View style={conversationStyles.emptyContainer}>
-            <Text style={conversationStyles.emptyText}>Chưa có cuộc trò chuyện nào.</Text>
+            <Text style={conversationStyles.emptyText}>
+              Chưa có cuộc trò chuyện nào.
+            </Text>
           </View>
         }
       />

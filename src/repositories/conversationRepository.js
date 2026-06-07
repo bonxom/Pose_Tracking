@@ -1,12 +1,11 @@
 import { backendApi } from "@/api/client";
-import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 function normalizeConversationList(data) {
   const messages = data?.data || (Array.isArray(data) ? data : []);
   const numNewMessage = messages.filter(
-    (item) => String(item?.lastmessage?.unread) === "1"
+    (item) => String(item?.lastmessage?.unread) === "1",
   ).length;
 
   return {
@@ -15,13 +14,12 @@ function normalizeConversationList(data) {
   };
 }
 
-function normalizeMessage(raw = {}) {
+function normalizeMessage(message) {
   return {
-    id: raw.messageId,
-    sender: raw.sender,
-    text: raw.message,
-    createdAt: raw.created,
-    raw,
+    id: message.messageId,
+    sender: message.sender,
+    message: message.message,
+    created: message.created,
   };
 }
 
@@ -79,14 +77,14 @@ export async function getConversationList() {
   }
 }
 
-export async function getConversation(conversationId) {
+export async function getConversation(conversationId, index = 0, count = 50) {
   const session = await getCurrentSession();
 
   const response = await backendApi.getConversation({
     token: session.token,
-    conversationId: conversationId,
-    index: "0",
-    count: "50",
+    conversationId,
+    index: String(index),
+    count: String(count),
   });
 
   await assertBackendOk(response, {
@@ -94,25 +92,13 @@ export async function getConversation(conversationId) {
     message: "Backend get_conversation failed",
   });
 
-  const messages = extractList(response).map((item) =>
-    normalizeMessage(item),
-  );
-  console.log(JSON.stringify(messages, null, 2));
+  const data = response.data;
+  const messages = data.data.map((item) => normalizeMessage(item));
   return {
     id: conversationId,
-    title: "Cuộc trò chuyện",
+    partner: data.conversation.partner,
+    isBlocked: data.conversation.isBlocked,
     messages,
-    source: ACTIVE_SOURCES.SERVER,
-  };
-}
-
-export async function sendLocalMessage(text) {
-  return {
-    id: `local_message_${Date.now()}`,
-    sender: "me",
-    text,
-    createdAt: new Date().toISOString(),
-    source: ACTIVE_SOURCES.LOCAL,
   };
 }
 
@@ -132,11 +118,17 @@ export async function deleteMessage(messageId) {
 export async function deleteConversation(conversationId) {
   // Optimistic update of local cache
   const current = { ...conversationCache };
-  const conversationToDelete = current.messages.find((msg) => msg.id === conversationId);
+  const conversationToDelete = current.messages.find(
+    (msg) => msg.id === conversationId,
+  );
   const wasUnread = conversationToDelete?.lastmessage?.unread === "1";
 
-  const updatedMessages = current.messages.filter((msg) => msg.id !== conversationId);
-  const nextUnread = wasUnread ? Math.max(0, current.numNewMessage - 1) : current.numNewMessage;
+  const updatedMessages = current.messages.filter(
+    (msg) => msg.id !== conversationId,
+  );
+  const nextUnread = wasUnread
+    ? Math.max(0, current.numNewMessage - 1)
+    : current.numNewMessage;
 
   emitConversations({
     messages: updatedMessages,
@@ -195,4 +187,29 @@ export async function markConversationRead(conversationId) {
   });
 
   return { read: true, source: ACTIVE_SOURCES.SERVER };
+}
+
+export async function sendMessage(conversationId, partnerId, message) {
+  const session = await getCurrentSession();
+
+  const response = await backendApi.sendMessage({
+    token: session.token,
+    conversationId,
+    partnerId,
+    message,
+  });
+
+  await assertBackendOk(response, { message: "Backend send_message failed" });
+
+  const raw = response.data;
+  return {
+    id: raw?.messageId || String(Date.now()),
+    sender: {
+      id: session.id,
+      username: session.username,
+      avatar: session.avatar,
+    },
+    message,
+    created: raw?.created || new Date().toISOString(),
+  };
 }
