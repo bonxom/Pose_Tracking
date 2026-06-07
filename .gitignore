@@ -47,3 +47,5 @@ package-lock.json
 
 google-services.json
 *firebase-adminsdk*.json
+
+gradle.properties
