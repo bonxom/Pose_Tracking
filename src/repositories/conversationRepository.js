@@ -1,29 +1,56 @@
 import { backendApi } from "@/api/client";
-import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
-function normalizeConversation(raw = {}, source = ACTIVE_SOURCES.SERVER) {
+function normalizeConversationList(data) {
+  const messages = data?.data || (Array.isArray(data) ? data : []);
+  const numNewMessage = messages.filter(
+    (item) => String(item?.lastmessage?.unread) === "1",
+  ).length;
+
   return {
-    id: String(raw.id || raw.conversation_id || raw.partner_id || ""),
-    title: raw.title || raw.username || raw.partner_name || "Cuộc trò chuyện",
-    lastMessage: raw.lastMessage || raw.last_message || raw.message || "",
-    unread: Boolean(raw.unread || raw.is_unread),
-    source,
-    raw,
+    messages,
+    numNewMessage,
   };
 }
 
-function normalizeMessage(raw = {}, source = ACTIVE_SOURCES.SERVER) {
+function normalizeMessage(message) {
   return {
-    id: String(raw.id || raw.message_id || `${source}_message_${Date.now()}`),
-    sender: raw.sender || raw.sender_id || raw.user_id || "server",
-    text: raw.text || raw.message || raw.content || "",
-    createdAt:
-      raw.createdAt || raw.created_at || raw.time || new Date().toISOString(),
-    source,
-    raw,
+    id: message.messageId,
+    sender: message.sender,
+    message: message.message,
+    created: message.created,
   };
+}
+
+// Conversation list cache
+let conversationCache = {
+  messages: [],
+  numNewMessage: 0,
+  hasLoaded: false,
+};
+
+const conversationListeners = new Set();
+
+export function getConversationCache() {
+  return conversationCache;
+}
+
+export function subscribeConversations(listener) {
+  conversationListeners.add(listener);
+  // Emit current cache immediately
+  listener(conversationCache);
+  return () => {
+    conversationListeners.delete(listener);
+  };
+}
+
+function emitConversations(data) {
+  conversationCache = {
+    ...data,
+    hasLoaded: true,
+  };
+  conversationListeners.forEach((listener) => listener(conversationCache));
 }
 
 export async function getConversationList() {
@@ -33,7 +60,7 @@ export async function getConversationList() {
     const response = await backendApi.getListConversation({
       token: session.token,
       index: "0",
-      count: "30",
+      count: "20",
     });
 
     await assertBackendOk(response, {
@@ -41,23 +68,23 @@ export async function getConversationList() {
       message: "Backend get_list_conversation failed",
     });
 
-    return extractList(response).map((item) =>
-      normalizeConversation(item, ACTIVE_SOURCES.SERVER),
-    );
+    const data = normalizeConversationList(response.data);
+    emitConversations(data);
+    return data;
   } catch (error) {
     console.info("[DATA] Server conversation list fallback", error.message);
     throw error;
   }
 }
 
-export async function getConversation(conversationId) {
+export async function getConversation(conversationId, index = 0, count = 50) {
   const session = await getCurrentSession();
 
   const response = await backendApi.getConversation({
     token: session.token,
-    id: conversationId,
-    index: "0",
-    count: "50",
+    conversationId,
+    index: String(index),
+    count: String(count),
   });
 
   await assertBackendOk(response, {
@@ -65,24 +92,13 @@ export async function getConversation(conversationId) {
     message: "Backend get_conversation failed",
   });
 
-  const messages = extractList(response).map((item) =>
-    normalizeMessage(item, ACTIVE_SOURCES.SERVER),
-  );
+  const data = response.data;
+  const messages = data.data.map((item) => normalizeMessage(item));
   return {
     id: conversationId,
-    title: "Cuộc trò chuyện",
+    partner: data.conversation.partner,
+    isBlocked: data.conversation.isBlocked,
     messages,
-    source: ACTIVE_SOURCES.SERVER,
-  };
-}
-
-export async function sendLocalMessage(text) {
-  return {
-    id: `local_message_${Date.now()}`,
-    sender: "me",
-    text,
-    createdAt: new Date().toISOString(),
-    source: ACTIVE_SOURCES.LOCAL,
   };
 }
 
@@ -100,11 +116,30 @@ export async function deleteMessage(messageId) {
 }
 
 export async function deleteConversation(conversationId) {
+  // Optimistic update of local cache
+  const current = { ...conversationCache };
+  const conversationToDelete = current.messages.find(
+    (msg) => msg.id === conversationId,
+  );
+  const wasUnread = conversationToDelete?.lastmessage?.unread === "1";
+
+  const updatedMessages = current.messages.filter(
+    (msg) => msg.id !== conversationId,
+  );
+  const nextUnread = wasUnread
+    ? Math.max(0, current.numNewMessage - 1)
+    : current.numNewMessage;
+
+  emitConversations({
+    messages: updatedMessages,
+    numNewMessage: nextUnread,
+  });
+
   const session = await getCurrentSession();
 
   const response = await backendApi.deleteConversation({
     token: session.token,
-    id: conversationId,
+    conversationId: conversationId,
   });
 
   await assertBackendOk(response, {
@@ -115,11 +150,36 @@ export async function deleteConversation(conversationId) {
 }
 
 export async function markConversationRead(conversationId) {
+  // Optimistic update of local cache
+  const current = { ...conversationCache };
+  let changed = false;
+  const updatedMessages = current.messages.map((msg) => {
+    if (msg.id === conversationId && msg.lastmessage.unread === "1") {
+      changed = true;
+      return {
+        ...msg,
+        lastmessage: {
+          ...msg.lastmessage,
+          unread: "0",
+        },
+      };
+    }
+    return msg;
+  });
+
+  if (changed) {
+    const nextUnread = Math.max(0, current.numNewMessage - 1);
+    emitConversations({
+      messages: updatedMessages,
+      numNewMessage: nextUnread,
+    });
+  }
+
   const session = await getCurrentSession();
 
   const response = await backendApi.setReadMessage({
     token: session.token,
-    id: conversationId,
+    conversationId: conversationId,
   });
 
   await assertBackendOk(response, {
@@ -127,4 +187,35 @@ export async function markConversationRead(conversationId) {
   });
 
   return { read: true, source: ACTIVE_SOURCES.SERVER };
+}
+
+export async function sendMessage(conversationId, partnerId, message) {
+  const session = await getCurrentSession();
+
+  const response = await backendApi.sendMessage({
+    token: session.token,
+    conversationId,
+    partnerId,
+    message,
+  });
+
+  await assertBackendOk(response, { message: "Backend send_message failed" });
+
+  try {
+    await markConversationRead(conversationId);
+  } catch (e) {
+    // Ignore error so it doesn't block returning the sent message
+  }
+
+  const raw = response.data;
+  return {
+    id: raw?.messageId || String(Date.now()),
+    sender: {
+      id: session.id,
+      username: session.username,
+      avatar: session.avatar,
+    },
+    message,
+    created: raw?.created || new Date().toISOString(),
+  };
 }

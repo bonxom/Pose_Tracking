@@ -16,6 +16,8 @@ const colors = {
   surfaceIcon: "#EEF1F5",
   surfaceOverlay: "#D1D5DB",
 
+  bubbleLeft: "#f3f5f9",
+
   text: "#0F172A",
   subtext: "#64748B",
   ink: "#050505",
@@ -28,12 +30,14 @@ const colors = {
   borderStrong: "#CED0D4",
   borderMuted: "#DADDE1",
   borderInput: "#CCD0D5",
+  searchInput: "#f1f2f6",
 
   error: "#DC2626",
   success: "#16A34A",
   disabled: "#CBD5E1",
   overlay: "rgba(0,0,0,0.32)",
   overlayLight: "rgba(255,255,255,0.18)",
+  badgeIcon: "#de2334",
 
   white: "#FFFFFF",
   black: "#000000",

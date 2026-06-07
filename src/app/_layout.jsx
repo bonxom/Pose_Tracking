@@ -70,7 +70,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="post" />
         <Stack.Screen name="settings" />
-        <Stack.Screen name="chat" />
+        <Stack.Screen name="conversation" />
         <Stack.Screen name="profile" />
       </Stack>
     </SafeAreaProvider>

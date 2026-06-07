@@ -62,9 +62,9 @@ export default function ModalBottomMenu({ visible, onClose, buttons = [] }) {
                   >
                     <View style={styles.iconContainer}>{btn.icon}</View>
                     <View style={styles.textContainer}>
-                      <Text style={styles.itemTitle}>{btn.title}</Text>
+                      <Text style={[styles.itemTitle, btn.color && { color: btn.color }]}>{btn.title}</Text>
                       {btn.description ? (
-                        <Text style={styles.itemDescription}>
+                        <Text style={[styles.itemDescription, btn.color && { color: btn.color, opacity: 0.8 }]}>
                           {btn.description}
                         </Text>
                       ) : null}
