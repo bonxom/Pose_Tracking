@@ -141,14 +141,11 @@ export default function MenuScreen() {
           </Pressable>
         </View>
 
-        <View
+        <Pressable
           style={styles.profileRow}
+          onPress={() => router.push("/(tabs)/profile")}
         >
-          <Pressable
-            style={styles.avatar}
-            onPress={() => router.push("/(tabs)/profile")}
-            hitSlop={8}
-          >
+          <View style={styles.avatar}>
             <Image
               key={avatarUri}
               source={{ uri: avatarUri }}
@@ -157,15 +154,13 @@ export default function MenuScreen() {
               cachePolicy="memory-disk"
               transition={150}
             />
-          </Pressable>
+          </View>
           <View style={styles.profileTextBlock}>
-            <Pressable onPress={() => router.push("/(tabs)/profile")}>
-              <Text style={styles.profileName}>{displayName}</Text>
-            </Pressable>
+            <Text style={styles.profileName}>{displayName}</Text>
             <Text style={styles.profileSubtext}>Xem trang cá nhân của bạn</Text>
           </View>
           <Ionicons name="chevron-forward" size={22} color="#65676B" />
-        </View>
+        </Pressable>
 
         <View style={styles.shortcutGrid}>
           <MenuShortcut

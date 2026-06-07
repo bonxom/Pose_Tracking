@@ -43,7 +43,7 @@ export default function PostCard({
   detail = false,
   flat = false,
 }) {
-  console.log(post.videos)
+  console.log(post.videos);
   const [isExpanded, setIsExpanded] = useState(detail);
   const [currentUser, setCurrentUser] = useState(null);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
@@ -144,6 +144,10 @@ export default function PostCard({
     });
   };
 
+  const handleOpenPostDetail = () => {
+    onPress?.();
+  };
+
   const ContentContainer = onPress ? Pressable : View;
 
   return (
@@ -159,40 +163,57 @@ export default function PostCard({
       pointerEvents={isDeleteAnimating ? "none" : "auto"}
     >
       <View style={postStyles.headerRow}>
-        <View
-          style={localStyles.authorPressable}
-        >
+        <View style={localStyles.authorPressable}>
           <Pressable
             onPress={handleOpenAuthorProfile}
             disabled={!authorId}
             hitSlop={8}
+            style={localStyles.avatarPressable}
           >
             <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
           </Pressable>
 
           <View style={postStyles.authorMetaGroup}>
-            <Pressable onPress={handleOpenAuthorProfile} disabled={!authorId}>
+            <Pressable
+              onPress={handleOpenAuthorProfile}
+              disabled={!authorId}
+              hitSlop={8}
+              style={localStyles.authorNamePressable}
+            >
               <Text style={postStyles.authorName}>
-              {post.author?.name || "Người dùng"}
+                {post.author?.name || "Người dùng"}
               </Text>
             </Pressable>
-            <Text
-              style={[
-                postStyles.metaText,
-                metaIsFresh && postStyles.freshMetaText,
-              ]}
+
+            <Pressable
+              onPress={handleOpenPostDetail}
+              disabled={!onPress}
+              hitSlop={8}
+              style={localStyles.metaPressable}
             >
-              {post.author?.handle || "@nguoidung"} ·{" "}
-              {formatRelativeTime(post.createdAt)} · <EarthIcon />
-            </Text>
+              <Text
+                style={[
+                  postStyles.metaText,
+                  metaIsFresh && postStyles.freshMetaText,
+                ]}
+              >
+                {post.author?.handle || "@nguoidung"} {" - "}
+                {formatRelativeTime(post.createdAt)} {" - "} <EarthIcon />
+              </Text>
+            </Pressable>
           </View>
         </View>
 
-        <View style={postStyles.roleBadge}>
+        <Pressable
+          onPress={handleOpenPostDetail}
+          disabled={!onPress}
+          hitSlop={8}
+          style={postStyles.roleBadge}
+        >
           <Text style={postStyles.roleBadgeText}>
             {post.author?.role || "HV"}
           </Text>
-        </View>
+        </Pressable>
 
         <Pressable
           style={{ padding: 4, marginLeft: 4 }}
@@ -270,15 +291,6 @@ export default function PostCard({
           </View>
         ) : null}
 
-        {/* {post.timeSeriesPoses ? (
-        <View style={postStyles.exerciseBanner}>
-          <Text style={postStyles.exerciseBannerTitle}>time_series_poses</Text>
-          <Text style={postStyles.exerciseBannerMeta}>
-            Backend có dữ liệu tư thế theo thời gian cho bài này.
-          </Text>
-        </View>
-      ) : null} */}
-
         {isSubmissionPost && post.scoreSummary ? (
           <View style={postStyles.scoreSummaryCard}>
             <Text style={postStyles.scoreSummaryNumber}>
@@ -296,7 +308,11 @@ export default function PostCard({
         ) : null}
       </ContentContainer>
 
-      <View style={postStyles.statsRow}>
+      <Pressable
+        onPress={handleOpenPostDetail}
+        disabled={!onPress}
+        style={postStyles.statsRow}
+      >
         {likeCount > 0 && (
           <View style={localStyles.likeSummaryInline}>
             <ThumbUpWithCircleIcon />
@@ -308,12 +324,14 @@ export default function PostCard({
             {formatCount(commentCount)} bình luận
           </Text>
         )}
-      </View>
+      </Pressable>
 
       {post.canComment === false ? (
-        <Text style={postStyles.lockedText}>
-          Bài viết này đang khóa bình luận.
-        </Text>
+        <Pressable onPress={handleOpenPostDetail} disabled={!onPress}>
+          <Text style={postStyles.lockedText}>
+            Bài viết này đang khóa bình luận.
+          </Text>
+        </Pressable>
       ) : null}
 
       <View style={postStyles.actionRow}>
@@ -374,6 +392,18 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  avatarPressable: {
+    alignSelf: "flex-start",
+  },
+  authorNamePressable: {
+    alignSelf: "flex-start",
+    minWidth: 120,
+    maxWidth: "100%",
+  },
+  metaPressable: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
   },
   flatCard: {
     borderRadius: 0,
