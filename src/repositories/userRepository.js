@@ -1,11 +1,5 @@
 import { backendApi } from "@/api/client";
 import { API_BASE_URL } from "@/config/env";
-import { DEMO_STUDENT } from "@/constants/demo";
-import {
-  getMockProfileById,
-  resolveMockProfile,
-  saveMockProfile,
-} from "@/constants/mocks/profiles";
 import {
   extractList,
   extractObject,
@@ -229,10 +223,9 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
 }
 
 function localUser(session) {
-  const mockProfile = resolveMockProfile(session);
-  const localProfile = buildLocalProfileShape(session, mockProfile);
+  const localProfile = buildLocalProfileShape(session);
 
-  return normalizeUser(localProfile || DEMO_STUDENT, ACTIVE_SOURCES.LOCAL, {
+  return normalizeUser(localProfile, ACTIVE_SOURCES.LOCAL, {
     session,
     isOwnProfile: true,
   });
@@ -275,8 +268,7 @@ function mapForbiddenNameError(error) {
 }
 
 function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  const mockProfile = getMockProfileById(userId);
-  return normalizeUser(mockProfile || { id: userId }, source, {
+  return normalizeUser({ id: userId }, source, {
     isOwnProfile: false,
   });
 }
@@ -370,53 +362,48 @@ function firstParamValue(params = {}, keys = [], fallback = "") {
   return key ? params[key] : fallback;
 }
 
-function buildLocalProfileShape(session = {}, mockProfile = {}) {
+function buildLocalProfileShape(session = {}) {
   return {
-    ...(mockProfile || {}),
     ...(session || {}),
     id: firstValue(
       session?.id,
       session?.user_id,
       session?.identifier,
-      mockProfile?.id,
-      mockProfile?.identifier,
-      DEMO_STUDENT.id,
+      session?.phonenumber,
+      "local_user",
     ),
     username: firstValue(
       session?.username,
       session?.displayName,
-      mockProfile?.username,
-      mockProfile?.displayName,
-      DEMO_STUDENT.username,
+      session?.phonenumber,
+      "Nguoi dung",
     ),
     displayName: firstValue(
       session?.displayName,
       session?.username,
-      mockProfile?.displayName,
-      mockProfile?.username,
-      DEMO_STUDENT.displayName,
+      session?.phonenumber,
+      "Nguoi dung",
     ),
-    avatar: firstValue(session?.avatar, mockProfile?.avatar, ""),
-    coverImage: firstValue(session?.coverImage, mockProfile?.coverImage, ""),
-    description: firstValue(session?.description, mockProfile?.description, ""),
-    address: firstValue(session?.address, mockProfile?.address, ""),
-    city: firstValue(session?.city, mockProfile?.city, ""),
-    country: firstValue(session?.country, mockProfile?.country, ""),
-    profileLink: firstValue(session?.profileLink, mockProfile?.profileLink, ""),
-    postCount: firstValue(session?.postCount, mockProfile?.postCount, 0),
-    online: firstValue(session?.online, mockProfile?.online, false),
-    listing: firstValue(session?.listing, mockProfile?.listing, true),
-    role: firstValue(session?.role, mockProfile?.role, "HV"),
-    phonenumber: firstValue(session?.phonenumber, mockProfile?.phonenumber, ""),
+    avatar: firstValue(session?.avatar, ""),
+    coverImage: firstValue(session?.coverImage, ""),
+    description: firstValue(session?.description, ""),
+    address: firstValue(session?.address, ""),
+    city: firstValue(session?.city, ""),
+    country: firstValue(session?.country, ""),
+    profileLink: firstValue(session?.profileLink, ""),
+    postCount: firstValue(session?.postCount, 0),
+    online: firstValue(session?.online, false),
+    listing: firstValue(session?.listing, true),
+    role: firstValue(session?.role, "HV"),
+    phonenumber: firstValue(session?.phonenumber, ""),
     identifier: firstValue(
       session?.identifier,
-      mockProfile?.identifier,
       session?.phonenumber,
       "",
     ),
-    handle: firstValue(session?.handle, mockProfile?.handle, ""),
-    height: firstValue(session?.height, mockProfile?.height, ""),
-    demoMode: true,
+    handle: firstValue(session?.handle, ""),
+    height: firstValue(session?.height, ""),
+    demoMode: Boolean(session?.demoMode),
   };
 }
 
@@ -603,10 +590,7 @@ function buildLocalProfileUpdate(
   userName,
   source = ACTIVE_SOURCES.LOCAL,
 ) {
-  const currentProfile = buildLocalProfileShape(
-    session,
-    resolveMockProfile(session),
-  );
+  const currentProfile = buildLocalProfileShape(session);
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(
     params,
@@ -831,7 +815,6 @@ export async function updateUserInfo(params = {}) {
       userName,
       ACTIVE_SOURCES.LOCAL,
     );
-    saveMockProfile(updated);
     await saveAuthSession(updated);
     return updated;
   }

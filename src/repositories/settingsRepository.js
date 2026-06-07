@@ -31,7 +31,9 @@ export function normalizePushSettings(settings = {}, previousSettings = {}) {
 
   return {
     notificationOn: toBool(
-      settings.notificationOn ?? settings.notification_on ?? settings.notification,
+      settings.notificationOn ??
+        settings.notification_on ??
+        settings.notification,
       fallbackFor("notificationOn"),
     ),
     likeComment: toBool(
@@ -63,9 +65,18 @@ export function normalizePushSettings(settings = {}, previousSettings = {}) {
       fallbackFor("suggestedFriend"),
     ),
     birthday: toBool(settings.birthday, fallbackFor("birthday")),
-    video: toBool(settings.video ?? settings.new_exercise, fallbackFor("video")),
-    report: toBool(settings.report ?? settings.announcement, fallbackFor("report")),
-    soundOn: toBool(settings.soundOn ?? settings.sound_on, fallbackFor("soundOn")),
+    video: toBool(
+      settings.video ?? settings.new_exercise,
+      fallbackFor("video"),
+    ),
+    report: toBool(
+      settings.report ?? settings.announcement,
+      fallbackFor("report"),
+    ),
+    soundOn: toBool(
+      settings.soundOn ?? settings.sound_on,
+      fallbackFor("soundOn"),
+    ),
     vibrantOn: toBool(
       settings.vibrantOn ?? settings.vibrant_on ?? settings.vibration_on,
       fallbackFor("vibrantOn"),
@@ -97,6 +108,19 @@ function requireToken(session, message = "Cần đăng nhập để dùng cài �
     throw new Error(message);
   }
 }
+const localPushSettings = {
+  notificationOn: true,
+  likeComment: true,
+  fromFriends: true,
+  requestedFriend: true,
+  suggestedFriend: true,
+  birthday: true,
+  video: true,
+  report: true,
+  soundOn: true,
+  vibrantOn: true,
+  ledOn: true,
+};
 
 export async function getPushSettings() {
   const session = await getCurrentSession();

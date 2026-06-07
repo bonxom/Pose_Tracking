@@ -234,7 +234,6 @@ export default function HomeScreen() {
 
       if (nextItems.length === 0) {
         setHasLoadedAllPosts(true);
-        Alert.alert("Thông báo", "Đã load hết tất cả các post");
         return;
       }
 
@@ -502,11 +501,23 @@ export default function HomeScreen() {
             isLoadingMore ? (
               <FeedLoadingCard />
             ) : hasLoadedAllPosts && posts.length > 0 ? (
-              <Text style={homeStyles.subtitle}>
+              <Text
+                style={[
+                  homeStyles.subtitle,
+                  { textAlign: "center", paddingBottom: 24 },
+                ]}
+              >
                 Đã load hết tất cả các post
               </Text>
             ) : posts.length > 0 ? (
-              <Text style={homeStyles.subtitle}>Kéo xuống để tải thêm</Text>
+              <Text
+                style={[
+                  homeStyles.subtitle,
+                  { textAlign: "center", paddingBottom: 24 },
+                ]}
+              >
+                Kéo xuống để tải thêm
+              </Text>
             ) : null
           }
           onEndReached={handleEndReached}

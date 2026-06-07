@@ -6,7 +6,7 @@ import authStyles from "@/styles/auth/base.styles";
 import { validateVerifyCode } from "@/utils/validation";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Text } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 
 export default function VerifyScreen() {
   const [code, setCode] = useState("");
@@ -23,6 +23,15 @@ export default function VerifyScreen() {
   const signupToken = typeof params.token === "string" ? params.token : "";
   const resolvedSignupRequestId = signupRequestId || phonenumber;
   const [currentVerifyCode, setCurrentVerifyCode] = useState(verifyCode);
+
+  const handleBack = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(auth)/signup");
+  };
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -63,7 +72,6 @@ export default function VerifyScreen() {
         const nextVerifyCode =
           response.data?.verifyCode ||
           response.data?.verify_code ||
-          response.data?.mock_verify_code ||
           "";
         if (nextVerifyCode) {
           setCurrentVerifyCode(nextVerifyCode);
@@ -176,7 +184,26 @@ export default function VerifyScreen() {
 
   return (
     <Screen style={authStyles.container}>
-      <Text style={authStyles.title}>Xác minh</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+        <Pressable
+          onPress={handleBack}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#F1F5F9",
+            marginRight: 12,
+          }}
+        >
+          <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A" }}>
+            ←
+          </Text>
+        </Pressable>
+
+        <Text style={[authStyles.title, { marginBottom: 0 }]}>Xác minh</Text>
+      </View>
       <Text style={authStyles.subtitle}>
         Nhập mã xác thực gửi tới số điện thoại {phonenumber}.
         {currentVerifyCode ? ` Mã xác minh: ${currentVerifyCode}.` : " Mã xác minh mặc định: 123456."}

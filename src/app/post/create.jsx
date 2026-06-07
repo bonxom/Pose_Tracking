@@ -9,7 +9,6 @@ import {
 import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
 import EarthIcon from "@/components/icons/EarthIcon";
 import colors from "@/constants/colors";
-import { DEMO_COURSE, DEMO_EXERCISES } from "@/constants/demo";
 import {
   createExerciseSubmission,
   createPost,
@@ -130,11 +129,18 @@ export default function CreatePostScreen() {
   );
 
   const exercise = useMemo(() => {
-    return (
-      DEMO_EXERCISES.find((item) => item.id === params.exerciseId) ||
-      DEMO_EXERCISES[0]
-    );
-  }, [params.exerciseId]);
+    const exerciseId = String(params.exerciseId || "").trim();
+
+    if (!exerciseId) {
+      return null;
+    }
+
+    return {
+      id: exerciseId,
+      sourcePostId: String(params.sourcePostId || exerciseId),
+      title: String(params.exerciseTitle || "Bài tập"),
+    };
+  }, [params.exerciseId, params.exerciseTitle, params.sourcePostId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -306,6 +312,14 @@ export default function CreatePostScreen() {
     const completeVideos = selectedVideos.filter(Boolean);
     const trimmedContent = content.trim();
 
+    if (isSubmissionMode && (!params.courseId || !params.exerciseId)) {
+      Alert.alert(
+        "Thiếu thông tin bài tập",
+        "Không tìm thấy khóa học hoặc bài tập để nộp bài.",
+      );
+      return;
+    }
+
     if (isSubmissionMode && completeVideos.length !== 2) {
       Alert.alert("Thiếu video", "Bài nộp cần đúng 2 video.");
       return;
@@ -336,8 +350,8 @@ export default function CreatePostScreen() {
           ? await createExerciseSubmission({
               content: trimmedContent,
               videos: completeVideos,
-              courseId: params.courseId || DEMO_COURSE.id,
-              exerciseId: params.exerciseId || exercise.id,
+              courseId: String(params.courseId || ""),
+              exerciseId: String(params.exerciseId || exercise?.id || ""),
               sourcePostId: params.sourcePostId || sourcePost?.id || "",
             })
           : await createPost({

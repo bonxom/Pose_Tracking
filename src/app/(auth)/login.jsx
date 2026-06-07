@@ -1,11 +1,6 @@
 import Screen from "@/components/common/Screen";
-import {
-  loginDemoStudent,
-  loginDemoTeacher,
-  loginWithPassword,
-} from "@/repositories/authRepository";
+import { loginWithPassword } from "@/repositories/authRepository";
 import { setDeviceToken } from "@/repositories/settingsRepository";
-import { getDataSourceMode } from "@/repositories/source";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
@@ -27,15 +22,12 @@ import {
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
 export default function LoginScreen() {
-  const dataSourceMode = getDataSourceMode();
-  const isServerMode = dataSourceMode === "server";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [phoneNumberError, setPhoneNumberError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showDevFallback, setShowDevFallback] = useState(!isServerMode);
 
   const persistAndNavigate = async (data) => {
     try {
@@ -68,18 +60,6 @@ export default function LoginScreen() {
     router.replace("/(tabs)/home");
   };
 
-  const handleDemoLogin = async (loginFn, phone, nextPassword) => {
-    setPhoneNumber(phone);
-    setPassword(nextPassword);
-    setPhoneNumberError("");
-    setPasswordError("");
-    const response = await loginFn();
-
-    if (response.code === "1000") {
-      await persistAndNavigate(response.data);
-    }
-  };
-
   const handleLogin = async () => {
     const phoneErr = validatePhoneNumber(phoneNumber);
     const passErr = validatePassword(password);
@@ -109,12 +89,10 @@ export default function LoginScreen() {
           break;
         }
         case "9995":
-          setPhoneNumberError(
-            "Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.",
-          );
+          setPasswordError("Tài khoản chưa được xác thực hoặc không tồn tại.");
           break;
         case "1004":
-          setPhoneNumberError("Số điện thoại hoặc mật khẩu không chính xác.");
+          setPasswordError("Số điện thoại hoặc mật khẩu không chính xác.");
           break;
         case "1002":
           setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
@@ -198,46 +176,6 @@ export default function LoginScreen() {
           {isLoading ? "Đang xử lý..." : "Đăng nhập"}
         </Text>
       </Pressable>
-
-      <View style={{ gap: 10, marginTop: 12 }}>
-        {!showDevFallback ? (
-          <Pressable
-            style={[styles.createButton, { borderColor: "#CBD5E1" }]}
-            onPress={() => setShowDevFallback(true)}
-            disabled={isLoading}
-          >
-            <Text style={styles.createText}>Developer local fallback</Text>
-          </Pressable>
-        ) : (
-          <>
-            <Text style={styles.errorText}>
-              Local fallback chỉ dùng khi backend/OTP chưa sẵn sàng.
-            </Text>
-            <Pressable
-              style={[styles.createButton, { borderColor: "#2563EB" }]}
-              onPress={() =>
-                handleDemoLogin(loginDemoStudent, "0900000001", "123456")
-              }
-              disabled={isLoading}
-            >
-              <Text style={styles.createText}>
-                Use demo student account · 0900000001 / 123456
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.createButton, { borderColor: "#94A3B8" }]}
-              onPress={() =>
-                handleDemoLogin(loginDemoTeacher, "0900000002", "123456")
-              }
-              disabled={isLoading}
-            >
-              <Text style={styles.createText}>
-                Use demo teacher account · 0900000002 / 123456
-              </Text>
-            </Pressable>
-          </>
-        )}
-      </View>
 
       <Pressable style={styles.forgotRow}>
         <Text style={styles.forgotText}>Quên mật khẩu?</Text>
