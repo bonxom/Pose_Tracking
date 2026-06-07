@@ -8,8 +8,15 @@ import {
   validateProfileUserName,
 } from "@/repositories/userRepository";
 import { queueProfileUpdate } from "@/services/profileUpdateService";
+import { profileCacheState } from "@/state/profileCacheState";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
+import {
+  CACHE_KEY_PROFILE,
+  getProfileCacheOwnerKey,
+  isProfileCacheValidForSession,
+  readCache,
+} from "@/utils/cacheStore";
 import {
   getAuthSession,
   subscribeAuthSession,
@@ -92,6 +99,7 @@ export default function ProfileEditScreen() {
     coverImage: "",
     description: "",
   });
+  const diskCacheLoadedRef = useRef(false);
 
   useEffect(() => {
     latestDraftRef.current = {
@@ -109,8 +117,39 @@ export default function ProfileEditScreen() {
     setDescription(profileLike.description || "");
   }, []);
 
-  const hydrateFromSession = useCallback(async () => {
+  const hydrateFromLocalSnapshot = useCallback(async () => {
     const session = await getAuthSession();
+    const ownerKey = getProfileCacheOwnerKey(session);
+    const memoryCache = profileCacheState[""];
+
+    if (
+      memoryCache?.profile &&
+      memoryCache?.ownerKey &&
+      memoryCache.ownerKey === ownerKey
+    ) {
+      applyProfileSnapshot(
+        mergeOwnProfileWithSession(memoryCache.profile, session || {}),
+      );
+      return true;
+    }
+
+    if (memoryCache?.profile) {
+      delete profileCacheState[""];
+    }
+
+    if (!diskCacheLoadedRef.current) {
+      diskCacheLoadedRef.current = true;
+      const cached = await readCache(CACHE_KEY_PROFILE);
+
+      if (isProfileCacheValidForSession(cached, session)) {
+        profileCacheState[""] = cached;
+        applyProfileSnapshot(
+          mergeOwnProfileWithSession(cached.profile, session || {}),
+        );
+        return true;
+      }
+    }
+
     if (!session) return false;
 
     const draft = latestDraftRef.current;
@@ -165,14 +204,14 @@ export default function ProfileEditScreen() {
       let active = true;
 
       const run = async () => {
-        const hasSessionSnapshot = await hydrateFromSession();
+        const hasLocalSnapshot = await hydrateFromLocalSnapshot();
         if (!active) return;
 
-        if (hasSessionSnapshot) {
+        if (hasLocalSnapshot) {
           setLoading(false);
         }
 
-        await loadProfile({ showLoader: !hasSessionSnapshot });
+        await loadProfile({ showLoader: !hasLocalSnapshot });
       };
 
       run().catch(console.warn);
@@ -180,7 +219,7 @@ export default function ProfileEditScreen() {
       return () => {
         active = false;
       };
-    }, [hydrateFromSession, loadProfile]),
+    }, [hydrateFromLocalSnapshot, loadProfile]),
   );
 
   useFocusEffect(
