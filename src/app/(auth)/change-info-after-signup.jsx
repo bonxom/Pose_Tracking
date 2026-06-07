@@ -2,6 +2,7 @@ import authApi from "@/api/auth";
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import { setDeviceToken } from "@/repositories/settingsRepository";
+import { validateProfileUserName } from "@/repositories/userRepository";
 import { saveAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -21,8 +22,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function ChangeInfoAfterSignupScreen() {
   const params = useLocalSearchParams();
   const token = typeof params.token === "string" ? params.token : "";
-  const phonenumber = typeof params.phonenumber === "string" ? params.phonenumber : "";
-  const signupRequestId = typeof params.signupRequestId === "string" ? params.signupRequestId : "";
+  const phonenumber =
+    typeof params.phonenumber === "string" ? params.phonenumber : "";
+  const signupRequestId =
+    typeof params.signupRequestId === "string" ? params.signupRequestId : "";
   const role = typeof params.role === "string" ? params.role : "HV";
   const verifiedLocally = params.verifiedLocally === "1";
 
@@ -44,9 +47,13 @@ export default function ChangeInfoAfterSignupScreen() {
 
   const handlePickAvatar = async () => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permission.status !== "granted") {
-        Alert.alert("Cần quyền truy cập ảnh", "Vui lòng cấp quyền thư viện ảnh để chọn ảnh đại diện.");
+        Alert.alert(
+          "Cần quyền truy cập ảnh",
+          "Vui lòng cấp quyền thư viện ảnh để chọn ảnh đại diện.",
+        );
         return;
       }
 
@@ -67,16 +74,14 @@ export default function ChangeInfoAfterSignupScreen() {
 
   const handleSubmit = async () => {
     const normalizedUsername = username.trim();
+    const validationUsername = validateProfileUserName(normalizedUsername);
+    if (validationUsername) {
+      setUsernameError(validationUsername);
+      return;
+    }
     const normalizedHeight = height.trim();
 
-    let nextUsernameError = "";
     let nextHeightError = "";
-
-    if (!normalizedUsername) {
-      nextUsernameError = "Tên người dùng không được bỏ trống.";
-    } else if (/\d/.test(normalizedUsername)) {
-      nextUsernameError = "Tên người dùng không được chứa số.";
-    }
 
     if (normalizedHeight && !/^\d+$/.test(normalizedHeight)) {
       nextHeightError = "Chiều cao phải là số.";
@@ -87,8 +92,7 @@ export default function ChangeInfoAfterSignupScreen() {
       }
     }
 
-    if (nextUsernameError || nextHeightError) {
-      setUsernameError(nextUsernameError);
+    if (nextHeightError) {
       setHeightError(nextHeightError);
       return;
     }
@@ -113,7 +117,10 @@ export default function ChangeInfoAfterSignupScreen() {
         avatar: avatar || "",
         coverImage: "",
         height: normalizedHeight || "",
-        source: verifiedLocally || token.startsWith("local_verify_") ? "local" : "server",
+        source:
+          verifiedLocally || token.startsWith("local_verify_")
+            ? "local"
+            : "server",
         demoMode: Boolean(verifiedLocally || token.startsWith("local_verify_")),
         loggedInAt: new Date().toISOString(),
       };
@@ -152,20 +159,27 @@ export default function ChangeInfoAfterSignupScreen() {
 
           try {
             await saveAuthSession({
-              id: completedUser.id || completedUser.user_id || phonenumber || "server_user",
+              id:
+                completedUser.id ||
+                completedUser.user_id ||
+                phonenumber ||
+                "server_user",
               token: savedToken,
               phonenumber: completedUser.phonenumber || phonenumber,
               username: savedUsername,
               displayName: savedUsername,
               role: completedUser.role || role || "HV",
               avatar: completedUser.avatar || avatar || "",
-              coverImage: completedUser.coverImage || completedUser.cover_image || "",
+              coverImage:
+                completedUser.coverImage || completedUser.cover_image || "",
               height: completedUser.height || normalizedHeight || "",
               source: "server",
               demoMode: false,
               loggedInAt: new Date().toISOString(),
             });
-            setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
+            setDeviceToken().catch((error) =>
+              console.warn("Cannot register device token:", error),
+            );
           } catch (storageError) {
             console.warn("Cannot persist session:", storageError);
           }
@@ -185,7 +199,11 @@ export default function ChangeInfoAfterSignupScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Pressable style={styles.backButton} onPress={handleBack} disabled={isLoading}>
+        <Pressable
+          style={styles.backButton}
+          onPress={handleBack}
+          disabled={isLoading}
+        >
           <Text style={styles.backText}>←</Text>
         </Pressable>
 
@@ -202,9 +220,15 @@ export default function ChangeInfoAfterSignupScreen() {
               <Ionicons name="person-outline" size={42} color="#64748B" />
             )}
           </View>
-          <Pressable style={styles.pickAvatarButton} onPress={handlePickAvatar} disabled={isLoading}>
+          <Pressable
+            style={styles.pickAvatarButton}
+            onPress={handlePickAvatar}
+            disabled={isLoading}
+          >
             <Ionicons name="images-outline" size={18} color="#0866FF" />
-            <Text style={styles.pickAvatarText}>{avatar ? "Đổi ảnh" : "Chọn ảnh"}</Text>
+            <Text style={styles.pickAvatarText}>
+              {avatar ? "Đổi ảnh" : "Chọn ảnh"}
+            </Text>
           </Pressable>
         </View>
 
