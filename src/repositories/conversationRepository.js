@@ -201,6 +201,12 @@ export async function sendMessage(conversationId, partnerId, message) {
 
   await assertBackendOk(response, { message: "Backend send_message failed" });
 
+  try {
+    await markConversationRead(conversationId);
+  } catch (e) {
+    // Ignore error so it doesn't block returning the sent message
+  }
+
   const raw = response.data;
   return {
     id: raw?.messageId || String(Date.now()),

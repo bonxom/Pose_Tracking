@@ -38,6 +38,7 @@ const conversationDetailStyles = StyleSheet.create({
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
   },
   iconBtn: {
     padding: 6,
@@ -53,8 +54,6 @@ const conversationDetailStyles = StyleSheet.create({
   // Message list
   listContent: {
     paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 16,
   },
 
   // Date delimiter
@@ -73,6 +72,12 @@ const conversationDetailStyles = StyleSheet.create({
   rowRight: {
     alignItems: "flex-end",
     paddingLeft: AVATAR_SIZE + 6 + 12, // mirror left-side indent
+  },
+  statusSubText: {
+    fontSize: 11,
+    color: colors.subtext,
+    marginTop: 2,
+    marginRight: 4,
   },
   rowLeft: {
     flexDirection: "row",
@@ -139,8 +144,6 @@ const conversationDetailStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
     gap: 6,
   },
   inputWrap: {

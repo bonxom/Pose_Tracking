@@ -1,5 +1,6 @@
 import UserAvatar from "@/components/courses/UserAvatar";
 import ChatSendIcon from "@/components/icons/ChatSendIcon";
+import ChatSmileIcon from "@/components/icons/ChatSmileIcon";
 import ChatThumbUpIcon from "@/components/icons/ChatThumbUpIcon";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import colors from "@/constants/colors";
@@ -11,8 +12,9 @@ import { getCurrentSession } from "@/repositories/source";
 import conversationDetailStyles from "@/styles/conversation/conversationDetail.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
+import Foundation from "@expo/vector-icons/Foundation";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Keyboard,
@@ -49,6 +51,42 @@ function formatDelimiterDate(isoString) {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${days[d.getDay()]} LÚC ${hh}:${mm}`;
+}
+
+function getMessageStatusText(isoString, isTemp) {
+  if (isTemp) {
+    return "Đang gửi";
+  }
+  const createdDate = new Date(isoString);
+  const now = new Date();
+  const diffMs = now - createdDate;
+
+  if (diffMs < 60000) {
+    return "Đã gửi";
+  }
+
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) {
+    return `Đã gửi ${diffMins} phút trước`;
+  }
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) {
+    return `Đã gửi ${diffHours} giờ trước`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `Đã gửi ${diffDays} ngày trước`;
+  }
+
+  // Format: "Đã gửi 17 tháng 5, 22:46"
+  const dateNum = createdDate.getDate();
+  const monthNum = createdDate.getMonth() + 1;
+  const hoursStr = String(createdDate.getHours()).padStart(2, "0");
+  const minsStr = String(createdDate.getMinutes()).padStart(2, "0");
+
+  return `Đã gửi ${dateNum} tháng ${monthNum}, ${hoursStr}:${minsStr}`;
 }
 
 // Build a flat item array from messages for FlatList
@@ -171,15 +209,30 @@ function getBubbleRadius(isMe, position) {
 
 // ─── Message bubble component ─────────────────────────────────────────────────
 
-function MessageItem({ item, myId }) {
+function MessageItem({ item, myId, isLatestFromMe }) {
   const { msg, position, isGroupEnd, isGroupStart } = item;
   const isMe = msg.sender.id === myId;
   const isThumb = msg.message === "👍";
   const radiusStyle = isThumb ? {} : getBubbleRadius(isMe, position);
 
+  useEffect(() => {
+    if (!isMe) return;
+    const isTemp = msg.id.toString().startsWith("tmp-");
+    if (isTemp) return;
+
+    const createdDate = new Date(msg.created);
+    const diffMs = Date.now() - createdDate;
+    if (diffMs >= 7 * 24 * 60 * 60 * 1000) {
+      return;
+    }
+  }, [isMe, msg.created, msg.id]);
+
   const topGap = isGroupStart ? 10 : 2;
 
   if (isMe) {
+    const isTemp = msg.id.toString().startsWith("tmp-");
+    const statusText = getMessageStatusText(msg.created, isTemp);
+
     return (
       <View style={[conversationDetailStyles.rowRight, { marginTop: topGap }]}>
         {isThumb ? (
@@ -190,6 +243,11 @@ function MessageItem({ item, myId }) {
               {msg.message}
             </Text>
           </View>
+        )}
+        {isLatestFromMe && (
+          <Text style={conversationDetailStyles.statusSubText}>
+            {statusText}
+          </Text>
         )}
       </View>
     );
@@ -235,6 +293,8 @@ export default function ConversationDetailScreen() {
   const [isSending, setIsSending] = useState(false);
 
   const flatListRef = useRef(null);
+  const isAtBottomRef = useRef(false);
+  const [layoutHeight, setLayoutHeight] = useState(0);
 
   const load = useCallback(() => {
     const init = async () => {
@@ -315,12 +375,27 @@ export default function ConversationDetailScreen() {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     const isAtBottom =
       contentOffset.y + layoutMeasurement.height >= contentSize.height - 80;
+    isAtBottomRef.current = isAtBottom;
 
     if (hasLatest) {
       setShowJumpButton(!isAtBottom);
     } else {
       // There are still newer messages not loaded → always show
       setShowJumpButton(true);
+    }
+  };
+
+  const handleLayout = (e) => {
+    setLayoutHeight(e.nativeEvent.layout.height);
+  };
+
+  const handleContentSizeChange = (contentWidth, contentHeight) => {
+    if (layoutHeight && contentHeight > layoutHeight) {
+      if (!isAtBottomRef.current) {
+        setShowJumpButton(true);
+      }
+    } else {
+      setShowJumpButton(false);
     }
   };
 
@@ -383,6 +458,11 @@ export default function ConversationDetailScreen() {
   const myId = mySession?.id;
   const hasText = inputText.trim().length > 0;
 
+  const messages = conversation?.messages || [];
+  const latestMessage = messages[messages.length - 1];
+  const isLatestFromMe = latestMessage && latestMessage.sender.id === myId;
+  const latestMessageId = latestMessage?.id;
+
   const renderItem = ({ item }) => {
     if (item.type === "date") {
       return (
@@ -391,7 +471,13 @@ export default function ConversationDetailScreen() {
         </View>
       );
     }
-    return <MessageItem item={item} myId={myId} />;
+    return (
+      <MessageItem
+        item={item}
+        myId={myId}
+        isLatestFromMe={isLatestFromMe && item.id === latestMessageId}
+      />
+    );
   };
 
   return (
@@ -419,11 +505,7 @@ export default function ConversationDetailScreen() {
             <Ionicons name="videocam" size={22} color={colors.primary} />
           </Pressable>
           <Pressable style={conversationDetailStyles.iconBtn} hitSlop={8}>
-            <Ionicons
-              name="information-circle-outline"
-              size={22}
-              color={colors.primary}
-            />
+            <Foundation name="info" size={24} color={colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -449,6 +531,8 @@ export default function ConversationDetailScreen() {
               setShowEmojiPicker(false);
               Keyboard.dismiss();
             }}
+            onLayout={handleLayout}
+            onContentSizeChange={handleContentSizeChange}
           />
 
           {/* ── Jump to latest FAB ── */}
@@ -488,11 +572,7 @@ export default function ConversationDetailScreen() {
                 onPress={() => setShowEmojiPicker((v) => !v)}
                 hitSlop={6}
               >
-                <Ionicons
-                  name={showEmojiPicker ? "happy" : "happy-outline"}
-                  size={24}
-                  color={colors.primary}
-                />
+                <ChatSmileIcon size={18} color={colors.primary} />
               </Pressable>
               {showEmojiPicker && (
                 <CommentReactionPicker
