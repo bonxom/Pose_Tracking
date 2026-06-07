@@ -163,7 +163,11 @@ export default function PostCard({
       pointerEvents={isDeleteAnimating ? "none" : "auto"}
     >
       <View style={postStyles.headerRow}>
-        <View style={localStyles.authorPressable}>
+        <Pressable
+          onPress={handleOpenPostDetail}
+          disabled={!onPress}
+          style={localStyles.authorPressable}
+        >
           <Pressable
             onPress={handleOpenAuthorProfile}
             disabled={!authorId}
@@ -202,7 +206,7 @@ export default function PostCard({
               </Text>
             </Pressable>
           </View>
-        </View>
+        </Pressable>
 
         <Pressable
           onPress={handleOpenPostDetail}
