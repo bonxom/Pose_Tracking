@@ -7,6 +7,13 @@ import {
   getUserInfo,
   mergeOwnProfileWithSession,
 } from "@/repositories/userRepository";
+import { profileCacheState } from "@/state/profileCacheState";
+import {
+  CACHE_KEY_PROFILE,
+  getProfileCacheOwnerKey,
+  isProfileCacheValidForSession,
+  readCache,
+} from "@/utils/cacheStore";
 import {
   getAuthSession,
   subscribeAuthSession,
@@ -15,7 +22,7 @@ import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { resolveAvatarUri } from "@/utils/profile";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -63,8 +70,58 @@ function SettingsRow({ icon, label, onPress }) {
 }
 
 export default function ProfileSettingsScreen() {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(() => profileCacheState[""]?.profile ?? null);
+  const [loading, setLoading] = useState(() => !profileCacheState[""]?.profile);
+  const diskCacheLoadedRef = useRef(false);
+
+  const hydrateFromSnapshot = useCallback(async () => {
+    const session = await getAuthSession();
+    const ownerKey = getProfileCacheOwnerKey(session);
+    const memoryCache = profileCacheState[""];
+
+    if (
+      memoryCache?.profile &&
+      memoryCache?.ownerKey &&
+      memoryCache.ownerKey === ownerKey
+    ) {
+      setProfile(mergeOwnProfileWithSession(memoryCache.profile, session || {}));
+      return true;
+    }
+
+    if (memoryCache?.profile) {
+      delete profileCacheState[""];
+    }
+
+    if (!diskCacheLoadedRef.current) {
+      diskCacheLoadedRef.current = true;
+      const cached = await readCache(CACHE_KEY_PROFILE);
+
+      if (isProfileCacheValidForSession(cached, session)) {
+        profileCacheState[""] = cached;
+        setProfile(mergeOwnProfileWithSession(cached.profile, session || {}));
+        return true;
+      }
+    }
+
+    if (!session) {
+      return false;
+    }
+
+    const merged = mergeOwnProfileWithSession(profile || {}, session);
+    const hasSnapshot = Boolean(
+      merged.displayName ||
+        merged.username ||
+        merged.avatar ||
+        merged.coverImage ||
+        merged.description,
+    );
+
+    if (hasSnapshot) {
+      setProfile(merged);
+    }
+
+    return hasSnapshot;
+  }, [profile]);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -85,8 +142,26 @@ export default function ProfileSettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadProfile();
-    }, [loadProfile]),
+      let active = true;
+
+      const run = async () => {
+        const hasSnapshot = await hydrateFromSnapshot();
+        if (!active) return;
+
+        if (hasSnapshot) {
+          setLoading(false);
+          return;
+        }
+
+        await loadProfile();
+      };
+
+      run().catch(console.warn);
+
+      return () => {
+        active = false;
+      };
+    }, [hydrateFromSnapshot, loadProfile]),
   );
 
   useFocusEffect(

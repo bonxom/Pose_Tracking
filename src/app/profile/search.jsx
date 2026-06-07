@@ -6,10 +6,12 @@ import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { toggleLike } from "@/repositories/postRepository";
 import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
+import { profileCacheState } from "@/state/profileCacheState";
 import { resolveAvatarUri } from "@/utils/profile";
+import { getAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { memo, startTransition, useCallback, useState } from "react";
+import { memo, startTransition, useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -41,22 +43,44 @@ const SearchPostRow = memo(function SearchPostRow({
 export default function ProfileSearchScreen() {
   const params = useLocalSearchParams();
   const userId = typeof params.userId === "string" ? params.userId : "";
+  const initialProfile = profileCacheState[userId]?.profile ?? profileCacheState[""]?.profile ?? null;
 
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState([]);
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState(initialProfile);
   const [loading, setLoading] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(() => !initialProfile);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
+  const bootstrappedRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
 
+      const hydrateFromSnapshot = async () => {
+        const session = await getAuthSession();
+        const ownProfileId = String(
+          session?.id || session?.user_id || session?.identifier || "",
+        );
+        const cacheKey =
+          !userId || String(userId) === ownProfileId ? "" : userId;
+        const cachedProfile = profileCacheState[cacheKey]?.profile;
+
+        if (alive && cachedProfile) {
+          setProfile(cachedProfile);
+          setProfileLoading(false);
+          return true;
+        }
+
+        return false;
+      };
+
       const loadProfile = async () => {
         try {
-          setProfileLoading(true);
+          if (!bootstrappedRef.current) {
+            setProfileLoading(true);
+          }
           const user = await getUserInfo(userId);
           if (alive) {
             setProfile(user);
@@ -72,7 +96,19 @@ export default function ProfileSearchScreen() {
         }
       };
 
-      loadProfile();
+      const run = async () => {
+        const hasSnapshot = await hydrateFromSnapshot();
+        if (!alive) return;
+
+        bootstrappedRef.current = true;
+        if (hasSnapshot) {
+          return;
+        }
+
+        await loadProfile();
+      };
+
+      run().catch(console.warn);
 
       return () => {
         alive = false;
