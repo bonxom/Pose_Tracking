@@ -1,8 +1,8 @@
+import { getCurrentSession } from "@/repositories/source";
 import {
   createOptimisticUserInfo,
   updateUserInfo,
 } from "@/repositories/userRepository";
-import { getCurrentSession } from "@/repositories/source";
 import { saveAuthSession } from "@/utils/session";
 import { Alert } from "react-native";
 
@@ -25,7 +25,7 @@ async function finalizeProfileUpdate(taskId) {
     profileSyncRequestedAt: "",
   });
 
-  Alert.alert("Cập nhật thành công");
+  Alert.alert("Thông tin cá nhân", "Cập nhật thành công");
 }
 
 async function rollbackProfileUpdate(taskId, previousSession) {
@@ -35,12 +35,15 @@ async function rollbackProfileUpdate(taskId, previousSession) {
 
   await saveAuthSession(previousSession ?? null);
 
-  Alert.alert("Cập nhật thất bại");
+  Alert.alert("Thông tin cá nhân", "Cập nhật thất bại");
 }
 
 export async function queueProfileUpdate(params = {}) {
   const previousSession = await getCurrentSession();
-  const optimisticProfile = createOptimisticUserInfo(previousSession || {}, params);
+  const optimisticProfile = createOptimisticUserInfo(
+    previousSession || {},
+    params,
+  );
   const taskId = Date.now();
 
   latestProfileUpdateTaskId = taskId;
