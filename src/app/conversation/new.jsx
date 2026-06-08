@@ -5,6 +5,7 @@ import {
 } from "@/components/search/SearchScreenParts";
 import { searchScreenSearch } from "@/repositories/searchRepository";
 import searchStyles from "@/styles/search.styles";
+import { getAuthSession } from "@/utils/session";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -18,10 +19,26 @@ import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const PAGE_SIZE = 20;
-const MESSAGE_SEARCH_HISTORY_KEY = "message_partner_search_history";
+const MESSAGE_SEARCH_HISTORY_KEY_PREFIX = "message_partner_search_history";
+
+async function getMessageSearchHistoryKey() {
+  const session = await getAuthSession();
+
+  const userId = String(
+    session?.id ||
+      session?.user_id ||
+      session?.userId ||
+      session?.user?.id ||
+      "",
+  ).trim();
+
+  return `${MESSAGE_SEARCH_HISTORY_KEY_PREFIX}:${userId || "guest"}`;
+}
 
 async function getMessageSearchHistory() {
-  const raw = await AsyncStorage.getItem(MESSAGE_SEARCH_HISTORY_KEY);
+  const key = await getMessageSearchHistoryKey();
+  const raw = await AsyncStorage.getItem(key);
+
   if (!raw) return [];
 
   try {
@@ -33,21 +50,24 @@ async function getMessageSearchHistory() {
 }
 
 async function saveMessageSearchHistory(items = []) {
-  await AsyncStorage.setItem(
-    MESSAGE_SEARCH_HISTORY_KEY,
-    JSON.stringify(items.slice(0, 20)),
-  );
+  const key = await getMessageSearchHistoryKey();
+
+  await AsyncStorage.setItem(key, JSON.stringify(items.slice(0, 20)));
 }
 
 async function deleteMessageSearchHistoryItem(itemId) {
   const items = await getMessageSearchHistory();
   const nextItems = items.filter((item) => item.id !== itemId);
+
   await saveMessageSearchHistory(nextItems);
+
   return nextItems;
 }
 
 async function clearMessageSearchHistory() {
-  await AsyncStorage.removeItem(MESSAGE_SEARCH_HISTORY_KEY);
+  const key = await getMessageSearchHistoryKey();
+
+  await AsyncStorage.removeItem(key);
 }
 
 function buildSavedSearchEntry(keyword = "", currentItems = []) {

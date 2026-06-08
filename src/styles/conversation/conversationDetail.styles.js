@@ -270,6 +270,34 @@ const conversationDetailStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  blockedComposer: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  blockedComposerText: {
+    color: "#65676B",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  unblockButton: {
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: "#E7F3FF",
+  },
+  unblockButtonText: {
+    color: "#1877F2",
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });
 
 export default conversationDetailStyles;

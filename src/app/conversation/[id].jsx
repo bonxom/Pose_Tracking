@@ -2,6 +2,7 @@ import UserAvatar from "@/components/courses/UserAvatar";
 import ChatThumbUpIcon from "@/components/icons/ChatThumbUpIcon";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import colors from "@/constants/colors";
+import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import {
   getConversation,
   sendMessage,
@@ -15,6 +16,7 @@ import Foundation from "@expo/vector-icons/Foundation";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -42,6 +44,40 @@ function isSameDay(a, b) {
     da.getMonth() === db.getMonth() &&
     da.getDate() === db.getDate()
   );
+}
+
+function isBlockedConversation(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+
+  return (
+    value === true ||
+    value === 1 ||
+    text === "1" ||
+    text === "true" ||
+    text === "blocked" ||
+    text === "yes"
+  );
+}
+
+function getBlockUserIdCandidates(item = {}) {
+  return [
+    item.id,
+    item.userId,
+    item.user_id,
+    item.blockedUserId,
+    item.blocked_user_id,
+    item.blocked?.id,
+    item.user?.id,
+    item.raw?.userId,
+    item.raw?.user_id,
+    item.raw?.blockedUserId,
+    item.raw?.blocked_user_id,
+    item.raw?.blocked?.id,
+    item.raw?.user?.id,
+  ]
+    .filter((value) => value !== undefined && value !== null)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
 }
 
 function formatDelimiterDate(isoString) {
@@ -331,10 +367,38 @@ export default function ConversationDetailScreen() {
   const [hasLatest, setHasLatest] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [blockedByMe, setBlockedByMe] = useState(false);
 
   const flatListRef = useRef(null);
   const isAtBottomRef = useRef(false);
   const [layoutHeight, setLayoutHeight] = useState(0);
+
+  const updateBlockedByMe = useCallback(
+    async (nextConversation) => {
+      const targetPartnerId = String(
+        nextConversation?.partner?.id || partnerId || "",
+      ).trim();
+
+      if (!targetPartnerId) {
+        setBlockedByMe(false);
+        return;
+      }
+
+      try {
+        const blocks = await getBlocks();
+
+        setBlockedByMe(
+          blocks.some((item) =>
+            getBlockUserIdCandidates(item).includes(targetPartnerId),
+          ),
+        );
+      } catch (error) {
+        console.warn("Failed to verify blocked partner:", error?.message);
+        setBlockedByMe(false);
+      }
+    },
+    [partnerId],
+  );
 
   const load = useCallback(() => {
     const init = async () => {
@@ -360,11 +424,12 @@ export default function ConversationDetailScreen() {
             setConversation(data);
             setTotalLoaded(data.messages.length);
             setHasLatest(data.messages.length < PAGE_SIZE);
+            await updateBlockedByMe(data);
             return;
           } catch (_error) {
             const profile = await getUserInfo(partnerId);
 
-            setConversation({
+            const nextConversation = {
               id: "",
               partner: {
                 id: partnerId,
@@ -379,10 +444,13 @@ export default function ConversationDetailScreen() {
               },
               isBlocked: "0",
               messages: [],
-            });
+            };
+
+            setConversation(nextConversation);
 
             setTotalLoaded(0);
             setHasLatest(true);
+            await updateBlockedByMe(nextConversation);
             return;
           }
         }
@@ -390,6 +458,7 @@ export default function ConversationDetailScreen() {
         const data = await getConversation(routeId, 0, PAGE_SIZE);
         setConversation(data);
         setTotalLoaded(data.messages.length);
+        await updateBlockedByMe(data);
 
         if (data.messages.length < PAGE_SIZE) {
           setHasLatest(true);
@@ -399,7 +468,14 @@ export default function ConversationDetailScreen() {
       }
     };
     init();
-  }, [routeId, partnerId, isPartnerMode, partnerName, partnerAvatar]);
+  }, [
+    routeId,
+    partnerId,
+    isPartnerMode,
+    partnerName,
+    partnerAvatar,
+    updateBlockedByMe,
+  ]);
 
   useFocusEffect(load);
 
@@ -492,7 +568,17 @@ export default function ConversationDetailScreen() {
 
   const handleSend = async (text) => {
     const trimmed = (text || inputText).trim();
-    if (!trimmed || isSending || !conversation || !mySession) return;
+
+    if (
+      !trimmed ||
+      isSending ||
+      !conversation ||
+      !mySession ||
+      blockedByMe ||
+      isBlockedConversation(conversation?.isBlocked)
+    ) {
+      return;
+    }
 
     setInputText("");
     setIsSending(true);
@@ -561,6 +647,8 @@ export default function ConversationDetailScreen() {
   const items = buildItems(conversation?.messages);
   const myId = mySession?.id;
   const hasText = inputText.trim().length > 0;
+  const isBlocked = isBlockedConversation(conversation?.isBlocked);
+  const blockedByOther = isBlocked && !blockedByMe;
 
   const messages = conversation?.messages || [];
   const latestMessage = messages[messages.length - 1];
@@ -593,6 +681,28 @@ export default function ConversationDetailScreen() {
       pathname: "/profile/[userId]",
       params: { userId },
     });
+  }, [conversation?.partner?.id, partnerId]);
+
+  const handleUnblock = useCallback(async () => {
+    const targetPartnerId = String(
+      conversation?.partner?.id || partnerId || "",
+    ).trim();
+
+    if (!targetPartnerId) return;
+
+    try {
+      await setBlock(targetPartnerId, "unblock");
+
+      setBlockedByMe(false);
+      setConversation((current) => ({
+        ...current,
+        isBlocked: "0",
+      }));
+    } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
+
+      Alert.alert("Không thể bỏ chặn", error?.message || "Đã có lỗi xảy ra.");
+    }
   }, [conversation?.partner?.id, partnerId]);
 
   const handleOpenConversationInfo = useCallback(() => {
@@ -705,66 +815,89 @@ export default function ConversationDetailScreen() {
         </View>
 
         {/* ── Input bar ── */}
-        <View style={conversationDetailStyles.composer}>
-          <Pressable
-            style={conversationDetailStyles.composerIconButton}
-            hitSlop={8}
-          >
-            <Ionicons name="add" size={28} color="#1877F2" />
-          </Pressable>
+        {blockedByMe ? (
+          <View style={conversationDetailStyles.blockedComposer}>
+            <Text style={conversationDetailStyles.blockedComposerText}>
+              Bạn đã chặn người này.
+            </Text>
 
-          <Pressable
-            style={conversationDetailStyles.composerIconButton}
-            hitSlop={8}
-          >
-            <Ionicons name="camera" size={24} color="#1877F2" />
-          </Pressable>
-
-          <View style={conversationDetailStyles.composerInputWrap}>
-            <TextInput
-              style={conversationDetailStyles.composerInput}
-              placeholder="Aa"
-              placeholderTextColor="#8A8D91"
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              returnKeyType="send"
-              onSubmitEditing={() => handleSend(inputText)}
-            />
-
-            {/* Emoji button + picker */}
-            <View>
-              <Pressable
-                style={conversationDetailStyles.emojiButton}
-                onPress={() => setShowEmojiPicker((v) => !v)}
-                hitSlop={8}
-              >
-                <Ionicons name="happy" size={22} color="#1877F2" />
-              </Pressable>
-              {showEmojiPicker && (
-                <CommentReactionPicker
-                  onSelectReaction={(emoji) => {
-                    setInputText((prev) => prev + emoji);
-                    setShowEmojiPicker(false);
-                  }}
-                />
-              )}
-            </View>
+            <Pressable
+              onPress={handleUnblock}
+              style={conversationDetailStyles.unblockButton}
+            >
+              <Text style={conversationDetailStyles.unblockButtonText}>
+                Bỏ chặn
+              </Text>
+            </Pressable>
           </View>
+        ) : blockedByOther ? (
+          <View style={conversationDetailStyles.blockedComposer}>
+            <Text style={conversationDetailStyles.blockedComposerText}>
+              Bạn không thể nhắn tin trong cuộc trò chuyện này.
+            </Text>
+          </View>
+        ) : (
+          <View style={conversationDetailStyles.composer}>
+            <Pressable
+              style={conversationDetailStyles.composerIconButton}
+              hitSlop={8}
+            >
+              <Ionicons name="add" size={28} color="#1877F2" />
+            </Pressable>
 
-          <Pressable
-            style={conversationDetailStyles.likeButton}
-            onPress={() => handleSend(hasText ? inputText : "\uD83D\uDC4D")}
-            disabled={isSending}
-            hitSlop={8}
-          >
-            <Ionicons
-              name={hasText ? "send" : "thumbs-up"}
-              size={hasText ? 22 : 24}
-              color={isSending ? colors.disabled : "#1877F2"}
-            />
-          </Pressable>
-        </View>
+            <Pressable
+              style={conversationDetailStyles.composerIconButton}
+              hitSlop={8}
+            >
+              <Ionicons name="camera" size={24} color="#1877F2" />
+            </Pressable>
+
+            <View style={conversationDetailStyles.composerInputWrap}>
+              <TextInput
+                style={conversationDetailStyles.composerInput}
+                placeholder="Aa"
+                placeholderTextColor="#8A8D91"
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                returnKeyType="send"
+                onSubmitEditing={() => handleSend(inputText)}
+              />
+
+              {/* Emoji button + picker */}
+              <View>
+                <Pressable
+                  style={conversationDetailStyles.emojiButton}
+                  onPress={() => setShowEmojiPicker((v) => !v)}
+                  hitSlop={8}
+                >
+                  <Ionicons name="happy" size={22} color="#1877F2" />
+                </Pressable>
+                {showEmojiPicker && (
+                  <CommentReactionPicker
+                    onSelectReaction={(emoji) => {
+                      setInputText((prev) => prev + emoji);
+                      setShowEmojiPicker(false);
+                    }}
+                  />
+                )}
+              </View>
+            </View>
+
+            <Pressable
+              style={conversationDetailStyles.likeButton}
+              onPress={() => handleSend(hasText ? inputText : "\uD83D\uDC4D")}
+              disabled={isSending}
+              hitSlop={8}
+            >
+              <Ionicons
+                name={hasText ? "send" : "thumbs-up"}
+                size={hasText ? 22 : 24}
+                color={isSending ? colors.disabled : "#1877F2"}
+              />
+            </Pressable>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

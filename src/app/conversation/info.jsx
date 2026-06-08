@@ -23,6 +23,7 @@ export default function ConversationInfoScreen() {
   const partnerId = String(params.partnerId || "").trim();
   const partnerName = String(params.partnerName || "Người dùng");
   const partnerAvatar = String(params.partnerAvatar || "");
+  const conversationId = String(params.conversationId || "").trim();
 
   const [partner, setPartner] = useState({
     id: partnerId,
@@ -123,7 +124,18 @@ export default function ConversationInfoScreen() {
                 [
                   {
                     text: "OK",
-                    onPress: () => router.back(),
+                    onPress: () => {
+                      router.replace({
+                        pathname: "/conversation/[id]",
+                        params: {
+                          id: conversationId || partnerId,
+                          partnerId,
+                          partnerName: partner.username,
+                          partnerAvatar: partner.avatar,
+                          mode: conversationId ? undefined : "partner",
+                        },
+                      });
+                    },
                   },
                 ],
               );
@@ -141,7 +153,13 @@ export default function ConversationInfoScreen() {
         },
       ],
     );
-  }, [partnerId, partner.username, isBlocking]);
+  }, [
+    conversationId,
+    partner.avatar,
+    partner.username,
+    partnerId,
+    isBlocking,
+  ]);
 
   return (
     <SafeAreaView style={styles.container}>

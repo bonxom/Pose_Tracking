@@ -3,6 +3,17 @@ import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
+function extractBlockUsers(response) {
+  const data = response?.data || response || {};
+
+  if (Array.isArray(data.users)) return data.users;
+  if (Array.isArray(data.blocks)) return data.blocks;
+  if (Array.isArray(data.list)) return data.list;
+  if (Array.isArray(data.items)) return data.items;
+
+  return extractList(response);
+}
+
 function requireToken(session) {
   if (!session?.token) {
     throw new Error("Cần đăng nhập để quản lý danh sách chặn.");
@@ -31,13 +42,21 @@ export async function getBlocks() {
         ? ACTIVE_SOURCES.LOCAL
         : ACTIVE_SOURCES.SERVER;
     const deduped = new Map();
-    extractList(response).forEach((item) => {
+    extractBlockUsers(response).forEach((item) => {
       const id = String(
-        item.id || item.user_id || item.blocked_user_id || item.block_id || "",
+        item.blockedUserId ||
+          item.blocked_user_id ||
+          item.userId ||
+          item.user_id ||
+          item.id ||
+          item.block_id ||
+          "",
       );
       if (!id || deduped.has(id)) return;
       deduped.set(id, {
         id,
+        userId: id,
+        blockedUserId: id,
         username:
           item.username || item.name || item.user_name || "Người dùng bị chặn",
         avatar: item.avatar || "",
