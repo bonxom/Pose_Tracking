@@ -4,6 +4,7 @@ import ChatSmileIcon from "@/components/icons/ChatSmileIcon";
 import ChatThumbUpIcon from "@/components/icons/ChatThumbUpIcon";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import colors from "@/constants/colors";
+import sizes from "@/constants/sizes";
 import {
   getConversation,
   sendMessage,
@@ -25,7 +26,10 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -281,6 +285,7 @@ function MessageItem({ item, myId, isLatestFromMe }) {
 export default function ConversationDetailScreen() {
   const params = useLocalSearchParams();
   const conversationId = typeof params.id === "string" ? params.id : "";
+  const insets = useSafeAreaInsets();
 
   const [conversation, setConversation] = useState(null);
   const [mySession, setMySession] = useState(null);
@@ -291,6 +296,7 @@ export default function ConversationDetailScreen() {
   const [hasLatest, setHasLatest] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const flatListRef = useRef(null);
   const isAtBottomRef = useRef(false);
@@ -317,6 +323,36 @@ export default function ConversationDetailScreen() {
   }, [conversationId]);
 
   useFocusEffect(load);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const handleShow = (event) => {
+      const nextHeight = Math.max(0, event?.endCoordinates?.height || 0);
+      setKeyboardHeight(nextHeight);
+
+      if (isAtBottomRef.current) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: false });
+        }, 80);
+      }
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   // ── Load more (newer messages, scroll down) ──────────────────────────────
 
@@ -457,6 +493,11 @@ export default function ConversationDetailScreen() {
   const items = buildItems(conversation?.messages);
   const myId = mySession?.id;
   const hasText = inputText.trim().length > 0;
+  const messageListBottomPadding =
+    sizes.md +
+    (keyboardHeight > 0
+      ? Math.max(0, keyboardHeight - insets.bottom) + sizes.xs
+      : 0);
 
   const messages = conversation?.messages || [];
   const latestMessage = messages[messages.length - 1];
@@ -521,7 +562,10 @@ export default function ConversationDetailScreen() {
             data={items}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={conversationDetailStyles.listContent}
+            contentContainerStyle={[
+              conversationDetailStyles.listContent,
+              { paddingBottom: messageListBottomPadding },
+            ]}
             onEndReached={loadMore}
             onEndReachedThreshold={0.1}
             onScroll={handleScroll}
@@ -578,7 +622,6 @@ export default function ConversationDetailScreen() {
                 <CommentReactionPicker
                   onSelectReaction={(emoji) => {
                     setInputText((prev) => prev + emoji);
-                    setShowEmojiPicker(false);
                   }}
                 />
               )}

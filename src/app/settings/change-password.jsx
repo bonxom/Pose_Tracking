@@ -7,8 +7,10 @@ import { changePassword } from "@/repositories/settingsRepository";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +18,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function longestCommonSubstringLength(first = "", second = "") {
   const rows = Array.from({ length: first.length + 1 }, () =>
@@ -49,6 +52,8 @@ function PasswordField({
   visible,
   onToggleVisible,
   editable,
+  onFocus,
+  onBlur,
 }) {
   return (
     <View style={styles.fieldWrap}>
@@ -61,6 +66,8 @@ function PasswordField({
           editable={editable}
           autoCapitalize="none"
           autoCorrect={false}
+          onFocus={onFocus}
+          onBlur={onBlur}
           placeholderTextColor={colors.placeholder}
           style={styles.passwordInput}
         />
@@ -84,6 +91,8 @@ function PasswordField({
 }
 
 export default function ChangePasswordScreen() {
+  const insets = useSafeAreaInsets();
+  const scrollRef = useRef(null);
   const [oldPassword, setOldPassword] = useState("");
   const [confirmOldPassword, setConfirmOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -98,6 +107,40 @@ export default function ChangePasswordScreen() {
   const [status, setStatus] = useState("");
   const [statusType, setStatusType] = useState("info");
   const [isLoading, setIsLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [focusedField, setFocusedField] = useState("");
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const handleShow = (event) => {
+      setKeyboardHeight(Math.max(0, event?.endCoordinates?.height || 0));
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const extraFocusedPadding =
+    focusedField === "confirmPassword" && keyboardHeight > 0 ? sizes.xxl : 0;
+  const contentBottomPadding =
+    Math.max(sizes.xl, insets.bottom + sizes.md) +
+    (keyboardHeight > 0
+      ? Math.max(0, keyboardHeight - insets.bottom) + sizes.xs
+      : 0) +
+    extraFocusedPadding;
 
   const goBackToSettings = () => {
     if (router.canGoBack?.()) {
@@ -129,6 +172,25 @@ export default function ChangePasswordScreen() {
     setFieldErrors((current) => ({ ...current, [fieldName]: message }));
     setStatus("");
     setStatusType("info");
+  };
+
+  const handleFieldFocus = (fieldName) => {
+    setFocusedField(fieldName);
+
+    if (
+      fieldName === "confirmPassword" ||
+      fieldName === "newPassword" ||
+      fieldName === "confirmOldPassword" ||
+      fieldName === "oldPassword"
+    ) {
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 120);
+    }
+  };
+
+  const handleFieldBlur = (fieldName) => {
+    setFocusedField((current) => (current === fieldName ? "" : current));
   };
 
   const submit = async () => {
@@ -232,7 +294,16 @@ export default function ChangePasswordScreen() {
 
   return (
     <Screen style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: contentBottomPadding },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+      >
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <Pressable style={styles.backButton} onPress={goBackToSettings}>
@@ -242,8 +313,8 @@ export default function ChangePasswordScreen() {
           </View>
           <Text style={styles.title}>Đổi mật khẩu</Text>
           <Text style={styles.subtitle}>
-            Nhập mật khẩu hiện tại 2 lần và chọn mật khẩu mới từ 6 đến
-            10 ký tự, chỉ gồm chữ cái hoặc chữ số.
+            Nhập mật khẩu hiện tại 2 lần và chọn mật khẩu mới từ 6 đến 10 ký tự,
+            chỉ gồm chữ cái hoặc chữ số.
           </Text>
         </View>
 
@@ -259,6 +330,8 @@ export default function ChangePasswordScreen() {
             error={fieldErrors.oldPassword}
             visible={visibleFields.oldPassword}
             onToggleVisible={() => toggleVisible("oldPassword")}
+            onFocus={() => handleFieldFocus("oldPassword")}
+            onBlur={() => handleFieldBlur("oldPassword")}
           />
           <PasswordField
             label="Nhập lại mật khẩu hiện tại"
@@ -271,6 +344,8 @@ export default function ChangePasswordScreen() {
             error={fieldErrors.confirmOldPassword}
             visible={visibleFields.confirmOldPassword}
             onToggleVisible={() => toggleVisible("confirmOldPassword")}
+            onFocus={() => handleFieldFocus("confirmOldPassword")}
+            onBlur={() => handleFieldBlur("confirmOldPassword")}
           />
           <PasswordField
             label="Mật khẩu mới"
@@ -283,6 +358,8 @@ export default function ChangePasswordScreen() {
             error={fieldErrors.newPassword}
             visible={visibleFields.newPassword}
             onToggleVisible={() => toggleVisible("newPassword")}
+            onFocus={() => handleFieldFocus("newPassword")}
+            onBlur={() => handleFieldBlur("newPassword")}
           />
           <PasswordField
             label="Nhập lại mật khẩu mới"
@@ -295,6 +372,8 @@ export default function ChangePasswordScreen() {
             error={fieldErrors.confirmPassword}
             visible={visibleFields.confirmPassword}
             onToggleVisible={() => toggleVisible("confirmPassword")}
+            onFocus={() => handleFieldFocus("confirmPassword")}
+            onBlur={() => handleFieldBlur("confirmPassword")}
           />
           <AppButton
             title="Đổi mật khẩu"
@@ -323,7 +402,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 0,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
+    flexGrow: 1,
     paddingBottom: sizes.xl,
   },
   header: {

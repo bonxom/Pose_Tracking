@@ -13,15 +13,18 @@ import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function BlockedAvatar({ item }) {
   if (item.avatar) {
@@ -50,6 +53,7 @@ function BlockedAvatar({ item }) {
 }
 
 export default function BlocksScreen() {
+  const insets = useSafeAreaInsets();
   const [blocks, setBlocks] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -59,6 +63,36 @@ export default function BlocksScreen() {
   const [actionUserId, setActionUserId] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const handleShow = (event) => {
+      setKeyboardHeight(Math.max(0, event?.endCoordinates?.height || 0));
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const contentBottomPadding =
+    Math.max(sizes.xl, insets.bottom + sizes.md) +
+    (keyboardHeight > 0
+      ? Math.max(0, keyboardHeight - insets.bottom) + sizes.xs
+      : 0);
 
   const loadBlocks = useCallback(() => {
     setIsLoading(true);
@@ -181,7 +215,13 @@ export default function BlocksScreen() {
 
   return (
     <Screen style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: contentBottomPadding },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <Pressable style={styles.backButton} onPress={goBackToSettings}>
