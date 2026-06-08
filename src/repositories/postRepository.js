@@ -12,12 +12,12 @@ import {
   getSourceLabel,
   isServerPost,
 } from "@/repositories/source";
+import * as localPosts from "@/services/postStore";
 import {
   appendHashtagsToContent,
   buildPostHashtag,
   mergeHashtags,
 } from "@/utils/hashtags";
-import * as localPosts from "@/services/postStore";
 
 function serverResult(value) {
   if (value == null) return value;
@@ -68,9 +68,10 @@ function hasInvalidThumbInPost(post) {
 }
 
 function normalizeServerFeedList(response) {
-  return normalizeServerPostList(response).filter(
-    (post) => !hasInvalidThumbInPost(post),
-  );
+  // return normalizeServerPostList(response).filter(
+  //   (post) => !hasInvalidThumbInPost(post),
+  // );
+  return normalizeServerPostList(response);
 }
 
 function normalizeServerPostObject(response) {
@@ -116,7 +117,9 @@ function buildAddPostFields(session, params = {}) {
     : "";
   const fields = {
     token: session.token,
-    described: appendHashtagsToContent(params.content || "", [generatedHashtag]),
+    described: appendHashtagsToContent(params.content || "", [
+      generatedHashtag,
+    ]),
     course_id: params.courseId || "",
     device_slave: DEFAULT_DEVICE_TOKEN,
     device_master: DEFAULT_DEVICE_TOKEN,
@@ -405,7 +408,11 @@ export async function editPost(post, params = {}) {
     token: session.token,
     id: post.id,
     described: appendHashtagsToContent(
-      params.content || params.described || post.described || post.content || "",
+      params.content ||
+        params.described ||
+        post.described ||
+        post.content ||
+        "",
       [params.generatedHashtag || post.generatedHashtag || ""],
     ),
   };
@@ -597,8 +604,10 @@ export async function createExerciseSubmission(params) {
   const videos = params.videos || [];
   const allowServer = shouldUsePostApi(session);
   const createdAt = params.createdAt || new Date().toISOString();
-  const teacherUsername = params.teacherUsername || params.hashtagUsername || "";
-  const submissionContent = String(params.content || "").trim() || "Nộp bài tập.";
+  const teacherUsername =
+    params.teacherUsername || params.hashtagUsername || "";
+  const submissionContent =
+    String(params.content || "").trim() || "Nộp bài tập.";
   const generatedHashtag = params.generatedHashtag
     ? mergeHashtags([params.generatedHashtag])[0] || ""
     : buildPostHashtag({
