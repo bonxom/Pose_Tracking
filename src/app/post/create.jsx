@@ -386,6 +386,12 @@ export default function CreatePostScreen() {
               courseId: String(params.courseId || ""),
               exerciseId: String(params.exerciseId || exercise?.id || ""),
               sourcePostId: params.sourcePostId || sourcePost?.id || "",
+              teacherUsername: String(
+                params.teacherUsername ||
+                  sourcePost?.author?.name ||
+                  sourcePost?.author?.handle ||
+                  "",
+              ),
             })
           : await createPost({
               content: trimmedContent,

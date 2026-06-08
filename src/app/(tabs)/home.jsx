@@ -404,6 +404,7 @@ export default function HomeScreen() {
         courseId: post.courseId,
         exerciseId: post.exerciseId,
         teacherId: post.author?.id || "",
+        teacherUsername: post.author?.name || post.author?.handle || "",
       },
     });
   };
@@ -527,4 +528,3 @@ export default function HomeScreen() {
     </View>
   );
 }
-

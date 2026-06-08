@@ -1,4 +1,9 @@
 import { getAuthSession } from "@/utils/session";
+import {
+  buildPostHashtag,
+  mergeHashtags,
+  splitContentAndHashtags,
+} from "@/utils/hashtags";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
@@ -115,6 +120,11 @@ function normalizePost(post = {}) {
       }))
     : [];
 
+  const hashtagPayload = splitContentAndHashtags(
+    post.content || post.described || "",
+    Array.isArray(post.hashtags) ? post.hashtags : [],
+  );
+
   return {
     id: post.id || createId("post"),
     type: post.type || "post",
@@ -127,8 +137,8 @@ function normalizePost(post = {}) {
       avatar: post.author?.avatar || "",
     },
     createdAt: post.createdAt || new Date().toISOString(),
-    content: post.content || post.described || "",
-    described: post.described || post.content || "",
+    content: hashtagPayload.content,
+    described: hashtagPayload.content,
     videos,
     likeCount: Number.isFinite(post.likeCount) ? post.likeCount : 0,
     commentCount: comments.length,
@@ -142,7 +152,8 @@ function normalizePost(post = {}) {
     teacherId: post.teacherId || post.author?.id || "",
     courseTitle: post.courseTitle || "",
     exerciseTitle: post.exerciseTitle || "",
-    hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+    hashtags: hashtagPayload.hashtags,
+    generatedHashtag: post.generatedHashtag || hashtagPayload.generatedHashtag || "",
     scoreSummary: normalizeScoreSummary(post.scoreSummary),
     reports: Array.isArray(post.reports) ? post.reports : [],
     comments,
@@ -210,11 +221,14 @@ export async function createPost({
   courseId = "",
   exerciseId = "",
   sourcePostId = "",
+  createdAt = "",
   type = "post",
   canSubmit = false,
   courseTitle = "",
   exerciseTitle = "",
+  hashtagUsername = "",
   hashtags = [],
+  generatedHashtag = "",
   scoreSummary = null,
   comments = [],
 }) {
@@ -242,6 +256,15 @@ export async function createPost({
     session?.displayName ||
     "Người dùng mới";
   const phoneSuffix = session?.identifier?.toString().slice(-4) || "0000";
+  const normalizedCreatedAt = createdAt || new Date().toISOString();
+  const teacherHashtag = generatedHashtag
+    ? mergeHashtags([generatedHashtag])[0] || ""
+    : buildPostHashtag({
+        username: hashtagUsername || authorName,
+        createdAt: normalizedCreatedAt,
+        described: trimmedContent,
+      });
+  const mergedHashtags = mergeHashtags([teacherHashtag], hashtags);
 
   const newPost = normalizePost({
     id: createId("post"),
@@ -253,7 +276,7 @@ export async function createPost({
       online: true,
       avatar: session?.avatarUri || session?.avatar || "",
     },
-    createdAt: new Date().toISOString(),
+    createdAt: normalizedCreatedAt,
     content: trimmedContent,
     described: trimmedContent,
     videos: normalizedVideos,
@@ -267,7 +290,8 @@ export async function createPost({
     sourcePostId,
     courseTitle,
     exerciseTitle,
-    hashtags,
+    hashtags: mergedHashtags,
+    generatedHashtag: teacherHashtag,
     scoreSummary,
     comments,
     type,
@@ -292,6 +316,9 @@ export async function updatePost(postId, params = {}) {
       content: params.content ?? params.described ?? normalized.content,
       described: params.described ?? params.content ?? normalized.described,
       videos: params.videos ?? normalized.videos,
+      hashtags: params.hashtags ?? normalized.hashtags,
+      generatedHashtag:
+        params.generatedHashtag ?? normalized.generatedHashtag ?? "",
     });
     return updatedPost;
   });
@@ -358,6 +385,10 @@ export async function createExerciseSubmission({
   courseId = "",
   exerciseId = "",
   sourcePostId = "",
+  createdAt = "",
+  teacherUsername = "",
+  hashtags = [],
+  generatedHashtag = "",
   videos = [],
   courseTitle = "",
   exerciseTitle = "Bài tập",
@@ -371,6 +402,14 @@ export async function createExerciseSubmission({
   const scoringComment = buildScoringComment(scoreTemplate);
   const normalizedVideos = videos.filter(Boolean).slice(0, 2);
   const body = content.trim() ? content.trim() : "Nộp bài tập.";
+  const normalizedCreatedAt = createdAt || new Date().toISOString();
+  const normalizedGeneratedHashtag =
+    mergeHashtags([generatedHashtag])[0] ||
+    buildPostHashtag({
+      username: teacherUsername,
+      createdAt: normalizedCreatedAt,
+      described: body,
+    });
 
   return createPost({
     content: body,
@@ -378,11 +417,18 @@ export async function createExerciseSubmission({
     courseId,
     exerciseId,
     sourcePostId,
+    createdAt: normalizedCreatedAt,
     type: "submission",
     canSubmit: false,
     courseTitle,
     exerciseTitle,
-    hashtags: [courseId, exerciseId].filter(Boolean).map((item) => `#${item}`),
+    hashtagUsername: teacherUsername,
+    hashtags: mergeHashtags(
+      [normalizedGeneratedHashtag],
+      hashtags,
+      [courseId, exerciseId].filter(Boolean),
+    ),
+    generatedHashtag: normalizedGeneratedHashtag,
     scoreSummary: {
       score: scoreTemplate.score,
       label: scoreTemplate.label,
