@@ -22,6 +22,11 @@ const commentOverlayStyles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
+  commentListContainer: {
+    flex: 1,
+    minHeight: 0,
+    position: "relative",
+  },
   dragZone: {
     paddingTop: sizes.xs,
     gap: sizes.xs,
@@ -81,6 +86,10 @@ const commentOverlayStyles = StyleSheet.create({
   },
   commentListContent: {
     paddingBottom: sizes.md,
+  },
+  reactionDismissOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
   },
   composer: {
     gap: sizes.sm,

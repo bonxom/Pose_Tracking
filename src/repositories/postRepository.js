@@ -282,7 +282,7 @@ export async function toggleLike(post) {
     throw new Error("Backend mode chỉ hỗ trợ thao tác với bài viết từ server.");
   }
 
-  console.log("token: ", (await getCurrentSession())?.token);
+  // console.log("token: ", (await getCurrentSession())?.token);
 
   const session = await getCurrentSession();
   assertServerSession(session);
@@ -297,10 +297,12 @@ export async function toggleLike(post) {
   const isLiked = !targetPost.isLiked;
   // console.log("like count: ", targetPost.likeCount);
   // console.log("comment count: ", targetPost.commentCount);
+  // console.log("is liked FE: ", isLiked);
+  // console.log("is like BE: ", response.data?.is_liked == 1);
   return {
     ...targetPost,
-    isLiked,
-    likeCount: Math.max(0, targetPost.likeCount + (isLiked ? 1 : -1)),
+    isLiked: response.data?.is_liked == 1,
+    likeCount: response.data?.like,
   };
 }
 

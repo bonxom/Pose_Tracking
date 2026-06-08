@@ -26,6 +26,7 @@ import postStyles from "@/styles/post.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
+import { Asset } from "expo-asset";
 import * as ImagePicker from "expo-image-picker";
 import { createVideoPlayer } from "expo-video";
 import { router, useLocalSearchParams } from "expo-router";
@@ -49,21 +50,99 @@ function normalizeDurationMs(value) {
   return duration > 1000 ? Math.round(duration) : Math.round(duration * 1000);
 }
 
-async function readDurationFromVideoUri(uri) {
+const downloadedVideoUriCache = new Map();
+
+function inferVideoAssetType(uri = "", mimeType = "") {
+  const normalizedMimeType = String(mimeType || "")
+    .trim()
+    .toLowerCase();
+  if (normalizedMimeType.includes("/")) {
+    return normalizedMimeType.split("/")[1] || "mp4";
+  }
+
+  const cleanUri = String(uri || "").split("?")[0];
+  const extension = cleanUri.includes(".")
+    ? cleanUri.split(".").pop()?.toLowerCase()
+    : "";
+
+  return extension || "mp4";
+}
+
+async function downloadVideoToLocalUri(uri, mimeType = "") {
+  if (!uri) return "";
+
+  const cachedLocalUri = downloadedVideoUriCache.get(uri);
+  if (cachedLocalUri) {
+    // console.log("EDIT_VIDEO_LOCAL_CACHE_HIT", {
+    //   uri,
+    //   localUri: cachedLocalUri,
+    // });
+    return cachedLocalUri;
+  }
+
+  const assetType = inferVideoAssetType(uri, mimeType);
+  const asset = new Asset({
+    name: "",
+    type: assetType,
+    uri,
+  });
+
+  // console.log("EDIT_VIDEO_LOCAL_DOWNLOAD_START", {
+  //   uri,
+  //   assetType,
+  // });
+  const downloadedAsset = await asset.downloadAsync();
+  const localUri = String(downloadedAsset.localUri || "");
+  // console.log("EDIT_VIDEO_LOCAL_DOWNLOAD_RESULT", {
+  //   uri,
+  //   assetType,
+  //   localUri,
+  //   downloaded: Boolean(downloadedAsset.downloaded),
+  // });
+
+  if (localUri) {
+    downloadedVideoUriCache.set(uri, localUri);
+  }
+
+  return localUri;
+}
+
+async function readDurationFromVideoUri(uri, options = {}) {
   if (!uri) return 0;
+  const localUri =
+    typeof document === "undefined"
+      ? await downloadVideoToLocalUri(uri, options.mimeType)
+      : "";
+  const sourceUri = localUri || uri;
+
+  // console.log("EDIT_VIDEO_DURATION_SOURCE_URI", {
+  //   originalUri: uri,
+  //   localUri,
+  //   sourceUri,
+  // });
 
   if (typeof document !== "undefined") {
     return new Promise((resolve) => {
       const video = document.createElement("video");
       video.preload = "metadata";
-      video.onloadedmetadata = () =>
-        resolve(normalizeDurationMs(video.duration || 0));
-      video.onerror = () => resolve(0);
-      video.src = uri;
+      video.onloadedmetadata = () => {
+        const duration = normalizeDurationMs(video.duration || 0);
+        // console.log("EDIT_VIDEO_DURATION_WEB_METADATA", {
+        //   uri,
+        //   sourceUri,
+        //   duration,
+        // });
+        resolve(duration);
+      };
+      video.onerror = () => {
+        // console.log("EDIT_VIDEO_DURATION_WEB_ERROR", { uri, sourceUri });
+        resolve(0);
+      };
+      video.src = sourceUri;
     });
   }
 
-  const player = createVideoPlayer({ uri });
+  const player = createVideoPlayer({ uri: sourceUri });
 
   return new Promise((resolve) => {
     let settled = false;
@@ -74,35 +153,69 @@ async function readDurationFromVideoUri(uri) {
     const finish = (value = 0) => {
       if (settled) return;
       settled = true;
+      const normalizedDuration = normalizeDurationMs(value);
+      // console.log("EDIT_VIDEO_DURATION_NATIVE_RESULT", {
+      //   uri,
+      //   sourceUri,
+      //   rawDuration: value,
+      //   normalizedDuration,
+      //   playerDuration: Number(player.duration || 0),
+      // });
       clearTimeout(timeoutId);
       sourceLoadSubscription?.remove();
       statusChangeSubscription?.remove();
       try {
         player.release();
       } catch {}
-      resolve(normalizeDurationMs(value));
+      resolve(normalizedDuration);
     };
 
     const resolvePlayerDuration = (value = 0) => {
       const duration = Number(value || player.duration || 0);
+      // console.log("EDIT_VIDEO_DURATION_NATIVE_CHECK", {
+      //   uri,
+      //   sourceUri,
+      //   candidateDuration: duration,
+      //   payloadDuration: Number(value || 0),
+      //   playerDuration: Number(player.duration || 0),
+      // });
       if (Number.isFinite(duration) && duration > 0) {
         finish(duration);
       }
     };
 
     sourceLoadSubscription = player.addListener("sourceLoad", (payload) => {
+      // console.log("EDIT_VIDEO_DURATION_SOURCE_LOAD", {
+      //   uri,
+      //   sourceUri,
+      //   payloadDuration: Number(payload?.duration || 0),
+      // });
       resolvePlayerDuration(payload?.duration);
     });
     statusChangeSubscription = player.addListener(
       "statusChange",
       (payload) => {
+        // console.log("EDIT_VIDEO_DURATION_STATUS_CHANGE", {
+        //   uri,
+        //   sourceUri,
+        //   status: payload?.status || "",
+        //   error: payload?.error || null,
+        //   playerDuration: Number(player.duration || 0),
+        // });
         resolvePlayerDuration();
         if (payload?.error) {
           finish(0);
         }
       },
     );
-    timeoutId = setTimeout(() => finish(0), 8000);
+    timeoutId = setTimeout(() => {
+      // console.log("EDIT_VIDEO_DURATION_TIMEOUT", {
+      //   uri,
+      //   sourceUri,
+      //   playerDuration: Number(player.duration || 0),
+      // });
+      finish(0);
+    }, 8000);
 
     resolvePlayerDuration();
   });
@@ -118,6 +231,13 @@ async function hydrateVideoDurations(videos = []) {
       if (!video) return null;
 
       const duration = normalizeDurationMs(video.duration || video.durationMs);
+      // console.log("EDIT_VIDEO_DURATION_INPUT", {
+      //   uri: video.uri || "",
+      //   mimeType: video.mimeType || "",
+      //   rawDuration: Number(video.duration || 0),
+      //   rawDurationMs: Number(video.durationMs || 0),
+      //   normalizedDuration: duration,
+      // });
       if (duration) {
         return {
           ...video,
@@ -125,7 +245,13 @@ async function hydrateVideoDurations(videos = []) {
         };
       }
 
-      const probedDuration = await readDurationFromVideoUri(video.uri);
+      const probedDuration = await readDurationFromVideoUri(video.uri, {
+        mimeType: video.mimeType,
+      });
+      // console.log("EDIT_VIDEO_DURATION_PROBED", {
+      //   uri: video.uri || "",
+      //   probedDuration,
+      // });
       if (!probedDuration) {
         return video;
       }
@@ -158,6 +284,7 @@ export default function EditPostScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
+  const [videoValidationError, setVideoValidationError] = useState("");
 
   const existingVideos = useMemo(
     () => normalizeVideoSlots(post?.videos || []),
@@ -194,21 +321,38 @@ export default function EditPostScreen() {
           throw new Error("Bài viết không tồn tại.");
         }
 
-        const hydratedVideos = await hydrateVideoDurations(
-          normalizeVideoSlots(loadedPost.videos || []),
-        );
-
         const initialText = loadedPost.content || loadedPost.described || "";
 
         if (isMounted) {
-          setPost({
-            ...loadedPost,
-            videos: hydratedVideos,
-          });
+          setPost(loadedPost);
           setContent(initialText);
           setInitialContent(initialText);
           setStatusText("");
+          setIsLoading(false);
         }
+
+        void (async () => {
+          try {
+            const hydratedVideos = await hydrateVideoDurations(
+              normalizeVideoSlots(loadedPost.videos || []),
+            );
+
+            if (!isMounted) return;
+
+            setPost((current) => {
+              if (!current?.id || current.id !== loadedPost.id) {
+                return current;
+              }
+
+              return {
+                ...current,
+                videos: hydratedVideos,
+              };
+            });
+          } catch (error) {
+            console.warn("Failed to hydrate edit post videos:", error);
+          }
+        })();
       } catch (error) {
         if (await redirectIfSessionExpired(error, router)) return;
         console.warn("Failed to load edit post data:", error);
@@ -216,7 +360,7 @@ export default function EditPostScreen() {
           setStatusText(error.message || "Không thể tải dữ liệu bài viết.");
         }
       } finally {
-        if (isMounted) {
+        if (isMounted && !post) {
           setIsLoading(false);
         }
       }
@@ -269,6 +413,36 @@ export default function EditPostScreen() {
     };
   };
 
+  const validateReplacementVideoPair = (
+    videos = [],
+    { shouldAlert = false } = {},
+  ) => {
+    const completeVideos = videos.filter(Boolean);
+    const localReplacementCount = completeVideos.filter(
+      (video) => video?.isLocalUpload,
+    ).length;
+
+    if (completeVideos.length !== 2 || localReplacementCount < 1) {
+      setVideoValidationError("");
+      return true;
+    }
+
+    try {
+      validateEditableVideos(completeVideos);
+      setVideoValidationError("");
+      return true;
+    } catch (error) {
+      const message =
+        error?.message ||
+        "Hai video phải có thời lượng giống nhau trước khi lưu.";
+      setVideoValidationError(message);
+      if (shouldAlert) {
+        Alert.alert("Video chưa hợp lệ", message);
+      }
+      return false;
+    }
+  };
+
   const pickVideo = async (slotIndex) => {
     if (!isReplacingVideos) {
       setIsReplacingVideos(true);
@@ -286,9 +460,13 @@ export default function EditPostScreen() {
     }
 
     const video = await buildVideoItem(result.assets[0], slotIndex);
-    setReplacementVideos((current) =>
-      current.map((item, index) => (index === slotIndex ? video : item)),
-    );
+    setReplacementVideos((current) => {
+      const nextVideos = current.map((item, index) =>
+        index === slotIndex ? video : item,
+      );
+      validateReplacementVideoPair(nextVideos, { shouldAlert: true });
+      return nextVideos;
+    });
   };
 
   const removeSelectedVideo = (index) => {
@@ -308,17 +486,21 @@ export default function EditPostScreen() {
 
           if (!isReplacingVideos) {
             setIsReplacingVideos(true);
-            setReplacementVideos(
-              existingVideos.map((item, itemIndex) =>
+            const nextVideos = existingVideos.map((item, itemIndex) =>
                 itemIndex === index ? null : item,
-              ),
-            );
+              );
+            setReplacementVideos(nextVideos);
+            validateReplacementVideoPair(nextVideos);
             return;
           }
 
-          setReplacementVideos((current) =>
-            current.map((item, itemIndex) => (itemIndex === index ? null : item)),
-          );
+          setReplacementVideos((current) => {
+            const nextVideos = current.map((item, itemIndex) =>
+              itemIndex === index ? null : item,
+            );
+            validateReplacementVideoPair(nextVideos);
+            return nextVideos;
+          });
         },
       },
     ]);
@@ -408,7 +590,8 @@ export default function EditPostScreen() {
   const isSubmitDisabled =
     isSubmitting ||
     !content.trim() ||
-    (isReplacingVideos && replacementVideoCount !== 2);
+    (isReplacingVideos && replacementVideoCount !== 2) ||
+    Boolean(videoValidationError);
 
   const bottomToolbarInset = keyboardOffset;
 
@@ -530,6 +713,8 @@ export default function EditPostScreen() {
                         video={video}
                         label={slot.label}
                         onPress={() => setActiveVideoUri(video.uri)}
+                        shouldPrimePlayback
+                        showPlayIcon
                       />
                     </>
                   ) : (

@@ -175,7 +175,6 @@ export default function PostCard({
                 metaIsFresh && postStyles.freshMetaText,
               ]}
             >
-              {post.author?.handle || "@nguoidung"} ·{" "}
               {formatRelativeTime(post.createdAt)} · <EarthIcon />
             </Text>
           </View>
