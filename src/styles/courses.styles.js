@@ -1,40 +1,16 @@
 import colors from "@/constants/colors";
+import sizes from "@/constants/sizes";
 import { StyleSheet } from "react-native";
 
 const coursesStyles = StyleSheet.create({
   // ── Layout ──
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: colors.background,
   },
 
-  // ── Main Header ──
-  header: {
-    paddingBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  searchBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   // ── Tab Pills ──
-  tabPills: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
+
   tabPill: {
     backgroundColor: colors.gray,
     paddingHorizontal: 16,
@@ -51,8 +27,8 @@ const coursesStyles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.divider,
-    marginHorizontal: 16,
-    marginVertical: 10,
+    marginHorizontal: sizes.lg,
+    marginVertical: sizes.sm,
   },
 
   // ── Section Header ──
@@ -88,6 +64,7 @@ const coursesStyles = StyleSheet.create({
   userCard: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: sizes.lg,
     paddingVertical: 8,
     gap: 12,
   },

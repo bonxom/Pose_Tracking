@@ -1,6 +1,7 @@
 import AllRequestsView from "@/components/courses/views/AllRequestsView";
 import AllStudentsView from "@/components/courses/views/AllStudentsView";
 import CoursesFeedView from "@/components/courses/views/CoursesFeedView";
+import MyCoursesView from "@/components/courses/views/MyCoursesView";
 import RequestsView from "@/components/courses/views/RequestsView";
 import { getCurrentSession } from "@/repositories/source";
 import { useFocusEffect } from "expo-router";
@@ -20,6 +21,9 @@ export default function CoursesScreen() {
   const [allRequestsCache, setAllRequestsCache] = useState(null);
   const [allStudentsCache, setAllStudentsCache] = useState(null);
 
+  // HV cache state
+  const [myCoursesCache, setMyCoursesCache] = useState(null);
+
   useFocusEffect(
     useCallback(() => {
       // Resolve role and reset GV caches whenever this tab is focused
@@ -29,21 +33,30 @@ export default function CoursesScreen() {
       getCurrentSession()
         .then((session) => {
           if (!cancelled) {
-            setRole(String(session?.role || "").toUpperCase());
+            const userRole = String(session?.role || "").toUpperCase();
+            setRole(userRole);
+            if (userRole === "HV") {
+              setCurrentView("feed");
+            } else {
+              setCurrentView("requests");
+            }
           }
         })
         .catch(() => {
-          if (!cancelled) setRole(""); // treat as unknown – show GV view
+          if (!cancelled) {
+            setRole(""); // treat as unknown – show GV view
+            setCurrentView("requests");
+          }
         })
         .finally(() => {
           if (!cancelled) setIsLoadingSession(false);
         });
 
-      // Reset GV view state on every focus
-      setCurrentView("requests");
+      // Reset GV and HV view state and caches on every focus
       setRequestsCache(null);
       setAllRequestsCache(null);
       setAllStudentsCache(null);
+      setMyCoursesCache(null);
 
       return () => {
         cancelled = true;
@@ -72,7 +85,20 @@ export default function CoursesScreen() {
 
   // ── HV: course feed ────────────────────────────────────────────────────────
   if (role === "HV") {
-    return <CoursesFeedView />;
+    if (currentView === "myCourses") {
+      return (
+        <MyCoursesView
+          onBack={() => setCurrentView("feed")}
+          cache={myCoursesCache}
+          setCache={setMyCoursesCache}
+        />
+      );
+    }
+    return (
+      <CoursesFeedView
+        onGoToMyCourses={() => setCurrentView("myCourses")}
+      />
+    );
   }
 
   // ── GV: management views ───────────────────────────────────────────────────

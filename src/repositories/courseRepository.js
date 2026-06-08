@@ -71,25 +71,13 @@ function normalizeStudent(item = {}, source = ACTIVE_SOURCES.SERVER) {
   };
 }
 
-function buildStudentCollection(
-  items = [],
-  total = items.length,
-  source = ACTIVE_SOURCES.SERVER,
-) {
-  const students = items.map((item) => normalizeStudent(item, source));
-  return Object.assign(students, {
-    students,
-    total: String(total ?? students.length),
-  });
-}
-
-export async function getCurrentCourse() {
+export async function getMyCourses() {
   const session = await getCurrentSession();
 
   try {
     const response = await backendApi.getListCoursesOfStudent({
       token: session.token,
-      user_id: session.id || session.user_id || session.identifier || "",
+      user_id: session.id,
       index: "0",
       count: "20",
     });
@@ -99,10 +87,7 @@ export async function getCurrentCourse() {
       message: "Backend course list failed",
     });
 
-    const course = extractList(response)[0];
-    return course
-      ? normalizeCourse(course, ACTIVE_SOURCES.SERVER)
-      : emptyServerCourse();
+    return response.data?.courses || [];
   } catch (error) {
     console.info("[DATA] Server course fallback", error.message);
     throw error;

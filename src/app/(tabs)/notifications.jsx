@@ -1,5 +1,5 @@
 import NoInternetView from "@/components/common/NoInternetView";
-import SearchIcon from "@/components/icons/SearchIcon";
+import SearchButton from "@/components/common/SearchButton";
 import { API_TYPE, API_TYPES } from "@/config/env";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
@@ -12,6 +12,7 @@ import {
   setNotificationBadge,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
+import globalStyles from "@/styles/global.styles";
 import styles from "@/styles/notifications.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
@@ -547,53 +548,45 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <Text style={styles.title}>Thông báo</Text>
-          <Pressable
-            onPress={() => router.push("/search")}
-            hitSlop={8}
-            style={styles.searchButton}
-          >
-            <SearchIcon size={24} />
-          </Pressable>
-        </View>
+      <View style={[globalStyles.headerTopRow, { paddingBottom: 4 }]}>
+        <Text style={globalStyles.headerTitle}>Thông báo</Text>
+        <SearchButton />
+      </View>
 
-        <View style={styles.filterRow}>
-          <Pressable
-            onPress={() => setActiveFilter("all")}
+      <View style={styles.filterRow}>
+        <Pressable
+          onPress={() => setActiveFilter("all")}
+          style={[
+            styles.filterChip,
+            activeFilter === "all" && styles.filterChipActive,
+          ]}
+        >
+          <Text
             style={[
-              styles.filterChip,
-              activeFilter === "all" && styles.filterChipActive,
+              styles.filterText,
+              activeFilter === "all" && styles.filterTextActive,
             ]}
           >
-            <Text
-              style={[
-                styles.filterText,
-                activeFilter === "all" && styles.filterTextActive,
-              ]}
-            >
-              Tất cả
-            </Text>
-          </Pressable>
+            Tất cả
+          </Text>
+        </Pressable>
 
-          <Pressable
-            onPress={() => setActiveFilter("unread")}
+        <Pressable
+          onPress={() => setActiveFilter("unread")}
+          style={[
+            styles.filterChip,
+            activeFilter === "unread" && styles.filterChipActive,
+          ]}
+        >
+          <Text
             style={[
-              styles.filterChip,
-              activeFilter === "unread" && styles.filterChipActive,
+              styles.filterText,
+              activeFilter === "unread" && styles.filterTextActive,
             ]}
           >
-            <Text
-              style={[
-                styles.filterText,
-                activeFilter === "unread" && styles.filterTextActive,
-              ]}
-            >
-              Chưa đọc
-            </Text>
-          </Pressable>
-        </View>
+            Chưa đọc
+          </Text>
+        </Pressable>
       </View>
 
       {hasNewNotification ? (

@@ -1,26 +1,35 @@
 import NoInternetView from "@/components/common/NoInternetView";
+import SearchButton from "@/components/common/SearchButton";
 import CourseCard from "@/components/courses/CourseCard";
 import colors from "@/constants/colors";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import { getListCourses, requestCourse } from "@/repositories/courseRepository";
 import { feedCacheState } from "@/state/feedCacheState";
 import coursesStyles from "@/styles/courses.styles";
-import { CACHE_KEY_COURSES_FEED, readCache, writeCache } from "@/utils/cacheStore";
+import globalStyles from "@/styles/global.styles";
+import {
+  CACHE_KEY_COURSES_FEED,
+  readCache,
+  writeCache,
+} from "@/utils/cacheStore";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
-  View
+  View,
 } from "react-native";
 
-export default function CoursesFeedView() {
+export default function CoursesFeedView({ onGoToMyCourses }) {
   const [courses, setCourses] = useState(feedCacheState.coursesFeedCache);
-  const [isLoading, setIsLoading] = useState(feedCacheState.coursesFeedCache.length === 0);
+  const [isLoading, setIsLoading] = useState(
+    feedCacheState.coursesFeedCache.length === 0,
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorText, setErrorText] = useState("");
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
@@ -51,7 +60,11 @@ export default function CoursesFeedView() {
 
   // Load persistent cache from disk once per app session
   useEffect(() => {
-    if (feedCacheState.coursesCacheLoaded || feedCacheState.coursesFeedCache.length > 0) return;
+    if (
+      feedCacheState.coursesCacheLoaded ||
+      feedCacheState.coursesFeedCache.length > 0
+    )
+      return;
     readCache(CACHE_KEY_COURSES_FEED).then((cached) => {
       if (cached?.length > 0 && feedCacheState.coursesFeedCache.length === 0) {
         feedCacheState.coursesFeedCache = cached;
@@ -60,7 +73,7 @@ export default function CoursesFeedView() {
       }
       feedCacheState.coursesCacheLoaded = true;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const mounted = useRef(false);
@@ -93,11 +106,17 @@ export default function CoursesFeedView() {
     }
   }, []);
 
-  if ((isLoading && !isRefreshing) || (isNoInternet && feedCacheState.coursesFeedCache.length === 0)) {
+  if (
+    (isLoading && !isRefreshing) ||
+    (isNoInternet && feedCacheState.coursesFeedCache.length === 0)
+  ) {
     return (
       <View style={coursesStyles.centerBox}>
         {isNoInternet ? (
-          <NoInternetView onRefresh={() => fetchCourses({ refresh: true })} refreshing={isRefreshing} />
+          <NoInternetView
+            onRefresh={() => fetchCourses({ refresh: true })}
+            refreshing={isRefreshing}
+          />
         ) : (
           <ActivityIndicator size="large" />
         )}
@@ -108,7 +127,10 @@ export default function CoursesFeedView() {
   if (isNoInternet) {
     return (
       <View style={coursesStyles.container}>
-        <NoInternetView onRefresh={() => fetchCourses({ refresh: true })} refreshing={isRefreshing} />
+        <NoInternetView
+          onRefresh={() => fetchCourses({ refresh: true })}
+          refreshing={isRefreshing}
+        />
       </View>
     );
   }
@@ -130,9 +152,23 @@ export default function CoursesFeedView() {
         ListHeaderComponent={
           <>
             {/* Page title */}
-            <View style={coursesStyles.header}>
-              <Text style={coursesStyles.headerTitle}>Khoá học</Text>
+            <View style={[globalStyles.headerTopRow, { paddingBottom: 4 }]}>
+              <Text style={globalStyles.headerTitle}>Khoá học</Text>
+              <SearchButton />
             </View>
+
+            {/* Tab Pills */}
+            <View style={globalStyles.tabPills}>
+              <Pressable
+                style={coursesStyles.tabPill}
+                onPress={onGoToMyCourses}
+              >
+                <Text style={coursesStyles.tabPillText}>Khóa học của tôi</Text>
+              </Pressable>
+            </View>
+
+            {/* Divider */}
+            <View style={coursesStyles.divider} />
 
             {/* Error banner */}
             {errorText ? (
@@ -176,4 +212,3 @@ const localStyles = StyleSheet.create({
     paddingBottom: 8,
   },
 });
-

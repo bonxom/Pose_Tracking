@@ -1,26 +1,23 @@
-import { logoutSession } from "@/repositories/authRepository";
+import SearchButton from "@/components/common/SearchButton";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
+import { logoutSession } from "@/repositories/authRepository";
+import globalStyles from "@/styles/global.styles";
 import { resolveAvatarUri } from "@/utils/profile";
-import {
-  getAuthSession,
-  subscribeAuthSession,
-} from "@/utils/session";
+import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 
 function MenuShortcut({ icon, label, color = "#0866FF", onPress }) {
   return (
@@ -99,7 +96,8 @@ export default function MenuScreen() {
     if (loggingOut) return;
     setLoggingOut(true);
 
-    const currentSession = session || (await getAuthSession().catch(() => null));
+    const currentSession =
+      session || (await getAuthSession().catch(() => null));
 
     try {
       await clearCurrentUserSession();
@@ -129,20 +127,13 @@ export default function MenuScreen() {
   const displayName = session?.displayName || session?.username || "Người dùng";
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Menu</Text>
-          <Pressable
-            style={styles.headerIcon}
-            onPress={() => router.push("/search")}
-            accessibilityRole="button"
-            accessibilityLabel="Tìm kiếm"
-          >
-            <Ionicons name="search" size={22} color="#050505" />
-          </Pressable>
-        </View>
+    <>
+      <View style={globalStyles.headerTopRow}>
+        <Text style={globalStyles.headerTitle}>Menu</Text>
+        <SearchButton />
+      </View>
 
+      <View style={styles.content}>
         <Pressable
           style={styles.profileRow}
           onPress={() => router.push("/(tabs)/profile")}
@@ -222,40 +213,16 @@ export default function MenuScreen() {
             <ActivityIndicator color="#0866FF" />
           </View>
         ) : null}
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#F0F2F5",
-  },
   content: {
     paddingHorizontal: sizes.md,
     paddingBottom: sizes.xl,
     gap: sizes.md,
-  },
-  header: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: "900",
-    color: "#050505",
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E4E6EB",
   },
   profileRow: {
     minHeight: 76,
