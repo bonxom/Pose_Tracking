@@ -34,6 +34,7 @@ export default function PostCard({
   onEditPost,
   onDeletePost,
   onReportPost,
+  onPostUnavailable,
   detail = false,
   flat = false,
 }) {
@@ -388,6 +389,7 @@ export default function PostCard({
         visible={isOptionsVisible}
         onClose={() => setIsOptionsVisible(false)}
         isOwnPost={isOwnPost}
+        post={post}
         postId={post?.id}
         onTurnOffNotifications={() => setIsOptionsVisible(false)}
         onTurnOnNotifications={() => setIsOptionsVisible(false)}
@@ -400,9 +402,12 @@ export default function PostCard({
               }
             : undefined
         }
-        onReportPost={() => {
-          setIsOptionsVisible(false);
-          onReportPost?.();
+        onReportPost={onReportPost}
+        onPostUnavailable={(unavailablePostId) => {
+          onPostUnavailable?.(unavailablePostId || post?.id);
+          if (!onPostUnavailable && onDeletePost) {
+            onDeletePost(unavailablePostId || post?.id);
+          }
         }}
       />
     </Animated.View>

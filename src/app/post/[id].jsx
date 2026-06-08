@@ -11,27 +11,31 @@ import colors from "@/constants/colors";
 import { addComment, getComments } from "@/repositories/commentRepository";
 import {
   getPostById,
-  reportPost,
   toggleLike,
 } from "@/repositories/postRepository";
+import sizes from "@/constants/sizes";
 import postStyles from "@/styles/post.styles";
 import { getAuthSession } from "@/utils/session";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const COMMENT_PREVIEW_COUNT = 3;
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [post, setPost] = useState(null);
   const [session, setSession] = useState(null);
   const [statusText, setStatusText] = useState("");
@@ -44,6 +48,16 @@ export default function PostDetailScreen() {
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const inlineCommentInputRef = useRef(null);
+  const scrollViewRef = useRef(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  const detailScrollBottomPadding = useMemo(
+    () =>
+      sizes.xl +
+      Math.max(insets.bottom, sizes.md) +
+      (keyboardHeight > 0 ? keyboardHeight + sizes.md : 0),
+    [insets.bottom, keyboardHeight],
+  );
 
   const handleGoBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -126,6 +140,35 @@ export default function PostDetailScreen() {
   useEffect(() => {
     loadCommentPreview();
   }, [loadCommentPreview]);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const handleShow = (event) => {
+      setKeyboardHeight(Math.max(0, event?.endCoordinates?.height || 0));
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const handleInlineCommentFocus = useCallback(() => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, Platform.OS === "web" ? 0 : 120);
+  }, []);
 
   const handleToggleLike = async () => {
     if (!post) return;
@@ -217,14 +260,15 @@ export default function PostDetailScreen() {
     router.replace("/(tabs)/home");
   };
 
-  const handleReportPost = async () => {
-    try {
-      await reportPost(post, "Báo cáo nội dung bài viết");
-      setStatusText("Đã gửi báo cáo.");
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText("Không thể báo cáo bài viết.");
-    }
+  const handleReportPost = () => {
+    setStatusText(
+      "Cảm ơn bạn đã gửi báo cáo. Chúng tôi sẽ xem xét bài viết này.",
+    );
+  };
+
+  const handlePostUnavailable = () => {
+    setPost(null);
+    setStatusText("");
   };
 
   if (isLoading) {
@@ -305,7 +349,11 @@ export default function PostDetailScreen() {
         <View style={postStyles.detailHeaderButton} />
       </View>
       <ScrollView
-        contentContainerStyle={postStyles.detailScrollContent}
+        ref={scrollViewRef}
+        contentContainerStyle={[
+          postStyles.detailScrollContent,
+          { paddingBottom: detailScrollBottomPadding },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -319,6 +367,7 @@ export default function PostDetailScreen() {
           onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
           onDeletePost={handleDeletePost}
           onReportPost={handleReportPost}
+          onPostUnavailable={handlePostUnavailable}
         />
 
         <View style={postStyles.detailCommentsSection}>
@@ -381,6 +430,7 @@ export default function PostDetailScreen() {
               }}
               onSubmit={handleSubmitInlineComment}
               isSubmitting={isSubmittingComment}
+              onFocus={handleInlineCommentFocus}
               containerStyle={postStyles.detailInlineComposer}
               inputContainerStyle={postStyles.detailInlineComposerInput}
             />

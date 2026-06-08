@@ -1,12 +1,22 @@
 import { backendApi } from "@/api/client";
+import ReportPostFlow from "@/components/post/ReportPostFlow";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 function OptionRow({
   iconName,
@@ -51,9 +61,18 @@ export default function PostOptionsSheet({
   onDeletePost,
   onEditPost,
   onReportPost,
+  onPostUnavailable,
+  post,
   postId,
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setIsReporting(false);
+    }
+  }, [visible]);
 
   const handleEditPost = () => {
     if (onEditPost) {
@@ -109,6 +128,11 @@ export default function PostOptionsSheet({
     ]);
   };
 
+  const handleStartReport = () => {
+    if (!post) return;
+    setIsReporting(true);
+  };
+
   return (
     <Modal
       transparent
@@ -119,44 +143,59 @@ export default function PostOptionsSheet({
       <View style={styles.modalRoot}>
         <Pressable style={styles.backdrop} onPress={onClose} />
 
-        <View style={styles.bottomSheet}>
-          <View style={styles.sheetHandle} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.keyboardAvoiding}
+          pointerEvents="box-none"
+        >
+          <View style={[styles.bottomSheet, isReporting && styles.reportSheet]}>
+            <View style={styles.sheetHandle} />
 
-          {isOwnPost ? (
-            <>
-              <OptionRow
-                iconName="notifications-off-outline"
-                label="Tắt thông báo về bài viết này"
-                onPress={onTurnOffNotifications}
+            {isReporting ? (
+              <ReportPostFlow
+                post={post}
+                onCancel={() => setIsReporting(false)}
+                onClose={onClose}
+                onSubmitted={onReportPost}
+                onPostUnavailable={onPostUnavailable}
               />
-              <OptionRow
-                iconName="pencil-outline"
-                label="Chỉnh sửa bài viết này"
-                onPress={handleEditPost}
-              />
-              <OptionRow
-                iconName="trash-outline"
-                label="Xóa bài viết này"
-                onPress={handleDeletePost}
-                destructive
-                disabled={isDeleting}
-              />
-            </>
-          ) : (
-            <>
-              <OptionRow
-                iconName="alert-circle-outline"
-                label="Tìm hỗ trợ hoặc báo cáo bài viết"
-                onPress={onReportPost}
-              />
-              <OptionRow
-                iconName="notifications-outline"
-                label="Bật thông báo về bài viết này"
-                onPress={onTurnOnNotifications}
-              />
-            </>
-          )}
-        </View>
+            ) : isOwnPost ? (
+              <>
+                <OptionRow
+                  iconName="notifications-off-outline"
+                  label="Tắt thông báo về bài viết này"
+                  onPress={onTurnOffNotifications}
+                />
+                <OptionRow
+                  iconName="pencil-outline"
+                  label="Chỉnh sửa bài viết này"
+                  onPress={handleEditPost}
+                />
+                <OptionRow
+                  iconName="trash-outline"
+                  label="Xóa bài viết này"
+                  onPress={handleDeletePost}
+                  destructive
+                  disabled={isDeleting}
+                />
+              </>
+            ) : (
+              <>
+                <OptionRow
+                  iconName="alert-circle-outline"
+                  label="Báo cáo bài viết"
+                  onPress={handleStartReport}
+                  disabled={!post}
+                />
+                <OptionRow
+                  iconName="notifications-outline"
+                  label="Bật thông báo về bài viết này"
+                  onPress={onTurnOnNotifications}
+                />
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -171,6 +210,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
+  keyboardAvoiding: {
+    width: "100%",
+  },
   bottomSheet: {
     backgroundColor: colors.white,
     borderTopLeftRadius: sizes.lg,
@@ -178,6 +220,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.md,
     paddingBottom: sizes.xl + 20,
     paddingTop: sizes.sm,
+  },
+  reportSheet: {
+    maxHeight: "92%",
   },
   sheetHandle: {
     width: 40,
