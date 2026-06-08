@@ -25,9 +25,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -607,6 +605,13 @@ export default function ConversationDetailScreen() {
             }}
           />
 
+          {showEmojiPicker ? (
+            <Pressable
+              style={conversationDetailStyles.emojiDismissOverlay}
+              onPress={() => setShowEmojiPicker(true)}
+            />
+          ) : null}
+
           {/* ── Jump to latest FAB ── */}
           {showJumpButton && (
             <View
@@ -636,6 +641,7 @@ export default function ConversationDetailScreen() {
               value={inputText}
               onChangeText={setInputText}
               onFocus={() => {
+                setShowEmojiPicker(false);
                 scheduleScrollToConversationEnd(false, 80);
                 scheduleScrollToConversationEnd(false, 180);
               }}
@@ -657,6 +663,7 @@ export default function ConversationDetailScreen() {
                 <CommentReactionPicker
                   onSelectReaction={(emoji) => {
                     setInputText((prev) => prev + emoji);
+                    setShowEmojiPicker(false);
                   }}
                 />
               )}

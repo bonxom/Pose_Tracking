@@ -118,6 +118,10 @@ const conversationDetailStyles = StyleSheet.create({
   },
 
   // Jump FAB
+  emojiDismissOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
   jumpContainer: {
     position: "absolute",
     bottom: 12,
