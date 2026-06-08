@@ -16,5 +16,17 @@ const globalStyles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
   },
+  tabPills: {
+    flexDirection: "row",
+    gap: sizes.sm,
+    paddingHorizontal: sizes.lg,
+  },
+  paddingHorizontalMD: {
+    paddingHorizontal: sizes.md,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
 });
 export default globalStyles;

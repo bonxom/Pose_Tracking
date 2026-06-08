@@ -122,13 +122,13 @@ export default function RequestsView({
         ListHeaderComponent={
           <>
             {/* Header */}
-            <View style={globalStyles.headerTopRow}>
+            <View style={[globalStyles.headerTopRow, { paddingBottom: 4 }]}>
               <Text style={globalStyles.headerTitle}>Khoá học</Text>
               <SearchButton />
             </View>
 
             {/* Tab Pills */}
-            <View style={coursesStyles.tabPills}>
+            <View style={globalStyles.tabPills}>
               <Pressable
                 style={coursesStyles.tabPill}
                 onPress={onGoToAllStudents}
