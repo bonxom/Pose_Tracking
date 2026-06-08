@@ -32,7 +32,14 @@ function ComposerCard({ profile }) {
   );
 }
 
-export default function ProfilePostsSection({ profile, posts, loading }) {
+export default function ProfilePostsSection({
+  profile,
+  posts,
+  loading,
+  onToggleLike,
+  onSubmitExercise,
+  onDeletePost,
+}) {
   return (
     <>
       {profile.isOwnProfile ? <ComposerCard profile={profile} /> : null}
@@ -50,7 +57,10 @@ export default function ProfilePostsSection({ profile, posts, loading }) {
                 key={post.id}
                 post={post}
                 onPress={() => router.push(`/post/${post.id}`)}
+                onToggleLike={onToggleLike}
                 onPressComment={() => router.push(`/post/comment/${post.id}`)}
+                onSubmitExercise={onSubmitExercise}
+                onDeletePost={onDeletePost}
               />
             ))}
           </View>

@@ -12,6 +12,7 @@ import {
   subscribePostUploading,
 } from "@/services/postUploadingStore";
 import { feedCacheState } from "@/state/feedCacheState";
+import { profileCacheState } from "@/state/profileCacheState";
 import homeStyles from "@/styles/home.styles";
 import { CACHE_KEY_HOME_FEED, readCache, writeCache } from "@/utils/cacheStore";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
@@ -378,9 +379,19 @@ export default function HomeScreen() {
   const handleToggleLike = async (post) => {
     try {
       const updatedPost = await toggleLike(post);
-      setPosts((prevPosts) =>
-        prevPosts.map((p) => (p.id === post.id ? updatedPost : p)),
-      );
+      setPosts((prevPosts) => {
+        const next = prevPosts.map((p) => (p.id === post.id ? updatedPost : p));
+        feedCacheState.homeFeedCache = next;
+        return next;
+      });
+
+      // Sync with profile cache
+      Object.keys(profileCacheState).forEach((uId) => {
+        const cache = profileCacheState[uId];
+        if (cache?.posts) {
+          cache.posts = cache.posts.map((p) => (p.id === post.id ? updatedPost : p));
+        }
+      });
     } catch (error) {
       console.warn("Failed to toggle like:", error);
       if (await redirectIfSessionExpired(error, router)) return;
@@ -416,6 +427,14 @@ export default function HomeScreen() {
       const next = current.filter((item) => item.id !== postId);
       feedCacheState.homeFeedCache = next;
       return next;
+    });
+
+    // Sync with profile cache
+    Object.keys(profileCacheState).forEach((uId) => {
+      const cache = profileCacheState[uId];
+      if (cache?.posts) {
+        cache.posts = cache.posts.filter((item) => item.id !== postId);
+      }
     });
   }, []);
 
