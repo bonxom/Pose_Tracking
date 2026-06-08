@@ -1,12 +1,12 @@
+import NoInternetView from "@/components/common/NoInternetView";
+import SearchButton from "@/components/common/SearchButton";
 import EnrollmentCard from "@/components/courses/EnrollmentCard";
 import SectionHeader from "@/components/courses/SectionHeader";
-import SearchIcon from "@/components/icons/SearchIcon";
-import colors from "@/constants/colors";
-import NoInternetView from "@/components/common/NoInternetView";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import { getRequestedEnrollment } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
+import globalStyles from "@/styles/global.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -99,7 +99,10 @@ export default function RequestsView({
   if (isNoInternet && enrollments.length === 0) {
     return (
       <View style={coursesStyles.container}>
-        <NoInternetView onRefresh={() => fetchRequestsData({ refresh: true })} refreshing={isRefreshing} />
+        <NoInternetView
+          onRefresh={() => fetchRequestsData({ refresh: true })}
+          refreshing={isRefreshing}
+        />
       </View>
     );
   }
@@ -119,15 +122,9 @@ export default function RequestsView({
         ListHeaderComponent={
           <>
             {/* Header */}
-            <View style={coursesStyles.header}>
-              <Text style={coursesStyles.headerTitle}>Khoá học</Text>
-              <Pressable
-                style={coursesStyles.searchBtn}
-                hitSlop={8}
-                onPress={() => router.push("/search")}
-              >
-                <SearchIcon color={colors.text} size={24} />
-              </Pressable>
+            <View style={globalStyles.headerTopRow}>
+              <Text style={globalStyles.headerTitle}>Khoá học</Text>
+              <SearchButton />
             </View>
 
             {/* Tab Pills */}

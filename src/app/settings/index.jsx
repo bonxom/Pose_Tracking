@@ -8,7 +8,16 @@ import { CACHE_KEY_PROFILE } from "@/utils/cacheStore";
 import { clearAuthSession, getAuthSession } from "@/utils/session";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { Alert, BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  BackHandler,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 function SettingsRow({ icon, title, subtitle, onPress }) {
   return (
@@ -62,7 +71,10 @@ export default function SettingsScreen() {
         style: "destructive",
         onPress: () => {
           if (Platform.OS === "web") {
-            Alert.alert("Thoát ứng dụng", "Bạn có thể đóng tab trình duyệt hiện tại.");
+            Alert.alert(
+              "Thoát ứng dụng",
+              "Bạn có thể đóng tab trình duyệt hiện tại.",
+            );
             return;
           }
           BackHandler.exitApp();
@@ -96,7 +108,9 @@ export default function SettingsScreen() {
               <ProfileIcon name="search" size={24} color={colors.ink} />
             </Pressable>
           </View>
-          <Text style={styles.subtitle}>Tài khoản, thông báo, bảo mật và thiết bị.</Text>
+          <Text style={styles.subtitle}>
+            Tài khoản, thông báo, bảo mật và thiết bị.
+          </Text>
         </View>
 
         <View style={styles.section}>

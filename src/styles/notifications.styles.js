@@ -1,3 +1,4 @@
+import sizes from "@/constants/sizes";
 import { StyleSheet } from "react-native";
 
 const colors = {
@@ -23,43 +24,11 @@ export default StyleSheet.create({
     justifyContent: "center",
   },
 
-  header: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 12,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-
-  title: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: "800",
-    color: colors.text,
-    marginBottom: 12,
-  },
-
-  headerTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-
-  searchButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0F2F5",
-    marginBottom: 12,
-  },
-
   filterRow: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: sizes.lg,
+    paddingBottom: sizes.lg,
     gap: 8,
   },
 

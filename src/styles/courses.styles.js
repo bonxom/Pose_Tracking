@@ -5,28 +5,7 @@ const coursesStyles = StyleSheet.create({
   // ── Layout ──
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: colors.background,
-  },
-
-  // ── Main Header ──
-  header: {
-    paddingBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  searchBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   // ── Tab Pills ──
