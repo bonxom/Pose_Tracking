@@ -1,8 +1,8 @@
+import UserAvatar from "@/components/common/UserAvatar";
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
 import { resolveAvatarUri } from "@/utils/profile";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import UserAvatar from "./UserAvatar";
 
 // ─── Join Button ────────────────────────────────────────────────────────────
 function joinButtonProps(item) {

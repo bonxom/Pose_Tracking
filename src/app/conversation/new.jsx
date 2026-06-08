@@ -1,4 +1,4 @@
-import UserAvatar from "@/components/courses/UserAvatar";
+import UserAvatar from "@/components/common/UserAvatar";
 import {
   getConversationList,
   getConversationListCache,

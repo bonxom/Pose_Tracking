@@ -1,4 +1,4 @@
-import UserAvatar from "@/components/courses/UserAvatar";
+import UserAvatar from "@/components/common/UserAvatar";
 import colors from "@/constants/colors";
 import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import { getUserInfo } from "@/repositories/userRepository";

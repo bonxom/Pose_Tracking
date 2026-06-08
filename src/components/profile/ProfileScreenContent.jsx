@@ -12,6 +12,7 @@ import {
   getUserPosts,
   mergeOwnProfileWithSession,
 } from "@/repositories/userRepository";
+import { toggleLike } from "@/repositories/postRepository";
 import { queueProfileUpdate } from "@/services/profileUpdateService";
 import profileStyles from "@/styles/profile.styles";
 import {
@@ -22,16 +23,18 @@ import {
   writeCache,
 } from "@/utils/cacheStore";
 import { profileCacheState } from "@/state/profileCacheState";
-import { getAuthSession } from "@/utils/session";
+import { feedCacheState } from "@/state/feedCacheState";
+import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Clipboard,
+  LayoutAnimation,
   RefreshControl,
   ScrollView,
   Text,
@@ -192,6 +195,107 @@ export default function ProfileScreenContent({ userId = "" }) {
       }
       return nextProfile;
     });
+  }, [cacheKey, userId]);
+
+  const handleToggleLike = async (post) => {
+    try {
+      const updatedPost = await toggleLike(post);
+      setPosts((prevPosts) => {
+        const next = prevPosts.map((p) => (p.id === post.id ? updatedPost : p));
+        if (profileCacheState[userId]) {
+          profileCacheState[userId].posts = next;
+        }
+        if (cacheKey) {
+          writeCache(cacheKey, profileCacheState[userId]);
+        }
+        return next;
+      });
+
+      // Sync with home feed cache
+      if (feedCacheState.homeFeedCache?.length > 0) {
+        feedCacheState.homeFeedCache = feedCacheState.homeFeedCache.map((p) =>
+          p.id === post.id ? updatedPost : p,
+        );
+      }
+    } catch (error) {
+      console.warn("Failed to toggle like:", error);
+      if (error.sessionExpired) {
+        await clearCurrentUserSession();
+        router.replace("/(auth)/login");
+      }
+    }
+  };
+
+  const handleDeletePost = useCallback((postId) => {
+    if (!postId) return;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPosts((current) => {
+      const next = current.filter((item) => item.id !== postId);
+      if (profileCacheState[userId]) {
+        profileCacheState[userId].posts = next;
+      }
+      if (cacheKey) {
+        writeCache(cacheKey, profileCacheState[userId]);
+      }
+      return next;
+    });
+
+    // Sync with home feed cache
+    if (feedCacheState.homeFeedCache?.length > 0) {
+      feedCacheState.homeFeedCache = feedCacheState.homeFeedCache.filter(
+        (item) => item.id !== postId,
+      );
+    }
+  }, [userId, cacheKey]);
+
+  const handleSubmitExercise = (post) => {
+    router.push({
+      pathname: "/post/create",
+      params: {
+        mode: "submission",
+        sourcePostId: post.id,
+        courseId: post.courseId,
+        exerciseId: post.exerciseId,
+        teacherId: post.author?.id || "",
+      },
+    });
+  };
+
+  const postsRef = useRef(posts);
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
+
+  useEffect(() => {
+    if (userId) return;
+
+    const unsubscribe = subscribeAuthSession((session) => {
+      if (!session) return;
+      const ownerKey = getProfileCacheOwnerKey(session);
+
+      setProfile((current) => {
+        const nextProfile = mergeOwnProfileWithSession(current || {}, session);
+        if (!nextProfile.id && !nextProfile.displayName && !nextProfile.username) {
+          return current;
+        }
+
+        const nextCache = {
+          profile: nextProfile,
+          posts: profileCacheState[userId]?.posts || postsRef.current,
+          ownerKey,
+        };
+        profileCacheState[userId] = nextCache;
+        if (cacheKey) {
+          writeCache(cacheKey, nextCache);
+        }
+        return nextProfile;
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [cacheKey, userId]);
 
   useFocusEffect(
@@ -436,6 +540,9 @@ export default function ProfileScreenContent({ userId = "" }) {
               profile={profile}
               posts={posts}
               loading={loading}
+              onToggleLike={handleToggleLike}
+              onDeletePost={handleDeletePost}
+              onSubmitExercise={handleSubmitExercise}
             />
           )}
         </View>

@@ -1,4 +1,5 @@
 import AppButton from "@/components/common/AppButton";
+import UserAvatar from "@/components/common/UserAvatar";
 import EarthIcon from "@/components/icons/EarthIcon";
 import EllipsisHorizontalIcon from "@/components/icons/EllipsisHorizontalIcon";
 import CommentButton from "@/components/post/CommentButton";
@@ -11,7 +12,6 @@ import { useAuthSession } from "@/hooks/useAuthSession";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
@@ -190,13 +190,7 @@ export default function PostCard({
             hitSlop={8}
             style={localStyles.avatarPressable}
           >
-            <Image
-              source={{ uri: avatarUri }}
-              style={postStyles.avatar}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              transition={150}
-            />
+            <UserAvatar uri={avatarUri} size={44} />
           </Pressable>
 
           <View style={postStyles.authorMetaGroup}>
