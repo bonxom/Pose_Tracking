@@ -5,6 +5,7 @@ import colors from "@/constants/colors";
 import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import {
   getConversation,
+  markConversationRead,
   sendMessage,
 } from "@/repositories/conversationRepository";
 import { getCurrentSession } from "@/repositories/source";
@@ -125,7 +126,7 @@ function getMessageStatusText(isoString, isTemp) {
 }
 
 // Build a flat item array from messages for FlatList
-// Items: { type: 'date', id, date } | { type: 'message', id, msg, position, isGroupEnd, isGroupStart }
+// Items: { type: 'date', key, id, date } | { type: 'message', key, id, msg, position, isGroupEnd, isGroupStart }
 function buildItems(messages) {
   if (!messages?.length) return [];
 
@@ -153,6 +154,7 @@ function buildItems(messages) {
       if (!prevDate || !isSameDay(prevDate, msg.created)) {
         items.push({
           type: "date",
+          key: `date-${msg.id || "missing"}-${items.length}`,
           id: `date-${msg.id}`,
           date: formatDelimiterDate(msg.created),
         });
@@ -167,6 +169,7 @@ function buildItems(messages) {
 
       items.push({
         type: "message",
+        key: `message-${msg.id || "missing"}-${items.length}`,
         id: msg.id,
         msg,
         position,
@@ -424,6 +427,15 @@ export default function ConversationDetailScreen() {
             setConversation(data);
             setTotalLoaded(data.messages.length);
             setHasLatest(data.messages.length < PAGE_SIZE);
+            if (data.id) {
+              markConversationRead(data.id).catch(async (error) => {
+                if (await redirectIfSessionExpired(error, router)) return;
+                console.warn(
+                  "Failed to mark partner conversation read:",
+                  error?.message,
+                );
+              });
+            }
             await updateBlockedByMe(data);
             return;
           } catch (_error) {
@@ -458,11 +470,19 @@ export default function ConversationDetailScreen() {
         const data = await getConversation(routeId, 0, PAGE_SIZE);
         setConversation(data);
         setTotalLoaded(data.messages.length);
-        await updateBlockedByMe(data);
 
         if (data.messages.length < PAGE_SIZE) {
           setHasLatest(true);
         }
+
+        if (data.id || routeId) {
+          markConversationRead(data.id || routeId).catch(async (error) => {
+            if (await redirectIfSessionExpired(error, router)) return;
+            console.warn("Failed to mark conversation read:", error?.message);
+          });
+        }
+
+        await updateBlockedByMe(data);
       } catch (error) {
         if (await redirectIfSessionExpired(error, router)) return;
       }
@@ -774,7 +794,7 @@ export default function ConversationDetailScreen() {
           <FlatList
             ref={flatListRef}
             data={items}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.key}
             renderItem={renderItem}
             contentContainerStyle={conversationDetailStyles.listContent}
             onEndReached={loadMore}

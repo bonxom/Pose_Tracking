@@ -149,14 +149,18 @@ export default function ConversationsScreen() {
   }, []);
 
   const open = (item) => {
-    router.push(`/conversation/${item.id}`);
-    setTimeout(async () => {
-      try {
-        await markConversationRead(item.id);
-      } catch (err) {
-        if (await redirectIfSessionExpired(err, router)) return;
-      }
-    }, 300);
+    const conversationId = String(item?.id || "").trim();
+
+    if (!conversationId) {
+      return;
+    }
+
+    markConversationRead(conversationId).catch(async (err) => {
+      if (await redirectIfSessionExpired(err, router)) return;
+      console.warn("Failed to mark conversation read:", err?.message);
+    });
+
+    router.push(`/conversation/${conversationId}`);
   };
 
   const remove = async (item) => {

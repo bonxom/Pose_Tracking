@@ -134,7 +134,7 @@ async function verifyConversationUnreadByLatestSender(item, session) {
         token: session.token,
         conversationId,
         index: "0",
-        count: "1",
+        count: "500",
       });
 
       await assertBackendOk(response, {
@@ -143,7 +143,7 @@ async function verifyConversationUnreadByLatestSender(item, session) {
       });
 
       const messages = response.data?.data || [];
-      const latestMessage = messages[0] || {};
+      const latestMessage = messages[messages.length - 1] || {};
       const senderId = String(
         latestMessage.sender?.id ||
           latestMessage.senderId ||

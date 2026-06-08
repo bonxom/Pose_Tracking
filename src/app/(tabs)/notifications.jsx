@@ -622,7 +622,9 @@ export default function NotificationsScreen() {
         <FlatList
           ref={listRef}
           data={visibleItems}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) =>
+            `${item.id || item.notificationId || "notification"}-${index}`
+          }
           extraData={`${activeFilter}-${badge}-${nowTick}-${hasMore}`}
           renderItem={({ item }) => (
             <NotificationItem
