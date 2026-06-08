@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "970657592827",
+    "project_id": "posetracking-d1f1b",
+    "storage_bucket": "posetracking-d1f1b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:970657592827:android:eafdb426a93a52853b875e",
+        "android_client_info": {
+          "package_name": "com.group1.posetracking"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_FzZd2Y5YlNe6XnDa8bkdRp4CxJ9MjlE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
