@@ -394,30 +394,27 @@ function buildImageFilePayload(uri = "", fieldName = "image") {
 }
 
 function buildSetUserInfoRequest(session, params, userName) {
-  const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
-  const coverImage = firstParamValue(
-    params,
-    ["coverImage", "cover_image"],
-    session?.coverImage || "",
+  const avatar = firstParamValue(params, ["avatar"], "");
+  const coverImage = firstParamValue(params, ["coverImage"], "");
+  const description = normalizeOptionalText(
+    firstParamValue(params, ["description"], session?.description || ""),
+    150,
   );
   const fields = {
     token: session.token,
-    user_name: userName,
+    username: userName,
+    description,
   };
   const files = [];
 
   if (isLocalAssetUri(avatar)) {
     const avatarFile = buildImageFilePayload(avatar, "avatar");
     if (avatarFile) files.push(avatarFile);
-  } else {
-    fields.avatar = avatar;
   }
 
   if (isLocalAssetUri(coverImage)) {
-    const coverFile = buildImageFilePayload(coverImage, "cover_image");
+    const coverFile = buildImageFilePayload(coverImage, "coverImage");
     if (coverFile) files.push(coverFile);
-  } else {
-    fields.cover_image = coverImage;
   }
 
   return { fields, files };
@@ -453,7 +450,7 @@ function buildLocalProfileUpdate(
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(
     params,
-    ["coverImage", "cover_image"],
+    ["coverImage"],
     session?.coverImage || "",
   );
   const description = normalizeOptionalText(
@@ -511,7 +508,7 @@ function buildLocalProfileUpdate(
 }
 
 export function createOptimisticUserInfo(session = {}, params = {}) {
-  const userName = params.userName || params.user_name || params.username || "";
+  const userName = params.userName || params.username || "";
   const source = shouldUseServer(session) ? ACTIVE_SOURCES.SERVER : ACTIVE_SOURCES.LOCAL;
   const optimistic = buildLocalProfileUpdate(session, params, userName, source);
   const avatarChanged =
@@ -620,7 +617,7 @@ async function getBackendPostsPage(session, params = {}) {
 
 export async function updateUserInfo(params = {}) {
   const session = await getCurrentSession();
-  const userName = params.userName || params.user_name || params.username || "";
+  const userName = params.userName || params.username || "";
   const validationError = validateProfileUserName(userName);
 
   if (validationError) {
@@ -677,7 +674,6 @@ export async function updateUserInfo(params = {}) {
     coverImage:
       normalized.coverImage ||
       params.coverImage ||
-      params.cover_image ||
       session?.coverImage ||
       "",
     description:
