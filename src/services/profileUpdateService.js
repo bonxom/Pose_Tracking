@@ -1,38 +1,49 @@
+import { getCurrentSession } from "@/repositories/source";
 import {
   createOptimisticUserInfo,
   updateUserInfo,
 } from "@/repositories/userRepository";
-import { getCurrentSession } from "@/repositories/source";
 import { saveAuthSession } from "@/utils/session";
 import { Alert } from "react-native";
 
 let latestProfileUpdateTaskId = 0;
 
-const PROFILE_SYNC_ERROR_MESSAGE =
-  "Hồ sơ đã cập nhật trên giao diện, nhưng chưa đồng bộ xong. Vui lòng thử lại sau.";
-
-async function markProfileUpdateError(taskId) {
+async function finalizeProfileUpdate(taskId) {
   if (taskId !== latestProfileUpdateTaskId) {
     return;
   }
 
-  const session = await getCurrentSession();
-  if (!session) {
+  const currentSession = await getCurrentSession();
+  if (taskId !== latestProfileUpdateTaskId || !currentSession) {
     return;
   }
 
   await saveAuthSession({
-    ...session,
-    profileSyncStatus: "error",
-    profileSyncErrorMessage: PROFILE_SYNC_ERROR_MESSAGE,
+    ...currentSession,
+    profileSyncStatus: "done",
+    profileSyncErrorMessage: "",
+    profileSyncRequestedAt: "",
   });
 
-  Alert.alert("Đã lưu giao diện", PROFILE_SYNC_ERROR_MESSAGE);
+  Alert.alert("Thông tin cá nhân", "Cập nhật thành công");
 }
 
-export async function queueProfileUpdate(params = {}, options = {}) {
-  const session = await getCurrentSession();
-  const optimisticProfile = createOptimisticUserInfo(session || {}, params);
+async function rollbackProfileUpdate(taskId, previousSession) {
+  if (taskId !== latestProfileUpdateTaskId) {
+    return;
+  }
+
+  await saveAuthSession(previousSession ?? null);
+
+  Alert.alert("Thông tin cá nhân", "Cập nhật thất bại");
+}
+
+export async function queueProfileUpdate(params = {}) {
+  const previousSession = await getCurrentSession();
+  const optimisticProfile = createOptimisticUserInfo(
+    previousSession || {},
+    params,
+  );
   const taskId = Date.now();
 
   latestProfileUpdateTaskId = taskId;
@@ -41,16 +52,9 @@ export async function queueProfileUpdate(params = {}, options = {}) {
   void (async () => {
     try {
       await updateUserInfo(params);
-      if (taskId !== latestProfileUpdateTaskId) {
-        return;
-      }
-
-      Alert.alert(
-        options.successTitle || "Cập nhật thành công",
-        options.successMessage || "Cập nhật thành công.",
-      );
+      await finalizeProfileUpdate(taskId);
     } catch {
-      await markProfileUpdateError(taskId);
+      await rollbackProfileUpdate(taskId, previousSession);
     }
   })();
 

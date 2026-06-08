@@ -1,14 +1,12 @@
 import { logoutSession } from "@/repositories/authRepository";
-import { clearNotificationState } from "@/services/notificationStore";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
-import { initials, resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri } from "@/utils/profile";
 import {
-  clearAuthSession,
   getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -104,9 +102,7 @@ export default function MenuScreen() {
     const currentSession = session || (await getAuthSession().catch(() => null));
 
     try {
-      await clearAuthSession();
-      clearNotificationState();
-      await removeCache(CACHE_KEY_PROFILE);
+      await clearCurrentUserSession();
     } finally {
       router.replace("/(auth)/login");
     }
@@ -139,9 +135,11 @@ export default function MenuScreen() {
           <Text style={styles.title}>Menu</Text>
           <Pressable
             style={styles.headerIcon}
-            onPress={() => router.push("/settings/push")}
+            onPress={() => router.push("/search")}
+            accessibilityRole="button"
+            accessibilityLabel="Tìm kiếm"
           >
-            <Ionicons name="settings" size={22} color="#050505" />
+            <Ionicons name="search" size={22} color="#050505" />
           </Pressable>
         </View>
 
@@ -150,18 +148,14 @@ export default function MenuScreen() {
           onPress={() => router.push("/(tabs)/profile")}
         >
           <View style={styles.avatar}>
-            {avatarUri ? (
-              <Image
-                key={avatarUri}
-                source={{ uri: avatarUri }}
-                style={styles.avatarImage}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={150}
-              />
-            ) : (
-              <Text style={styles.avatarText}>{initials(displayName)}</Text>
-            )}
+            <Image
+              key={session?.id || "guest"}
+              source={{ uri: avatarUri }}
+              style={styles.avatarImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           </View>
           <View style={styles.profileTextBlock}>
             <Text style={styles.profileName}>{displayName}</Text>
@@ -205,19 +199,14 @@ export default function MenuScreen() {
 
         <View style={styles.section}>
           <MenuRow
-            icon="grid-outline"
-            label="Xem thêm"
-            onPress={() => goPlaceholder("Xem thêm")}
-          />
-          <MenuRow
             icon="help-circle-outline"
             label="Trợ giúp & hỗ trợ"
-            onPress={() => goPlaceholder("Trợ giúp & hỗ trợ")}
+            onPress={() => router.push("/settings/policies")}
           />
           <MenuRow
-            icon="notifications-outline"
-            label="Cài đặt thông báo đẩy"
-            onPress={() => router.push("/settings/push")}
+            icon="settings-outline"
+            label="Cài đặt"
+            onPress={() => router.push("/settings")}
           />
           <MenuRow
             icon="log-out-outline"

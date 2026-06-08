@@ -11,7 +11,7 @@ import { addComment, getComments } from "@/repositories/commentRepository";
 import { getPostById } from "@/repositories/postRepository";
 import postStyles from "@/styles/post.styles";
 import commentOverlayStyles from "@/styles/post/comment-overlay.styles";
-import { getInitials } from "@/utils/formatters";
+import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
 import { router, useLocalSearchParams } from "expo-router";
@@ -22,7 +22,6 @@ import {
   Animated,
   Easing,
   FlatList,
-  Image,
   Keyboard,
   PanResponder,
   Platform,
@@ -31,6 +30,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SHEET_OPEN_DELAY_MS = 80;
@@ -103,6 +103,7 @@ export default function CommentScreen() {
 
   const closeSheet = useCallback(() => {
     setIsReactionPickerVisible(false);
+    setKeyboardHeight(0);
     Keyboard.dismiss();
     Animated.timing(translateY, {
       toValue: INITIAL_TRANSLATE_Y,
@@ -324,11 +325,15 @@ export default function CommentScreen() {
     setIsReactionPickerVisible((current) => !current);
   };
 
+  const handleDismissReactionPicker = useCallback(() => {
+    setIsReactionPickerVisible(false);
+  }, []);
+
   const handleSelectReaction = (reaction) => {
     setCommentText((current) =>
       current.trim().length ? `${current} ${reaction}` : reaction,
     );
-    setIsReactionPickerVisible(false);
+    // setIsReactionPickerVisible(false);
     inputRef.current?.focus();
   };
 
@@ -342,11 +347,16 @@ export default function CommentScreen() {
     : likeCount > 0
       ? String(likeCount)
       : "";
-  const composerAvatarUri =
+  const composerAvatarUri = resolveAvatarUri(
     (typeof currentUser?.avatar === "string" && currentUser.avatar.trim()) ||
-    (typeof currentUser?.user?.avatar === "string" &&
-      currentUser.user.avatar.trim()) ||
-    "";
+      (typeof currentUser?.user?.avatar === "string" &&
+        currentUser.user.avatar.trim()) ||
+      "",
+    currentUser?.avatarVersion ||
+      currentUser?.profileSyncRequestedAt ||
+      currentUser?.loggedInAt ||
+      "",
+  );
 
   return (
     <View style={styles.modalRoot}>
@@ -377,52 +387,61 @@ export default function CommentScreen() {
         </View>
 
         <View style={styles.content}>
-          {isLoading ? (
-            <View style={styles.skeletonContainer}>
-              <SkeletonComment />
-              <SkeletonComment />
-              <SkeletonComment />
-              <SkeletonComment />
-              <SkeletonComment />
-            </View>
-          ) : (
-            <FlatList
-              data={comments}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <CommentComponent comment={item} />}
-              style={styles.commentList}
-              contentContainerStyle={styles.commentListContent}
-              keyboardShouldPersistTaps="handled"
-              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-              ListEmptyComponent={
-                <Text style={postStyles.subtitle}>Chưa có bình luận nào</Text>
-              }
-              ListHeaderComponent={
-                hasMoreOlderComments || commentError ? (
-                  <View>
-                    {hasMoreOlderComments ? (
-                      <Pressable
-                        style={styles.loadMoreButton}
-                        onPress={handleLoadMore}
-                        disabled={isLoadingOlderComments}
-                      >
-                        <Text style={styles.loadMoreText}>
-                          {isLoadingOlderComments
-                            ? "Đang tải..."
-                            : "Xem các bình luận trước..."}
+          <View style={styles.commentListContainer}>
+            {isLoading ? (
+              <View style={styles.skeletonContainer}>
+                <SkeletonComment />
+                <SkeletonComment />
+                <SkeletonComment />
+                <SkeletonComment />
+                <SkeletonComment />
+              </View>
+            ) : (
+              <FlatList
+                data={comments}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => <CommentComponent comment={item} />}
+                style={styles.commentList}
+                contentContainerStyle={styles.commentListContent}
+                keyboardShouldPersistTaps="handled"
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                ListEmptyComponent={
+                  <Text style={postStyles.subtitle}>Chưa có bình luận nào</Text>
+                }
+                ListHeaderComponent={
+                  hasMoreOlderComments || commentError ? (
+                    <View>
+                      {hasMoreOlderComments ? (
+                        <Pressable
+                          style={styles.loadMoreButton}
+                          onPress={handleLoadMore}
+                          disabled={isLoadingOlderComments}
+                        >
+                          <Text style={styles.loadMoreText}>
+                            {isLoadingOlderComments
+                              ? "Đang tải..."
+                              : "Xem các bình luận trước..."}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                      {commentError ? (
+                        <Text style={styles.commentErrorText}>
+                          {commentError}
                         </Text>
-                      </Pressable>
-                    ) : null}
-                    {commentError ? (
-                      <Text style={styles.commentErrorText}>
-                        {commentError}
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : null
-              }
-            />
-          )}
+                      ) : null}
+                    </View>
+                  ) : null
+                }
+              />
+            )}
+
+            {isReactionPickerVisible ? (
+              <Pressable
+                style={styles.reactionDismissOverlay}
+                onPress={handleDismissReactionPicker}
+              />
+            ) : null}
+          </View>
 
           <View style={styles.composer}>
             {isCommentComposerDisabled ? (
@@ -440,20 +459,13 @@ export default function CommentScreen() {
                 ) : null}
                 <View style={styles.composerRow}>
                   <View style={styles.composerAvatar}>
-                    {composerAvatarUri ? (
-                      <Image
-                        source={{ uri: composerAvatarUri }}
-                        style={localStyles.composerAvatarImage}
-                      />
-                    ) : (
-                      <Text style={styles.composerAvatarText}>
-                        {getInitials(
-                          currentUser?.username ||
-                            currentUser?.identifier ||
-                            "Tôi",
-                        )}
-                      </Text>
-                    )}
+                    <Image
+                      source={{ uri: composerAvatarUri }}
+                      style={localStyles.composerAvatarImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
+                    />
                   </View>
                   <AppInput
                     ref={inputRef}
@@ -540,3 +552,4 @@ const localStyles = StyleSheet.create({
     borderRadius: 999,
   },
 });
+

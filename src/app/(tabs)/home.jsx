@@ -11,6 +11,7 @@ import {
   consumeFinishedUploadedPosts,
   subscribePostUploading,
 } from "@/services/postUploadingStore";
+import { feedCacheState } from "@/state/feedCacheState";
 import homeStyles from "@/styles/home.styles";
 import { CACHE_KEY_HOME_FEED, readCache, writeCache } from "@/utils/cacheStore";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
@@ -28,7 +29,6 @@ import {
   View,
 } from "react-native";
 
-let homeFeedCache = [];
 const FEED_PAGE_SIZE = 10;
 const LOAD_MORE_CARD_DELAY_MS = 1000;
 
@@ -84,8 +84,8 @@ export default function HomeScreen() {
   const loadMoreTriggerLock = useRef(false);
   const lastContentHeightRef = useRef(0);
   const lastTriggeredContentHeightRef = useRef(0);
-  const [posts, setPosts] = useState(homeFeedCache);
-  const [isLoading, setIsLoading] = useState(homeFeedCache.length === 0);
+  const [posts, setPosts] = useState(feedCacheState.homeFeedCache);
+  const [isLoading, setIsLoading] = useState(feedCacheState.homeFeedCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -130,7 +130,7 @@ export default function HomeScreen() {
     try {
       if (refresh) {
         setIsRefreshing(true);
-      } else if (homeFeedCache.length === 0) {
+      } else if (feedCacheState.homeFeedCache.length === 0) {
         // Only show full-screen spinner when there is truly nothing to show
         setIsLoading(true);
       }
@@ -141,23 +141,23 @@ export default function HomeScreen() {
           lastId: "",
         });
         const nextItems = result.items || [];
-        const hadCachedPosts = homeFeedCache.length > 0;
+        const hadCachedPosts = feedCacheState.homeFeedCache.length > 0;
         const mergedFeed =
           !refresh && hadCachedPosts
-            ? mergeRefreshedFeed(homeFeedCache, nextItems)
+            ? mergeRefreshedFeed(feedCacheState.homeFeedCache, nextItems)
             : nextItems;
 
         if (!refresh && nextItems.length === 0 && hadCachedPosts) {
-          setPosts(homeFeedCache);
+          setPosts(feedCacheState.homeFeedCache);
         } else {
-          homeFeedCache = mergedFeed;
+          feedCacheState.homeFeedCache = mergedFeed;
           setPosts(mergedFeed);
           writeCache(CACHE_KEY_HOME_FEED, mergedFeed);
         }
 
         const loadedCount =
           !refresh && nextItems.length === 0 && hadCachedPosts
-            ? homeFeedCache.length
+            ? feedCacheState.homeFeedCache.length
             : mergedFeed.length;
 
         setCurrentPage(
@@ -185,7 +185,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       // In-memory cache already populated → render instantly, refresh in background
-      if (homeFeedCache.length > 0) {
+      if (feedCacheState.homeFeedCache.length > 0) {
         setIsLoading(false);
         loadPosts();
         return;
@@ -195,8 +195,8 @@ export default function HomeScreen() {
       if (!diskCacheLoadedRef.current) {
         diskCacheLoadedRef.current = true;
         readCache(CACHE_KEY_HOME_FEED).then((cached) => {
-          if (cached?.length > 0 && homeFeedCache.length === 0) {
-            homeFeedCache = cached;
+          if (cached?.length > 0 && feedCacheState.homeFeedCache.length === 0) {
+            feedCacheState.homeFeedCache = cached;
             setPosts(cached);
             setIsLoading(false);
           }
@@ -234,13 +234,12 @@ export default function HomeScreen() {
 
       if (nextItems.length === 0) {
         setHasLoadedAllPosts(true);
-        Alert.alert("Thông báo", "Đã load hết tất cả các post");
         return;
       }
 
       setPosts((current) => {
         const next = mergeUniquePosts(current, nextItems);
-        homeFeedCache = next;
+        feedCacheState.homeFeedCache = next;
         writeCache(CACHE_KEY_HOME_FEED, next);
         return next;
       });
@@ -363,7 +362,7 @@ export default function HomeScreen() {
         const next = uniqueNewPosts.length
           ? [...uniqueNewPosts, ...current]
           : current;
-        homeFeedCache = next;
+        feedCacheState.homeFeedCache = next;
         return next;
       });
 
@@ -415,7 +414,7 @@ export default function HomeScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setPosts((current) => {
       const next = current.filter((item) => item.id !== postId);
-      homeFeedCache = next;
+      feedCacheState.homeFeedCache = next;
       return next;
     });
   }, []);
@@ -502,11 +501,23 @@ export default function HomeScreen() {
             isLoadingMore ? (
               <FeedLoadingCard />
             ) : hasLoadedAllPosts && posts.length > 0 ? (
-              <Text style={homeStyles.subtitle}>
+              <Text
+                style={[
+                  homeStyles.subtitle,
+                  { textAlign: "center", paddingBottom: 24 },
+                ]}
+              >
                 Đã load hết tất cả các post
               </Text>
             ) : posts.length > 0 ? (
-              <Text style={homeStyles.subtitle}>Kéo xuống để tải thêm</Text>
+              <Text
+                style={[
+                  homeStyles.subtitle,
+                  { textAlign: "center", paddingBottom: 24 },
+                ]}
+              >
+                Kéo xuống để tải thêm
+              </Text>
             ) : null
           }
           onEndReached={handleEndReached}
@@ -516,3 +527,4 @@ export default function HomeScreen() {
     </View>
   );
 }
+

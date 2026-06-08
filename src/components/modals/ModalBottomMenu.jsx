@@ -1,3 +1,4 @@
+import colors from "@/constants/colors";
 import { useEffect, useRef } from "react";
 import {
   Animated,
@@ -32,6 +33,8 @@ export default function ModalBottomMenu({ visible, onClose, buttons = [] }) {
       transparent={true}
       animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent={true}
+      navigationBarTranslucent={true}
     >
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
@@ -59,9 +62,9 @@ export default function ModalBottomMenu({ visible, onClose, buttons = [] }) {
                   >
                     <View style={styles.iconContainer}>{btn.icon}</View>
                     <View style={styles.textContainer}>
-                      <Text style={styles.itemTitle}>{btn.title}</Text>
+                      <Text style={[styles.itemTitle, btn.color && { color: btn.color }]}>{btn.title}</Text>
                       {btn.description ? (
-                        <Text style={styles.itemDescription}>
+                        <Text style={[styles.itemDescription, btn.color && { color: btn.color, opacity: 0.8 }]}>
                           {btn.description}
                         </Text>
                       ) : null}
@@ -84,7 +87,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   sheetContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
     width: "100%",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
@@ -94,7 +97,7 @@ const styles = StyleSheet.create({
   handleBar: {
     width: 40,
     height: 4,
-    backgroundColor: "#d1d5db",
+    backgroundColor: colors.surfaceOverlay,
     borderRadius: 999,
     alignSelf: "center",
     marginBottom: 20,
@@ -116,12 +119,12 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#111827",
+    color: colors.text,
     lineHeight: 22,
   },
   itemDescription: {
     fontSize: 14,
-    color: "#6b7280",
+    color: colors.subtext,
     marginTop: 4,
     lineHeight: 20,
   },

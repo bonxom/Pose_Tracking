@@ -8,6 +8,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="push" />
       <Stack.Screen name="change-password" />
       <Stack.Screen name="blocks" />
+      <Stack.Screen name="policies" />
     </Stack>
   );
 }

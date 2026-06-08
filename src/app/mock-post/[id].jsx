@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { resolveAvatarUri } from "@/utils/profile";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 function BackIcon() {
@@ -68,9 +69,10 @@ export default function MockPostDetailScreen() {
       >
         <View style={styles.card}>
           <View style={styles.authorRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>P</Text>
-            </View>
+            <Image
+              source={{ uri: resolveAvatarUri("") }}
+              style={styles.avatar}
+            />
 
             <View style={styles.authorInfo}>
               <Text style={styles.authorName}>Pose Tracking</Text>

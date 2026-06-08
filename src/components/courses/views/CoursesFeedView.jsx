@@ -1,29 +1,26 @@
-import CourseCard from "@/components/courses/CourseCard";
 import NoInternetView from "@/components/common/NoInternetView";
+import CourseCard from "@/components/courses/CourseCard";
 import colors from "@/constants/colors";
-import { getListCourses, requestCourse } from "@/repositories/courseRepository";
-import coursesStyles from "@/styles/courses.styles";
-import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import { CACHE_KEY_COURSES_FEED, readCache, writeCache } from "@/utils/cacheStore";
 import { useInternetFetch } from "@/hooks/useNetInfo";
+import { getListCourses, requestCourse } from "@/repositories/courseRepository";
+import { feedCacheState } from "@/state/feedCacheState";
+import coursesStyles from "@/styles/courses.styles";
+import { CACHE_KEY_COURSES_FEED, readCache, writeCache } from "@/utils/cacheStore";
+import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 
-let coursesFeedCache = [];
-let coursesCacheLoaded = false;
-
 export default function CoursesFeedView() {
-  const [courses, setCourses] = useState(coursesFeedCache);
-  const [isLoading, setIsLoading] = useState(coursesFeedCache.length === 0);
+  const [courses, setCourses] = useState(feedCacheState.coursesFeedCache);
+  const [isLoading, setIsLoading] = useState(feedCacheState.coursesFeedCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorText, setErrorText] = useState("");
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
@@ -39,9 +36,9 @@ export default function CoursesFeedView() {
 
       await executeWithInternetCheck(async () => {
         const data = await getListCourses(0, 50);
-        coursesFeedCache = data || [];
-        setCourses(coursesFeedCache);
-        writeCache(CACHE_KEY_COURSES_FEED, coursesFeedCache);
+        feedCacheState.coursesFeedCache = data || [];
+        setCourses(feedCacheState.coursesFeedCache);
+        writeCache(CACHE_KEY_COURSES_FEED, feedCacheState.coursesFeedCache);
       });
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
@@ -54,14 +51,14 @@ export default function CoursesFeedView() {
 
   // Load persistent cache from disk once per app session
   useEffect(() => {
-    if (coursesCacheLoaded || coursesFeedCache.length > 0) return;
+    if (feedCacheState.coursesCacheLoaded || feedCacheState.coursesFeedCache.length > 0) return;
     readCache(CACHE_KEY_COURSES_FEED).then((cached) => {
-      if (cached?.length > 0 && coursesFeedCache.length === 0) {
-        coursesFeedCache = cached;
+      if (cached?.length > 0 && feedCacheState.coursesFeedCache.length === 0) {
+        feedCacheState.coursesFeedCache = cached;
         setCourses(cached);
         setIsLoading(false);
       }
-      coursesCacheLoaded = true;
+      feedCacheState.coursesCacheLoaded = true;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -96,7 +93,7 @@ export default function CoursesFeedView() {
     }
   }, []);
 
-  if ((isLoading && !isRefreshing) || (isNoInternet && coursesFeedCache.length === 0)) {
+  if ((isLoading && !isRefreshing) || (isNoInternet && feedCacheState.coursesFeedCache.length === 0)) {
     return (
       <View style={coursesStyles.centerBox}>
         {isNoInternet ? (
@@ -179,3 +176,4 @@ const localStyles = StyleSheet.create({
     paddingBottom: 8,
   },
 });
+

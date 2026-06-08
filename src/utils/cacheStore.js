@@ -5,6 +5,12 @@ export const CACHE_KEY_HOME_FEED = "cache.home.feed";
 export const CACHE_KEY_COURSES_FEED = "cache.courses.feed";
 export const CACHE_KEY_PROFILE = "cache.profile"; // only used for the current user (me)
 export const CACHE_KEY_CREATEPOST_DRAFT = "cache.createpost.draft";
+export const USER_SCOPED_CACHE_KEYS = [
+  CACHE_KEY_PROFILE,
+  CACHE_KEY_HOME_FEED,
+  CACHE_KEY_COURSES_FEED,
+  CACHE_KEY_CREATEPOST_DRAFT,
+];
 
 export function getProfileCacheOwnerKey(session = {}) {
   return String(
@@ -67,4 +73,12 @@ export async function removeCache(key) {
   try {
     await AsyncStorage.removeItem(key);
   } catch {}
+}
+
+export async function clearUserScopedDiskCaches() {
+  try {
+    await AsyncStorage.multiRemove(USER_SCOPED_CACHE_KEYS);
+  } catch {
+    await Promise.all(USER_SCOPED_CACHE_KEYS.map((key) => removeCache(key)));
+  }
 }
