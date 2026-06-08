@@ -4,11 +4,14 @@ import ChatSmileIcon from "@/components/icons/ChatSmileIcon";
 import ChatThumbUpIcon from "@/components/icons/ChatThumbUpIcon";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import colors from "@/constants/colors";
+import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import {
   getConversation,
+  markConversationRead,
   sendMessage,
 } from "@/repositories/conversationRepository";
 import { getCurrentSession } from "@/repositories/source";
+import { getUserInfo } from "@/repositories/userRepository";
 import conversationDetailStyles from "@/styles/conversation/conversationDetail.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +19,7 @@ import Foundation from "@expo/vector-icons/Foundation";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -43,6 +47,40 @@ function isSameDay(a, b) {
     da.getMonth() === db.getMonth() &&
     da.getDate() === db.getDate()
   );
+}
+
+function isBlockedConversation(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+
+  return (
+    value === true ||
+    value === 1 ||
+    text === "1" ||
+    text === "true" ||
+    text === "blocked" ||
+    text === "yes"
+  );
+}
+
+function getBlockUserIdCandidates(item = {}) {
+  return [
+    item.id,
+    item.userId,
+    item.user_id,
+    item.blockedUserId,
+    item.blocked_user_id,
+    item.blocked?.id,
+    item.user?.id,
+    item.raw?.userId,
+    item.raw?.user_id,
+    item.raw?.blockedUserId,
+    item.raw?.blocked_user_id,
+    item.raw?.blocked?.id,
+    item.raw?.user?.id,
+  ]
+    .filter((value) => value !== undefined && value !== null)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
 }
 
 function formatDelimiterDate(isoString) {
@@ -90,7 +128,7 @@ function getMessageStatusText(isoString, isTemp) {
 }
 
 // Build a flat item array from messages for FlatList
-// Items: { type: 'date', id, date } | { type: 'message', id, msg, position, isGroupEnd, isGroupStart }
+// Items: { type: 'date', key, id, date } | { type: 'message', key, id, msg, position, isGroupEnd, isGroupStart }
 function buildItems(messages) {
   if (!messages?.length) return [];
 
@@ -118,6 +156,7 @@ function buildItems(messages) {
       if (!prevDate || !isSameDay(prevDate, msg.created)) {
         items.push({
           type: "date",
+          key: `date-${msg.id || "missing"}-${items.length}`,
           id: `date-${msg.id}`,
           date: formatDelimiterDate(msg.created),
         });
@@ -132,6 +171,7 @@ function buildItems(messages) {
 
       items.push({
         type: "message",
+        key: `message-${msg.id || "missing"}-${items.length}`,
         id: msg.id,
         msg,
         position,
@@ -278,9 +318,50 @@ function MessageItem({ item, myId, isLatestFromMe }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
+function EmptyConversationIntro({ partner, onOpenProfile }) {
+  return (
+    <View style={conversationDetailStyles.emptyConversationIntro}>
+      <UserAvatar uri={partner?.avatar} size={92} name={partner?.username} />
+
+      <Text numberOfLines={1} style={conversationDetailStyles.emptyPartnerName}>
+        {partner?.username || "Người dùng"}
+      </Text>
+
+      {partner?.id ? (
+        <Text
+          numberOfLines={1}
+          style={conversationDetailStyles.emptyPartnerMeta}
+        >
+          @{partner?.username || "user"} · {partner?.role || "Người dùng"}
+        </Text>
+      ) : null}
+
+      <Text style={conversationDetailStyles.emptyPartnerDescription}>
+        Hai bạn chưa có tin nhắn nào. Hãy gửi lời chào để bắt đầu cuộc trò
+        chuyện.
+      </Text>
+
+      <Pressable
+        onPress={onOpenProfile}
+        style={conversationDetailStyles.viewProfileButton}
+      >
+        <Text style={conversationDetailStyles.viewProfileText}>
+          Xem trang cá nhân
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function ConversationDetailScreen() {
   const params = useLocalSearchParams();
-  const conversationId = typeof params.id === "string" ? params.id : "";
+  const routeId = typeof params.id === "string" ? params.id : "";
+  const partnerId = typeof params.partnerId === "string" ? params.partnerId : "";
+  const partnerName =
+    typeof params.partnerName === "string" ? params.partnerName : "";
+  const partnerAvatar =
+    typeof params.partnerAvatar === "string" ? params.partnerAvatar : "";
+  const isPartnerMode = params.mode === "partner" || Boolean(partnerId);
 
   const [conversation, setConversation] = useState(null);
   const [mySession, setMySession] = useState(null);
@@ -291,30 +372,132 @@ export default function ConversationDetailScreen() {
   const [hasLatest, setHasLatest] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [blockedByMe, setBlockedByMe] = useState(false);
 
   const flatListRef = useRef(null);
   const isAtBottomRef = useRef(false);
   const [layoutHeight, setLayoutHeight] = useState(0);
 
+  const updateBlockedByMe = useCallback(
+    async (nextConversation) => {
+      const targetPartnerId = String(
+        nextConversation?.partner?.id || partnerId || "",
+      ).trim();
+
+      if (!targetPartnerId) {
+        setBlockedByMe(false);
+        return;
+      }
+
+      try {
+        const blocks = await getBlocks();
+
+        setBlockedByMe(
+          blocks.some((item) =>
+            getBlockUserIdCandidates(item).includes(targetPartnerId),
+          ),
+        );
+      } catch (error) {
+        console.warn("Failed to verify blocked partner:", error?.message);
+        setBlockedByMe(false);
+      }
+    },
+    [partnerId],
+  );
+
   const load = useCallback(() => {
     const init = async () => {
       try {
-        const [session, data] = await Promise.all([
-          getCurrentSession(),
-          getConversation(conversationId, 0, PAGE_SIZE),
-        ]);
+        const session = await getCurrentSession();
         setMySession(session);
+
+        if (isPartnerMode) {
+          try {
+            const data = await getConversation(
+              {
+                partnerId,
+                partner: {
+                  id: partnerId,
+                  username: partnerName || "Người dùng",
+                  avatar: partnerAvatar || "",
+                },
+              },
+              0,
+              PAGE_SIZE,
+            );
+
+            setConversation(data);
+            setTotalLoaded(data.messages.length);
+            setHasLatest(data.messages.length < PAGE_SIZE);
+            if (data.id) {
+              markConversationRead(data.id).catch(async (error) => {
+                if (await redirectIfSessionExpired(error, router)) return;
+                console.warn(
+                  "Failed to mark partner conversation read:",
+                  error?.message,
+                );
+              });
+            }
+            await updateBlockedByMe(data);
+            return;
+          } catch (_error) {
+            const profile = await getUserInfo(partnerId);
+
+            const nextConversation = {
+              id: "",
+              partner: {
+                id: partnerId,
+                username:
+                  profile.username ||
+                  profile.displayName ||
+                  partnerName ||
+                  "Người dùng",
+                avatar: profile.avatar || partnerAvatar || "",
+                description: profile.description || "",
+                role: profile.role || "",
+              },
+              isBlocked: "0",
+              messages: [],
+            };
+
+            setConversation(nextConversation);
+
+            setTotalLoaded(0);
+            setHasLatest(true);
+            await updateBlockedByMe(nextConversation);
+            return;
+          }
+        }
+
+        const data = await getConversation(routeId, 0, PAGE_SIZE);
         setConversation(data);
         setTotalLoaded(data.messages.length);
+
         if (data.messages.length < PAGE_SIZE) {
           setHasLatest(true);
         }
+
+        if (data.id || routeId) {
+          markConversationRead(data.id || routeId).catch(async (error) => {
+            if (await redirectIfSessionExpired(error, router)) return;
+            console.warn("Failed to mark conversation read:", error?.message);
+          });
+        }
+
+        await updateBlockedByMe(data);
       } catch (error) {
         if (await redirectIfSessionExpired(error, router)) return;
       }
     };
     init();
-  }, [conversationId]);
+  }, [
+    routeId,
+    partnerId,
+    isPartnerMode,
+    partnerName,
+    partnerAvatar,
+    updateBlockedByMe,
+  ]);
 
   useFocusEffect(load);
 
@@ -325,7 +508,7 @@ export default function ConversationDetailScreen() {
     setIsLoadingMore(true);
     try {
       const data = await getConversation(
-        conversationId,
+        conversation?.id || routeId,
         totalLoaded,
         PAGE_SIZE,
       );
@@ -356,7 +539,11 @@ export default function ConversationDetailScreen() {
 
   const jumpToLatest = async () => {
     try {
-      const data = await getConversation(conversationId, 0, JUMP_COUNT);
+      const data = await getConversation(
+        conversation?.id || routeId,
+        0,
+        JUMP_COUNT,
+      );
       setConversation(data);
       setTotalLoaded(data.messages.length);
       setHasLatest(true);
@@ -403,7 +590,17 @@ export default function ConversationDetailScreen() {
 
   const handleSend = async (text) => {
     const trimmed = (text || inputText).trim();
-    if (!trimmed || isSending || !conversation || !mySession) return;
+
+    if (
+      !trimmed ||
+      isSending ||
+      !conversation ||
+      !mySession ||
+      blockedByMe ||
+      isBlockedConversation(conversation?.isBlocked)
+    ) {
+      return;
+    }
 
     setInputText("");
     setIsSending(true);
@@ -430,15 +627,30 @@ export default function ConversationDetailScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
 
     try {
+      const targetConversationId = conversation?.id || "";
+      const targetPartnerId = partnerId || conversation?.partner?.id || "";
+
       const saved = await sendMessage(
-        conversationId,
-        conversation.partner.id,
+        targetConversationId,
+        targetPartnerId,
         trimmed,
       );
       setConversation((prev) => ({
         ...prev,
         messages: prev.messages.map((m) => (m.id === tempId ? saved : m)),
       }));
+
+      if (!conversation?.id && saved.conversationId) {
+        setConversation((prev) => ({
+          ...prev,
+          id: saved.conversationId,
+        }));
+
+        router.replace({
+          pathname: "/conversation/[id]",
+          params: { id: saved.conversationId },
+        });
+      }
     } catch (error) {
       // Rollback
       setConversation((prev) => ({
@@ -457,6 +669,8 @@ export default function ConversationDetailScreen() {
   const items = buildItems(conversation?.messages);
   const myId = mySession?.id;
   const hasText = inputText.trim().length > 0;
+  const isBlocked = isBlockedConversation(conversation?.isBlocked);
+  const blockedByOther = isBlocked && !blockedByMe;
 
   const messages = conversation?.messages || [];
   const latestMessage = messages[messages.length - 1];
@@ -480,8 +694,67 @@ export default function ConversationDetailScreen() {
     );
   };
 
+  const handleOpenProfile = useCallback(() => {
+    const userId = String(conversation?.partner?.id || partnerId || "").trim();
+
+    if (!userId) return;
+
+    router.push({
+      pathname: "/profile/[userId]",
+      params: { userId },
+    });
+  }, [conversation?.partner?.id, partnerId]);
+
+  const handleUnblock = useCallback(async () => {
+    const targetPartnerId = String(
+      conversation?.partner?.id || partnerId || "",
+    ).trim();
+
+    if (!targetPartnerId) return;
+
+    try {
+      await setBlock(targetPartnerId, "unblock");
+
+      setBlockedByMe(false);
+      setConversation((current) => ({
+        ...current,
+        isBlocked: "0",
+      }));
+    } catch (error) {
+      if (await redirectIfSessionExpired(error, router)) return;
+
+      Alert.alert("Không thể bỏ chặn", error?.message || "Đã có lỗi xảy ra.");
+    }
+  }, [conversation?.partner?.id, partnerId]);
+
+  const handleOpenConversationInfo = useCallback(() => {
+    const partner = conversation?.partner || {};
+    const targetPartnerId = String(partner.id || partnerId || "").trim();
+
+    if (!targetPartnerId) {
+      return;
+    }
+
+    router.push({
+      pathname: "/conversation/info",
+      params: {
+        partnerId: targetPartnerId,
+        partnerName: partner.username || partnerName || "",
+        partnerAvatar: partner.avatar || partnerAvatar || "",
+        conversationId: conversation?.id || routeId || "",
+      },
+    });
+  }, [
+    conversation?.id,
+    conversation?.partner,
+    partnerId,
+    partnerName,
+    partnerAvatar,
+    routeId,
+  ]);
+
   return (
-    <SafeAreaView style={conversationDetailStyles.safe}>
+    <SafeAreaView style={conversationDetailStyles.safe} edges={["top", "bottom"]}>
       {/* ── Header ── */}
       <View style={conversationDetailStyles.header}>
         <View style={conversationDetailStyles.headerLeft}>
@@ -504,7 +777,11 @@ export default function ConversationDetailScreen() {
           <Pressable style={conversationDetailStyles.iconBtn} hitSlop={8}>
             <Ionicons name="videocam" size={22} color={colors.primary} />
           </Pressable>
-          <Pressable style={conversationDetailStyles.iconBtn} hitSlop={8}>
+          <Pressable
+            onPress={handleOpenConversationInfo}
+            style={conversationDetailStyles.iconBtn}
+            hitSlop={8}
+          >
             <Foundation name="info" size={24} color={colors.primary} />
           </Pressable>
         </View>
@@ -519,7 +796,7 @@ export default function ConversationDetailScreen() {
           <FlatList
             ref={flatListRef}
             data={items}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.key}
             renderItem={renderItem}
             contentContainerStyle={conversationDetailStyles.listContent}
             onEndReached={loadMore}
@@ -527,6 +804,14 @@ export default function ConversationDetailScreen() {
             onScroll={handleScroll}
             scrollEventThrottle={100}
             keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              conversation ? (
+                <EmptyConversationIntro
+                  partner={conversation.partner}
+                  onOpenProfile={handleOpenProfile}
+                />
+              ) : null
+            }
             onScrollBeginDrag={() => {
               setShowEmojiPicker(false);
               Keyboard.dismiss();
@@ -552,7 +837,29 @@ export default function ConversationDetailScreen() {
         </View>
 
         {/* ── Input bar ── */}
-        <View style={[conversationDetailStyles.inputBar]}>
+        {blockedByMe ? (
+          <View style={conversationDetailStyles.blockedComposer}>
+            <Text style={conversationDetailStyles.blockedComposerText}>
+              Bạn đã chặn người này.
+            </Text>
+
+            <Pressable
+              onPress={handleUnblock}
+              style={conversationDetailStyles.unblockButton}
+            >
+              <Text style={conversationDetailStyles.unblockButtonText}>
+                Bỏ chặn
+              </Text>
+            </Pressable>
+          </View>
+        ) : blockedByOther ? (
+          <View style={conversationDetailStyles.blockedComposer}>
+            <Text style={conversationDetailStyles.blockedComposerText}>
+              Bạn không thể nhắn tin trong cuộc trò chuyện này.
+            </Text>
+          </View>
+        ) : (
+          <View style={[conversationDetailStyles.inputBar]}>
           <View style={conversationDetailStyles.inputWrap}>
             <TextInput
               style={conversationDetailStyles.textInput}
@@ -604,6 +911,7 @@ export default function ConversationDetailScreen() {
             )}
           </Pressable>
         </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

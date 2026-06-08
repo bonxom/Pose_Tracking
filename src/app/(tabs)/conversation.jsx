@@ -18,9 +18,17 @@ import { getCurrentSession } from "@/repositories/source";
 import conversationStyles from "@/styles/conversation/conversation.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+} from "react-native";
 
 function formatMessageTime(dateString) {
   if (!dateString) return "";
@@ -112,15 +120,47 @@ export default function ConversationsScreen() {
     }
   }, []);
 
+  const handleOpenCamera = useCallback(async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Cần quyền camera",
+        "Vui lòng cấp quyền camera để sử dụng tính năng này.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (result.canceled) {
+      return;
+    }
+
+    console.log("CONVERSATION_CAMERA_RESULT", result.assets?.[0]);
+  }, []);
+
+  const handleOpenNewConversation = useCallback(() => {
+    router.push("/conversation/new");
+  }, []);
+
   const open = (item) => {
-    router.push(`/conversation/${item.id}`);
-    setTimeout(async () => {
-      try {
-        await markConversationRead(item.id);
-      } catch (err) {
-        if (await redirectIfSessionExpired(err, router)) return;
-      }
-    }, 300);
+    const conversationId = String(item?.id || "").trim();
+
+    if (!conversationId) {
+      return;
+    }
+
+    markConversationRead(conversationId).catch(async (err) => {
+      if (await redirectIfSessionExpired(err, router)) return;
+      console.warn("Failed to mark conversation read:", err?.message);
+    });
+
+    router.push(`/conversation/${conversationId}`);
   };
 
   const remove = async (item) => {
@@ -222,8 +262,14 @@ export default function ConversationsScreen() {
           <Text style={conversationStyles.headerTitle}>Chat</Text>
         </View>
         <View style={conversationStyles.headerRight}>
-          <IconButton icon={<CameraIcon color={colors.text} size={22} />} />
-          <IconButton icon={<EditIcon color={colors.text} size={22} />} />
+          <IconButton
+            icon={<CameraIcon color={colors.text} size={22} />}
+            onPress={handleOpenCamera}
+          />
+          <IconButton
+            icon={<EditIcon color={colors.text} size={22} />}
+            onPress={handleOpenNewConversation}
+          />
         </View>
       </View>
 

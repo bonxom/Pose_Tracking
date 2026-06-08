@@ -68,11 +68,19 @@ export async function getBlocks() {
 
     items.forEach((item) => {
       const id = String(
-        item.id || item.user_id || item.blocked_user_id || item.block_id || "",
+        item.blockedUserId ||
+          item.blocked_user_id ||
+          item.userId ||
+          item.user_id ||
+          item.id ||
+          item.block_id ||
+          "",
       );
       if (!id || deduped.has(id)) return;
       deduped.set(id, {
         id,
+        userId: id,
+        blockedUserId: id,
         username:
           item.username || item.name || item.user_name || "Người dùng bị chặn",
         avatar: item.avatar || "",
