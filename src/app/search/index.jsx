@@ -125,6 +125,12 @@ export default function SearchScreen() {
       : params.autoSearch;
     return String(rawValue || "").trim() === "1";
   }, [params.autoSearch]);
+  const routeRequestId = useMemo(() => {
+    const rawValue = Array.isArray(params.requestId)
+      ? params.requestId[0]
+      : params.requestId;
+    return String(rawValue || "").trim();
+  }, [params.requestId]);
 
   const suggestions = useMemo(() => {
     const normalizedKeyword = deferredKeyword.trim().toLowerCase();
@@ -385,14 +391,18 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (!shouldAutoSearch || !routeKeyword) {
+      if (!routeKeyword) {
+        lastAutoSearchKeywordRef.current = "";
+      }
       return;
     }
 
-    if (lastAutoSearchKeywordRef.current === routeKeyword) {
+    const autoSearchKey = routeRequestId || routeKeyword;
+    if (lastAutoSearchKeywordRef.current === autoSearchKey) {
       return;
     }
 
-    lastAutoSearchKeywordRef.current = routeKeyword;
+    lastAutoSearchKeywordRef.current = autoSearchKey;
     setKeyword(routeKeyword);
     setError("");
     setHasSearched(false);
@@ -404,6 +414,7 @@ export default function SearchScreen() {
       preferredTab: routeTab,
     });
   }, [
+    routeRequestId,
     routeKeyword,
     routeTab,
     runSearch,

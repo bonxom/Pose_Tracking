@@ -6,6 +6,7 @@ import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
+import sizes from "@/constants/sizes";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
@@ -153,6 +154,7 @@ export default function PostCard({
         keyword: normalizedTag,
         autoSearch: "1",
         tab: "posts",
+        requestId: String(Date.now()),
       },
     });
   };
@@ -437,6 +439,7 @@ const localStyles = StyleSheet.create({
   videoGrid: {
     flexDirection: "row",
     gap: 0,
+    marginTop: sizes.sm,
   },
   videoGridFullBleed: {
     marginHorizontal: -16,
