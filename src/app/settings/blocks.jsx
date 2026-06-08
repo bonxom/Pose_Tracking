@@ -16,7 +16,6 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -59,6 +58,7 @@ export default function BlocksScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [actionUserId, setActionUserId] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState(null);
 
   const loadBlocks = useCallback(() => {
     setIsLoading(true);
@@ -120,6 +120,7 @@ export default function BlocksScreen() {
       setSearchKeyword("");
       setSearchResults([]);
       setIsAdding(false);
+      setPendingConfirmation(null);
       loadBlocks();
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
@@ -136,18 +137,7 @@ export default function BlocksScreen() {
       return;
     }
 
-    Alert.alert(
-      "Chặn người dùng",
-      `Bạn có chắc muốn chặn ${target.name || target.username || "người dùng này"}?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Chặn",
-          style: "destructive",
-          onPress: () => blockUser(target),
-        },
-      ],
-    );
+    setPendingConfirmation({ type: "block", user: target });
   };
 
   const unblockUser = async (item) => {
@@ -156,6 +146,7 @@ export default function BlocksScreen() {
       await setBlock(item.id, "unblock");
       setBlocks((current) => current.filter((block) => block.id !== item.id));
       setStatus("Đã bỏ chặn người dùng.");
+      setPendingConfirmation(null);
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
       setStatus(error.message || "Không thể bỏ chặn.");
@@ -165,18 +156,28 @@ export default function BlocksScreen() {
   };
 
   const confirmUnblockUser = (item) => {
-    Alert.alert(
-      "Bỏ chặn người dùng",
-      `Bạn có chắc muốn bỏ chặn ${item.username || "người dùng này"}?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Bỏ chặn",
-          onPress: () => unblockUser(item),
-        },
-      ],
-    );
+    setPendingConfirmation({ type: "unblock", user: item });
   };
+
+  const dismissConfirmation = () => {
+    if (actionUserId) return;
+    setPendingConfirmation(null);
+  };
+
+  const runPendingConfirmation = () => {
+    if (!pendingConfirmation?.user) return;
+    if (pendingConfirmation.type === "block") {
+      blockUser(pendingConfirmation.user);
+      return;
+    }
+    unblockUser(pendingConfirmation.user);
+  };
+
+  const confirmationName =
+    pendingConfirmation?.user?.name ||
+    pendingConfirmation?.user?.username ||
+    "người dùng này";
+  const confirmationIsBlock = pendingConfirmation?.type === "block";
 
   return (
     <Screen style={styles.screen}>
@@ -265,6 +266,35 @@ export default function BlocksScreen() {
         </View>
 
         {status ? <Text style={styles.statusText}>{status}</Text> : null}
+
+        {pendingConfirmation ? (
+          <View style={styles.confirmBox}>
+            <Text style={styles.confirmTitle}>
+              {confirmationIsBlock ? "Chặn người dùng" : "Bỏ chặn người dùng"}
+            </Text>
+            <Text style={styles.confirmText}>
+              {confirmationIsBlock
+                ? `Bạn có chắc muốn chặn ${confirmationName}?`
+                : `Bạn có chắc muốn bỏ chặn ${confirmationName}?`}
+            </Text>
+            <View style={styles.confirmActions}>
+              <AppButton
+                title="Hủy"
+                onPress={dismissConfirmation}
+                disabled={Boolean(actionUserId)}
+                style={styles.cancelButton}
+                textStyle={styles.cancelButtonText}
+              />
+              <AppButton
+                title={confirmationIsBlock ? "Chặn" : "Bỏ chặn"}
+                onPress={runPendingConfirmation}
+                loading={actionUserId === pendingConfirmation.user.id}
+                style={styles.confirmButton}
+                textStyle={styles.confirmButtonText}
+              />
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -455,6 +485,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.inkMuted,
+  },
+  confirmBox: {
+    marginHorizontal: sizes.lg,
+    marginTop: sizes.md,
+    padding: sizes.lg,
+    borderRadius: sizes.radiusLg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
+    backgroundColor: colors.white,
+  },
+  confirmTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "900",
+    color: colors.ink,
+  },
+  confirmText: {
+    marginTop: sizes.xs,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.inkMuted,
+  },
+  confirmActions: {
+    marginTop: sizes.md,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: sizes.sm,
+  },
+  cancelButton: {
+    minWidth: 82,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surfaceMuted,
+  },
+  cancelButtonText: {
+    color: colors.ink,
+    fontSize: 14,
+  },
+  confirmButton: {
+    minWidth: 92,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.error,
+  },
+  confirmButtonText: {
+    color: colors.white,
+    fontSize: 14,
   },
   emptyBox: {
     alignItems: "center",

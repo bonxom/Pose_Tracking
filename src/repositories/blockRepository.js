@@ -29,11 +29,13 @@ function normalizeBlockCandidate(item = {}) {
   };
 }
 
-function getSearchUsers(response = {}) {
+function getResponseUsers(response = {}) {
   const data = response?.data || {};
 
   if (Array.isArray(data.users)) return data.users;
   if (Array.isArray(data.user)) return data.user;
+  if (Array.isArray(data.blocks)) return data.blocks;
+  if (Array.isArray(data.blocked_users)) return data.blocked_users;
   if (Array.isArray(data.accounts)) return data.accounts;
   if (Array.isArray(data.people)) return data.people;
   return [];
@@ -61,7 +63,10 @@ export async function getBlocks() {
         ? ACTIVE_SOURCES.LOCAL
         : ACTIVE_SOURCES.SERVER;
     const deduped = new Map();
-    extractList(response).forEach((item) => {
+    const blockItems = extractList(response);
+    const items = blockItems.length ? blockItems : getResponseUsers(response);
+
+    items.forEach((item) => {
       const id = String(
         item.id || item.user_id || item.blocked_user_id || item.block_id || "",
       );
@@ -115,7 +120,7 @@ export async function searchBlockCandidates(keyword = "", options = {}) {
     });
 
     const deduped = new Map();
-    getSearchUsers(response).forEach((item) => {
+    getResponseUsers(response).forEach((item) => {
       const candidate = normalizeBlockCandidate(item);
       if (!candidate || ownIds.includes(candidate.id) || deduped.has(candidate.id)) {
         return;
