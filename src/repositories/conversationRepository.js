@@ -356,27 +356,6 @@ export async function markConversationRead(conversationId) {
   return { read: true, source: ACTIVE_SOURCES.SERVER };
 }
 
-export async function markConversationReadByPartner(partnerId) {
-  const id = String(partnerId || "").trim();
-
-  if (!id) {
-    return { read: false, source: ACTIVE_SOURCES.SERVER };
-  }
-
-  const session = await getCurrentSession();
-
-  const response = await backendApi.setReadMessage({
-    token: session.token,
-    partnerId: id,
-  });
-
-  await assertBackendOk(response, {
-    message: "Backend set_read_message by partner failed",
-  });
-
-  return { read: true, source: ACTIVE_SOURCES.SERVER };
-}
-
 export async function sendMessage(conversationId, partnerId, message) {
   const session = await getCurrentSession();
 
@@ -391,16 +370,6 @@ export async function sendMessage(conversationId, partnerId, message) {
 
   const raw = response.data || {};
   const nextConversationId = String(raw.conversationId || conversationId || "");
-
-  try {
-    if (nextConversationId) {
-      await markConversationRead(nextConversationId);
-    } else if (partnerId) {
-      await markConversationReadByPartner(partnerId);
-    }
-  } catch (error) {
-    console.warn("Failed to mark sent conversation read:", error?.message);
-  }
 
   return {
     id: raw.messageId || String(Date.now()),
