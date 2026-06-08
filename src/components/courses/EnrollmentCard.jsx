@@ -2,7 +2,8 @@ import coursesStyles from "@/styles/courses.styles";
 import postStyles from "@/styles/post.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { getTimeAgo } from "@/utils/timeago";
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 
 export default function EnrollmentCard({
   item,
@@ -20,7 +21,13 @@ export default function EnrollmentCard({
       style={coursesStyles.userCard}
       onPress={() => onPressCard && onPressCard(id, user_name)}
     >
-      <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
+      <Image
+        source={{ uri: avatarUri }}
+        style={postStyles.avatar}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+      />
       <View style={coursesStyles.cardBody}>
         <View style={coursesStyles.cardTopRow}>
           <Text style={coursesStyles.userName} numberOfLines={1}>

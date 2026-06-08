@@ -17,7 +17,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.posetracking"
+      "usesCleartextTraffic": true,
+      "package": "com.group1.posetracking",
+      "googleServicesFile": "./google-services.json",
+      "notification": {
+        "defaultChannel": "push-voice"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -39,11 +44,27 @@
       "expo-secure-store",
       "expo-image",
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/voice_notification.wav",
+            "./assets/sounds/sms_notification.wav"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "57083ea0-65ae-4ab3-afe3-cee26fbf29ba"
+      }
+    },
+    "owner": "hqianq"
   }
 }

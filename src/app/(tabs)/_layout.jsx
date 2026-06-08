@@ -13,9 +13,8 @@ import {
 import {
   getNotificationBadge,
   getNotificationPage,
-  subscribeNotificationBadge
+  subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
-import { getInitials } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
@@ -73,8 +72,7 @@ function TabButton({ onPress, accessibilityState, children }) {
   );
 }
 
-function ProfileTabAvatar({ focused, avatar, name }) {
-  const initials = getInitials(name || "Người dùng");
+function ProfileTabAvatar({ focused, avatar, userId }) {
   return (
     <View
       style={[
@@ -82,21 +80,14 @@ function ProfileTabAvatar({ focused, avatar, name }) {
         focused && styles.profileAvatarWrapActive,
       ]}
     >
-      <View style={styles.profileAvatarFallbackShell}>
-        <View style={styles.profileAvatarFallback}>
-          <Text style={styles.profileAvatarFallbackText}>{initials}</Text>
-        </View>
-      </View>
-      {avatar ? (
-        <Image
-          key={avatar}
-          source={{ uri: avatar }}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-          style={styles.profileAvatarImage}
-        />
-      ) : null}
+      <Image
+        key={userId || "guest"}
+        source={{ uri: avatar }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+        style={styles.profileAvatarImage}
+      />
     </View>
   );
 }
@@ -142,15 +133,18 @@ export default function TabsLayout() {
     const unsubscribe = subscribeAuthSession(setSession);
     return unsubscribe;
   }, []);
-  const displayName = session?.displayName || session?.username || "Người dùng";
   const avatar = resolveAvatarUri(
     session?.avatar || session?.user?.avatar || "",
-    session?.avatarVersion || session?.profileSyncRequestedAt || session?.loggedInAt || "",
+    session?.avatarVersion ||
+      session?.profileSyncRequestedAt ||
+      session?.loggedInAt ||
+      "",
   );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {isHome && <HomeTopSection />}
+
       <Tabs
         screenOptions={{
           tabBarPosition: "top",
@@ -186,7 +180,9 @@ export default function TabsLayout() {
           name="courses"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <CoursesIcon focused={focused} size={28} />,
+            tabBarIcon: ({ focused }) => (
+              <CoursesIcon focused={focused} size={28} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -221,7 +217,7 @@ export default function TabsLayout() {
               <ProfileTabAvatar
                 focused={focused}
                 avatar={avatar}
-                name={displayName}
+                userId={session?.id}
               />
             ),
           }}
@@ -230,7 +226,9 @@ export default function TabsLayout() {
           name="menu"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <MenuIcon focused={focused} size={28} />,
+            tabBarIcon: ({ focused }) => (
+              <MenuIcon focused={focused} size={28} />
+            ),
           }}
         />
       </Tabs>

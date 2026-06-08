@@ -10,16 +10,17 @@ import {
   markNotificationRead,
   markNotificationReadLocal,
   setNotificationBadge,
+  subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
+import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   Text,
@@ -63,9 +64,7 @@ function getInitial(title = "") {
 function isValidRouteId(value) {
   const text = String(value || "").trim();
 
-  return (
-    text && text !== "0" && text !== "undefined" && text !== "null"
-  );
+  return text && text !== "0" && text !== "undefined" && text !== "null";
 }
 
 function firstValidRouteId(...values) {
@@ -110,7 +109,10 @@ function NotificationTypeBadge({ type = "" }) {
 
 function NotificationItem({ item, onPress, nowTick }) {
   const unread = isUnread(item);
-  const avatarUri = resolveAvatarUri(item.avatar || "");
+  const avatarUri = resolveAvatarUri(
+    item.avatar || "",
+    item.avatarVersion || item.profileSyncRequestedAt || "",
+  );
 
   return (
     <Pressable
@@ -123,7 +125,13 @@ function NotificationItem({ item, onPress, nowTick }) {
     >
       <View style={styles.avatarWrap}>
         {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          <Image
+            source={{ uri: avatarUri }}
+            style={styles.avatar}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
         ) : (
           <Text style={styles.avatarFallback}>{getInitial(item.title)}</Text>
         )}
@@ -177,7 +185,13 @@ export default function NotificationsScreen() {
   const [error, setError] = useState("");
   const [nowTick, setNowTick] = useState(Date.now());
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
-  const [lastUpdate, setLastUpdate] = useState(initialCache.lastUpdate);
+  const [, setLastUpdate] = useState(initialCache.lastUpdate);
+  const [hasNewNotification, setHasNewNotification] = useState(false);
+
+  const listRef = useRef(null);
+  const latestBadgeRef = useRef(Number(initialCache.unreadCount || 0));
+  const badgeReadyRef = useRef(false);
+  const initialLoadingRef = useRef(!initialCache.hasLoaded);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -195,46 +209,74 @@ export default function NotificationsScreen() {
     return items;
   }, [activeFilter, items]);
 
-  const loadPage = useCallback(async ({ refresh = false } = {}) => {
-    try {
-      setError("");
-      const cache = getNotificationCache();
-
-      if (refresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-      let page;
-      await executeWithInternetCheck(async () => {
-        page = await getNotificationPage({
-          index: 0,
-          count: PAGE_SIZE,
-          lastUpdate: refresh ? cache.lastUpdate : "",
-        });
-      });
-
-      setItems(page.items);
-      setBadge(page.unreadCount);
-      setNotificationBadge(page.unreadCount);
-      setHasMore(page.hasMore);
-      setLastUpdate(page.lastUpdate);
-    } catch (err) {
-      if (API_TYPE !== API_TYPES.MOCK) {
-        if (await handleNotificationAuthError(err)) {
-          setItems([]);
-          setBadge(0);
-          setHasMore(false);
-          return;
-        }
-      }
-
-      setError(err?.message || "Không tải được thông báo.");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+  const handleNotificationAuthError = useCallback(async (err) => {
+    if (!isNotificationAuthError(err)) {
+      return false;
     }
+
+    await clearAuthSession();
+
+    setItems([]);
+    setBadge(0);
+    setNotificationBadge(0);
+    setHasMore(false);
+
+    router.replace("/(auth)/login");
+
+    return true;
   }, []);
+
+  const loadPage = useCallback(
+    async ({ refresh = false } = {}) => {
+      try {
+        setError("");
+
+        const cache = getNotificationCache();
+
+        if (refresh) {
+          setIsRefreshing(true);
+        } else {
+          setIsLoading(true);
+        }
+
+        let page;
+
+        await executeWithInternetCheck(async () => {
+          page = await getNotificationPage({
+            index: 0,
+            count: PAGE_SIZE,
+            lastUpdate: refresh ? cache.lastUpdate : "",
+            mergeWithExisting: false,
+          });
+        });
+
+        const nextBadge = Number(page.unreadCount || 0);
+
+        latestBadgeRef.current = nextBadge;
+        badgeReadyRef.current = true;
+        initialLoadingRef.current = false;
+        setHasNewNotification(false);
+
+        setItems(page.items);
+        setBadge(nextBadge);
+        setNotificationBadge(nextBadge);
+        setHasMore(page.hasMore);
+        setLastUpdate(page.lastUpdate);
+      } catch (err) {
+        if (API_TYPE !== API_TYPES.MOCK) {
+          if (await handleNotificationAuthError(err)) {
+            return;
+          }
+        }
+
+        setError(err?.message || "Không tải được thông báo.");
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [executeWithInternetCheck, handleNotificationAuthError],
+  );
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || isLoading || isRefreshing || !hasMore) {
@@ -270,7 +312,28 @@ export default function NotificationsScreen() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoading, isRefreshing, isLoadingMore, items.length]);
+  }, [
+    executeWithInternetCheck,
+    hasMore,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    items.length,
+    handleNotificationAuthError,
+  ]);
+
+  const refreshNewNotifications = useCallback(async () => {
+    setHasNewNotification(false);
+
+    await loadPage({ refresh: true });
+
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({
+        offset: 0,
+        animated: true,
+      });
+    });
+  }, [loadPage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -284,25 +347,47 @@ export default function NotificationsScreen() {
         setHasMore(cache.hasMore);
         setLastUpdate(cache.lastUpdate);
         setIsLoading(false);
+
+        latestBadgeRef.current = Number(cache.unreadCount || 0);
       }
 
-      loadPage({
-        refresh: true,
+      loadPage({ refresh: true });
+
+      setHasNewNotification(false);
+
+      const cacheBadge = Number(cache.unreadCount || 0);
+      latestBadgeRef.current = cacheBadge;
+      badgeReadyRef.current = cache.hasLoaded;
+      initialLoadingRef.current = !cache.hasLoaded;
+
+      const unsubscribeBadge = subscribeNotificationBadge((nextBadge) => {
+        const next = Number(nextBadge || 0);
+
+        setBadge(next);
+
+        if (initialLoadingRef.current) {
+          latestBadgeRef.current = next;
+          return;
+        }
+
+        if (!badgeReadyRef.current) {
+          badgeReadyRef.current = true;
+          latestBadgeRef.current = next;
+          return;
+        }
+
+        if (next > latestBadgeRef.current) {
+          setHasNewNotification(true);
+        }
+
+        latestBadgeRef.current = next;
       });
+
+      return () => {
+        unsubscribeBadge?.();
+      };
     }, [loadPage]),
   );
-
-  async function handleNotificationAuthError(error) {
-    if (!isNotificationAuthError(error)) {
-      return false;
-    }
-
-    await clearAuthSession();
-
-    router.replace("/login");
-
-    return true;
-  }
 
   const handlePressNotification = useCallback(
     async (item) => {
@@ -313,6 +398,7 @@ export default function NotificationsScreen() {
           item.id ||
           "",
       ).trim();
+
       const unread = isUnread(item);
 
       if (unread && notificationId) {
@@ -323,7 +409,14 @@ export default function NotificationsScreen() {
         setNotificationBadge(cache.unreadCount);
 
         try {
-          await markNotificationRead(notificationId);
+          const result = await markNotificationRead(notificationId);
+
+          if (Number.isFinite(Number(result?.badge))) {
+            const nextBadge = Number(result.badge);
+
+            setBadge(nextBadge);
+            setNotificationBadge(nextBadge);
+          }
         } catch (err) {
           if (API_TYPE !== API_TYPES.MOCK) {
             if (await handleNotificationAuthError(err)) {
@@ -441,7 +534,7 @@ export default function NotificationsScreen() {
         params: { id: postId },
       });
     },
-    [badge, items],
+    [handleNotificationAuthError],
   );
 
   if (isLoading && items.length === 0) {
@@ -503,6 +596,15 @@ export default function NotificationsScreen() {
         </View>
       </View>
 
+      {hasNewNotification ? (
+        <Pressable
+          style={styles.newNotificationPill}
+          onPress={refreshNewNotifications}
+        >
+          <Text style={styles.newNotificationPillText}>Có thông báo mới</Text>
+        </Pressable>
+      ) : null}
+
       {isNoInternet ? (
         <NoInternetView
           onRefresh={() => loadPage({ refresh: true })}
@@ -518,6 +620,7 @@ export default function NotificationsScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={visibleItems}
           keyExtractor={(item) => item.id}
           extraData={`${activeFilter}-${badge}-${nowTick}-${hasMore}`}
@@ -535,7 +638,10 @@ export default function NotificationsScreen() {
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              onRefresh={() => loadPage({ refresh: true })}
+              onRefresh={() => {
+                setHasNewNotification(false);
+                loadPage({ refresh: true });
+              }}
             />
           }
           onEndReached={loadMore}

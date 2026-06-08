@@ -106,24 +106,20 @@ export const SearchSuggestionRow = memo(function SearchSuggestionRow({
 
 export const SearchUserCard = memo(function SearchUserCard({ user, onPress }) {
   const subtitle = user.description || "";
+  const avatarUri = resolveAvatarUri(
+    user.avatar || "",
+    user.avatarVersion || user.profileSyncRequestedAt || "",
+  );
 
   return (
     <Pressable style={searchStyles.userCard} onPress={onPress}>
-      {resolveAvatarUri(user.avatar || "") ? (
-        <Image
-          source={{ uri: resolveAvatarUri(user.avatar || "") }}
-          style={searchStyles.userAvatar}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-        />
-      ) : (
-        <View style={[searchStyles.userAvatar, searchStyles.userAvatarFallback]}>
-          <Text style={searchStyles.userAvatarText}>
-            {String(user.name).trim()[0]?.toUpperCase() || "U"}
-          </Text>
-        </View>
-      )}
+      <Image
+        source={{ uri: avatarUri }}
+        style={searchStyles.userAvatar}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+      />
       <View style={searchStyles.userInfo}>
         <Text style={searchStyles.userName} numberOfLines={1}>
           {user.name}

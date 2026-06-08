@@ -201,9 +201,10 @@ export async function searchScreenSearch(keyword = "", options = {}) {
         return name.includes(lowered) || handle.includes(lowered);
       });
     }
-  } catch (e) {
+  } catch {
     // ignore filter errors and return users as-is
   }
+
 
   return {
     posts,

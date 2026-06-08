@@ -1,3 +1,4 @@
+import PlayVideoIcon from "@/components/icons/PlayVideoIcon";
 import UploadIcon from "@/components/icons/UploadIcon";
 import colors from "@/constants/colors";
 import createStyles from "@/styles/post/create.styles";
@@ -21,7 +22,13 @@ export function normalizeVideoSlots(videos = []) {
   return [videos[0] || null, videos[1] || null];
 }
 
-export function PostVideoPreview({ video, label, onPress }) {
+export function PostVideoPreview({
+  video,
+  label,
+  onPress,
+  shouldPrimePlayback = false,
+  showPlayIcon = false,
+}) {
   const [isReady, setIsReady] = useState(false);
   const videoUri = typeof video?.uri === "string" ? video.uri.trim() : "";
   const player = useVideoPlayer(videoUri || null, (videoPlayer) => {
@@ -32,8 +39,22 @@ export function PostVideoPreview({ video, label, onPress }) {
 
   useEffect(() => {
     setIsReady(false);
+    if (!videoUri) {
+      player.pause();
+      return;
+    }
+
+    if (shouldPrimePlayback) {
+      try {
+        player.play();
+      } catch {
+        player.pause();
+      }
+      return;
+    }
+
     player.pause();
-  }, [player, videoUri]);
+  }, [player, shouldPrimePlayback, videoUri]);
 
   useEffect(() => {
     const sub = player.addListener("statusChange", ({ status }) => {
@@ -48,19 +69,33 @@ export function PostVideoPreview({ video, label, onPress }) {
   }, [player]);
 
   return (
-    <Pressable style={createStyles.videoPreviewFrame} onPress={onPress}>
+    <View style={createStyles.videoPreviewFrame}>
       {videoUri ? (
         <>
           <VideoView
             player={player}
             style={createStyles.videoPreview}
+            pointerEvents="none"
             contentFit="cover"
             nativeControls={false}
             allowsFullscreen={false}
-            onFirstFrameRender={() => setIsReady(true)}
+            onFirstFrameRender={() => {
+              setIsReady(true);
+              if (shouldPrimePlayback) {
+                player.pause();
+              }
+            }}
           />
+          {showPlayIcon ? (
+            <View pointerEvents="none" style={createStyles.videoPlayIconOverlay}>
+              <PlayVideoIcon size={42} />
+            </View>
+          ) : null}
           {!isReady ? (
-            <View style={createStyles.videoLoadingOverlay}>
+            <View
+              pointerEvents="none"
+              style={createStyles.videoLoadingOverlay}
+            >
               <ActivityIndicator size="small" color={colors.white} />
             </View>
           ) : null}
@@ -73,13 +108,14 @@ export function PostVideoPreview({ video, label, onPress }) {
           </Text>
         </View>
       )}
-      <View style={createStyles.videoPlayBadge}>
+      <Pressable style={createStyles.videoTapOverlay} onPress={onPress} />
+      <View pointerEvents="none" style={createStyles.videoPlayBadge}>
         <Text style={createStyles.videoPlayText}>Xem video</Text>
       </View>
-      <View style={createStyles.videoAngleBadge}>
+      <View pointerEvents="none" style={createStyles.videoAngleBadge}>
         <Text style={createStyles.videoAngleText}>{label}</Text>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -104,16 +140,16 @@ export function PostVideoFullscreenModal({ visible, uri, onClose }) {
   });
 
   useEffect(() => {
-    player.pause();
-  }, [player, uri]);
-
-  useEffect(() => {
     if (visible && uri) {
       setIsReady(false);
+      try {
+        player.play();
+      } catch {}
       return;
     }
+    player.pause();
     setIsReady(true);
-  }, [visible, uri]);
+  }, [player, uri, visible]);
 
   useEffect(() => {
     const sub = player.addListener("statusChange", ({ status }) => {
@@ -150,10 +186,18 @@ export function PostVideoFullscreenModal({ visible, uri, onClose }) {
               style={createStyles.fullscreenVideo}
               contentFit="contain"
               nativeControls
-              onFirstFrameRender={() => setIsReady(true)}
+              onFirstFrameRender={() => {
+                setIsReady(true);
+                try {
+                  player.play();
+                } catch {}
+              }}
             />
             {!isReady ? (
-              <View style={createStyles.videoLoadingOverlay}>
+              <View
+                pointerEvents="none"
+                style={createStyles.videoLoadingOverlay}
+              >
                 <ActivityIndicator size="large" color={colors.white} />
               </View>
             ) : null}

@@ -12,7 +12,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  View
+  View,
 } from "react-native";
 import AppButton from "../common/AppButton";
 
@@ -56,19 +56,13 @@ function FullscreenVideoPlayer({ videoSource, visible, onClose }) {
       navigationBarTranslucent={true}
     >
       <View style={styles.fullscreenBackdrop}>
-        <Pressable
-          style={styles.closeButton}
-          onPress={onClose}
-          hitSlop={8}
-        >
+        <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
           <CloseIcon />
         </Pressable>
 
         {hasError ? (
           <View style={styles.videoErrorOverlay}>
-            <Text style={styles.videoErrorText}>
-              Không thể tải video
-            </Text>
+            <Text style={styles.videoErrorText}>Không thể tải video</Text>
             <AppButton
               title="Thử lại"
               onPress={handleRetry}
@@ -115,10 +109,7 @@ export default function VideoTile({ video, index }) {
     <>
       <Pressable style={styles.videoCard} onPress={openFullscreen}>
         {rawThumbUri ? (
-          <Image
-            source={{ uri: rawThumbUri }}
-            style={styles.videoPreview}
-          />
+          <Image source={{ uri: rawThumbUri }} style={styles.videoPreview} />
         ) : (
           <View style={styles.videoPreviewFallback}>
             <VideoCamOutlineIcon />

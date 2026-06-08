@@ -1,10 +1,10 @@
 import Screen from "@/components/common/Screen";
 import { loginWithPassword } from "@/repositories/authRepository";
-import { setDeviceToken } from "@/repositories/settingsRepository";
+import { registerDeviceForPush } from "@/services/pushNotifications";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
-import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
 import { saveAuthSession } from "@/utils/session";
+import { clearCurrentUserSessionArtifacts } from "@/utils/userSessionCleanup";
 import { validatePassword, validatePhoneNumber } from "@/utils/validation";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -21,6 +21,7 @@ import {
 
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
+
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -29,16 +30,16 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const persistAndNavigate = async (data) => {
+  const persistAndNavigate = async (data = {}) => {
     try {
-      await removeCache(CACHE_KEY_PROFILE);
+      await clearCurrentUserSessionArtifacts();
       await saveAuthSession({
-        id: data.id,
+        id: data.id || data.user_id || data.phonenumber || phoneNumber,
         token: data.token,
-        phonenumber: data.phonenumber,
-        identifier: data.identifier || data.phonenumber,
-        username: data.username || data.displayName,
-        displayName: data.displayName || data.username,
+        phonenumber: data.phonenumber || phoneNumber,
+        identifier: data.identifier || data.phonenumber || phoneNumber,
+        username: data.username || data.displayName || data.name || "",
+        displayName: data.displayName || data.username || data.name || "",
         role: data.role,
         avatar: data.avatar,
         height: data.height,
@@ -48,11 +49,10 @@ export default function LoginScreen() {
         avatarVersion: new Date().toISOString(),
         loggedInAt: new Date().toISOString(),
       });
-      if (!data.demoMode) {
-        setDeviceToken().catch((error) =>
-          console.warn("Cannot register device token:", error),
-        );
-      }
+
+      registerDeviceForPush().catch((error) =>
+        console.warn("Cannot register push token:", error),
+      );
     } catch (storageError) {
       console.warn("Cannot persist login session:", storageError);
     }
@@ -81,22 +81,25 @@ export default function LoginScreen() {
         case "1000": {
           await persistAndNavigate(response.data);
 
-          if (Platform.OS === "web") {
-            break;
+          if (Platform.OS !== "web") {
+            Alert.alert("Thành công", "Đăng nhập thành công");
           }
 
-          Alert.alert("Thành công", "Đăng nhập thành công");
           break;
         }
+
         case "9995":
           setPasswordError("Tài khoản chưa được xác thực hoặc không tồn tại.");
           break;
+
         case "1004":
           setPasswordError("Số điện thoại hoặc mật khẩu không chính xác.");
           break;
+
         case "1002":
           setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
           break;
+
         default:
           Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
       }
@@ -115,6 +118,7 @@ export default function LoginScreen() {
         <Text style={styles.languageText}>English · 中文(台灣) ·</Text>
         <Text style={styles.languageLink}>Xem thêm...</Text>
       </View>
+
       <View style={styles.inputRow}>
         <TextInput
           placeholder="Số điện thoại"
@@ -133,6 +137,7 @@ export default function LoginScreen() {
           editable={!isLoading}
         />
       </View>
+
       {!!phoneNumberError && (
         <Text style={styles.errorText}>{phoneNumberError}</Text>
       )}
@@ -152,10 +157,12 @@ export default function LoginScreen() {
           style={[styles.input, { flex: 1 }]}
           editable={!isLoading}
         />
+
         {password.length > 0 && (
           <Pressable
-            onPress={() => setShowPassword(!showPassword)}
+            onPress={() => setShowPassword((current) => !current)}
             style={styles.eyeIcon}
+            disabled={isLoading}
           >
             <Ionicons
               name={showPassword ? "eye-outline" : "eye-off-outline"}
@@ -165,6 +172,7 @@ export default function LoginScreen() {
           </Pressable>
         )}
       </View>
+
       {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
 
       <Pressable
@@ -190,6 +198,7 @@ export default function LoginScreen() {
       <Pressable
         style={styles.createButton}
         onPress={() => router.push("/(auth)/signup-start")}
+        disabled={isLoading}
       >
         <Text style={styles.createText}>Tạo tài khoản mới</Text>
       </Pressable>

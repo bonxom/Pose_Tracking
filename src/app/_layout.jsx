@@ -3,7 +3,7 @@ import {
   resetInAppNotificationRuntime,
   startInAppNotificationRuntime,
   stopInAppNotificationRuntime,
-} from "@/services/inAppNotificationRuntime";
+} from "@/services/pushNotifications";
 import { getAuthSession } from "@/utils/session";
 import {
   Stack,
@@ -71,9 +71,10 @@ async function buildToastNotification(notification = {}) {
 }
 
 export default function RootLayout() {
-  const navigationRouter = useRouter();
-  const pathname = usePathname();
+  const navRouter = useRouter();
   const segments = useSegments();
+  const pathname = usePathname();
+
   const pathnameRef = useRef(pathname);
   const toastTimerRef = useRef(null);
 
@@ -91,21 +92,24 @@ export default function RootLayout() {
     const syncSessionAndGuardRoute = async () => {
       try {
         const session = await getAuthSession();
-        if (!isMounted) return;
 
-        const currentGroup = segments[0];
-        const isAuthenticated = Boolean(session);
-        const isAuthGroup = currentGroup === "(auth)";
-
-        setIsAuthenticated(isAuthenticated);
-
-        if (!isAuthenticated && !isAuthGroup) {
-          navigationRouter.replace("/(auth)/login");
+        if (!isMounted) {
           return;
         }
 
-        if (isAuthenticated && isAuthGroup) {
-          navigationRouter.replace("/(tabs)/home");
+        const currentGroup = segments[0];
+        const authenticated = Boolean(session);
+        const isAuthGroup = currentGroup === "(auth)";
+
+        setIsAuthenticated(authenticated);
+
+        if (!authenticated && !isAuthGroup) {
+          navRouter.replace("/(auth)/login");
+          return;
+        }
+
+        if (authenticated && isAuthGroup) {
+          navRouter.replace("/(tabs)/home");
         }
       } finally {
         if (isMounted) {
@@ -119,17 +123,20 @@ export default function RootLayout() {
     return () => {
       isMounted = false;
     };
-  }, [navigationRouter, segments]);
+  }, [navRouter, segments]);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      resetInAppNotificationRuntime();
+      resetInAppNotificationRuntime?.();
       setNotificationToast(null);
       return undefined;
     }
 
     const stopRuntime = startInAppNotificationRuntime({
       getCurrentPath: () => pathnameRef.current,
+      onOpen: () => {
+        router.push("/(tabs)/notifications");
+      },
       onNewInAppNotification: ({ notification }) => {
         console.log("SHOW_NOTIFICATION_TOAST", {
           notification,
@@ -157,7 +164,7 @@ export default function RootLayout() {
       }
 
       stopRuntime?.();
-      stopInAppNotificationRuntime();
+      stopInAppNotificationRuntime?.();
     };
   }, [isAuthenticated]);
 
@@ -215,54 +222,67 @@ export default function RootLayout() {
             shadowRadius: 12,
             shadowOffset: { width: 0, height: 4 },
             elevation: 8,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
           }}
         >
-          {notificationToast.avatar ? (
-            <Image
-              source={{ uri: notificationToast.avatar }}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: "#E5E7EB",
-              }}
-            />
-          ) : (
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: "#1877F2",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>
-                {getToastInitial(notificationToast.title)}
-              </Text>
-            </View>
-          )}
-
-          <View style={{ flex: 1 }}>
-            <Text
-              numberOfLines={1}
-              style={{ fontWeight: "700", color: "#111827", fontSize: 14 }}
-            >
-              {notificationToast.title}
-            </Text>
-
-            {notificationToast.body ? (
-              <Text
-                numberOfLines={2}
-                style={{ color: "#4B5563", fontSize: 13, marginTop: 2 }}
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {notificationToast.avatar ? (
+              <Image
+                source={{ uri: notificationToast.avatar }}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: "#E7F3FF",
+                }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: "#E7F3FF",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                {notificationToast.body}
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "800",
+                    color: "#1877F2",
+                  }}
+                >
+                  {getToastInitial(notificationToast.title)}
+                </Text>
+              </View>
+            )}
+
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 15,
+                  fontWeight: "800",
+                  color: "#111827",
+                }}
+              >
+                {notificationToast.title}
               </Text>
-            ) : null}
+
+              {notificationToast.body ? (
+                <Text
+                  numberOfLines={2}
+                  style={{
+                    marginTop: 3,
+                    fontSize: 13,
+                    color: "#4B5563",
+                  }}
+                >
+                  {notificationToast.body}
+                </Text>
+              ) : null}
+            </View>
           </View>
         </Pressable>
       ) : null}

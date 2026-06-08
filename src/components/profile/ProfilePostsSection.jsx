@@ -2,7 +2,7 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import PostCard from "@/components/post/PostCard";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { initials, resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri } from "@/utils/profile";
 import { router } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Image } from "expo-image";
@@ -17,26 +17,13 @@ function Avatar({ uri, name, size = 72 }) {
 
   return (
     <View style={avatarStyle}>
-      {avatarUri ? (
-        <Image
-          source={{ uri: avatarUri }}
-          style={[profileStyles.avatarImage, avatarStyle]}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-        />
-      ) : (
-        <View style={[profileStyles.avatarFallback, avatarStyle]}>
-          <Text
-            style={[
-              profileStyles.avatarFallbackText,
-              { fontSize: Math.max(14, size * 0.34) },
-            ]}
-          >
-            {initials(name)}
-          </Text>
-        </View>
-      )}
+      <Image
+        source={{ uri: avatarUri }}
+        style={[profileStyles.avatarImage, avatarStyle]}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+      />
     </View>
   );
 }
