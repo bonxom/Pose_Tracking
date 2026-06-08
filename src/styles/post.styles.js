@@ -5,7 +5,7 @@ import { StyleSheet } from "react-native";
 const postStyles = StyleSheet.create({
   screen: {
     paddingHorizontal: 0,
-    paddingVertical: 0,
+    paddingVertical: sizes.lg,
   },
   screenInner: {
     flex: 1,
