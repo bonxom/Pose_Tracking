@@ -1,9 +1,14 @@
 import Screen from "@/components/common/Screen";
 import CommentComponent from "@/components/post/CommentComponent";
+import CommentComposer from "@/components/post/CommentComposer";
 import PostCard from "@/components/post/PostCard";
 import SkeletonComment from "@/components/post/SkeletonComment";
+import {
+  dedupeCommentsById,
+  validateCommentText,
+} from "@/components/post/commentThreadUtils";
 import colors from "@/constants/colors";
-import { getComments } from "@/repositories/commentRepository";
+import { addComment, getComments } from "@/repositories/commentRepository";
 import {
   getPostById,
   reportPost,
@@ -14,7 +19,7 @@ import { getAuthSession } from "@/utils/session";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -36,6 +41,9 @@ export default function PostDetailScreen() {
   const [commentError, setCommentError] = useState("");
   const [hasMoreComments, setHasMoreComments] = useState(false);
   const [isCommentBlocked, setIsCommentBlocked] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const inlineCommentInputRef = useRef(null);
 
   const handleGoBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -87,7 +95,7 @@ export default function PostDetailScreen() {
         count: COMMENT_PREVIEW_COUNT,
       });
       const loadedComments = Array.isArray(result?.comments)
-        ? result.comments
+        ? dedupeCommentsById(result.comments)
         : [];
       const commentCount = Number(post?.commentCount) || 0;
       const blocked = result?.isBlocked === true;
@@ -128,6 +136,46 @@ export default function PostDetailScreen() {
       console.warn("Failed to toggle like:", error);
       if (await redirectIfSessionExpired(error, router)) return;
       setStatusText("Không thể cập nhật lượt thích.");
+    }
+  };
+
+  const handleSubmitInlineComment = async () => {
+    if (!post) return;
+
+    const { text: sanitizedComment, error } = validateCommentText(commentText);
+
+    if (error) {
+      setCommentError(error);
+      inlineCommentInputRef.current?.focus();
+      return;
+    }
+
+    try {
+      setIsSubmittingComment(true);
+      setCommentError("");
+      const result = await addComment(post, sanitizedComment);
+
+      if (result?.comment) {
+        setComments((prevComments) =>
+          dedupeCommentsById([result.comment, ...prevComments]),
+        );
+        setPost((currentPost) =>
+          currentPost
+            ? {
+                ...currentPost,
+                commentCount: (Number(currentPost.commentCount) || 0) + 1,
+              }
+            : currentPost,
+        );
+        setCommentText("");
+        inlineCommentInputRef.current?.focus();
+      }
+    } catch (error) {
+      console.warn("Failed to add inline comment:", error);
+      if (await redirectIfSessionExpired(error, router)) return;
+      setCommentError("Không thể đăng bình luận. Vui lòng thử lại.");
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -259,6 +307,7 @@ export default function PostDetailScreen() {
       <ScrollView
         contentContainerStyle={postStyles.detailScrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <PostCard
           post={post}
@@ -323,18 +372,18 @@ export default function PostDetailScreen() {
               Bài viết này hiện không thể bình luận.
             </Text>
           ) : (
-            <Pressable
-              onPress={openComments}
-              style={({ pressed }) => [
-                postStyles.detailCommentComposerLink,
-                pressed && postStyles.detailCommentComposerLinkPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <Text style={postStyles.detailCommentComposerText}>
-                Viết bình luận...
-              </Text>
-            </Pressable>
+            <CommentComposer
+              inputRef={inlineCommentInputRef}
+              value={commentText}
+              onChangeText={(nextText) => {
+                setCommentText(nextText);
+                if (commentError) setCommentError("");
+              }}
+              onSubmit={handleSubmitInlineComment}
+              isSubmitting={isSubmittingComment}
+              containerStyle={postStyles.detailInlineComposer}
+              inputContainerStyle={postStyles.detailInlineComposerInput}
+            />
           )}
         </View>
 

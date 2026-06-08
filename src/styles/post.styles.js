@@ -106,6 +106,13 @@ const postStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.subtext,
   },
+  detailInlineComposer: {
+    paddingTop: sizes.xs,
+    paddingBottom: 0,
+  },
+  detailInlineComposerInput: {
+    marginBottom: 0,
+  },
   detailCommentsLocked: {
     fontSize: 13,
     lineHeight: 20,

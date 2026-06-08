@@ -1,23 +1,20 @@
-import AppInput from "@/components/common/AppInput";
-import SendIcon from "@/components/icons/SendIcon";
-import SmileIcon from "@/components/icons/SmileIcon";
 import ThumbUpWithCircleIcon from "@/components/icons/ThumbUpWithCircleIcon";
 import CommentComponent from "@/components/post/CommentComponent";
-import CommentReactionPicker from "@/components/post/CommentReactionPicker";
+import CommentComposer from "@/components/post/CommentComposer";
 import SkeletonComment from "@/components/post/SkeletonComment";
-import colors from "@/constants/colors";
+import {
+  dedupeCommentsById,
+  validateCommentText,
+} from "@/components/post/commentThreadUtils";
 import sizes from "@/constants/sizes";
 import { addComment, getComments } from "@/repositories/commentRepository";
 import { getPostById } from "@/repositories/postRepository";
 import postStyles from "@/styles/post.styles";
 import commentOverlayStyles from "@/styles/post/comment-overlay.styles";
-import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import { getAuthSession } from "@/utils/session";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   Easing,
@@ -30,7 +27,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SHEET_OPEN_DELAY_MS = 80;
@@ -38,25 +34,7 @@ const SHEET_FOCUS_DELAY_MS = 280;
 const DISMISS_DISTANCE = 110;
 const DISMISS_VELOCITY = 1.1;
 const INITIAL_TRANSLATE_Y = 640;
-const COMMENT_INPUT_MIN_HEIGHT = 48;
-const COMMENT_INPUT_MAX_HEIGHT = 132;
-const COMMENT_INPUT_VERTICAL_PADDING = 0;
-const COMPOSER_ICON_COLOR = colors.subtext;
 const DEFAULT_COMMENT_COUNT = 20;
-
-function dedupeCommentsById(commentList = []) {
-  const seen = new Set();
-  const deduped = [];
-
-  commentList.forEach((item) => {
-    const id = String(item?.id || "");
-    if (!id || seen.has(id)) return;
-    seen.add(id);
-    deduped.push(item);
-  });
-
-  return deduped;
-}
 
 export default function CommentScreen() {
   const { postId } = useLocalSearchParams();
@@ -75,21 +53,12 @@ export default function CommentScreen() {
   const [isCommentBlocked, setIsCommentBlocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [commentInputHeight, setCommentInputHeight] = useState(
-    COMMENT_INPUT_MIN_HEIGHT,
-  );
-  const [isReactionPickerVisible, setIsReactionPickerVisible] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
   const sheetBottomPadding = useMemo(
     () =>
       Math.max(insets.bottom, sizes.md) +
       (keyboardHeight > 0 ? keyboardHeight + sizes.xs : 0),
     [insets.bottom, keyboardHeight],
   );
-
-  useEffect(() => {
-    getAuthSession().then(setCurrentUser).catch(console.warn);
-  }, []);
 
   const backdropOpacity = useMemo(
     () =>
@@ -102,7 +71,6 @@ export default function CommentScreen() {
   );
 
   const closeSheet = useCallback(() => {
-    setIsReactionPickerVisible(false);
     setKeyboardHeight(0);
     Keyboard.dismiss();
     Animated.timing(translateY, {
@@ -286,17 +254,10 @@ export default function CommentScreen() {
   );
 
   const handleSubmitComment = async () => {
-    const sanitizedComment = commentText
-      .trim()
-      .replace(/[\u0000-\u001F\u007F]/g, "");
+    const { text: sanitizedComment, error } = validateCommentText(commentText);
 
-    if (!sanitizedComment) {
-      Alert.alert("Lỗi", "Vui lòng nhập bình luận");
-      return;
-    }
-
-    if (sanitizedComment.length > 500) {
-      Alert.alert("Bình luận quá dài", "Bình luận tối đa 500 ký tự.");
+    if (error) {
+      Alert.alert("Lỗi", error);
       return;
     }
 
@@ -308,8 +269,6 @@ export default function CommentScreen() {
           dedupeCommentsById([result.comment, ...prevComments]),
         );
         setCommentText("");
-        setCommentInputHeight(COMMENT_INPUT_MIN_HEIGHT);
-        setIsReactionPickerVisible(false);
         inputRef.current?.focus();
       }
     } catch (error) {
@@ -319,22 +278,6 @@ export default function CommentScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleToggleReactionPicker = () => {
-    setIsReactionPickerVisible((current) => !current);
-  };
-
-  const handleDismissReactionPicker = useCallback(() => {
-    setIsReactionPickerVisible(false);
-  }, []);
-
-  const handleSelectReaction = (reaction) => {
-    setCommentText((current) =>
-      current.trim().length ? `${current} ${reaction}` : reaction,
-    );
-    // setIsReactionPickerVisible(false);
-    inputRef.current?.focus();
   };
 
   const likeCount = Number(post?.likeCount) || 0;
@@ -347,16 +290,6 @@ export default function CommentScreen() {
     : likeCount > 0
       ? String(likeCount)
       : "";
-  const composerAvatarUri = resolveAvatarUri(
-    (typeof currentUser?.avatar === "string" && currentUser.avatar.trim()) ||
-      (typeof currentUser?.user?.avatar === "string" &&
-        currentUser.user.avatar.trim()) ||
-      "",
-    currentUser?.avatarVersion ||
-      currentUser?.profileSyncRequestedAt ||
-      currentUser?.loggedInAt ||
-      "",
-  );
 
   return (
     <View style={styles.modalRoot}>
@@ -434,110 +367,22 @@ export default function CommentScreen() {
                 }
               />
             )}
-
-            {isReactionPickerVisible ? (
-              <Pressable
-                style={styles.reactionDismissOverlay}
-                onPress={handleDismissReactionPicker}
-              />
-            ) : null}
           </View>
 
-          <View style={styles.composer}>
-            {isCommentComposerDisabled ? (
-              <Text style={postStyles.subtitle}>
-                {isCommentBlocked
-                  ? "Bài viết này hiện không thể bình luận."
-                  : "Bài viết này đang tắt bình luận."}
-              </Text>
-            ) : (
-              <>
-                {isReactionPickerVisible ? (
-                  <CommentReactionPicker
-                    onSelectReaction={handleSelectReaction}
-                  />
-                ) : null}
-                <View style={styles.composerRow}>
-                  <View style={styles.composerAvatar}>
-                    <Image
-                      source={{ uri: composerAvatarUri }}
-                      style={localStyles.composerAvatarImage}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                      transition={150}
-                    />
-                  </View>
-                  <AppInput
-                    ref={inputRef}
-                    autoFocus
-                    placeholder="Viết bình luận..."
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    onFocus={() => setIsReactionPickerVisible(false)}
-                    multiline
-                    numberOfLines={1}
-                    scrollEnabled={
-                      commentInputHeight >= COMMENT_INPUT_MAX_HEIGHT
-                    }
-                    onContentSizeChange={(event) => {
-                      const nextHeight = Math.min(
-                        COMMENT_INPUT_MAX_HEIGHT,
-                        Math.max(
-                          COMMENT_INPUT_MIN_HEIGHT,
-                          (event.nativeEvent.contentSize?.height || 0) +
-                            COMMENT_INPUT_VERTICAL_PADDING,
-                        ),
-                      );
-                      setCommentInputHeight(nextHeight);
-                    }}
-                    containerStyle={styles.commentInputWrap}
-                    style={[
-                      styles.commentInput,
-                      { height: commentInputHeight },
-                    ]}
-                  />
-                  <Pressable
-                    onPress={handleToggleReactionPicker}
-                    style={({ pressed }) => [
-                      styles.iconButton,
-                      isReactionPickerVisible && styles.iconButtonActive,
-                      pressed && styles.iconButtonPressed,
-                    ]}
-                    hitSlop={8}
-                  >
-                    <SmileIcon />
-                  </Pressable>
-                  <Pressable
-                    onPress={handleSubmitComment}
-                    disabled={isSubmitting || !commentText.trim()}
-                    style={({ pressed }) => [
-                      styles.sendButton,
-                      (isSubmitting || !commentText.trim()) &&
-                        styles.sendButtonDisabled,
-                      pressed &&
-                        !(isSubmitting || !commentText.trim()) &&
-                        styles.sendButtonPressed,
-                    ]}
-                    hitSlop={8}
-                  >
-                    {isSubmitting ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={COMPOSER_ICON_COLOR}
-                      />
-                    ) : (
-                      <View style={styles.sendIconRotate}>
-                        <SendIcon size={18} color={COMPOSER_ICON_COLOR} />
-                      </View>
-                    )}
-                  </Pressable>
-                </View>
-                <Text style={postStyles.slotHint}>
-                  {commentText.length}/500 ký tự
-                </Text>
-              </>
-            )}
-          </View>
+          <CommentComposer
+            inputRef={inputRef}
+            autoFocus
+            value={commentText}
+            onChangeText={setCommentText}
+            onSubmit={handleSubmitComment}
+            isSubmitting={isSubmitting}
+            disabled={isCommentComposerDisabled}
+            disabledText={
+              isCommentBlocked
+                ? "Bài viết này hiện không thể bình luận."
+                : "Bài viết này đang tắt bình luận."
+            }
+          />
         </View>
       </Animated.View>
     </View>
@@ -545,11 +390,3 @@ export default function CommentScreen() {
 }
 
 const styles = commentOverlayStyles;
-const localStyles = StyleSheet.create({
-  composerAvatarImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 999,
-  },
-});
-
