@@ -40,6 +40,21 @@ export function getNotificationCache() {
   return notificationCache;
 }
 
+export function resetNotificationCache() {
+  notificationCache = {
+    items: [],
+    unreadCount: 0,
+    lastUpdate: "",
+    hasMore: false,
+    hasLoaded: false,
+    source: ACTIVE_SOURCES.LOCAL,
+  };
+
+  setNotificationBadge(0);
+
+  return notificationCache;
+}
+
 export function getNotificationBadge() {
   return notificationBadge;
 }
@@ -65,6 +80,49 @@ export function subscribeNotificationBadge(listener) {
 export function formatNotificationBadge(value) {
   const numeric = Number(value) || 0;
   return numeric > 99 ? "99+" : String(numeric);
+}
+
+function toBoolFlag(value, fallback = false) {
+  if (value === undefined || value === null) return fallback;
+  if (value === true || value === 1 || value === "1") return true;
+  if (value === false || value === 0 || value === "0") return false;
+
+  const normalized = String(value).trim().toLowerCase();
+
+  if (normalized === "true" || normalized === "yes" || normalized === "read") {
+    return true;
+  }
+
+  if (normalized === "false" || normalized === "no" || normalized === "unread") {
+    return false;
+  }
+
+  return fallback;
+}
+
+export function isNotificationUnread(item = {}) {
+  if (item.unread !== undefined) return toBoolFlag(item.unread, true);
+  if (item.read !== undefined) return !toBoolFlag(item.read, false);
+  if (item.isRead !== undefined) return !toBoolFlag(item.isRead, false);
+  if (item.is_read !== undefined) return !toBoolFlag(item.is_read, false);
+
+  if (item.raw?.unread !== undefined) return toBoolFlag(item.raw.unread, true);
+  if (item.raw?.read !== undefined) return !toBoolFlag(item.raw.read, false);
+  if (item.raw?.is_read !== undefined) return !toBoolFlag(item.raw.is_read, false);
+
+  return true;
+}
+
+function getNotificationIds(item = {}) {
+  return [
+    item.notificationId,
+    item.id,
+    item.raw?.notificationId,
+    item.raw?.notification_id,
+    item.raw?.id,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim());
 }
 
 function getNotificationCreatedTime(item) {
@@ -109,14 +167,18 @@ function saveNotificationCache(page, { append = false } = {}) {
 }
 
 export function markNotificationReadLocal(notificationId) {
-  if (!notificationId) {
+  const targetId = String(notificationId || "").trim();
+
+  if (!targetId) {
     return notificationCache;
   }
 
   let changed = false;
 
   const nextItems = notificationCache.items.map((item) => {
-    if (item.notificationId !== notificationId || !item.unread) {
+    const ids = getNotificationIds(item);
+
+    if (!ids.includes(targetId) || !isNotificationUnread(item)) {
       return item;
     }
 
@@ -124,10 +186,15 @@ export function markNotificationReadLocal(notificationId) {
 
     return {
       ...item,
+      read: true,
       unread: false,
+      isRead: true,
+      is_read: "1",
       raw: {
         ...item.raw,
         read: "1",
+        unread: false,
+        is_read: "1",
       },
     };
   });
@@ -136,7 +203,7 @@ export function markNotificationReadLocal(notificationId) {
     return notificationCache;
   }
 
-  const unreadCount = Math.max(0, notificationCache.unreadCount - 1);
+  const unreadCount = Math.max(0, Number(notificationCache.unreadCount || 0) - 1);
 
   notificationCache = {
     ...notificationCache,
@@ -159,7 +226,13 @@ function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     raw.course_id ||
     "";
   const group = raw.group || raw.group_type || "";
-  const readValue = raw.read ?? raw.is_read;
+  const readValue = raw.read ?? raw.is_read ?? raw.isRead;
+  const unread =
+    raw.unread !== undefined
+      ? toBoolFlag(raw.unread, true)
+      : readValue !== undefined
+        ? !toBoolFlag(readValue, false)
+        : true;
 
   function buildNotificationId(raw = {}, index = 0) {
     return String(
@@ -189,12 +262,10 @@ function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
       raw.time ||
       new Date().toISOString(),
     lastUpdate: raw.last_update || raw.lastUpdate || "",
-    unread:
-      raw.unread !== undefined
-        ? raw.unread
-        : readValue !== undefined
-          ? !Boolean(Number(readValue))
-          : true,
+    read: !unread,
+    unread,
+    isRead: !unread,
+    is_read: unread ? "0" : "1",
     targetType:
       raw.targetType ||
       raw.target_type ||
@@ -256,7 +327,7 @@ export async function getNotificationPage(params = {}) {
     const page = normalizeNotificationPage(response, ACTIVE_SOURCES.LOCAL);
 
     return saveNotificationCache(page, {
-      append: Number(params.index || 0) > 0,
+      append: Number(params.index || 0) > 0 || Boolean(params.mergeWithExisting),
     });
   }
 
@@ -277,7 +348,7 @@ export async function getNotificationPage(params = {}) {
 
     const page = normalizeNotificationPage(response, ACTIVE_SOURCES.SERVER);
     return saveNotificationCache(page, {
-      append: Number(params.index || 0) > 0,
+      append: Number(params.index || 0) > 0 || Boolean(params.mergeWithExisting),
     });
   } catch (error) {
     console.info("[DATA] Server notification fallback", {
@@ -302,8 +373,8 @@ export async function markNotificationRead(notificationId) {
   const session = await getCurrentSession();
 
   const response = await backendApi.setReadNotification({
-    token: session?.token,
-    notification_id: String(notificationId),
+    token: session.token,
+    notificationId: String(notificationId),
   });
 
   await assertBackendOk(response, {
