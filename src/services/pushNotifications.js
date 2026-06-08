@@ -279,7 +279,8 @@ export async function loadAndApplyPushSettings() {
       return {
         shouldShowBanner: notificationOn,
         shouldShowList: notificationOn,
-        shouldPlaySound: notificationOn && toBool(currentSettings.soundOn, true),
+        shouldPlaySound:
+          notificationOn && toBool(currentSettings.soundOn, true),
         shouldSetBadge: notificationOn,
       };
     },
@@ -463,7 +464,7 @@ export function startInAppNotificationRuntime({
     }).catch((error) => {
       console.log("POLL_NOTIFICATION_ERROR", error?.message);
     });
-  }, 30000);
+  }, 300000);
 
   appStateSubscription = AppState.addEventListener("change", (state) => {
     if (state === "active") {

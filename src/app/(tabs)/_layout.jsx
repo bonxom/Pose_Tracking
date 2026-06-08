@@ -1,10 +1,10 @@
 import IconWithBadge from "@/components/common/IconWithBadge";
+import SearchButton from "@/components/common/SearchButton";
 import BellIcon from "@/components/icons/BellIcon";
 import ChatTwoBubbleIcon from "@/components/icons/ChatTwoBubbleIcon";
 import CoursesIcon from "@/components/icons/CoursesIcon";
 import HomeIcon from "@/components/icons/HomeIcon";
 import MenuIcon from "@/components/icons/MenuIcon";
-import SearchIcon from "@/components/icons/SearchIcon";
 import colors from "@/constants/colors";
 import {
   getConversationList,
@@ -15,6 +15,7 @@ import {
   getNotificationPage,
   subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
+import globalStyles from "@/styles/global.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { FontAwesome } from "@expo/vector-icons";
@@ -38,7 +39,7 @@ function HomeTopSection() {
   const canCreatePost = role === "GV";
 
   return (
-    <View style={styles.homeHeader}>
+    <View style={globalStyles.headerTopRow}>
       <Text style={styles.homeTitle}>Pose Tracking</Text>
       <View style={styles.headerActions}>
         {canCreatePost ? (
@@ -50,13 +51,7 @@ function HomeTopSection() {
             <FontAwesome name="plus-square-o" size={24} color={colors.text} />
           </Pressable>
         ) : null}
-        <Pressable
-          style={styles.searchBtn}
-          hitSlop={8}
-          onPress={() => router.push("/search")}
-        >
-          <SearchIcon size={28} />
-        </Pressable>
+        <SearchButton />
       </View>
     </View>
   );
@@ -241,13 +236,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  homeHeader: {
-    height: 52,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   homeTitle: {
     color: colors.primary,
     fontSize: 28,
@@ -274,12 +262,6 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchBtn: {
-    width: 40,
-    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },

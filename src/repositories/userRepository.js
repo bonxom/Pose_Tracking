@@ -545,6 +545,10 @@ export function createOptimisticUserInfo(session = {}, params = {}) {
 
 export async function getUserInfo(userId = "") {
   const session = await getCurrentSession();
+  console.log("-------------------");
+  console.log(session.displayName);
+  console.log(session.token);
+  console.log("-------------------");
   const targetUserId = String(userId || "");
   const isOwnProfile =
     !targetUserId ||
