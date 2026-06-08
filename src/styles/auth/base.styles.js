@@ -25,24 +25,25 @@ const styles = StyleSheet.create({
   signupHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 26,
+    marginBottom: 24,
+    minHeight: 44,
   },
   signupBackButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'flex-start',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: -8,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  signupBackText: {
-    fontSize: 22,
-    lineHeight: 22,
-    color: COLORS.text,
-    fontWeight: '600',
+  signupBackButtonPressed: {
+    backgroundColor: '#F0F2F5',
   },
   signupHeaderTitle: {
-    marginLeft: 8,
-    fontSize: 18,
-    fontWeight: '600',
+    marginLeft: 4,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '700',
     color: COLORS.text,
   },
   title: {

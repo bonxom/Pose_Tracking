@@ -82,7 +82,7 @@ export default function SignupScreen() {
             resolvedPhone;
 
           if (!resolvedSignupRequestId || !resolvedPhone) {
-            Alert.alert("Lỗi", "Phản hồi từ máy chủ không hợp lệ.");
+            Alert.alert("Lá»—i", "Pháº£n há»“i tá»« mÃ¡y chá»§ khÃ´ng há»£p lá»‡.");
             return;
           }
 
@@ -99,19 +99,19 @@ export default function SignupScreen() {
           break;
         }
         case "1004":
-          setPhoneNumberError("Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.");
+          setPhoneNumberError("Dá»¯ liá»‡u khÃ´ng há»£p lá»‡. Vui lÃ²ng kiá»ƒm tra láº¡i.");
           break;
         case "9998":
-          setPhoneNumberError("Số điện thoại này đã được đăng ký.");
+          setPhoneNumberError("Sá»‘ Ä‘iá»‡n thoáº¡i nÃ y Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½.");
           break;
         case "1002":
-          setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
+          setPhoneNumberError("Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin.");
           break;
         default:
-          Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
+          Alert.alert("Lá»—i", response.message || "ÄÃ£ cÃ³ lá»—i xáº£y ra.");
       }
     } catch {
-      Alert.alert("Lỗi", "Không thể kết nối đến máy chủ.");
+      Alert.alert("Lá»—i", "KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n mÃ¡y chá»§.");
     } finally {
       setIsLoading(false);
     }
@@ -121,25 +121,28 @@ export default function SignupScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.welcomeTopBar}>
+        <View style={styles.signupHeaderRow}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Quay lại"
             onPress={handleBack}
-            style={styles.welcomeBackButton}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.signupBackButton,
+              pressed && styles.signupBackButtonPressed,
+            ]}
           >
-            <Text style={styles.welcomeBackText}>←</Text>
+            <Ionicons name="chevron-back" size={28} color="#050505" />
           </Pressable>
 
-          <Text style={styles.welcomeTopTitle}>Tạo tài khoản</Text>
+          <Text style={styles.signupHeaderTitle}>Tạo tài khoản</Text>
         </View>
-        <View style={styles.welcomeDivider} />
 
         <View style={styles.formBody}>
-          <Text style={styles.formLabel}>Số điện thoại</Text>
+          <Text style={styles.formLabel}>Sá»‘ Ä‘iá»‡n thoáº¡i</Text>
           <View style={styles.inputRow}>
             <TextInput
-              placeholder="Nhập số điện thoại"
+              placeholder="Nháº­p sá»‘ Ä‘iá»‡n thoáº¡i"
               placeholderTextColor="#94A3B8"
               value={phoneNumber}
               onChangeText={(text) => {
@@ -153,10 +156,10 @@ export default function SignupScreen() {
           </View>
           {!!phoneNumberError && <Text style={styles.errorText}>{phoneNumberError}</Text>}
 
-          <Text style={styles.formLabel}>Mật khẩu</Text>
+          <Text style={styles.formLabel}>Máº­t kháº©u</Text>
           <View style={styles.inputRow}>
             <TextInput
-              placeholder="Nhập mật khẩu"
+              placeholder="Nháº­p máº­t kháº©u"
               placeholderTextColor="#94A3B8"
               value={password}
               onChangeText={(text) => {
@@ -180,7 +183,7 @@ export default function SignupScreen() {
           {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
 
           <Text style={[styles.formLabel, !showRolePicker && { display: "none" }]}>
-            Vai trò
+            Vai trÃ²
           </Text>
           <View style={[styles.roleContainer, !showRolePicker && { display: "none" }]}>
             <Pressable
@@ -192,7 +195,7 @@ export default function SignupScreen() {
               disabled={isLoading}
             >
               <Text style={[styles.roleButtonText, role === "HV" && styles.roleButtonTextActive]}>
-                Học viên
+                Há»c viÃªn
               </Text>
             </Pressable>
 
@@ -205,14 +208,14 @@ export default function SignupScreen() {
               disabled={isLoading}
             >
               <Text style={[styles.roleButtonText, role === "GV" && styles.roleButtonTextActive]}>
-                Giáo viên
+                GiÃ¡o viÃªn
               </Text>
             </Pressable>
           </View>
           {showRolePicker && !!roleError && <Text style={styles.errorText}>{roleError}</Text>}
 
           <AppButton
-            title={isLoading ? "Đang xử lý..." : "Tiếp"}
+            title={isLoading ? "Äang xá»­ lÃ½..." : "Tiáº¿p"}
             onPress={handleSubmit}
             disabled={isLoading}
             style={styles.ctaButton}
@@ -223,7 +226,7 @@ export default function SignupScreen() {
         <View style={styles.welcomeBottomHint}>
           <Pressable onPress={() => router.push("/(auth)/login")}>
             <Text style={styles.footerText}>
-              Bạn đã có tài khoản? <Text style={styles.footerLink}>Đăng nhập</Text>
+              Báº¡n Ä‘Ã£ cÃ³ tÃ i khoáº£n? <Text style={styles.footerLink}>ÄÄƒng nháº­p</Text>
             </Text>
           </Pressable>
         </View>
