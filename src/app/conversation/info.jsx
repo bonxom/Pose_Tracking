@@ -1,6 +1,6 @@
 import UserAvatar from "@/components/courses/UserAvatar";
 import colors from "@/constants/colors";
-import { setBlock } from "@/repositories/blockRepository";
+import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import { getUserInfo } from "@/repositories/userRepository";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,13 +17,35 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+function getBlockedUserId(item = {}) {
+  return String(
+    item.blockedUserId ||
+      item.blocked_user_id ||
+      item.userId ||
+      item.user_id ||
+      item.user?.id ||
+      item.blocked?.id ||
+      item.raw?.blockedUserId ||
+      item.raw?.blocked_user_id ||
+      item.raw?.userId ||
+      item.raw?.user_id ||
+      item.raw?.user?.id ||
+      item.raw?.blocked?.id ||
+      item.id ||
+      "",
+  ).trim();
+}
+
+function isSameUserId(a, b) {
+  return String(a || "").trim() === String(b || "").trim();
+}
+
 export default function ConversationInfoScreen() {
   const params = useLocalSearchParams();
 
   const partnerId = String(params.partnerId || "").trim();
   const partnerName = String(params.partnerName || "Người dùng");
   const partnerAvatar = String(params.partnerAvatar || "");
-  const conversationId = String(params.conversationId || "").trim();
 
   const [partner, setPartner] = useState({
     id: partnerId,
@@ -34,6 +56,7 @@ export default function ConversationInfoScreen() {
   });
   const [isLoading, setIsLoading] = useState(Boolean(partnerId));
   const [isBlocking, setIsBlocking] = useState(false);
+  const [blockedByMe, setBlockedByMe] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,6 +72,10 @@ export default function ConversationInfoScreen() {
           setIsLoading(true);
 
           const profile = await getUserInfo(partnerId);
+          const blocks = await getBlocks();
+          const isPartnerBlockedByMe = blocks.some((item) =>
+            isSameUserId(getBlockedUserId(item), partnerId),
+          );
 
           if (!mounted) return;
 
@@ -65,6 +92,8 @@ export default function ConversationInfoScreen() {
             description: profile.description || "",
             raw: profile,
           });
+
+          setBlockedByMe(isPartnerBlockedByMe);
         } catch (error) {
           if (await redirectIfSessionExpired(error, router)) return;
 
@@ -103,57 +132,47 @@ export default function ConversationInfoScreen() {
   const handleBlock = useCallback(() => {
     if (!partnerId || isBlocking) return;
 
-    Alert.alert(
-      "Chặn người dùng",
-      `Bạn có chắc muốn chặn ${partner.username || "người dùng này"}?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Chặn",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setIsBlocking(true);
-              await setBlock(partnerId, "block");
+    const nextAction = blockedByMe ? "unblock" : "block";
+    const title = blockedByMe ? "Bỏ chặn người dùng" : "Chặn người dùng";
+    const message = blockedByMe
+      ? `Bạn có chắc muốn bỏ chặn ${partner.username || "người dùng này"}?`
+      : `Bạn có chắc muốn chặn ${partner.username || "người dùng này"}?`;
 
-              Alert.alert(
-                "Đã chặn",
-                `${
-                  partner.username || "Người dùng này"
-                } đã được thêm vào danh sách chặn.`,
-                [
-                  {
-                    text: "OK",
-                    onPress: () => {
-                      router.replace({
-                        pathname: "/conversation/[id]",
-                        params: {
-                          id: conversationId || partnerId,
-                          partnerId,
-                          partnerName: partner.username,
-                          partnerAvatar: partner.avatar,
-                          mode: conversationId ? undefined : "partner",
-                        },
-                      });
-                    },
-                  },
-                ],
-              );
-            } catch (error) {
-              if (await redirectIfSessionExpired(error, router)) return;
+    Alert.alert(title, message, [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: blockedByMe ? "Bỏ chặn" : "Chặn",
+        style: blockedByMe ? "default" : "destructive",
+        onPress: async () => {
+          try {
+            setIsBlocking(true);
 
-              Alert.alert(
-                "Không thể chặn",
-                error?.message || "Đã có lỗi xảy ra.",
-              );
-            } finally {
-              setIsBlocking(false);
-            }
-          },
+            await setBlock(partnerId, nextAction);
+
+            setBlockedByMe(!blockedByMe);
+
+            Alert.alert(
+              blockedByMe ? "Đã bỏ chặn" : "Đã chặn",
+              blockedByMe
+                ? `${partner.username || "Người dùng này"} đã được bỏ chặn.`
+                : `${
+                    partner.username || "Người dùng này"
+                  } đã được thêm vào danh sách chặn.`,
+            );
+          } catch (error) {
+            if (await redirectIfSessionExpired(error, router)) return;
+
+            Alert.alert(
+              blockedByMe ? "Không thể bỏ chặn" : "Không thể chặn",
+              error?.message || "Đã có lỗi xảy ra.",
+            );
+          } finally {
+            setIsBlocking(false);
+          }
         },
-      ],
-    );
-  }, [conversationId, partner.avatar, partner.username, partnerId, isBlocking]);
+      },
+    ]);
+  }, [partnerId, partner.username, isBlocking, blockedByMe]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -226,16 +245,36 @@ export default function ConversationInfoScreen() {
                 pressed && styles.menuRowPressed,
               ]}
             >
-              <View style={styles.menuIconDanger}>
-                <Ionicons name="ban-outline" size={22} color={colors.error} />
+              <View
+                style={blockedByMe ? styles.menuIconPrimary : styles.menuIconDanger}
+              >
+                <Ionicons
+                  name={
+                    blockedByMe ? "chatbubble-ellipses-outline" : "ban-outline"
+                  }
+                  size={22}
+                  color={blockedByMe ? colors.primary : colors.error}
+                />
               </View>
 
               <View style={styles.menuTextWrap}>
-                <Text style={styles.menuTitleDanger}>
-                  {isBlocking ? "Đang chặn..." : "Chặn"}
+                <Text
+                  style={
+                    blockedByMe ? styles.menuTitlePrimary : styles.menuTitleDanger
+                  }
+                >
+                  {isBlocking
+                    ? blockedByMe
+                      ? "Đang bỏ chặn..."
+                      : "Đang chặn..."
+                    : blockedByMe
+                      ? "Bỏ chặn"
+                      : "Chặn"}
                 </Text>
                 <Text style={styles.menuSubtitle}>
-                  Người này sẽ không thể nhắn tin hoặc tương tác với bạn.
+                  {blockedByMe
+                    ? "Bạn có thể bỏ chặn để tiếp tục nhắn tin với người này."
+                    : "Người này sẽ không thể nhắn tin hoặc tương tác với bạn."}
                 </Text>
               </View>
             </Pressable>
@@ -363,11 +402,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
+  menuIconPrimary: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#E7F3FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
   menuTextWrap: {
     flex: 1,
   },
   menuTitleDanger: {
     color: colors.error,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  menuTitlePrimary: {
+    color: colors.primary,
     fontSize: 15,
     fontWeight: "700",
   },

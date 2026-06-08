@@ -49,11 +49,17 @@ function buildProfileCacheEntry(profile, posts, ownerKey = "") {
 export default function ProfileScreenContent({ userId = "" }) {
   const isViewingOtherProfile = Boolean(userId);
   const cacheKey = isViewingOtherProfile ? null : CACHE_KEY_PROFILE;
-  const [profile, setProfile] = useState(
-    () => profileCacheState[userId]?.profile ?? null,
+  const canUseProfileCache = !isViewingOtherProfile;
+
+  const [profile, setProfile] = useState(() =>
+    canUseProfileCache ? profileCacheState[userId]?.profile ?? null : null,
   );
-  const [posts, setPosts] = useState(() => profileCacheState[userId]?.posts ?? []);
-  const [loading, setLoading] = useState(!profileCacheState[userId]);
+  const [posts, setPosts] = useState(() =>
+    canUseProfileCache ? profileCacheState[userId]?.posts ?? [] : [],
+  );
+  const [loading, setLoading] = useState(() =>
+    canUseProfileCache ? !profileCacheState[userId] : true,
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
@@ -85,6 +91,10 @@ export default function ProfileScreenContent({ userId = "" }) {
           );
 
           if (user.unavailable) {
+            if (targetUserId) {
+              delete profileCacheState[targetUserId];
+            }
+
             setProfile(user);
             setPosts([]);
             return;
@@ -127,14 +137,17 @@ export default function ProfileScreenContent({ userId = "" }) {
             return prevIds !== nextIds ? nextPosts : prev;
           });
 
-          // Persist to memory + disk
-          profileCacheState[userId] = buildProfileCacheEntry(
-            nextProfile,
-            nextPosts,
-            ownerKey,
-          );
-          if (cacheKey) {
-            writeCache(cacheKey, profileCacheState[userId]);
+          // Persist only own profile to memory + disk
+          if (isOwnProfile) {
+            profileCacheState[userId] = buildProfileCacheEntry(
+              nextProfile,
+              nextPosts,
+              ownerKey,
+            );
+
+            if (cacheKey) {
+              writeCache(cacheKey, profileCacheState[userId]);
+            }
           }
         });
       } catch (loadError) {
@@ -186,13 +199,14 @@ export default function ProfileScreenContent({ userId = "" }) {
       let isActive = true;
 
       const run = async () => {
-        if (userId) {
-          // If we have in-memory cache, render it instantly then fetch in background
-          if (profileCacheState[userId]) {
-            setLoading(false);
-            loadProfile(false);
-            return;
-          }
+        if (isViewingOtherProfile) {
+          delete profileCacheState[userId];
+
+          setProfile(null);
+          setPosts([]);
+          setError("");
+          setLoading(true);
+
           loadProfile(false);
           return;
         }
@@ -244,7 +258,13 @@ export default function ProfileScreenContent({ userId = "" }) {
       return () => {
         isActive = false;
       };
-    }, [cacheKey, loadProfile, syncOwnProfileFromSession, userId]),
+    }, [
+      cacheKey,
+      loadProfile,
+      syncOwnProfileFromSession,
+      userId,
+      isViewingOtherProfile,
+    ]),
   );
 
   const profileLink = useMemo(() => {
@@ -486,4 +506,3 @@ export default function ProfileScreenContent({ userId = "" }) {
     </View>
   );
 }
-

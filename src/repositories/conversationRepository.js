@@ -87,6 +87,10 @@ export function getConversationCache() {
   return conversationCache;
 }
 
+export function getConversationListCache() {
+  return conversationCache;
+}
+
 export function subscribeConversations(listener) {
   conversationListeners.add(listener);
   // Emit current cache immediately
