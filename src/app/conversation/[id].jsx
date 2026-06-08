@@ -1,6 +1,4 @@
 import UserAvatar from "@/components/courses/UserAvatar";
-import ChatSendIcon from "@/components/icons/ChatSendIcon";
-import ChatSmileIcon from "@/components/icons/ChatSmileIcon";
 import ChatThumbUpIcon from "@/components/icons/ChatThumbUpIcon";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import colors from "@/constants/colors";
@@ -9,6 +7,7 @@ import {
   sendMessage,
 } from "@/repositories/conversationRepository";
 import { getCurrentSession } from "@/repositories/source";
+import { getUserInfo } from "@/repositories/userRepository";
 import conversationDetailStyles from "@/styles/conversation/conversationDetail.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
@@ -278,9 +277,50 @@ function MessageItem({ item, myId, isLatestFromMe }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
+function EmptyConversationIntro({ partner, onOpenProfile }) {
+  return (
+    <View style={conversationDetailStyles.emptyConversationIntro}>
+      <UserAvatar uri={partner?.avatar} size={92} name={partner?.username} />
+
+      <Text numberOfLines={1} style={conversationDetailStyles.emptyPartnerName}>
+        {partner?.username || "Người dùng"}
+      </Text>
+
+      {partner?.id ? (
+        <Text
+          numberOfLines={1}
+          style={conversationDetailStyles.emptyPartnerMeta}
+        >
+          @{partner?.username || "user"} · {partner?.role || "Người dùng"}
+        </Text>
+      ) : null}
+
+      <Text style={conversationDetailStyles.emptyPartnerDescription}>
+        Hai bạn chưa có tin nhắn nào. Hãy gửi lời chào để bắt đầu cuộc trò
+        chuyện.
+      </Text>
+
+      <Pressable
+        onPress={onOpenProfile}
+        style={conversationDetailStyles.viewProfileButton}
+      >
+        <Text style={conversationDetailStyles.viewProfileText}>
+          Xem trang cá nhân
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function ConversationDetailScreen() {
   const params = useLocalSearchParams();
-  const conversationId = typeof params.id === "string" ? params.id : "";
+  const routeId = typeof params.id === "string" ? params.id : "";
+  const partnerId = typeof params.partnerId === "string" ? params.partnerId : "";
+  const partnerName =
+    typeof params.partnerName === "string" ? params.partnerName : "";
+  const partnerAvatar =
+    typeof params.partnerAvatar === "string" ? params.partnerAvatar : "";
+  const isPartnerMode = params.mode === "partner" || Boolean(partnerId);
 
   const [conversation, setConversation] = useState(null);
   const [mySession, setMySession] = useState(null);
@@ -299,13 +339,58 @@ export default function ConversationDetailScreen() {
   const load = useCallback(() => {
     const init = async () => {
       try {
-        const [session, data] = await Promise.all([
-          getCurrentSession(),
-          getConversation(conversationId, 0, PAGE_SIZE),
-        ]);
+        const session = await getCurrentSession();
         setMySession(session);
+
+        if (isPartnerMode) {
+          try {
+            const data = await getConversation(
+              {
+                partnerId,
+                partner: {
+                  id: partnerId,
+                  username: partnerName || "Người dùng",
+                  avatar: partnerAvatar || "",
+                },
+              },
+              0,
+              PAGE_SIZE,
+            );
+
+            setConversation(data);
+            setTotalLoaded(data.messages.length);
+            setHasLatest(data.messages.length < PAGE_SIZE);
+            return;
+          } catch (_error) {
+            const profile = await getUserInfo(partnerId);
+
+            setConversation({
+              id: "",
+              partner: {
+                id: partnerId,
+                username:
+                  profile.username ||
+                  profile.displayName ||
+                  partnerName ||
+                  "Người dùng",
+                avatar: profile.avatar || partnerAvatar || "",
+                description: profile.description || "",
+                role: profile.role || "",
+              },
+              isBlocked: "0",
+              messages: [],
+            });
+
+            setTotalLoaded(0);
+            setHasLatest(true);
+            return;
+          }
+        }
+
+        const data = await getConversation(routeId, 0, PAGE_SIZE);
         setConversation(data);
         setTotalLoaded(data.messages.length);
+
         if (data.messages.length < PAGE_SIZE) {
           setHasLatest(true);
         }
@@ -314,7 +399,7 @@ export default function ConversationDetailScreen() {
       }
     };
     init();
-  }, [conversationId]);
+  }, [routeId, partnerId, isPartnerMode, partnerName, partnerAvatar]);
 
   useFocusEffect(load);
 
@@ -325,7 +410,7 @@ export default function ConversationDetailScreen() {
     setIsLoadingMore(true);
     try {
       const data = await getConversation(
-        conversationId,
+        conversation?.id || routeId,
         totalLoaded,
         PAGE_SIZE,
       );
@@ -356,7 +441,11 @@ export default function ConversationDetailScreen() {
 
   const jumpToLatest = async () => {
     try {
-      const data = await getConversation(conversationId, 0, JUMP_COUNT);
+      const data = await getConversation(
+        conversation?.id || routeId,
+        0,
+        JUMP_COUNT,
+      );
       setConversation(data);
       setTotalLoaded(data.messages.length);
       setHasLatest(true);
@@ -430,15 +519,30 @@ export default function ConversationDetailScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
 
     try {
+      const targetConversationId = conversation?.id || "";
+      const targetPartnerId = partnerId || conversation?.partner?.id || "";
+
       const saved = await sendMessage(
-        conversationId,
-        conversation.partner.id,
+        targetConversationId,
+        targetPartnerId,
         trimmed,
       );
       setConversation((prev) => ({
         ...prev,
         messages: prev.messages.map((m) => (m.id === tempId ? saved : m)),
       }));
+
+      if (!conversation?.id && saved.conversationId) {
+        setConversation((prev) => ({
+          ...prev,
+          id: saved.conversationId,
+        }));
+
+        router.replace({
+          pathname: "/conversation/[id]",
+          params: { id: saved.conversationId },
+        });
+      }
     } catch (error) {
       // Rollback
       setConversation((prev) => ({
@@ -480,8 +584,19 @@ export default function ConversationDetailScreen() {
     );
   };
 
+  const handleOpenProfile = useCallback(() => {
+    const userId = String(conversation?.partner?.id || partnerId || "").trim();
+
+    if (!userId) return;
+
+    router.push({
+      pathname: "/profile/[userId]",
+      params: { userId },
+    });
+  }, [conversation?.partner?.id, partnerId]);
+
   return (
-    <SafeAreaView style={conversationDetailStyles.safe}>
+    <SafeAreaView style={conversationDetailStyles.safe} edges={["top", "bottom"]}>
       {/* ── Header ── */}
       <View style={conversationDetailStyles.header}>
         <View style={conversationDetailStyles.headerLeft}>
@@ -527,6 +642,14 @@ export default function ConversationDetailScreen() {
             onScroll={handleScroll}
             scrollEventThrottle={100}
             keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              conversation ? (
+                <EmptyConversationIntro
+                  partner={conversation.partner}
+                  onOpenProfile={handleOpenProfile}
+                />
+              ) : null
+            }
             onScrollBeginDrag={() => {
               setShowEmojiPicker(false);
               Keyboard.dismiss();
@@ -552,12 +675,26 @@ export default function ConversationDetailScreen() {
         </View>
 
         {/* ── Input bar ── */}
-        <View style={[conversationDetailStyles.inputBar]}>
-          <View style={conversationDetailStyles.inputWrap}>
+        <View style={conversationDetailStyles.composer}>
+          <Pressable
+            style={conversationDetailStyles.composerIconButton}
+            hitSlop={8}
+          >
+            <Ionicons name="add" size={28} color="#1877F2" />
+          </Pressable>
+
+          <Pressable
+            style={conversationDetailStyles.composerIconButton}
+            hitSlop={8}
+          >
+            <Ionicons name="camera" size={24} color="#1877F2" />
+          </Pressable>
+
+          <View style={conversationDetailStyles.composerInputWrap}>
             <TextInput
-              style={conversationDetailStyles.textInput}
-              placeholder="Nhắn tin"
-              placeholderTextColor={colors.placeholder}
+              style={conversationDetailStyles.composerInput}
+              placeholder="Aa"
+              placeholderTextColor="#8A8D91"
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -566,13 +703,13 @@ export default function ConversationDetailScreen() {
             />
 
             {/* Emoji button + picker */}
-            <View style={conversationDetailStyles.emojiAnchor}>
+            <View>
               <Pressable
-                style={conversationDetailStyles.emojiBtn}
+                style={conversationDetailStyles.emojiButton}
                 onPress={() => setShowEmojiPicker((v) => !v)}
-                hitSlop={6}
+                hitSlop={8}
               >
-                <ChatSmileIcon size={18} color={colors.primary} />
+                <Ionicons name="happy" size={22} color="#1877F2" />
               </Pressable>
               {showEmojiPicker && (
                 <CommentReactionPicker
@@ -586,22 +723,16 @@ export default function ConversationDetailScreen() {
           </View>
 
           <Pressable
-            style={conversationDetailStyles.likeBtn}
-            onPress={() => handleSend(hasText ? inputText : "👍")}
+            style={conversationDetailStyles.likeButton}
+            onPress={() => handleSend(hasText ? inputText : "\uD83D\uDC4D")}
             disabled={isSending}
             hitSlop={8}
           >
-            {hasText ? (
-              <ChatSendIcon
-                size={24}
-                color={isSending ? colors.disabled : colors.primary}
-              />
-            ) : (
-              <ChatThumbUpIcon
-                size={24}
-                color={isSending ? colors.disabled : colors.primary}
-              />
-            )}
+            <Ionicons
+              name={hasText ? "send" : "thumbs-up"}
+              size={hasText ? 22 : 24}
+              color={isSending ? colors.disabled : "#1877F2"}
+            />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
