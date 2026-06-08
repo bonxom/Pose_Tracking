@@ -1,32 +1,10 @@
+import UserAvatar from "@/components/common/UserAvatar";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import PostCard from "@/components/post/PostCard";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { resolveAvatarUri } from "@/utils/profile";
 import { router } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { Image } from "expo-image";
-
-function Avatar({ uri, name, size = 72 }) {
-  const avatarUri = resolveAvatarUri(uri || "");
-  const avatarStyle = {
-    width: size,
-    height: size,
-    borderRadius: size / 2,
-  };
-
-  return (
-    <View style={avatarStyle}>
-      <Image
-        source={{ uri: avatarUri }}
-        style={[profileStyles.avatarImage, avatarStyle]}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        transition={150}
-      />
-    </View>
-  );
-}
 
 function EmptyState({ icon, title, body }) {
   return (
@@ -42,8 +20,11 @@ function ComposerCard({ profile }) {
   return (
     <View style={profileStyles.fbCard}>
       <View style={profileStyles.fbComposerRow}>
-        <Avatar uri={profile.avatar} name={profile.displayName} size={42} />
-        <Pressable style={profileStyles.fbComposerInput} onPress={() => router.push("/post/create")}>
+        <UserAvatar uri={profile.avatar} size={42} />
+        <Pressable
+          style={profileStyles.fbComposerInput}
+          onPress={() => router.push("/post/create")}
+        >
           <Text style={profileStyles.fbComposerText}>Bạn đang nghĩ gì?</Text>
         </Pressable>
       </View>
@@ -74,7 +55,11 @@ export default function ProfilePostsSection({ profile, posts, loading }) {
             ))}
           </View>
         ) : (
-          <EmptyState icon="newspaper-outline" title="Chưa có bài viết" body="Bài viết và video cá nhân sẽ hiển thị ở đây." />
+          <EmptyState
+            icon="newspaper-outline"
+            title="Chưa có bài viết"
+            body="Bài viết và video cá nhân sẽ hiển thị ở đây."
+          />
         )}
       </View>
     </>

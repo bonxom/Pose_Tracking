@@ -1,4 +1,4 @@
-import UserAvatar from "@/components/courses/UserAvatar";
+import UserAvatar from "@/components/common/UserAvatar";
 import ChatSendIcon from "@/components/icons/ChatSendIcon";
 import ChatSmileIcon from "@/components/icons/ChatSmileIcon";
 import ChatThumbUpIcon from "@/components/icons/ChatThumbUpIcon";
