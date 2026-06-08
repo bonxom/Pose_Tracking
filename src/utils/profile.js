@@ -28,3 +28,11 @@ export function buildAvatarRenderUri(uri = "", version = "") {
   const separator = cleanUri.includes("?") ? "&" : "?";
   return `${cleanUri}${separator}v=${encodeURIComponent(cleanVersion)}`;
 }
+
+export function resolveCoverUri(uri = "", version = "") {
+  const cleanUri = String(uri || "").trim();
+  if (!cleanUri) return "";
+  if (LOCAL_URI_PATTERN.test(cleanUri)) return cleanUri;
+  return buildAvatarRenderUri(cleanUri, version);
+}
+

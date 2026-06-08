@@ -22,7 +22,7 @@ import {
   getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
-import { resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri, resolveCoverUri } from "@/utils/profile";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
@@ -68,10 +68,12 @@ function AvatarPreview({ uri, name, onPick }) {
 }
 
 function CoverPreview({ uri, onPick }) {
+  const resolvedCoverUri = resolveCoverUri(uri);
+
   return (
     <View style={styles.coverPreview}>
-      {uri ? (
-        <Image source={{ uri }} style={styles.previewImage} />
+      {resolvedCoverUri ? (
+        <Image source={{ uri: resolvedCoverUri }} style={styles.previewImage} />
       ) : (
         <View style={styles.coverFallback}>
           <ProfileIcon name="image-outline" size={34} color={colors.subtext} />

@@ -26,6 +26,7 @@ import {
 } from "@/repositories/source";
 import * as localPosts from "@/services/postStore";
 
+// Chuẩn hóa dữ liệu người dùng từ API/local thành định dạng chuẩn
 export function normalizeUser(
   raw = {},
   source = ACTIVE_SOURCES.SERVER,
@@ -82,6 +83,7 @@ export function normalizeUser(
   };
 }
 
+// Hợp nhất thông tin profile cá nhân với session (ưu tiên session nếu đang đồng bộ)
 export function mergeOwnProfileWithSession(profile = {}, session = {}) {
   const syncState = String(session?.profileSyncStatus || "").trim();
   const shouldPreferSession =
@@ -134,6 +136,13 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
       session?.loggedInAt,
       "",
     ),
+    coverVersion: firstValue(
+      session?.coverVersion,
+      profile?.coverVersion,
+      session?.profileSyncRequestedAt,
+      session?.loggedInAt,
+      "",
+    ),
     source: profile?.source || session?.source || ACTIVE_SOURCES.SERVER,
     profileSyncStatus: syncState || "done",
     profileSyncErrorMessage: session?.profileSyncErrorMessage || "",
@@ -141,6 +150,7 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
   };
 }
 
+// Tạo thông tin người dùng cục bộ từ session (phục vụ offline/demo)
 function localUser(session) {
   const mockProfile = resolveMockProfile(session);
   const localProfile = buildLocalProfileShape(session, mockProfile);
@@ -151,6 +161,7 @@ function localUser(session) {
   });
 }
 
+// Xác thực tên người dùng (độ dài, ký tự đặc biệt, số...)
 export function validateProfileUserName(value = "") {
   const userName = String(value).trim();
 
@@ -173,6 +184,7 @@ export function validateProfileUserName(value = "") {
   return "";
 }
 
+// Trả về thông tin người dùng từ dữ liệu mock dự phòng
 function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
   const mockProfile = getMockProfileById(userId);
   return normalizeUser(mockProfile || { id: userId }, source, {
@@ -180,10 +192,12 @@ function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
   });
 }
 
+// Kiểm tra xem hai ID có cùng là một người dùng không
 function isSameUser(left, right) {
   return Boolean(left && right && String(left) === String(right));
 }
 
+// Chuẩn hóa chuỗi văn bản tùy chọn (tiểu sử), loại bỏ undefined/null và giới hạn độ dài
 function normalizeOptionalText(value = "", maxLength = 0) {
   const normalized = String(value ?? "")
     .replace(/^undefined$/i, "")
@@ -193,12 +207,14 @@ function normalizeOptionalText(value = "", maxLength = 0) {
   return maxLength ? normalized.slice(0, maxLength) : normalized;
 }
 
+// Kiểm tra xem giá trị từ backend có biểu thị trạng thái kích hoạt/online không
 function isBackendEnabled(value) {
   return ["1", "true", "yes", "online"].includes(
     String(value ?? "").trim().toLowerCase(),
   );
 }
 
+// Chuẩn hóa chuỗi để phục vụ việc so sánh (loại bỏ dấu, chữ thường...)
 function normalizeComparable(value = "") {
   return String(value || "")
     .normalize("NFD")
@@ -209,6 +225,7 @@ function normalizeComparable(value = "") {
     .toLowerCase();
 }
 
+// Kiểm tra định danh người dùng có khớp với thông tin ứng viên không
 function matchesUserIdentity(targetUserId = "", candidate = {}) {
   const target = normalizeComparable(targetUserId);
   if (!target) return false;
@@ -234,10 +251,12 @@ function matchesUserIdentity(targetUserId = "", candidate = {}) {
   return candidateValues.some((value) => normalizeComparable(value) === target);
 }
 
+// Lấy dữ liệu lỗi từ response của backend
 function getBackendErrorData(error) {
   return error?.data || null;
 }
 
+// Kiểm tra thuộc tính tồn tại và có giá trị hợp lệ trong đối tượng
 function hasOwnValue(object = {}, key) {
   return (
     Object.prototype.hasOwnProperty.call(object, key) &&
@@ -246,11 +265,13 @@ function hasOwnValue(object = {}, key) {
   );
 }
 
+// Lấy giá trị đầu tiên tồn tại trong params theo danh sách key
 function firstParamValue(params = {}, keys = [], fallback = "") {
   const key = keys.find((item) => hasOwnValue(params, item));
   return key ? params[key] : fallback;
 }
 
+// Xây dựng cấu trúc profile local từ session và mock profile
 function buildLocalProfileShape(session = {}, mockProfile = {}) {
   return {
     ...(mockProfile || {}),
@@ -301,6 +322,7 @@ function buildLocalProfileShape(session = {}, mockProfile = {}) {
   };
 }
 
+// Ném lỗi SessionExpiredError nếu phiên đăng nhập hết hạn
 function throwIfExpiredFromApiError(error) {
   const data = getBackendErrorData(error);
   if (isInvalidSessionResponse(data || error)) {
@@ -308,6 +330,7 @@ function throwIfExpiredFromApiError(error) {
   }
 }
 
+// Lấy danh sách bài viết cục bộ của người dùng
 async function getLocalUserPosts(
   targetUserId,
   includeLocked,
@@ -330,10 +353,12 @@ async function getLocalUserPosts(
   };
 }
 
+// Kiểm tra URI có phải là tài nguyên cục bộ trên thiết bị (file://, ph://...)
 function isLocalAssetUri(value = "") {
   return /^(file|content|asset-library|ph):\/\//i.test(String(value || ""));
 }
 
+// Chuẩn hóa URL ảnh/video (chuyển đường dẫn tương đối thành URL tuyệt đối)
 function normalizeMediaUrl(value = "") {
   const uri = String(value || "").trim();
 
@@ -353,6 +378,7 @@ function normalizeMediaUrl(value = "") {
   }
 }
 
+// Dự đoán MIME type của ảnh dựa trên đuôi file trong URI
 function guessImageMimeType(uri = "") {
   const clean = String(uri || "").split("?")[0].toLowerCase();
 
@@ -366,6 +392,7 @@ function guessImageMimeType(uri = "") {
   return "image/jpeg";
 }
 
+// Tạo payload file ảnh từ URI cục bộ để gửi API Multipart
 function buildImageFilePayload(uri = "", fieldName = "image") {
   const cleanUri = String(uri || "").trim();
   if (!cleanUri) return null;
@@ -393,6 +420,7 @@ function buildImageFilePayload(uri = "", fieldName = "image") {
   };
 }
 
+// Xây dựng request payload cập nhật thông tin user (fields & files)
 function buildSetUserInfoRequest(session, params, userName) {
   const avatar = firstParamValue(params, ["avatar"], "");
   const coverImage = firstParamValue(params, ["coverImage"], "");
@@ -420,6 +448,7 @@ function buildSetUserInfoRequest(session, params, userName) {
   return { fields, files };
 }
 
+// Gọi API backend cập nhật thông tin user (Multipart)
 async function setUserInfoOnBackend(session, params, userName) {
   try {
     const request = buildSetUserInfoRequest(session, params, userName);
@@ -437,6 +466,7 @@ async function setUserInfoOnBackend(session, params, userName) {
   }
 }
 
+// Tạo đối tượng cập nhật profile cục bộ (mock/offline)
 function buildLocalProfileUpdate(
   session,
   params,
@@ -507,6 +537,7 @@ function buildLocalProfileUpdate(
   };
 }
 
+// Tạo dữ liệu profile tạm thời (optimistic) để cập nhật nhanh lên UI
 export function createOptimisticUserInfo(session = {}, params = {}) {
   const userName = params.userName || params.username || "";
   const source = shouldUseServer(session) ? ACTIVE_SOURCES.SERVER : ACTIVE_SOURCES.LOCAL;
@@ -518,18 +549,27 @@ export function createOptimisticUserInfo(session = {}, params = {}) {
     ? new Date().toISOString()
     : session?.avatarVersion || session?.loggedInAt || "";
 
+  const coverChanged =
+    firstParamValue(params, ["coverImage"], session?.coverImage || "") !==
+    (session?.coverImage || "");
+  const coverVersion = coverChanged
+    ? new Date().toISOString()
+    : session?.coverVersion || session?.loggedInAt || "";
+
   return {
     ...optimistic,
     token: session?.token || optimistic.token || "",
     source,
     demoMode: Boolean(session?.demoMode),
     avatarVersion,
+    coverVersion,
     profileSyncStatus: shouldUseServer(session) ? "pending" : "done",
     profileSyncErrorMessage: "",
     profileSyncRequestedAt: new Date().toISOString(),
   };
 }
 
+// Lấy thông tin chi tiết người dùng (tự động phân nhánh server/local)
 export async function getUserInfo(userId = "") {
   const session = await getCurrentSession();
   const targetUserId = String(userId || "");
@@ -587,6 +627,7 @@ export async function getUserInfo(userId = "") {
   }
 }
 
+// Gọi API lấy danh sách bài đăng từ server
 async function getBackendPostsPage(session, params = {}) {
   const response = await backendApi.getListPosts({
     token: session.token,
@@ -615,6 +656,7 @@ async function getBackendPostsPage(session, params = {}) {
   };
 }
 
+// Cập nhật thông tin người dùng (online qua API hoặc offline qua mock)
 export async function updateUserInfo(params = {}) {
   const session = await getCurrentSession();
   const userName = params.userName || params.username || "";
@@ -668,6 +710,11 @@ export async function updateUserInfo(params = {}) {
       (session?.avatar || "")
         ? new Date().toISOString()
         : session?.avatarVersion || session?.loggedInAt || "",
+    coverVersion:
+      firstParamValue(params, ["coverImage"], session?.coverImage || "") !==
+      (session?.coverImage || "")
+        ? new Date().toISOString()
+        : session?.coverVersion || session?.loggedInAt || "",
     username: userName || normalized.username || session?.username || "",
     displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
     avatar: normalized.avatar || params.avatar || session?.avatar || "",
@@ -691,6 +738,7 @@ export async function updateUserInfo(params = {}) {
   return updated;
 }
 
+// Lấy danh sách bài viết của người dùng (tự động phân nhánh server/local)
 export async function getUserPosts(userId = "", paging = {}) {
   const session = await getCurrentSession();
   const targetUserId = String(
@@ -728,6 +776,7 @@ export async function getUserPosts(userId = "", paging = {}) {
   }
 }
 
+// Tìm kiếm bài đăng trong trang cá nhân theo từ khóa
 export async function searchUserProfile(userId = "", keyword = "") {
   const session = await getCurrentSession();
   const normalizedKeyword = String(keyword || "").trim();
@@ -771,4 +820,3 @@ export async function searchUserProfile(userId = "", keyword = "") {
     throw error;
   }
 }
-

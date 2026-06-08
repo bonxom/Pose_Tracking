@@ -1,7 +1,7 @@
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri, resolveCoverUri } from "@/utils/profile";
 import { Pressable, Text, View } from "react-native";
 import { Image } from "expo-image";
 
@@ -108,12 +108,16 @@ export default function ProfileHero({
   const displayName = profile.displayName || profile.username;
   const username =
     profile.username && profile.username !== displayName ? profile.username : "";
+  const resolvedCoverUri = resolveCoverUri(
+    profile.coverImage,
+    profile.coverVersion || profile.profileSyncRequestedAt || "",
+  );
 
   return (
     <View style={profileStyles.fbHero}>
       <View style={profileStyles.fbCover}>
-        {profile.coverImage ? (
-          <Image source={{ uri: profile.coverImage }} style={profileStyles.coverImage} />
+        {resolvedCoverUri ? (
+          <Image source={{ uri: resolvedCoverUri }} style={profileStyles.coverImage} />
         ) : (
           <View style={profileStyles.fbCoverFallback}>
             <ProfileIcon name="image-outline" size={38} color={colors.subtext} />
