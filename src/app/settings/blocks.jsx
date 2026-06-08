@@ -7,7 +7,8 @@ import { resolveAvatarUri } from "@/utils/profile";
 import { router, useFocusEffect } from "expo-router";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { useCallback, useState } from "react";
-import { Image, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { Image } from "expo-image";
 
 export default function BlocksScreen() {
   const [blocks, setBlocks] = useState([]);
@@ -80,6 +81,9 @@ export default function BlocksScreen() {
                     ),
                   }}
                   style={demoStyles.avatar}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={150}
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={demoStyles.cardTitle}>{item.username}</Text>

@@ -133,14 +133,12 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
       session?.avatarVersion,
       profile?.avatarVersion,
       session?.profileSyncRequestedAt,
-      session?.loggedInAt,
       "",
     ),
     coverVersion: firstValue(
       session?.coverVersion,
       profile?.coverVersion,
       session?.profileSyncRequestedAt,
-      session?.loggedInAt,
       "",
     ),
     source: profile?.source || session?.source || ACTIVE_SOURCES.SERVER,
@@ -547,14 +545,14 @@ export function createOptimisticUserInfo(session = {}, params = {}) {
     (session?.avatar || "");
   const avatarVersion = avatarChanged
     ? new Date().toISOString()
-    : session?.avatarVersion || session?.loggedInAt || "";
+    : session?.avatarVersion || "";
 
   const coverChanged =
     firstParamValue(params, ["coverImage"], session?.coverImage || "") !==
     (session?.coverImage || "");
   const coverVersion = coverChanged
     ? new Date().toISOString()
-    : session?.coverVersion || session?.loggedInAt || "";
+    : session?.coverVersion || "";
 
   return {
     ...optimistic,
@@ -709,12 +707,12 @@ export async function updateUserInfo(params = {}) {
       firstParamValue(params, ["avatar"], session?.avatar || "") !==
       (session?.avatar || "")
         ? new Date().toISOString()
-        : session?.avatarVersion || session?.loggedInAt || "",
+        : session?.avatarVersion || "",
     coverVersion:
       firstParamValue(params, ["coverImage"], session?.coverImage || "") !==
       (session?.coverImage || "")
         ? new Date().toISOString()
-        : session?.coverVersion || session?.loggedInAt || "",
+        : session?.coverVersion || "",
     username: userName || normalized.username || session?.username || "",
     displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
     avatar: normalized.avatar || params.avatar || session?.avatar || "",

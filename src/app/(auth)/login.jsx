@@ -26,6 +26,7 @@ import {
 
 const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
+
 export default function LoginScreen() {
   const dataSourceMode = getDataSourceMode();
   const isServerMode = dataSourceMode === "server";
@@ -53,7 +54,6 @@ export default function LoginScreen() {
         handle: data.handle,
         source: data.source,
         demoMode: Boolean(data.demoMode),
-        avatarVersion: new Date().toISOString(),
         loggedInAt: new Date().toISOString(),
       });
       if (!data.demoMode) {

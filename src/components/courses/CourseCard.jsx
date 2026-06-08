@@ -2,12 +2,12 @@ import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
 import { resolveAvatarUri } from "@/utils/profile";
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
   View
 } from "react-native";
+import { Image } from "expo-image";
 
 // ─── Join Button ────────────────────────────────────────────────────────────
 function joinButtonProps(item) {
@@ -41,6 +41,9 @@ export default function CourseCard({ item, onJoin, flat = false }) {
         <Image
           source={{ uri: avatarUri }}
           style={localStyles.avatarImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
         />
 
         <View style={{ flex: 1, marginLeft: 10, gap: 2 }}>

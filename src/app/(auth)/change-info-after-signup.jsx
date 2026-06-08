@@ -9,13 +9,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ChangeInfoAfterSignupScreen() {
@@ -190,7 +190,13 @@ export default function ChangeInfoAfterSignupScreen() {
         <View style={styles.avatarBlock}>
           <View style={styles.avatarPreview}>
             {avatar ? (
-              <Image source={{ uri: avatar }} style={styles.avatarImage} />
+              <Image
+                source={{ uri: avatar }}
+                style={styles.avatarImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
             ) : (
               <Ionicons name="person-outline" size={42} color="#64748B" />
             )}

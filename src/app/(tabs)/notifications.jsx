@@ -18,12 +18,12 @@ import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 
 const PAGE_SIZE = 20;
@@ -108,7 +108,13 @@ function NotificationItem({ item, onPress }) {
       ]}
     >
       <View style={styles.avatarWrap}>
-        <Image source={{ uri: avatarUri }} style={styles.avatar} />
+        <Image
+          source={{ uri: avatarUri }}
+          style={styles.avatar}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
 
         <NotificationTypeBadge type={item.type} />
       </View>

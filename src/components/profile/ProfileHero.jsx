@@ -117,7 +117,13 @@ export default function ProfileHero({
     <View style={profileStyles.fbHero}>
       <View style={profileStyles.fbCover}>
         {resolvedCoverUri ? (
-          <Image source={{ uri: resolvedCoverUri }} style={profileStyles.coverImage} />
+          <Image
+            source={{ uri: resolvedCoverUri }}
+            style={profileStyles.coverImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
         ) : (
           <View style={profileStyles.fbCoverFallback}>
             <ProfileIcon name="image-outline" size={38} color={colors.subtext} />

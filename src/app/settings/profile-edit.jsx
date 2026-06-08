@@ -30,7 +30,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -38,6 +37,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 
 function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
   return (
@@ -52,13 +52,19 @@ function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
   );
 }
 
-function AvatarPreview({ uri, name, onPick }) {
-  const resolvedAvatarUri = resolveAvatarUri(uri);
+function AvatarPreview({ uri, version, name, onPick }) {
+  const resolvedAvatarUri = resolveAvatarUri(uri, version);
 
   return (
     <View style={styles.avatarPreviewWrap}>
       <View style={styles.avatarPreview}>
-        <Image source={{ uri: resolvedAvatarUri }} style={styles.previewImage} />
+        <Image
+          source={{ uri: resolvedAvatarUri }}
+          style={styles.previewImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       </View>
       <Pressable style={styles.cameraFab} onPress={onPick}>
         <ProfileIcon name="camera" size={20} color={colors.ink} />
@@ -67,13 +73,19 @@ function AvatarPreview({ uri, name, onPick }) {
   );
 }
 
-function CoverPreview({ uri, onPick }) {
-  const resolvedCoverUri = resolveCoverUri(uri);
+function CoverPreview({ uri, version, onPick }) {
+  const resolvedCoverUri = resolveCoverUri(uri, version);
 
   return (
     <View style={styles.coverPreview}>
       {resolvedCoverUri ? (
-        <Image source={{ uri: resolvedCoverUri }} style={styles.previewImage} />
+        <Image
+          source={{ uri: resolvedCoverUri }}
+          style={styles.previewImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       ) : (
         <View style={styles.coverFallback}>
           <ProfileIcon name="image-outline" size={34} color={colors.subtext} />
@@ -95,6 +107,12 @@ export default function ProfileEditScreen() {
   const [avatar, setAvatar] = useState(() => initialProfileSnapshot.avatar || "");
   const [coverImage, setCoverImage] = useState(
     () => initialProfileSnapshot.coverImage || "",
+  );
+  const [avatarVersion, setAvatarVersion] = useState(
+    () => initialProfileSnapshot.avatarVersion || "",
+  );
+  const [coverVersion, setCoverVersion] = useState(
+    () => initialProfileSnapshot.coverVersion || "",
   );
   const [description, setDescription] = useState(
     () => initialProfileSnapshot.description || "",
@@ -125,6 +143,8 @@ export default function ProfileEditScreen() {
     setAvatar(profileLike.avatar || "");
     setCoverImage(profileLike.coverImage || "");
     setDescription(profileLike.description || "");
+    setAvatarVersion(profileLike.avatarVersion || profileLike.profileSyncRequestedAt || "");
+    setCoverVersion(profileLike.coverVersion || profileLike.profileSyncRequestedAt || "");
   }, []);
 
   const persistProfileSnapshot = useCallback(async (profileLike = {}) => {
@@ -407,12 +427,21 @@ export default function ProfileEditScreen() {
             ) : null}
             <View style={styles.section}>
               <SectionHeader title="Ảnh đại diện" onPress={() => pickImage("avatar")} />
-              <AvatarPreview uri={avatar} name={username} onPick={() => pickImage("avatar")} />
+              <AvatarPreview
+                uri={avatar}
+                version={avatarVersion}
+                name={username}
+                onPick={() => pickImage("avatar")}
+              />
             </View>
 
             <View style={styles.section}>
               <SectionHeader title="Ảnh bìa" onPress={() => pickImage("cover")} />
-              <CoverPreview uri={coverImage} onPick={() => pickImage("cover")} />
+              <CoverPreview
+                uri={coverImage}
+                version={coverVersion}
+                onPick={() => pickImage("cover")}
+              />
             </View>
 
             <View style={styles.section}>

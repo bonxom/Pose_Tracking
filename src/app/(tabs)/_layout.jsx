@@ -67,7 +67,7 @@ function TabButton({ onPress, accessibilityState, children }) {
   );
 }
 
-function ProfileTabAvatar({ focused, avatar }) {
+function ProfileTabAvatar({ focused, avatar, userId }) {
   return (
     <View
       style={[
@@ -76,7 +76,7 @@ function ProfileTabAvatar({ focused, avatar }) {
       ]}
     >
       <Image
-        key={avatar}
+        key={userId || "guest"}
         source={{ uri: avatar }}
         contentFit="cover"
         cachePolicy="memory-disk"
@@ -206,6 +206,7 @@ export default function TabsLayout() {
               <ProfileTabAvatar
                 focused={focused}
                 avatar={avatar}
+                userId={session?.id}
               />
             ),
           }}

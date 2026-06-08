@@ -22,7 +22,6 @@ import {
   Animated,
   Easing,
   FlatList,
-  Image,
   Keyboard,
   PanResponder,
   Platform,
@@ -31,6 +30,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SHEET_OPEN_DELAY_MS = 80;
@@ -448,6 +448,9 @@ export default function CommentScreen() {
                     <Image
                       source={{ uri: composerAvatarUri }}
                       style={localStyles.composerAvatarImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
                     />
                   </View>
                   <AppInput

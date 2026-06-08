@@ -1,6 +1,6 @@
 import coursesStyles from "@/styles/courses.styles";
 import { resolveAvatarUri } from "@/utils/profile";
-import { Image } from "react-native";
+import { Image } from "expo-image";
 
 export default function UserAvatar({ uri, name }) {
   const avatarUri = resolveAvatarUri(uri || "");

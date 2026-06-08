@@ -15,7 +15,6 @@ import { memo, startTransition, useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -23,6 +22,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 
 const SearchPostRow = memo(function SearchPostRow({
   item,
@@ -236,7 +236,13 @@ export default function ProfileSearchScreen() {
             ) : (
               <View style={styles.emptyIntro}>
                 <View style={styles.avatar}>
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                  <Image
+                    source={{ uri: avatarUri }}
+                    style={styles.avatarImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                  />
                 </View>
                 <Text style={styles.emptyTitle}>
                   {hasSearched ? "Không tìm thấy kết quả" : "Bạn đang tìm gì à?"}

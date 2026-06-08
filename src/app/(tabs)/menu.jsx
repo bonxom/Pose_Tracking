@@ -147,7 +147,7 @@ export default function MenuScreen() {
         >
           <View style={styles.avatar}>
             <Image
-              key={avatarUri}
+              key={session?.id || "guest"}
               source={{ uri: avatarUri }}
               style={styles.avatarImage}
               contentFit="cover"

@@ -9,17 +9,17 @@ import colors from "@/constants/colors";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
-import { getAuthSession } from "@/utils/session";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
@@ -44,14 +44,10 @@ export default function PostCard({
   flat = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(detail);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { session: currentUser } = useAuthSession();
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
   const [isDeleteAnimating, setIsDeleteAnimating] = useState(false);
   const removeAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    getAuthSession().then(setCurrentUser).catch(console.warn);
-  }, []);
 
   const isOwnPost = Boolean(
     currentUser?.id && post?.author?.id && currentUser.id === post.author.id,
@@ -95,7 +91,21 @@ export default function PostCard({
     if (post.exerciseId) values.add(`#${post.exerciseId}`);
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
-  const avatarUri = resolveAvatarUri(post.author?.avatar || "");
+  const avatarUri = useMemo(() => {
+    const authorId = String(post.author?.id || "").trim();
+    const isOwn = Boolean(currentUser?.id && authorId && currentUser.id === authorId);
+    if (isOwn) {
+      return resolveAvatarUri(
+        currentUser?.avatar || post.author?.avatar || "",
+        currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || ""
+      );
+    }
+    return resolveAvatarUri(
+      post.author?.avatar || "",
+      post.author?.avatarVersion || ""
+    );
+  }, [post.author?.avatar, post.author?.avatarVersion, post.author?.id, currentUser?.avatar, currentUser?.avatarVersion, currentUser?.profileSyncRequestedAt, currentUser?.id]);
+
   const cardScale = removeAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.98, 1],
@@ -173,7 +183,13 @@ export default function PostCard({
             hitSlop={8}
             style={localStyles.avatarPressable}
           >
-            <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
+            <Image
+              source={{ uri: avatarUri }}
+              style={postStyles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           </Pressable>
 
           <View style={postStyles.authorMetaGroup}>
