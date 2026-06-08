@@ -214,6 +214,23 @@ export default StyleSheet.create({
     color: colors.muted,
   },
 
+  newNotificationPill: {
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    zIndex: 10,
+  },
+
+  newNotificationPillText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
   errorText: {
     fontSize: 15,
     color: "#E41E3F",

@@ -10,6 +10,10 @@ import MOCK_GET_USER_INFO from "@/constants/mocks/MOCK_GET_USER_INFO";
 import MOCK_LIST_COURSES from "@/constants/mocks/MOCK_LIST_COURSES";
 import MOCK_LIST_STUDENTS from "@/constants/mocks/MOCK_LIST_STUDENTS";
 import {
+  getMockNotificationResponse,
+  setMockNotificationRead,
+} from "@/constants/mocks/MOCK_NOTIFICATION";
+import {
   getMockAddPostResponse,
   getMockCheckNewItemResponse,
   getMockDeletePostResponse,
@@ -21,16 +25,12 @@ import {
   getMockReportPostResponse,
   getMockSetCommentResponse,
 } from "@/constants/mocks/MOCK_POST_API";
+import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
 import {
   deleteMockSavedSearchResponse,
   getMockSavedSearchResponse,
   getMockSearchResponse,
 } from "@/constants/mocks/MOCK_SEARCH";
-import {
-  getMockNotificationResponse,
-  setMockNotificationRead,
-} from "@/constants/mocks/MOCK_NOTIFICATION";
-import MOCK_REQUESTED_ENROLLMENT from "@/constants/mocks/MOCK_REQUESTED_ENROLLMENT";
 
 const ADD_POST_TIMEOUT_MS = 10 * 60 * 1000;
 const EDIT_POST_TIMEOUT_MS = ADD_POST_TIMEOUT_MS;
@@ -407,6 +407,7 @@ export const backendApi = {
       ? Promise.resolve({ code: "1000", message: "OK" })
       : post("/set_devtoken", params),
   getConversation: (params) => post("/get_conversation", params),
+  sendMessage: (params) => post("/set_send_message", params),
   deleteMessage: (params) => post("/delete_message", params),
   getListConversation: (params) => post("/get_list_conversation", params),
   deleteConversation: (params) => post("/delete_conversation", params),

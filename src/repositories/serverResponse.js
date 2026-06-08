@@ -16,7 +16,7 @@ export function isInvalidSessionResponse(response) {
   const message = String(response?.message || response?.msg || response?.error || "").toLowerCase();
 
   return (
-    ["9998", "1009", "1010", "401", "403"].includes(code) ||
+    ["9998", "1009", "401", "403"].includes(code) ||
     message.includes("token is invalid") ||
     message.includes("token không") ||
     message.includes("blocked") ||

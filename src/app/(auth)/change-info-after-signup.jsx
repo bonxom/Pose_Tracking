@@ -1,9 +1,11 @@
 import authApi from "@/api/auth";
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
-import { setDeviceToken } from "@/repositories/settingsRepository";
-import { getAuthSession, saveAuthSession } from "@/utils/session";
+import { validateProfileUserName } from "@/repositories/userRepository";
+import { registerDeviceForPush } from "@/services/pushNotifications";
+import { saveAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -15,16 +17,17 @@ import {
   Text,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ChangeInfoAfterSignupScreen() {
   const params = useLocalSearchParams();
+
   const token = typeof params.token === "string" ? params.token : "";
-  const phonenumber = typeof params.phonenumber === "string" ? params.phonenumber : "";
-  const signupRequestId = typeof params.signupRequestId === "string" ? params.signupRequestId : "";
+  const phonenumber =
+    typeof params.phonenumber === "string" ? params.phonenumber : "";
+  const signupRequestId =
+    typeof params.signupRequestId === "string" ? params.signupRequestId : "";
   const role = typeof params.role === "string" ? params.role : "HV";
-  const verifiedLocally = params.verifiedLocally === "1";
 
   const [username, setUsername] = useState("");
   const [height, setHeight] = useState("");
@@ -33,11 +36,24 @@ export default function ChangeInfoAfterSignupScreen() {
   const [heightError, setHeightError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleBack = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(auth)/signup");
+  };
+
   const handlePickAvatar = async () => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permission.status !== "granted") {
-        Alert.alert("Cần quyền truy cập ảnh", "Vui lòng cấp quyền thư viện ảnh để chọn ảnh đại diện.");
+        Alert.alert(
+          "Cần quyền truy cập ảnh",
+          "Vui lòng cấp quyền thư viện ảnh để chọn ảnh đại diện.",
+        );
         return;
       }
 
@@ -58,26 +74,26 @@ export default function ChangeInfoAfterSignupScreen() {
 
   const handleSubmit = async () => {
     const normalizedUsername = username.trim();
+    const validationUsername = validateProfileUserName(normalizedUsername);
+    if (validationUsername) {
+      setUsernameError(validationUsername);
+      return;
+    }
     const normalizedHeight = height.trim();
 
-    let nextUsernameError = "";
     let nextHeightError = "";
-
-    if (!normalizedUsername) {
-      nextUsernameError = "Tên người dùng không được bỏ trống.";
-    }
 
     if (normalizedHeight && !/^\d+$/.test(normalizedHeight)) {
       nextHeightError = "Chiều cao phải là số.";
     } else if (normalizedHeight) {
       const parsedHeight = Number(normalizedHeight);
+
       if (parsedHeight < 50 || parsedHeight > 250) {
         nextHeightError = "Chiều cao phải trong khoảng 50-250 cm.";
       }
     }
 
-    if (nextUsernameError || nextHeightError) {
-      setUsernameError(nextUsernameError);
+    if (nextHeightError) {
       setHeightError(nextHeightError);
       return;
     }
@@ -92,9 +108,8 @@ export default function ChangeInfoAfterSignupScreen() {
     setIsLoading(true);
 
     try {
-      const previousSession = await getAuthSession();
       const optimisticSession = {
-        id: phonenumber || `local_user_${Date.now()}`,
+        id: phonenumber || `server_user_${Date.now()}`,
         token,
         phonenumber,
         username: normalizedUsername,
@@ -103,16 +118,11 @@ export default function ChangeInfoAfterSignupScreen() {
         avatar: avatar || "",
         coverImage: "",
         height: normalizedHeight || "",
-        source: verifiedLocally || token.startsWith("local_verify_") ? "local" : "server",
-        demoMode: Boolean(verifiedLocally || token.startsWith("local_verify_")),
+        source: "server",
+        demoMode: false,
+        signupRequestId,
         loggedInAt: new Date().toISOString(),
       };
-
-      if (verifiedLocally || token.startsWith("local_verify_")) {
-        await saveAuthSession(optimisticSession);
-        router.replace("/(tabs)/home");
-        return;
-      }
 
       await saveAuthSession(optimisticSession);
       router.replace("/(tabs)/home");
@@ -129,8 +139,8 @@ export default function ChangeInfoAfterSignupScreen() {
           });
 
           if (response.code !== "1000") {
-            await saveAuthSession(previousSession ?? null);
-            Alert.alert("Cập nhật thất bại");
+            Alert.alert("Thông tin người dùng", "Cập nhật thất bại");
+            console.warn("Signup profile sync failed:", response);
             return;
           }
 
@@ -142,36 +152,34 @@ export default function ChangeInfoAfterSignupScreen() {
             completedUser.name ||
             normalizedUsername;
 
-          try {
-            await saveAuthSession({
-              id: completedUser.id || completedUser.user_id || phonenumber || "server_user",
-              token: savedToken,
-              phonenumber: completedUser.phonenumber || phonenumber,
-              username: savedUsername,
-              displayName: savedUsername,
-              role: completedUser.role || role || "HV",
-              avatar: completedUser.avatar || avatar || "",
-              coverImage: completedUser.coverImage || completedUser.cover_image || "",
-              height: completedUser.height || normalizedHeight || "",
-              source: "server",
-              demoMode: false,
-              loggedInAt: new Date().toISOString(),
-            });
-            setDeviceToken().catch((error) => console.warn("Cannot register device token:", error));
-            Alert.alert("Cập nhật thành công");
-          } catch (storageError) {
-            console.warn("Cannot persist session:", storageError);
-            await saveAuthSession(previousSession ?? null);
-            Alert.alert("Cập nhật thất bại");
-          }
+          await saveAuthSession({
+            id:
+              completedUser.id ||
+              completedUser.user_id ||
+              phonenumber ||
+              "server_user",
+            token: savedToken,
+            phonenumber: completedUser.phonenumber || phonenumber,
+            username: savedUsername,
+            displayName: savedUsername,
+            role: completedUser.role || role || "HV",
+            avatar: completedUser.avatar || avatar || "",
+            coverImage:
+              completedUser.coverImage || completedUser.cover_image || "",
+            height: completedUser.height || normalizedHeight || "",
+            source: "server",
+            demoMode: false,
+            loggedInAt: new Date().toISOString(),
+          });
+
+          registerDeviceForPush().catch((error) =>
+            console.warn("Cannot register push token:", error),
+          );
         } catch (backgroundError) {
           console.warn("Background signup sync failed:", backgroundError);
-          await saveAuthSession(previousSession ?? null);
-          Alert.alert("Cập nhật thất bại");
+          Alert.alert("Thông tin người dùng", "Cập nhật thất bại");
         }
       })();
-
-      return;
     } catch {
       Alert.alert("Lỗi", "Không thể kết nối đến máy chủ.");
     } finally {
@@ -182,6 +190,14 @@ export default function ChangeInfoAfterSignupScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
+        <Pressable
+          style={styles.backButton}
+          onPress={handleBack}
+          disabled={isLoading}
+        >
+          <Text style={styles.backText}>←</Text>
+        </Pressable>
+
         <Text style={styles.title}>Hoàn thành thông tin</Text>
         <Text style={styles.subtitle}>
           Nhập tên người dùng. Ảnh đại diện và chiều cao có thể bỏ qua.
@@ -201,9 +217,15 @@ export default function ChangeInfoAfterSignupScreen() {
               <Ionicons name="person-outline" size={42} color="#64748B" />
             )}
           </View>
-          <Pressable style={styles.pickAvatarButton} onPress={handlePickAvatar} disabled={isLoading}>
+          <Pressable
+            style={styles.pickAvatarButton}
+            onPress={handlePickAvatar}
+            disabled={isLoading}
+          >
             <Ionicons name="images-outline" size={18} color="#0866FF" />
-            <Text style={styles.pickAvatarText}>{avatar ? "Đổi ảnh" : "Chọn ảnh"}</Text>
+            <Text style={styles.pickAvatarText}>
+              {avatar ? "Đổi ảnh" : "Chọn ảnh"}
+            </Text>
           </Pressable>
         </View>
 
@@ -253,6 +275,20 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     gap: 16,
   },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  backText: {
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
   title: {
     fontSize: 24,
     lineHeight: 30,
@@ -300,4 +336,3 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 });
-

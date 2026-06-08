@@ -1,11 +1,6 @@
 import Screen from "@/components/common/Screen";
-import {
-  loginDemoStudent,
-  loginDemoTeacher,
-  loginWithPassword,
-} from "@/repositories/authRepository";
-import { setDeviceToken } from "@/repositories/settingsRepository";
-import { getDataSourceMode } from "@/repositories/source";
+import { loginWithPassword } from "@/repositories/authRepository";
+import { registerDeviceForPush } from "@/services/pushNotifications";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
 import { saveAuthSession } from "@/utils/session";
@@ -28,56 +23,41 @@ const styles = { ...baseStyles, ...loginStyles };
 const HEADER_IMAGE = require("../../../assets/images/headface.png");
 
 export default function LoginScreen() {
-  const dataSourceMode = getDataSourceMode();
-  const isServerMode = dataSourceMode === "server";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [phoneNumberError, setPhoneNumberError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showDevFallback, setShowDevFallback] = useState(!isServerMode);
 
-  const persistAndNavigate = async (data) => {
+  const persistAndNavigate = async (data = {}) => {
     try {
       await clearCurrentUserSessionArtifacts();
       await saveAuthSession({
-        id: data.id,
+        id: data.id || data.user_id || data.phonenumber || phoneNumber,
         token: data.token,
-        phonenumber: data.phonenumber,
-        identifier: data.identifier || data.phonenumber,
-        username: data.username || data.displayName,
-        displayName: data.displayName || data.username,
+        phonenumber: data.phonenumber || phoneNumber,
+        identifier: data.identifier || data.phonenumber || phoneNumber,
+        username: data.username || data.displayName || data.name || "",
+        displayName: data.displayName || data.username || data.name || "",
         role: data.role,
         avatar: data.avatar,
         height: data.height,
         handle: data.handle,
         source: data.source,
         demoMode: Boolean(data.demoMode),
+        avatarVersion: new Date().toISOString(),
         loggedInAt: new Date().toISOString(),
       });
-      if (!data.demoMode) {
-        setDeviceToken().catch((error) =>
-          console.warn("Cannot register device token:", error),
-        );
-      }
+
+      registerDeviceForPush().catch((error) =>
+        console.warn("Cannot register push token:", error),
+      );
     } catch (storageError) {
       console.warn("Cannot persist login session:", storageError);
     }
 
     router.replace("/(tabs)/home");
-  };
-
-  const handleDemoLogin = async (loginFn, phone, nextPassword) => {
-    setPhoneNumber(phone);
-    setPassword(nextPassword);
-    setPhoneNumberError("");
-    setPasswordError("");
-    const response = await loginFn();
-
-    if (response.code === "1000") {
-      await persistAndNavigate(response.data);
-    }
   };
 
   const handleLogin = async () => {
@@ -101,24 +81,25 @@ export default function LoginScreen() {
         case "1000": {
           await persistAndNavigate(response.data);
 
-          if (Platform.OS === "web") {
-            break;
+          if (Platform.OS !== "web") {
+            Alert.alert("Thành công", "Đăng nhập thành công");
           }
 
-          Alert.alert("Thành công", "Đăng nhập thành công");
           break;
         }
+
         case "9995":
-          setPhoneNumberError(
-            "Backend không xác thực tài khoản này. Dùng nút demo nếu cần chạy local.",
-          );
+          setPasswordError("Tài khoản chưa được xác thực hoặc không tồn tại.");
           break;
+
         case "1004":
-          setPhoneNumberError("Số điện thoại hoặc mật khẩu không chính xác.");
+          setPasswordError("Số điện thoại hoặc mật khẩu không chính xác.");
           break;
+
         case "1002":
           setPhoneNumberError("Vui lòng nhập đầy đủ thông tin.");
           break;
+
         default:
           Alert.alert("Lỗi", response.message || "Đã có lỗi xảy ra.");
       }
@@ -137,6 +118,7 @@ export default function LoginScreen() {
         <Text style={styles.languageText}>English · 中文(台灣) ·</Text>
         <Text style={styles.languageLink}>Xem thêm...</Text>
       </View>
+
       <View style={styles.inputRow}>
         <TextInput
           placeholder="Số điện thoại"
@@ -155,6 +137,7 @@ export default function LoginScreen() {
           editable={!isLoading}
         />
       </View>
+
       {!!phoneNumberError && (
         <Text style={styles.errorText}>{phoneNumberError}</Text>
       )}
@@ -174,10 +157,12 @@ export default function LoginScreen() {
           style={[styles.input, { flex: 1 }]}
           editable={!isLoading}
         />
+
         {password.length > 0 && (
           <Pressable
-            onPress={() => setShowPassword(!showPassword)}
+            onPress={() => setShowPassword((current) => !current)}
             style={styles.eyeIcon}
+            disabled={isLoading}
           >
             <Ionicons
               name={showPassword ? "eye-outline" : "eye-off-outline"}
@@ -187,6 +172,7 @@ export default function LoginScreen() {
           </Pressable>
         )}
       </View>
+
       {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
 
       <Pressable
@@ -198,46 +184,6 @@ export default function LoginScreen() {
           {isLoading ? "Đang xử lý..." : "Đăng nhập"}
         </Text>
       </Pressable>
-
-      <View style={{ gap: 10, marginTop: 12 }}>
-        {!showDevFallback ? (
-          <Pressable
-            style={[styles.createButton, { borderColor: "#CBD5E1" }]}
-            onPress={() => setShowDevFallback(true)}
-            disabled={isLoading}
-          >
-            <Text style={styles.createText}>Developer local fallback</Text>
-          </Pressable>
-        ) : (
-          <>
-            <Text style={styles.errorText}>
-              Local fallback chỉ dùng khi backend/OTP chưa sẵn sàng.
-            </Text>
-            <Pressable
-              style={[styles.createButton, { borderColor: "#2563EB" }]}
-              onPress={() =>
-                handleDemoLogin(loginDemoStudent, "0900000001", "123456")
-              }
-              disabled={isLoading}
-            >
-              <Text style={styles.createText}>
-                Use demo student account · 0900000001 / 123456
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.createButton, { borderColor: "#94A3B8" }]}
-              onPress={() =>
-                handleDemoLogin(loginDemoTeacher, "0900000002", "123456")
-              }
-              disabled={isLoading}
-            >
-              <Text style={styles.createText}>
-                Use demo teacher account · 0900000002 / 123456
-              </Text>
-            </Pressable>
-          </>
-        )}
-      </View>
 
       <Pressable style={styles.forgotRow}>
         <Text style={styles.forgotText}>Quên mật khẩu?</Text>
@@ -252,6 +198,7 @@ export default function LoginScreen() {
       <Pressable
         style={styles.createButton}
         onPress={() => router.push("/(auth)/signup-start")}
+        disabled={isLoading}
       >
         <Text style={styles.createText}>Tạo tài khoản mới</Text>
       </Pressable>

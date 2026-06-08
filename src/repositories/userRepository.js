@@ -1,11 +1,5 @@
 import { backendApi } from "@/api/client";
 import { API_BASE_URL } from "@/config/env";
-import { DEMO_STUDENT } from "@/constants/demo";
-import {
-  getMockProfileById,
-  resolveMockProfile,
-  saveMockProfile,
-} from "@/constants/mocks/profiles";
 import {
   extractList,
   extractObject,
@@ -24,7 +18,6 @@ import {
   getCurrentSession,
   shouldUseServer,
 } from "@/repositories/source";
-import * as localPosts from "@/services/postStore";
 
 // Chuẩn hóa dữ liệu người dùng từ API/local thành định dạng chuẩn
 export function normalizeUser(
@@ -92,13 +85,43 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
   return {
     ...profile,
     token: firstValue(session?.token, profile?.token, ""),
-    id: firstValue(profile?.id, session?.id, session?.user_id, session?.identifier, ""),
+    id: firstValue(
+      profile?.id,
+      session?.id,
+      session?.user_id,
+      session?.identifier,
+      "",
+    ),
     username: shouldPreferSession
-      ? firstValue(session?.username, session?.displayName, profile?.username, profile?.displayName, "")
-      : firstValue(profile?.username, profile?.displayName, session?.username, session?.displayName, ""),
+      ? firstValue(
+          session?.username,
+          session?.displayName,
+          profile?.username,
+          profile?.displayName,
+          "",
+        )
+      : firstValue(
+          profile?.username,
+          profile?.displayName,
+          session?.username,
+          session?.displayName,
+          "",
+        ),
     displayName: shouldPreferSession
-      ? firstValue(session?.displayName, session?.username, profile?.displayName, profile?.username, "")
-      : firstValue(profile?.displayName, profile?.username, session?.displayName, session?.username, ""),
+      ? firstValue(
+          session?.displayName,
+          session?.username,
+          profile?.displayName,
+          profile?.username,
+          "",
+        )
+      : firstValue(
+          profile?.displayName,
+          profile?.username,
+          session?.displayName,
+          session?.username,
+          "",
+        ),
     avatar: shouldPreferSession
       ? firstValue(session?.avatar, profile?.avatar, "")
       : firstValue(profile?.avatar, session?.avatar, ""),
@@ -148,17 +171,6 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
   };
 }
 
-// Tạo thông tin người dùng cục bộ từ session (phục vụ offline/demo)
-function localUser(session) {
-  const mockProfile = resolveMockProfile(session);
-  const localProfile = buildLocalProfileShape(session, mockProfile);
-
-  return normalizeUser(localProfile || DEMO_STUDENT, ACTIVE_SOURCES.LOCAL, {
-    session,
-    isOwnProfile: true,
-  });
-}
-
 // Xác thực tên người dùng (độ dài, ký tự đặc biệt, số...)
 export function validateProfileUserName(value = "") {
   const userName = String(value).trim();
@@ -182,14 +194,6 @@ export function validateProfileUserName(value = "") {
   return "";
 }
 
-// Trả về thông tin người dùng từ dữ liệu mock dự phòng
-function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  const mockProfile = getMockProfileById(userId);
-  return normalizeUser(mockProfile || { id: userId }, source, {
-    isOwnProfile: false,
-  });
-}
-
 // Kiểm tra xem hai ID có cùng là một người dùng không
 function isSameUser(left, right) {
   return Boolean(left && right && String(left) === String(right));
@@ -208,7 +212,9 @@ function normalizeOptionalText(value = "", maxLength = 0) {
 // Kiểm tra xem giá trị từ backend có biểu thị trạng thái kích hoạt/online không
 function isBackendEnabled(value) {
   return ["1", "true", "yes", "online"].includes(
-    String(value ?? "").trim().toLowerCase(),
+    String(value ?? "")
+      .trim()
+      .toLowerCase(),
   );
 }
 
@@ -269,54 +275,44 @@ function firstParamValue(params = {}, keys = [], fallback = "") {
   return key ? params[key] : fallback;
 }
 
-// Xây dựng cấu trúc profile local từ session và mock profile
-function buildLocalProfileShape(session = {}, mockProfile = {}) {
+function buildLocalProfileShape(session = {}) {
   return {
-    ...(mockProfile || {}),
     ...(session || {}),
     id: firstValue(
       session?.id,
       session?.user_id,
       session?.identifier,
-      mockProfile?.id,
-      mockProfile?.identifier,
-      DEMO_STUDENT.id,
+      session?.phonenumber,
+      "local_user",
     ),
     username: firstValue(
       session?.username,
       session?.displayName,
-      mockProfile?.username,
-      mockProfile?.displayName,
-      DEMO_STUDENT.username,
+      session?.phonenumber,
+      "Nguoi dung",
     ),
     displayName: firstValue(
       session?.displayName,
       session?.username,
-      mockProfile?.displayName,
-      mockProfile?.username,
-      DEMO_STUDENT.displayName,
-    ),
-    avatar: firstValue(session?.avatar, mockProfile?.avatar, ""),
-    coverImage: firstValue(session?.coverImage, mockProfile?.coverImage, ""),
-    description: firstValue(session?.description, mockProfile?.description, ""),
-    address: firstValue(session?.address, mockProfile?.address, ""),
-    city: firstValue(session?.city, mockProfile?.city, ""),
-    country: firstValue(session?.country, mockProfile?.country, ""),
-    profileLink: firstValue(session?.profileLink, mockProfile?.profileLink, ""),
-    postCount: firstValue(session?.postCount, mockProfile?.postCount, 0),
-    online: firstValue(session?.online, mockProfile?.online, false),
-    listing: firstValue(session?.listing, mockProfile?.listing, true),
-    role: firstValue(session?.role, mockProfile?.role, "HV"),
-    phonenumber: firstValue(session?.phonenumber, mockProfile?.phonenumber, ""),
-    identifier: firstValue(
-      session?.identifier,
-      mockProfile?.identifier,
       session?.phonenumber,
-      "",
+      "Nguoi dung",
     ),
-    handle: firstValue(session?.handle, mockProfile?.handle, ""),
-    height: firstValue(session?.height, mockProfile?.height, ""),
-    demoMode: true,
+    avatar: firstValue(session?.avatar, ""),
+    coverImage: firstValue(session?.coverImage, ""),
+    description: firstValue(session?.description, ""),
+    address: firstValue(session?.address, ""),
+    city: firstValue(session?.city, ""),
+    country: firstValue(session?.country, ""),
+    profileLink: firstValue(session?.profileLink, ""),
+    postCount: firstValue(session?.postCount, 0),
+    online: firstValue(session?.online, false),
+    listing: firstValue(session?.listing, true),
+    role: firstValue(session?.role, "HV"),
+    phonenumber: firstValue(session?.phonenumber, ""),
+    identifier: firstValue(session?.identifier, session?.phonenumber, ""),
+    handle: firstValue(session?.handle, ""),
+    height: firstValue(session?.height, ""),
+    demoMode: Boolean(session?.demoMode),
   };
 }
 
@@ -326,29 +322,6 @@ function throwIfExpiredFromApiError(error) {
   if (isInvalidSessionResponse(data || error)) {
     throw new SessionExpiredError(data?.message || error?.message);
   }
-}
-
-// Lấy danh sách bài viết cục bộ của người dùng
-async function getLocalUserPosts(
-  targetUserId,
-  includeLocked,
-  source = ACTIVE_SOURCES.LOCAL_FALLBACK,
-) {
-  const posts = await localPosts.getPosts();
-  const filtered = posts.filter((post) => {
-    const matchesUser =
-      !targetUserId || isSameUser(post.author?.id, targetUserId);
-    const canSeeLocked = includeLocked || post.canComment !== false;
-    return matchesUser && canSeeLocked;
-  });
-
-  return {
-    items: filtered,
-    total: filtered.length,
-    hasMore: false,
-    lastId: filtered[0]?.id || "",
-    source,
-  };
 }
 
 // Kiểm tra URI có phải là tài nguyên cục bộ trên thiết bị (file://, ph://...)
@@ -378,7 +351,9 @@ function normalizeMediaUrl(value = "") {
 
 // Dự đoán MIME type của ảnh dựa trên đuôi file trong URI
 function guessImageMimeType(uri = "") {
-  const clean = String(uri || "").split("?")[0].toLowerCase();
+  const clean = String(uri || "")
+    .split("?")[0]
+    .toLowerCase();
 
   if (clean.endsWith(".png")) return "image/png";
   if (clean.endsWith(".webp")) return "image/webp";
@@ -408,7 +383,9 @@ function buildImageFilePayload(uri = "", fieldName = "image") {
   const lastSegment = uriWithoutQuery.split("/").pop() || "";
   const hasExt = /\.[a-z0-9]+$/i.test(lastSegment);
   const extension = extByMime[mimeType] || "jpg";
-  const fileName = hasExt ? lastSegment : `${fieldName}-${Date.now()}.${extension}`;
+  const fileName = hasExt
+    ? lastSegment
+    : `${fieldName}-${Date.now()}.${extension}`;
 
   return {
     fieldName,
@@ -471,10 +448,7 @@ function buildLocalProfileUpdate(
   userName,
   source = ACTIVE_SOURCES.LOCAL,
 ) {
-  const currentProfile = buildLocalProfileShape(
-    session,
-    resolveMockProfile(session),
-  );
+  const currentProfile = buildLocalProfileShape(session);
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(
     params,
@@ -537,8 +511,10 @@ function buildLocalProfileUpdate(
 
 // Tạo dữ liệu profile tạm thời (optimistic) để cập nhật nhanh lên UI
 export function createOptimisticUserInfo(session = {}, params = {}) {
-  const userName = params.userName || params.username || "";
-  const source = shouldUseServer(session) ? ACTIVE_SOURCES.SERVER : ACTIVE_SOURCES.LOCAL;
+  const userName = params.userName || params.user_name || params.username || "";
+  const source = shouldUseServer(session)
+    ? ACTIVE_SOURCES.SERVER
+    : ACTIVE_SOURCES.LOCAL;
   const optimistic = buildLocalProfileUpdate(session, params, userName, source);
   const avatarChanged =
     firstParamValue(params, ["avatar"], session?.avatar || "") !==
@@ -567,7 +543,6 @@ export function createOptimisticUserInfo(session = {}, params = {}) {
   };
 }
 
-// Lấy thông tin chi tiết người dùng (tự động phân nhánh server/local)
 export async function getUserInfo(userId = "") {
   const session = await getCurrentSession();
   const targetUserId = String(userId || "");
@@ -577,14 +552,6 @@ export async function getUserInfo(userId = "") {
       targetUserId,
       session?.id || session?.user_id || session?.identifier,
     );
-
-  if (!shouldUseServer(session)) {
-    if (isOwnProfile) {
-      return localUser(session);
-    }
-
-    return fallbackUserById(targetUserId, ACTIVE_SOURCES.LOCAL);
-  }
 
   try {
     const response = await backendApi.getUserInfo(
@@ -664,22 +631,7 @@ export async function updateUserInfo(params = {}) {
     throw new Error(validationError);
   }
 
-  if (!shouldUseServer(session)) {
-    const updated = buildLocalProfileUpdate(
-      session,
-      params,
-      userName,
-      ACTIVE_SOURCES.LOCAL,
-    );
-    saveMockProfile(updated);
-    return updated;
-  }
-
-  const response = await setUserInfoOnBackend(
-    session,
-    params,
-    userName,
-  );
+  const response = await setUserInfoOnBackend(session, params, userName);
 
   const normalized = normalizeUser(
     extractObject(response),
@@ -714,21 +666,31 @@ export async function updateUserInfo(params = {}) {
         ? new Date().toISOString()
         : session?.coverVersion || "",
     username: userName || normalized.username || session?.username || "",
-    displayName: userName || normalized.displayName || session?.displayName || session?.username || "",
+    displayName:
+      userName ||
+      normalized.displayName ||
+      session?.displayName ||
+      session?.username ||
+      "",
     avatar: normalized.avatar || params.avatar || session?.avatar || "",
     coverImage:
-      normalized.coverImage ||
-      params.coverImage ||
-      session?.coverImage ||
-      "",
+      normalized.coverImage || params.coverImage || session?.coverImage || "",
     description:
       normalized.description ||
       normalizeOptionalText(
         firstParamValue(params, ["description"], session?.description || ""),
         150,
       ),
-    address: normalized.address || firstParamValue(params, ["address"], session?.address || ""),
-    profileLink: normalized.profileLink || firstParamValue(params, ["profileLink", "link"], session?.profileLink || ""),
+    address:
+      normalized.address ||
+      firstParamValue(params, ["address"], session?.address || ""),
+    profileLink:
+      normalized.profileLink ||
+      firstParamValue(
+        params,
+        ["profileLink", "link"],
+        session?.profileLink || "",
+      ),
     profileSyncStatus: "done",
     profileSyncErrorMessage: "",
     profileSyncRequestedAt: "",
@@ -743,10 +705,6 @@ export async function getUserPosts(userId = "", paging = {}) {
     userId || session?.id || session?.user_id || session?.identifier || "",
   );
   const includeLocked = paging.includeLocked !== false;
-
-  if (!shouldUseServer(session)) {
-    return getLocalUserPosts(targetUserId, includeLocked, ACTIVE_SOURCES.LOCAL);
-  }
 
   const mapVisibleItems = (items = []) =>
     items.filter(
@@ -784,13 +742,6 @@ export async function searchUserProfile(userId = "", keyword = "") {
 
   if (!normalizedKeyword) {
     return [];
-  }
-
-  if (!shouldUseServer(session)) {
-    const items = await localPosts.searchPosts(normalizedKeyword);
-    return targetUserId
-      ? items.filter((post) => isSameUser(post.author?.id, targetUserId))
-      : items;
   }
 
   try {

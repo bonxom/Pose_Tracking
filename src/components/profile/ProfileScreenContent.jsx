@@ -47,8 +47,8 @@ function buildProfileCacheEntry(profile, posts, ownerKey = "") {
 }
 
 export default function ProfileScreenContent({ userId = "" }) {
-  const cacheKey = !userId ? CACHE_KEY_PROFILE : null;
-
+  const isViewingOtherProfile = Boolean(userId);
+  const cacheKey = isViewingOtherProfile ? null : CACHE_KEY_PROFILE;
   const [profile, setProfile] = useState(
     () => profileCacheState[userId]?.profile ?? null,
   );
@@ -152,7 +152,7 @@ export default function ProfileScreenContent({ userId = "" }) {
         setRefreshing(false);
       }
     },
-    [userId, cacheKey, executeWithInternetCheck],
+    [isViewingOtherProfile, userId, cacheKey, executeWithInternetCheck],
   );
 
   const syncOwnProfileFromSession = useCallback(async () => {
@@ -179,7 +179,7 @@ export default function ProfileScreenContent({ userId = "" }) {
       }
       return nextProfile;
     });
-  }, [cacheKey, posts, userId]);
+  }, [cacheKey, userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -193,7 +193,6 @@ export default function ProfileScreenContent({ userId = "" }) {
             loadProfile(false);
             return;
           }
-
           loadProfile(false);
           return;
         }

@@ -6,20 +6,14 @@ import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
-import { useAuthSession } from "@/hooks/useAuthSession";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { Image } from "expo-image";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
@@ -93,18 +87,28 @@ export default function PostCard({
   }, [post.courseId, post.exerciseId, post.hashtags]);
   const avatarUri = useMemo(() => {
     const authorId = String(post.author?.id || "").trim();
-    const isOwn = Boolean(currentUser?.id && authorId && currentUser.id === authorId);
+    const isOwn = Boolean(
+      currentUser?.id && authorId && currentUser.id === authorId,
+    );
     if (isOwn) {
       return resolveAvatarUri(
         currentUser?.avatar || post.author?.avatar || "",
-        currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || ""
+        currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || "",
       );
     }
     return resolveAvatarUri(
       post.author?.avatar || "",
-      post.author?.avatarVersion || ""
+      post.author?.avatarVersion || "",
     );
-  }, [post.author?.avatar, post.author?.avatarVersion, post.author?.id, currentUser?.avatar, currentUser?.avatarVersion, currentUser?.profileSyncRequestedAt, currentUser?.id]);
+  }, [
+    post.author?.avatar,
+    post.author?.avatarVersion,
+    post.author?.id,
+    currentUser?.avatar,
+    currentUser?.avatarVersion,
+    currentUser?.profileSyncRequestedAt,
+    currentUser?.id,
+  ]);
 
   const cardScale = removeAnim.interpolate({
     inputRange: [0, 1],

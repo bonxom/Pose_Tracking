@@ -103,6 +103,7 @@ export default function CommentScreen() {
 
   const closeSheet = useCallback(() => {
     setIsReactionPickerVisible(false);
+    setKeyboardHeight(0);
     Keyboard.dismiss();
     Animated.timing(translateY, {
       toValue: INITIAL_TRANSLATE_Y,
@@ -324,11 +325,15 @@ export default function CommentScreen() {
     setIsReactionPickerVisible((current) => !current);
   };
 
+  const handleDismissReactionPicker = useCallback(() => {
+    setIsReactionPickerVisible(false);
+  }, []);
+
   const handleSelectReaction = (reaction) => {
     setCommentText((current) =>
       current.trim().length ? `${current} ${reaction}` : reaction,
     );
-    setIsReactionPickerVisible(false);
+    // setIsReactionPickerVisible(false);
     inputRef.current?.focus();
   };
 
@@ -382,52 +387,61 @@ export default function CommentScreen() {
         </View>
 
         <View style={styles.content}>
-          {isLoading ? (
-            <View style={styles.skeletonContainer}>
-              <SkeletonComment />
-              <SkeletonComment />
-              <SkeletonComment />
-              <SkeletonComment />
-              <SkeletonComment />
-            </View>
-          ) : (
-            <FlatList
-              data={comments}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <CommentComponent comment={item} />}
-              style={styles.commentList}
-              contentContainerStyle={styles.commentListContent}
-              keyboardShouldPersistTaps="handled"
-              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-              ListEmptyComponent={
-                <Text style={postStyles.subtitle}>Chưa có bình luận nào</Text>
-              }
-              ListHeaderComponent={
-                hasMoreOlderComments || commentError ? (
-                  <View>
-                    {hasMoreOlderComments ? (
-                      <Pressable
-                        style={styles.loadMoreButton}
-                        onPress={handleLoadMore}
-                        disabled={isLoadingOlderComments}
-                      >
-                        <Text style={styles.loadMoreText}>
-                          {isLoadingOlderComments
-                            ? "Đang tải..."
-                            : "Xem các bình luận trước..."}
+          <View style={styles.commentListContainer}>
+            {isLoading ? (
+              <View style={styles.skeletonContainer}>
+                <SkeletonComment />
+                <SkeletonComment />
+                <SkeletonComment />
+                <SkeletonComment />
+                <SkeletonComment />
+              </View>
+            ) : (
+              <FlatList
+                data={comments}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => <CommentComponent comment={item} />}
+                style={styles.commentList}
+                contentContainerStyle={styles.commentListContent}
+                keyboardShouldPersistTaps="handled"
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                ListEmptyComponent={
+                  <Text style={postStyles.subtitle}>Chưa có bình luận nào</Text>
+                }
+                ListHeaderComponent={
+                  hasMoreOlderComments || commentError ? (
+                    <View>
+                      {hasMoreOlderComments ? (
+                        <Pressable
+                          style={styles.loadMoreButton}
+                          onPress={handleLoadMore}
+                          disabled={isLoadingOlderComments}
+                        >
+                          <Text style={styles.loadMoreText}>
+                            {isLoadingOlderComments
+                              ? "Đang tải..."
+                              : "Xem các bình luận trước..."}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                      {commentError ? (
+                        <Text style={styles.commentErrorText}>
+                          {commentError}
                         </Text>
-                      </Pressable>
-                    ) : null}
-                    {commentError ? (
-                      <Text style={styles.commentErrorText}>
-                        {commentError}
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : null
-              }
-            />
-          )}
+                      ) : null}
+                    </View>
+                  ) : null
+                }
+              />
+            )}
+
+            {isReactionPickerVisible ? (
+              <Pressable
+                style={styles.reactionDismissOverlay}
+                onPress={handleDismissReactionPicker}
+              />
+            ) : null}
+          </View>
 
           <View style={styles.composer}>
             {isCommentComposerDisabled ? (

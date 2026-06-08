@@ -1,10 +1,11 @@
+import IconButton from "@/components/common/IconButton";
 import EnrollmentCard from "@/components/courses/EnrollmentCard";
 import SectionHeader from "@/components/courses/SectionHeader";
 import SubViewNavBar from "@/components/courses/SubViewNavBar";
-import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import BoltIcon from "@/components/icons/BoltIcon";
-import SortDescIcon from "@/components/icons/SortDescIcon";
 import SortAscIcon from "@/components/icons/SortAscIcon";
+import SortDescIcon from "@/components/icons/SortDescIcon";
+import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import colors from "@/constants/colors";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
 import { getRequestedEnrollment } from "@/repositories/courseRepository";
@@ -160,27 +161,21 @@ export default function AllRequestsView({
           {
             title: "Mặc định",
             icon: (
-              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
-                <BoltIcon color={colors.text} size={24} />
-              </View>
+              <IconButton icon={<BoltIcon color={colors.text} size={24} />} />
             ),
             onPress: () => setSortOrder("desc"),
           },
           {
             title: "Lời mời mới nhất trước tiên",
             icon: (
-              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
-                <SortDescIcon color={colors.text} size={24} />
-              </View>
+              <IconButton icon={<SortDescIcon color={colors.text} size={24} />} />
             ),
             onPress: () => setSortOrder("desc"),
           },
           {
             title: "Lời mời cũ nhất trước tiên",
             icon: (
-              <View style={{ backgroundColor: colors.gray, borderRadius: 999, padding: 8 }}>
-                <SortAscIcon color={colors.text} size={24} />
-              </View>
+              <IconButton icon={<SortAscIcon color={colors.text} size={24} />} />
             ),
             onPress: () => setSortOrder("asc"),
           },

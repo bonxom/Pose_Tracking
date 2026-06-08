@@ -1,13 +1,8 @@
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
 import { resolveAvatarUri } from "@/utils/profile";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View
-} from "react-native";
-import { Image } from "expo-image";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import UserAvatar from "./UserAvatar";
 
 // ─── Join Button ────────────────────────────────────────────────────────────
 function joinButtonProps(item) {
@@ -30,21 +25,27 @@ export default function CourseCard({ item, onJoin, flat = false }) {
 
   // Build video list from left_video / right_video (skip empty strings)
   const videos = [
-    item.left_video ? { uri: item.left_video, thumb: item.left_video_thumb, angle: "Góc quay trái" } : null,
-    item.right_video ? { uri: item.right_video, thumb: item.right_video_thumb, angle: "Góc quay phải" } : null,
+    item.left_video
+      ? {
+          uri: item.left_video,
+          thumb: item.left_video_thumb,
+          angle: "Góc quay trái",
+        }
+      : null,
+    item.right_video
+      ? {
+          uri: item.right_video,
+          thumb: item.right_video_thumb,
+          angle: "Góc quay phải",
+        }
+      : null,
   ].filter(Boolean);
 
   return (
     <View style={[localStyles.card, flat && localStyles.flatCard]}>
       {/* ── Creator header ── */}
       <View style={localStyles.headerRow}>
-        <Image
-          source={{ uri: avatarUri }}
-          style={localStyles.avatarImage}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-        />
+        <UserAvatar uri={item.avatar} />
 
         <View style={{ flex: 1, marginLeft: 10, gap: 2 }}>
           <Text style={localStyles.username} numberOfLines={1}>
@@ -64,7 +65,12 @@ export default function CourseCard({ item, onJoin, flat = false }) {
 
       {/* ── Videos ── */}
       {videos.length > 0 ? (
-        <View style={[localStyles.videoGrid, flat && localStyles.videoGridFullBleed]}>
+        <View
+          style={[
+            localStyles.videoGrid,
+            flat && localStyles.videoGridFullBleed,
+          ]}
+        >
           {videos.slice(0, 2).map((video, index) => (
             <VideoTile
               key={video.uri || `${video.uri}_${index}`}

@@ -216,6 +216,10 @@ export default function SearchScreen() {
           setLoadingMore(true);
         } else {
           setLoadingSearch(true);
+          setPosts([]);
+          setUsers([]);
+          setHasMore(false);
+          setNextIndex(0);
         }
 
         const result = await searchScreenSearch(trimmedKeyword, {
@@ -328,6 +332,10 @@ export default function SearchScreen() {
   const handleChangeKeyword = useCallback((value) => {
     setKeyword(value);
     setHasSearched(false);
+    setPosts([]);
+    setUsers([]);
+    setHasMore(false);
+    setNextIndex(0);
     setActiveTab("all");
     setError("");
   }, []);

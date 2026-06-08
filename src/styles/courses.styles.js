@@ -5,13 +5,12 @@ const coursesStyles = StyleSheet.create({
   // ── Layout ──
   container: {
     flex: 1,
+    padding: 16,
     backgroundColor: colors.background,
   },
 
   // ── Main Header ──
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
     paddingBottom: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -33,7 +32,6 @@ const coursesStyles = StyleSheet.create({
   // ── Tab Pills ──
   tabPills: {
     flexDirection: "row",
-    paddingHorizontal: 16,
     gap: 8,
     marginTop: 12,
   },
@@ -62,7 +60,6 @@ const coursesStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 16,
   },
@@ -91,7 +88,6 @@ const coursesStyles = StyleSheet.create({
   userCard: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
     paddingVertical: 8,
     gap: 12,
   },
@@ -175,7 +171,6 @@ const coursesStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
     backgroundColor: "#fff",

@@ -1,18 +1,12 @@
 import { backendApi } from "@/api/client";
-import { API_TYPE, API_TYPES } from "@/config/env";
+import { API_BASE_URL, API_TYPE, API_TYPES } from "@/config/env";
 import { extractList } from "@/repositories/normalizers";
 import { assertBackendOk } from "@/repositories/serverResponse";
-import {
-    ACTIVE_SOURCES,
-    getCurrentSession,
-} from "@/repositories/source";
+import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 function isNotificationSessionExpired(error) {
   const code = String(
-    error?.code ||
-      error?.data?.code ||
-      error?.response?.data?.code ||
-      "",
+    error?.code || error?.data?.code || error?.response?.data?.code || "",
   );
 
   const status = Number(error?.status || error?.response?.status || 0);
@@ -24,17 +18,22 @@ export function isNotificationAuthError(error) {
   return isNotificationSessionExpired(error);
 }
 
-let notificationCache = {
-  items: [],
-  unreadCount: 0,
-  lastUpdate: "",
-  hasMore: false,
-  hasLoaded: false,
-  source: ACTIVE_SOURCES.LOCAL,
-};
+function createEmptyNotificationCache() {
+  return {
+    items: [],
+    unreadCount: 0,
+    lastUpdate: "",
+    hasMore: false,
+    hasLoaded: false,
+    source: ACTIVE_SOURCES.LOCAL,
+  };
+}
+
+let notificationCache = createEmptyNotificationCache();
 
 let notificationBadge = 0;
 const notificationBadgeListeners = new Set();
+const notificationCacheListeners = new Set();
 
 export function getNotificationCache() {
   return notificationCache;
@@ -44,20 +43,15 @@ export function getNotificationBadge() {
   return notificationBadge;
 }
 
-export function clearNotificationCache() {
-  notificationCache = {
-    items: [],
-    unreadCount: 0,
-    lastUpdate: "",
-    hasMore: false,
-    hasLoaded: false,
-    source: ACTIVE_SOURCES.LOCAL,
-  };
+export function resetNotificationCache() {
+  notificationCache = createEmptyNotificationCache();
   setNotificationBadge(0);
+  emitNotificationCache();
 }
 
 export function setNotificationBadge(value) {
   const nextValue = Math.max(0, Number(value) || 0);
+
   notificationBadge = nextValue;
 
   notificationBadgeListeners.forEach((listener) => {
@@ -74,18 +68,84 @@ export function subscribeNotificationBadge(listener) {
   };
 }
 
+export function subscribeNotificationCache(listener) {
+  notificationCacheListeners.add(listener);
+  listener(notificationCache);
+
+  return () => {
+    notificationCacheListeners.delete(listener);
+  };
+}
+
+function emitNotificationCache() {
+  notificationCacheListeners.forEach((listener) => {
+    try {
+      listener(notificationCache);
+    } catch {
+      // Ignore listener errors.
+    }
+  });
+}
+
 export function formatNotificationBadge(value) {
   const numeric = Number(value) || 0;
   return numeric > 99 ? "99+" : String(numeric);
 }
 
+function toBoolFlag(value, fallback = false) {
+  if (value === undefined || value === null) return fallback;
+
+  if (value === true || value === 1 || value === "1") return true;
+  if (value === false || value === 0 || value === "0") return false;
+
+  const normalized = String(value).trim().toLowerCase();
+
+  if (normalized === "true" || normalized === "yes") return true;
+  if (normalized === "false" || normalized === "no") return false;
+
+  return fallback;
+}
+
+function toNumberOrUndefined(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+export function isNotificationUnread(item = {}) {
+  if (item.unread !== undefined) return toBoolFlag(item.unread, true);
+  if (item.read !== undefined) return !toBoolFlag(item.read, false);
+  if (item.isRead !== undefined) return !toBoolFlag(item.isRead, false);
+  if (item.is_read !== undefined) return !toBoolFlag(item.is_read, false);
+
+  if (item.raw?.unread !== undefined) return toBoolFlag(item.raw.unread, true);
+  if (item.raw?.read !== undefined) return !toBoolFlag(item.raw.read, false);
+  if (item.raw?.is_read !== undefined)
+    return !toBoolFlag(item.raw.is_read, false);
+
+  return true;
+}
+
+function getNotificationIds(item = {}) {
+  return [
+    item.notificationId,
+    item.id,
+    item.raw?.notificationId,
+    item.raw?.notification_id,
+    item.raw?.id,
+  ]
+    .filter(Boolean)
+    .map(String);
+}
+
 function getNotificationCreatedTime(item) {
-  const time = new Date(item?.created).getTime();
+  const time = new Date(item?.created || item?.createdAt).getTime();
   return Number.isFinite(time) ? time : 0;
 }
 
 function sortNotifications(items = []) {
-  return [...items].sort((a, b) => getNotificationCreatedTime(b) - getNotificationCreatedTime(a));
+  return [...items].sort(
+    (a, b) => getNotificationCreatedTime(b) - getNotificationCreatedTime(a),
+  );
 }
 
 function mergeNotifications(oldItems = [], newItems = []) {
@@ -99,14 +159,22 @@ function mergeNotifications(oldItems = [], newItems = []) {
   return sortNotifications(Array.from(map.values()));
 }
 
-function saveNotificationCache(page, { append = false } = {}) {
-  const nextItems = append
+function saveNotificationCache(
+  page,
+  { append = false, mergeWithExisting = false } = {},
+) {
+  const shouldMerge = append || mergeWithExisting;
+
+  const nextItems = shouldMerge
     ? mergeNotifications(notificationCache.items, page.items)
     : sortNotifications(page.items);
 
-  const unreadCount = Number.isFinite(Number(page.unreadCount))
-    ? Math.max(0, Number(page.unreadCount))
-    : nextItems.filter((item) => item.unread).length;
+  const pageUnreadCount = toNumberOrUndefined(page.unreadCount);
+
+  const unreadCount =
+    pageUnreadCount !== undefined
+      ? Math.max(0, pageUnreadCount)
+      : nextItems.filter(isNotificationUnread).length;
 
   notificationCache = {
     ...page,
@@ -116,19 +184,24 @@ function saveNotificationCache(page, { append = false } = {}) {
   };
 
   setNotificationBadge(unreadCount);
+  emitNotificationCache();
 
   return notificationCache;
 }
 
 export function markNotificationReadLocal(notificationId) {
-  if (!notificationId) {
+  const targetId = String(notificationId || "").trim();
+
+  if (!targetId) {
     return notificationCache;
   }
 
   let changed = false;
 
   const nextItems = notificationCache.items.map((item) => {
-    if (item.notificationId !== notificationId || !item.unread) {
+    const ids = getNotificationIds(item);
+
+    if (!ids.includes(targetId) || !isNotificationUnread(item)) {
       return item;
     }
 
@@ -136,10 +209,15 @@ export function markNotificationReadLocal(notificationId) {
 
     return {
       ...item,
+      read: true,
       unread: false,
+      isRead: true,
+      is_read: "1",
       raw: {
         ...item.raw,
         read: "1",
+        unread: false,
+        is_read: "1",
       },
     };
   });
@@ -148,7 +226,11 @@ export function markNotificationReadLocal(notificationId) {
     return notificationCache;
   }
 
-  const unreadCount = Math.max(0, notificationCache.unreadCount - 1);
+  // Badge là tổng unread toàn hệ thống, không phải số unread trong page hiện tại.
+  const unreadCount = Math.max(
+    0,
+    Number(notificationCache.unreadCount || 0) - 1,
+  );
 
   notificationCache = {
     ...notificationCache,
@@ -157,43 +239,145 @@ export function markNotificationReadLocal(notificationId) {
   };
 
   setNotificationBadge(unreadCount);
+  emitNotificationCache();
 
   return notificationCache;
 }
 
-function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
-  const type = raw.type || raw.notification_type || "info";
-  const objectId =
-    raw.object_id ||
-    raw.objectId ||
-    raw.target_id ||
-    raw.post_id ||
-    raw.course_id ||
-    "";
-  const group = raw.group || raw.group_type || "";
-  const readValue = raw.read ?? raw.is_read;
+function firstNonEmpty(...values) {
+  return values.find(
+    (value) =>
+      value !== undefined && value !== null && String(value).trim() !== "",
+  );
+}
 
-  function buildNotificationId(raw = {}, index = 0) {
-    return String(
-      raw.notification_id ||
-        raw.id ||
-        (raw.object_id && `${raw.type || "notification"}_${raw.object_id}_${raw.created || index}`) ||
-        `notification_${raw.type || "unknown"}_${raw.title || ""}_${raw.created || index}_${index}`,
-    );
+function normalizeImageUrl(value = "") {
+  const url = String(value || "").trim();
+
+  if (!url) return "";
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("data:")
+  ) {
+    return url;
   }
 
-  const id = buildNotificationId(raw, 0);
+  const baseUrl = API_BASE_URL.replace(/\/it4788\/?$/, "").replace(/\/+$/, "");
+  const cleanPath = url.replace(/^\/+/, "");
 
-  return {
-    id,
-    notificationId: String(raw.notification_id || raw.id || ""),
+  return `${baseUrl}/${cleanPath}`;
+}
+
+function getNotificationAvatar(raw = {}) {
+  const sender =
+    raw.sender ||
+    raw.actor ||
+    raw.user ||
+    raw.from ||
+    raw.from_user ||
+    raw.fromUser ||
+    raw.author ||
+    raw.poster ||
+    raw.owner ||
+    {};
+
+  return normalizeImageUrl(
+    firstNonEmpty(
+      raw.sender_avatar,
+      raw.senderAvatar,
+      raw.sender_avatar_url,
+      raw.senderAvatarUrl,
+
+      raw.actor_avatar,
+      raw.actorAvatar,
+      raw.actor_avatar_url,
+      raw.actorAvatarUrl,
+
+      raw.user_avatar,
+      raw.userAvatar,
+      raw.user_avatar_url,
+      raw.userAvatarUrl,
+
+      raw.from_avatar,
+      raw.fromAvatar,
+      raw.from_avatar_url,
+      raw.fromAvatarUrl,
+
+      raw.author_avatar,
+      raw.authorAvatar,
+      raw.author_avatar_url,
+      raw.authorAvatarUrl,
+
+      sender.avatar,
+      sender.avatar_url,
+      sender.avatarUrl,
+      sender.image,
+      sender.image_url,
+      sender.imageUrl,
+      sender.photo,
+
+      raw.avatar,
+      raw.avatar_url,
+      raw.avatarUrl,
+      raw.image,
+      raw.image_url,
+      raw.imageUrl,
+      raw.photo,
+    ),
+  );
+}
+
+function normalizeNotification(
+  raw = {},
+  index = 0,
+  source = ACTIVE_SOURCES.SERVER,
+) {
+  const type = raw.type || raw.notification_type || "info";
+
+  const notificationId = String(
+    raw.notificationId ||
+      raw.notification_id ||
+      raw.id ||
+      `notification_${type}_${raw.title || ""}_${raw.created || index}_${index}`,
+  );
+
+  const objectId = String(
+    raw.objectId ||
+      raw.object_id ||
+      raw.targetId ||
+      raw.target_id ||
+      raw.postId ||
+      raw.post_id ||
+      raw.course_id ||
+      "",
+  );
+
+  const readValue = raw.read ?? raw.is_read;
+
+  const unread =
+    raw.unread !== undefined
+      ? toBoolFlag(raw.unread, true)
+      : readValue !== undefined
+        ? !toBoolFlag(readValue, false)
+        : true;
+
+  const notificationData = {
+    id: notificationId,
+    notificationId,
     source,
     type,
     title: raw.title || raw.message || raw.content || "Thông báo",
-    body: raw.body || raw.description || raw.content || raw.message || "",
-    avatar: raw.avatar || "",
-    group,
+    body: raw.description || raw.body || raw.content || raw.message || "",
+    avatar: getNotificationAvatar(raw),
+    group: raw.group || raw.group_type || "",
     badge: Number(raw.badge || raw.badge_count || 0),
+    created:
+      raw.created ||
+      raw.createdAt ||
+      raw.created_at ||
+      raw.time ||
+      new Date().toISOString(),
     createdAt:
       raw.createdAt ||
       raw.created_at ||
@@ -201,47 +385,62 @@ function normalizeNotification(raw = {}, source = ACTIVE_SOURCES.SERVER) {
       raw.time ||
       new Date().toISOString(),
     lastUpdate: raw.last_update || raw.lastUpdate || "",
-    unread:
-      raw.unread !== undefined
-        ? raw.unread
-        : readValue !== undefined
-          ? !Boolean(Number(readValue))
-          : true,
+    read: !unread,
+    unread,
+    isRead: !unread,
+    is_read: unread ? "0" : "1",
     targetType:
       raw.targetType ||
       raw.target_type ||
-      (type.includes("post") || raw.post_id
+      (type.includes("post") ||
+      type.includes("comment") ||
+      type.includes("like") ||
+      objectId
         ? "post"
         : type.includes("course")
           ? "course"
           : "info"),
-    targetId: String(raw.targetId || objectId),
-    objectId: String(objectId),
+    targetId: objectId,
+    objectId,
     raw,
   };
+
+  return notificationData;
 }
 
 function normalizeNotificationPage(response, source) {
   const items = extractList(response).map((item, index) =>
     normalizeNotification(item, index, source),
   );
+
   const data =
     response?.data && !Array.isArray(response.data) ? response.data : {};
 
-  const unreadCount = Number(
-    data.badge ||
-      data.unread ||
-      response?.badge ||
-      items.filter((item) => item.unread).length,
-  );
+  const badgeValue =
+    data.badge ?? data.unread ?? response?.badge ?? response?.unread;
+
+  const badgeNumber = toNumberOrUndefined(badgeValue);
+
+  const unreadCount =
+    badgeNumber !== undefined
+      ? Math.max(0, badgeNumber)
+      : items.filter(isNotificationUnread).length;
 
   return {
     items,
-    hasMore: Boolean(data.has_more || response?.has_more || items.length >= 20),
+    hasMore: toBoolFlag(
+      data.has_more ?? data.hasMore ?? response?.has_more ?? response?.hasMore,
+      items.length >= 20,
+    ),
     lastUpdate:
-      data.last_update || response?.last_update || items[0]?.lastUpdate || "",
+      data.last_update ||
+      data.lastUpdate ||
+      response?.last_update ||
+      response?.lastUpdate ||
+      items[0]?.lastUpdate ||
+      "",
     unreadCount,
-    badgeLabel: unreadCount > 99 ? "99+" : String(unreadCount),
+    badgeLabel: formatNotificationBadge(unreadCount),
     source,
   };
 }
@@ -252,7 +451,6 @@ export async function getNotifications() {
 }
 
 export async function getNotificationPage(params = {}) {
-  // Mock mode: allow last_update to simulate pull-to-refresh behavior
   if (API_TYPE === API_TYPES.MOCK) {
     const response = await backendApi.getNotification({
       index: String(params.index || 0),
@@ -269,11 +467,17 @@ export async function getNotificationPage(params = {}) {
 
     return saveNotificationCache(page, {
       append: Number(params.index || 0) > 0,
+      mergeWithExisting: Boolean(params.mergeWithExisting),
     });
   }
 
-  // Backend mode: do not send last_update, only token/index/count
   const session = await getCurrentSession();
+
+  if (!session?.token) {
+    const error = new Error("Bạn cần đăng nhập để xem thông báo.");
+    error.code = "9998";
+    throw error;
+  }
 
   try {
     const response = await backendApi.getNotification({
@@ -288,8 +492,10 @@ export async function getNotificationPage(params = {}) {
     });
 
     const page = normalizeNotificationPage(response, ACTIVE_SOURCES.SERVER);
+
     return saveNotificationCache(page, {
       append: Number(params.index || 0) > 0,
+      mergeWithExisting: Boolean(params.mergeWithExisting),
     });
   } catch (error) {
     console.info("[DATA] Server notification fallback", {
@@ -309,20 +515,48 @@ export async function getNotificationPage(params = {}) {
 }
 
 export async function markNotificationRead(notificationId) {
-  markNotificationReadLocal(notificationId);
-
   const session = await getCurrentSession();
 
+  if (!session?.token) {
+    throw new Error("Bạn cần đăng nhập để đọc thông báo.");
+  }
+
+  const id = String(notificationId || "").trim();
+
+  if (!id) {
+    throw new Error("Thiếu notificationId.");
+  }
+
+  console.log("SET_READ_NOTIFICATION_BODY", {
+    token: session.token,
+    notificationId: id,
+  });
+
   const response = await backendApi.setReadNotification({
-    token: session?.token,
-    notification_id: String(notificationId),
+    token: session.token,
+    notificationId: id,
   });
 
   await assertBackendOk(response, {
     message: "Backend set_read_notification failed",
   });
+
+  const backendBadge = toNumberOrUndefined(response?.data?.badge);
+
+  if (backendBadge !== undefined) {
+    notificationCache = {
+      ...notificationCache,
+      unreadCount: Math.max(0, backendBadge),
+      lastUpdate: response?.data?.lastUpdate || notificationCache.lastUpdate,
+    };
+
+    setNotificationBadge(notificationCache.unreadCount);
+    emitNotificationCache();
+  }
+
   return {
-    read: true,
-    source: ACTIVE_SOURCES.SERVER,
+    badge: backendBadge,
+    lastUpdate: response?.data?.lastUpdate || "",
+    response,
   };
 }
