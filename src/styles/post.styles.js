@@ -3,9 +3,166 @@ import sizes from "@/constants/sizes";
 import { StyleSheet } from "react-native";
 
 const postStyles = StyleSheet.create({
+
   screen: {
     paddingHorizontal: 0,
     paddingVertical: sizes.lg,
+  },
+
+  detailScreen: {
+    padding: 0,
+    backgroundColor: colors.surface,
+  },
+  detailHeader: {
+    minHeight: 56,
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    backgroundColor: colors.white,
+    borderBottomWidth: sizes.borderWidth,
+    borderBottomColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  detailHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailHeaderTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  detailScrollContent: {
+    paddingTop: sizes.sm,
+    paddingBottom: sizes.xl,
+    gap: 0,
+  },
+  detailCommentsSection: {
+    backgroundColor: colors.white,
+    borderTopWidth: sizes.borderWidth,
+    borderTopColor: colors.border,
+    paddingHorizontal: sizes.md,
+    paddingTop: sizes.md,
+    paddingBottom: sizes.lg,
+    gap: sizes.sm,
+  },
+  detailCommentsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: sizes.md,
+  },
+  detailCommentsTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  detailCommentsCount: {
+    fontSize: 13,
+    color: colors.subtext,
+  },
+  detailCommentList: {
+    gap: sizes.sm,
+  },
+  detailCommentSkeletons: {
+    gap: sizes.sm,
+  },
+  detailCommentsState: {
+    paddingVertical: sizes.xs,
+  },
+  detailCommentsEmpty: {
+    fontSize: 14,
+    color: colors.subtext,
+    paddingVertical: sizes.xs,
+  },
+  detailLoadMoreComments: {
+    alignSelf: "flex-start",
+    paddingVertical: sizes.xs,
+  },
+  detailLoadMoreCommentsPressed: {
+    opacity: 0.7,
+  },
+  detailLoadMoreCommentsText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  detailCommentComposerLink: {
+    minHeight: 40,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    paddingHorizontal: sizes.md,
+    marginTop: sizes.xs,
+  },
+  detailCommentComposerLinkPressed: {
+    opacity: 0.75,
+  },
+  detailCommentComposerText: {
+    fontSize: 14,
+    color: colors.subtext,
+  },
+  detailInlineComposer: {
+    paddingTop: sizes.xs,
+    paddingBottom: 0,
+  },
+  detailInlineComposerInput: {
+    marginBottom: 0,
+  },
+  detailCommentsLocked: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.subtext,
+    paddingTop: sizes.xs,
+  },
+  detailStatus: {
+    marginHorizontal: sizes.md,
+    marginTop: sizes.sm,
+    borderRadius: sizes.radiusMd,
+    backgroundColor: colors.white,
+    borderWidth: sizes.borderWidth,
+    borderColor: colors.border,
+    padding: sizes.md,
+  },
+  detailState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: sizes.xl,
+    gap: sizes.md,
+  },
+  detailStateTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.text,
+    textAlign: "center",
+  },
+  detailStateText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.subtext,
+    textAlign: "center",
+  },
+  detailStateButton: {
+    marginTop: sizes.xs,
+    paddingHorizontal: sizes.lg,
+    paddingVertical: sizes.sm,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+  },
+  detailStateButtonPressed: {
+    opacity: 0.8,
+  },
+  detailStateButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.white,
   },
   screenInner: {
     flex: 1,

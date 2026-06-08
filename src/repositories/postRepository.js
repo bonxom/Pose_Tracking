@@ -35,6 +35,38 @@ function assertServerSession(session) {
   }
 }
 
+export class PostUnavailableError extends Error {
+  constructor(message = "Bài viết không còn khả dụng.") {
+    super(message);
+    this.name = "PostUnavailableError";
+    this.postUnavailable = true;
+  }
+}
+
+function normalizeReportPayload(report = "") {
+  if (typeof report === "string") {
+    const reason = report.trim();
+    return {
+      subject: reason || "Báo cáo bài viết",
+      details: reason || "Nội dung không phù hợp",
+    };
+  }
+
+  const subject = String(report?.subject || "").trim();
+  const details = String(report?.details || "").trim();
+
+  return {
+    subject: subject || "Báo cáo bài viết",
+    details: details || "Nội dung không phù hợp",
+  };
+}
+
+function isPostUnavailableResponse(response) {
+  return ["1010", "9992"].includes(
+    String(response?.code || response?.status || ""),
+  );
+}
+
 function shouldUsePostApi(session) {
   if (!session?.token) return false;
   if (session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL) {
@@ -447,9 +479,11 @@ export async function deletePost(post) {
   return { deleted: true, source: ACTIVE_SOURCES.SERVER };
 }
 
-export async function reportPost(post, reason = "") {
+export async function reportPost(post, report = "") {
+  const { subject, details } = normalizeReportPayload(report);
+
   if (!isServerPost(post)) {
-    await localPosts.reportPost(post.id, reason);
+    await localPosts.reportPost(post.id, `${subject}: ${details}`);
     return { reported: true, source: ACTIVE_SOURCES.LOCAL };
   }
 
@@ -458,9 +492,13 @@ export async function reportPost(post, reason = "") {
   const response = await backendApi.reportPost({
     token: session.token,
     id: post.id,
-    subject: reason || "Báo cáo bài viết",
-    details: reason || "Nội dung không phù hợp",
+    subject,
+    details,
   });
+
+  if (isPostUnavailableResponse(response)) {
+    throw new PostUnavailableError(response?.message || undefined);
+  }
 
   await assertBackendOk(response, { message: "Backend report_post failed" });
 

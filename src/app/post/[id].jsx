@@ -1,52 +1,174 @@
-import AppButton from "@/components/common/AppButton";
-import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";
+import CommentComponent from "@/components/post/CommentComponent";
+import CommentComposer from "@/components/post/CommentComposer";
 import PostCard from "@/components/post/PostCard";
+import SkeletonComment from "@/components/post/SkeletonComment";
+import {
+  dedupeCommentsById,
+  validateCommentText,
+} from "@/components/post/commentThreadUtils";
+import colors from "@/constants/colors";
 import { addComment, getComments } from "@/repositories/commentRepository";
-import { deletePost, editPost, getPostById, reportPost, toggleLike } from "@/repositories/postRepository";
+import {
+  getPostById,
+  toggleLike,
+} from "@/repositories/postRepository";
+import sizes from "@/constants/sizes";
 import postStyles from "@/styles/post.styles";
 import { getAuthSession } from "@/utils/session";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
-import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Keyboard,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const COMMENT_PREVIEW_COUNT = 3;
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [post, setPost] = useState(null);
-  const [comments, setComments] = useState([]);
-  const [commentText, setCommentText] = useState("");
   const [session, setSession] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState("");
-  const [editVideos, setEditVideos] = useState([]);
-  const [reportReason, setReportReason] = useState("");
   const [statusText, setStatusText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [comments, setComments] = useState([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [commentError, setCommentError] = useState("");
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [isCommentBlocked, setIsCommentBlocked] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const inlineCommentInputRef = useRef(null);
+  const scrollViewRef = useRef(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  const detailScrollBottomPadding = useMemo(
+    () =>
+      sizes.xl +
+      Math.max(insets.bottom, sizes.md) +
+      (keyboardHeight > 0 ? keyboardHeight + sizes.md : 0),
+    [insets.bottom, keyboardHeight],
+  );
+
+  const handleGoBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)/home");
+  }, []);
 
   const loadPost = useCallback(async () => {
     try {
       setIsLoading(true);
+      setStatusText("");
+      setCommentError("");
       const currentSession = await getAuthSession();
       setSession(currentSession);
       const data = await getPostById(id);
       setPost(data);
-      setEditText(data?.content || data?.described || "");
-      const commentResult = await getComments(data || id, { index: 0, count: 50 });
-      setComments(commentResult.comments || []);
     } catch (error) {
       console.warn("Failed to load post:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể tải bài viết.");
+      setStatusText("Không thể tải bài viết.");
     } finally {
       setIsLoading(false);
     }
   }, [id]);
 
+  const openComments = useCallback(() => {
+    if (!post?.id) return;
+    router.push(`/post/comment/${post.id}`);
+  }, [post?.id]);
+
+  const loadCommentPreview = useCallback(async () => {
+    if (!post?.id) {
+      setComments([]);
+      setHasMoreComments(false);
+      setIsCommentBlocked(false);
+      return;
+    }
+
+    try {
+      setIsLoadingComments(true);
+      setCommentError("");
+      setIsCommentBlocked(false);
+
+      const result = await getComments(post, {
+        index: 0,
+        count: COMMENT_PREVIEW_COUNT,
+      });
+      const loadedComments = Array.isArray(result?.comments)
+        ? dedupeCommentsById(result.comments)
+        : [];
+      const commentCount = Number(post?.commentCount) || 0;
+      const blocked = result?.isBlocked === true;
+
+      setComments(loadedComments);
+      setIsCommentBlocked(blocked);
+      setHasMoreComments(
+        result?.hasOlder === true ||
+          commentCount > loadedComments.length ||
+          loadedComments.length >= COMMENT_PREVIEW_COUNT,
+      );
+    } catch (error) {
+      console.warn("Failed to load comment preview:", error);
+      if (await redirectIfSessionExpired(error, router)) return;
+      setCommentError("Không thể tải bình luận. Vui lòng thử lại.");
+      setComments([]);
+      setHasMoreComments(false);
+      setIsCommentBlocked(false);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  }, [post]);
+
   useEffect(() => {
     loadPost();
   }, [loadPost]);
+
+  useEffect(() => {
+    loadCommentPreview();
+  }, [loadCommentPreview]);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const handleShow = (event) => {
+      setKeyboardHeight(Math.max(0, event?.endCoordinates?.height || 0));
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const handleInlineCommentFocus = useCallback(() => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, Platform.OS === "web" ? 0 : 120);
+  }, []);
 
   const handleToggleLike = async () => {
     if (!post) return;
@@ -56,7 +178,47 @@ export default function PostDetailScreen() {
     } catch (error) {
       console.warn("Failed to toggle like:", error);
       if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể cập nhật lượt thích.");
+      setStatusText("Không thể cập nhật lượt thích.");
+    }
+  };
+
+  const handleSubmitInlineComment = async () => {
+    if (!post) return;
+
+    const { text: sanitizedComment, error } = validateCommentText(commentText);
+
+    if (error) {
+      setCommentError(error);
+      inlineCommentInputRef.current?.focus();
+      return;
+    }
+
+    try {
+      setIsSubmittingComment(true);
+      setCommentError("");
+      const result = await addComment(post, sanitizedComment);
+
+      if (result?.comment) {
+        setComments((prevComments) =>
+          dedupeCommentsById([result.comment, ...prevComments]),
+        );
+        setPost((currentPost) =>
+          currentPost
+            ? {
+                ...currentPost,
+                commentCount: (Number(currentPost.commentCount) || 0) + 1,
+              }
+            : currentPost,
+        );
+        setCommentText("");
+        inlineCommentInputRef.current?.focus();
+      }
+    } catch (error) {
+      console.warn("Failed to add inline comment:", error);
+      if (await redirectIfSessionExpired(error, router)) return;
+      setCommentError("Không thể đăng bình luận. Vui lòng thử lại.");
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -85,290 +247,202 @@ export default function PostDetailScreen() {
     });
   };
 
-  const handleAddComment = async () => {
-    const normalizedComment = commentText.trim().replace(/[\u0000-\u001F\u007F]/g, " ");
-    if (!normalizedComment) {
-      Alert.alert("Lỗi", "Vui lòng nhập bình luận");
-      return;
-    }
+  const canOwnerEdit =
+    post?.author?.id &&
+    session?.id &&
+    post.author.id === session.id &&
+    session.role === "HV";
+  const visibleCommentCount = Math.max(
+    Number(post?.commentCount) || 0,
+    comments.length,
+  );
 
-    if (normalizedComment.length > 500) {
-      Alert.alert("Lỗi", "Bình luận tối đa 500 ký tự.");
-      return;
-    }
-
-    try {
-      const result = await addComment(post, normalizedComment);
-      if (result.comment) {
-        setComments((current) => [...current, result.comment]);
-        setCommentText("");
-        const updatedPost = await getPostById(post.id);
-        setPost(updatedPost);
-      }
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể gửi bình luận.");
-    }
+  const handleDeletePost = () => {
+    router.replace("/(tabs)/home");
   };
 
-  const canOwnerEdit = post?.author?.id && session?.id && post.author.id === session.id && session.role === "HV";
-
-  const readVideoDuration = async (asset) => {
-    if (asset.duration) return asset.duration;
-    if (typeof document === "undefined" || !asset.uri) return 0;
-
-    return new Promise((resolve) => {
-      const video = document.createElement("video");
-      video.preload = "metadata";
-      video.onloadedmetadata = () => resolve(Math.round(video.duration * 1000));
-      video.onerror = () => resolve(0);
-      video.src = asset.uri;
-    });
+  const handleReportPost = () => {
+    setStatusText(
+      "Cảm ơn bạn đã gửi báo cáo. Chúng tôi sẽ xem xét bài viết này.",
+    );
   };
 
-  const pickReplacementVideo = async (slotIndex) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      allowsEditing: false,
-      quality: 1,
-    });
-
-    if (result.canceled || !result.assets?.[0]) return;
-
-    const asset = result.assets[0];
-    const duration = await readVideoDuration(asset);
-    const video = {
-      id: `edit_video_${slotIndex}_${Date.now()}`,
-      uri: asset.uri,
-      file: asset.file,
-      name: asset.fileName || `replacement-video-${slotIndex + 1}.mp4`,
-      mimeType: asset.mimeType || "video/mp4",
-      angle: slotIndex === 0 ? "Góc quay trái" : "Góc quay phải",
-      duration,
-      fileSize: asset.fileSize || 0,
-    };
-
-    setEditVideos((current) => {
-      const next = [...current];
-      next[slotIndex] = video;
-      return next.slice(0, 2);
-    });
-  };
-
-  const handleEditPost = async () => {
-    const replacementVideos = editVideos.filter(Boolean);
-
-    if (!editText.trim()) {
-      setStatusText("Mô tả bài viết không được bỏ trống.");
-      return;
-    }
-
-    if (replacementVideos.length === 1) {
-      setStatusText("Nếu thay video, cần chọn đủ cả 2 video theo quy định.");
-      return;
-    }
-
-    try {
-      const updated = await editPost(post, {
-        content: editText.trim(),
-        videos: replacementVideos.length === 2 ? replacementVideos : undefined,
-      });
-      setPost(updated);
-      setIsEditing(false);
-      setEditVideos([]);
-      setStatusText("Đã cập nhật bài viết.");
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText("Hệ thống đang lỗi, vui lòng thử lại sau");
-    }
-  };
-
-  const handleDeletePost = async () => {
-    try {
-      await deletePost(post);
-      Alert.alert("Thành công", "Đã xóa bài viết thành công.", [
-        {
-          text: "OK",
-          onPress: () => router.replace("/(tabs)/home"),
-        },
-      ]);
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText("Hệ thống đang lỗi, vui lòng thử lại sau");
-    }
-  };
-
-  const handleReportPost = async () => {
-    try {
-      await reportPost(post, reportReason.trim() || "Báo cáo nội dung bài viết");
-      setReportReason("");
-      setStatusText("Đã gửi báo cáo.");
-    } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
-      setStatusText(error.message || "Không thể báo cáo bài viết.");
-    }
+  const handlePostUnavailable = () => {
+    setPost(null);
+    setStatusText("");
   };
 
   if (isLoading) {
     return (
-      <Screen style={postStyles.screen}>
-        <ActivityIndicator size="large" />
+      <Screen style={[postStyles.screen, postStyles.detailScreen]}>
+        <View style={postStyles.detailHeader}>
+          <Pressable
+            onPress={handleGoBack}
+            style={postStyles.detailHeaderButton}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Quay lại"
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          <Text style={postStyles.detailHeaderTitle}>Bài viết</Text>
+          <View style={postStyles.detailHeaderButton} />
+        </View>
+        <View style={postStyles.detailState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={postStyles.detailStateText}>Đang tải bài viết...</Text>
+        </View>
       </Screen>
     );
   }
 
   if (!post) {
     return (
-      <Screen style={postStyles.screen}>
-        <Text style={postStyles.title}>Bài viết không tồn tại</Text>
+      <Screen style={[postStyles.screen, postStyles.detailScreen]}>
+        <View style={postStyles.detailHeader}>
+          <Pressable
+            onPress={handleGoBack}
+            style={postStyles.detailHeaderButton}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Quay lại"
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </Pressable>
+          <Text style={postStyles.detailHeaderTitle}>Bài viết</Text>
+          <View style={postStyles.detailHeaderButton} />
+        </View>
+        <View style={postStyles.detailState}>
+          <Text style={postStyles.detailStateTitle}>
+            Không thể hiển thị bài viết
+          </Text>
+          <Text style={postStyles.detailStateText}>
+            Bài viết không tồn tại hoặc bạn không có quyền xem nội dung này.
+          </Text>
+          <Pressable
+            onPress={handleGoBack}
+            style={({ pressed }) => [
+              postStyles.detailStateButton,
+              pressed && postStyles.detailStateButtonPressed,
+            ]}
+            accessibilityRole="button"
+          >
+            <Text style={postStyles.detailStateButtonText}>Quay lại</Text>
+          </Pressable>
+        </View>
       </Screen>
     );
   }
 
   return (
-    <Screen style={postStyles.screen}>
+    <Screen style={[postStyles.screen, postStyles.detailScreen]}>
+      <View style={postStyles.detailHeader}>
+        <Pressable
+          onPress={handleGoBack}
+          style={postStyles.detailHeaderButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại"
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </Pressable>
+        <Text style={postStyles.detailHeaderTitle}>Bài viết</Text>
+        <View style={postStyles.detailHeaderButton} />
+      </View>
       <ScrollView
-        contentContainerStyle={postStyles.scrollContent}
+        ref={scrollViewRef}
+        contentContainerStyle={[
+          postStyles.detailScrollContent,
+          { paddingBottom: detailScrollBottomPadding },
+        ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <PostCard
           post={post}
           detail={true}
+          flat
           onToggleLike={handleToggleLike}
-          onPressComment={() => router.push(`/post/comment/${post.id}`)}
+          onPressComment={openComments}
           onSubmitExercise={handleSubmitExercise}
           onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
+          onDeletePost={handleDeletePost}
+          onReportPost={handleReportPost}
+          onPostUnavailable={handlePostUnavailable}
         />
 
-        {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
-
-        <View style={postStyles.inputCard}>
-          <Text style={postStyles.slotLabel}>Thao tác bài viết</Text>
-          {canOwnerEdit ? (
-            <>
-              {isEditing ? (
-                <>
-                  <AppInput
-                    value={editText}
-                    onChangeText={setEditText}
-                    multiline
-                    numberOfLines={4}
-                    style={postStyles.textArea}
-                  />
-                  <Text style={postStyles.slotHint}>
-                    Thay video là tùy chọn. Nếu thay, phải chọn đủ 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương.
-                  </Text>
-                  <View style={postStyles.actionRow}>
-                    <AppButton
-                      title="Thay video trái"
-                      onPress={() => pickReplacementVideo(0)}
-                      style={[postStyles.actionButton, postStyles.secondaryButton]}
-                      textStyle={postStyles.secondaryButtonText}
-                    />
-                    <AppButton
-                      title="Thay video phải"
-                      onPress={() => pickReplacementVideo(1)}
-                      style={[postStyles.actionButton, postStyles.secondaryButton]}
-                      textStyle={postStyles.secondaryButtonText}
-                    />
-                  </View>
-                  <View style={postStyles.mediaList}>
-                    {[0, 1].map((slotIndex) => {
-                      const video = editVideos[slotIndex];
-                      return (
-                        <View key={slotIndex} style={postStyles.mediaCard}>
-                          <Text style={postStyles.mediaTitle}>{slotIndex === 0 ? "Góc quay trái" : "Góc quay phải"}</Text>
-                          <Text style={postStyles.mediaSubtitle}>{video?.name || "Giữ video hiện tại"}</Text>
-                          <Text style={postStyles.mediaSubtitle}>
-                            {video?.duration ? `${Math.round(video.duration / 1000)} giây` : "Chưa chọn video thay thế"}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  <View style={postStyles.actionRow}>
-                    <AppButton title="Lưu sửa" onPress={handleEditPost} style={postStyles.actionButton} />
-                    <AppButton
-                      title="Hủy sửa"
-                      onPress={() => {
-                        setIsEditing(false);
-                        setEditVideos([]);
-                      }}
-                      style={[postStyles.actionButton, postStyles.secondaryButton]}
-                      textStyle={postStyles.secondaryButtonText}
-                    />
-                  </View>
-                </>
-              ) : (
-                <View style={postStyles.actionRow}>
-                  <AppButton title="Sửa bài" onPress={() => setIsEditing(true)} style={postStyles.actionButton} />
-                  <AppButton
-                    title="Xóa bài"
-                    onPress={handleDeletePost}
-                    style={[postStyles.actionButton, postStyles.secondaryButton]}
-                    textStyle={postStyles.secondaryButtonText}
-                  />
-                </View>
-              )}
-            </>
-          ) : (
-            <>
-              <AppInput
-                placeholder="Lý do báo cáo..."
-                value={reportReason}
-                onChangeText={setReportReason}
-              />
-              <AppButton title="Báo cáo bài viết" onPress={handleReportPost} style={postStyles.actionButton} />
-            </>
-          )}
-        </View>
-
-        <View style={postStyles.divider} />
-
-        <View style={postStyles.inputCard}>
-          <Text style={postStyles.slotLabel}>Bình luận ({comments.length})</Text>
-          {comments.map((item) => (
-            <View key={item.id} style={postStyles.commentCard}>
-              <Text style={postStyles.commentAuthor}>{item.authorName}</Text>
-              {item.isScoreComment && item.score ? (
-                <Text style={postStyles.scoreSummaryTitle}>Điểm: {item.score}/100</Text>
-              ) : null}
-              <Text style={postStyles.commentText}>{item.content}</Text>
-              <Text style={postStyles.commentMeta}>
-                {new Date(item.createdAt).toLocaleDateString("vi-VN")}
+        <View style={postStyles.detailCommentsSection}>
+          <View style={postStyles.detailCommentsHeader}>
+            <Text style={postStyles.detailCommentsTitle}>Bình luận</Text>
+            {visibleCommentCount > 0 ? (
+              <Text style={postStyles.detailCommentsCount}>
+                {visibleCommentCount} bình luận
               </Text>
+            ) : null}
+          </View>
+
+          {isLoadingComments ? (
+            <View style={postStyles.detailCommentSkeletons}>
+              <SkeletonComment />
+              <SkeletonComment />
             </View>
-          ))}
-          {post.canComment === false ? (
-            <Text style={postStyles.lockedText}>Bài viết này không cho phép bình luận.</Text>
+          ) : commentError ? (
+            <View style={postStyles.detailCommentsState}>
+              <Text style={postStyles.warningText}>{commentError}</Text>
+            </View>
+          ) : comments.length > 0 ? (
+            <View style={postStyles.detailCommentList}>
+              {comments.map((comment) => (
+                <CommentComponent key={comment.id} comment={comment} />
+              ))}
+            </View>
           ) : (
-            <>
-              <AppInput
-                placeholder="Viết bình luận..."
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-                numberOfLines={3}
-                style={postStyles.textArea}
-              />
-              <Text style={postStyles.slotHint}>{commentText.length}/500 ký tự</Text>
-              <AppButton
-                title="Gửi bình luận"
-                onPress={handleAddComment}
-                disabled={!commentText.trim() || commentText.length > 500}
-              />
-            </>
+            <Text style={postStyles.detailCommentsEmpty}>
+              Chưa có bình luận nào.
+            </Text>
+          )}
+
+          {hasMoreComments ? (
+            <Pressable
+              onPress={openComments}
+              style={({ pressed }) => [
+                postStyles.detailLoadMoreComments,
+                pressed && postStyles.detailLoadMoreCommentsPressed,
+              ]}
+              accessibilityRole="button"
+            >
+              <Text style={postStyles.detailLoadMoreCommentsText}>
+                Xem thêm bình luận
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {post.canComment === false || isCommentBlocked ? (
+            <Text style={postStyles.detailCommentsLocked}>
+              Bài viết này hiện không thể bình luận.
+            </Text>
+          ) : (
+            <CommentComposer
+              inputRef={inlineCommentInputRef}
+              value={commentText}
+              onChangeText={(nextText) => {
+                setCommentText(nextText);
+                if (commentError) setCommentError("");
+              }}
+              onSubmit={handleSubmitInlineComment}
+              isSubmitting={isSubmittingComment}
+              onFocus={handleInlineCommentFocus}
+              containerStyle={postStyles.detailInlineComposer}
+              inputContainerStyle={postStyles.detailInlineComposerInput}
+            />
           )}
         </View>
 
-        <View style={{ height: 12 }} />
-
-        <AppButton
-          title="Quay lại"
-          onPress={() => router.back()}
-          style={[postStyles.actionButton, postStyles.secondaryButton]}
-          textStyle={postStyles.secondaryButtonText}
-        />
+        {statusText ? (
+          <View style={postStyles.detailStatus}>
+            <Text style={postStyles.warningText}>{statusText}</Text>
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
