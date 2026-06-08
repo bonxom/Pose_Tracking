@@ -362,16 +362,19 @@ export default function ProfileEditScreen() {
     setUsernameError("");
     try {
       const session = await getAuthSession();
-      const optimisticProfile = mergeOwnProfileWithSession(
-        {
-          displayName: username.trim(),
-          username: username.trim(),
-          avatar,
-          coverImage,
-          description: description.trim().slice(0, 150),
-        },
-        session || {},
-      );
+      const optimisticProfile = {
+        ...session,
+        id: session?.id || "",
+        displayName: username.trim(),
+        username: username.trim(),
+        avatar,
+        coverImage,
+        description: description.trim().slice(0, 150),
+        avatarVersion: avatar !== (session?.avatar || "") ? new Date().toISOString() : session?.avatarVersion || "",
+        coverVersion: coverImage !== (session?.coverImage || "") ? new Date().toISOString() : session?.coverVersion || "",
+        profileSyncStatus: "pending",
+        profileSyncRequestedAt: new Date().toISOString(),
+      };
 
       applyProfileSnapshot(optimisticProfile);
       await persistProfileSnapshot(optimisticProfile);

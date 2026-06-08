@@ -22,12 +22,12 @@ import {
   writeCache,
 } from "@/utils/cacheStore";
 import { profileCacheState } from "@/state/profileCacheState";
-import { getAuthSession } from "@/utils/session";
+import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -179,6 +179,42 @@ export default function ProfileScreenContent({ userId = "" }) {
       }
       return nextProfile;
     });
+  }, [cacheKey, userId]);
+
+  const postsRef = useRef(posts);
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
+
+  useEffect(() => {
+    if (userId) return;
+
+    const unsubscribe = subscribeAuthSession((session) => {
+      if (!session) return;
+      const ownerKey = getProfileCacheOwnerKey(session);
+
+      setProfile((current) => {
+        const nextProfile = mergeOwnProfileWithSession(current || {}, session);
+        if (!nextProfile.id && !nextProfile.displayName && !nextProfile.username) {
+          return current;
+        }
+
+        const nextCache = {
+          profile: nextProfile,
+          posts: profileCacheState[userId]?.posts || postsRef.current,
+          ownerKey,
+        };
+        profileCacheState[userId] = nextCache;
+        if (cacheKey) {
+          writeCache(cacheKey, nextCache);
+        }
+        return nextProfile;
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [cacheKey, userId]);
 
   useFocusEffect(
