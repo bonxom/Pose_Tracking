@@ -595,6 +595,32 @@ export default function ConversationDetailScreen() {
     });
   }, [conversation?.partner?.id, partnerId]);
 
+  const handleOpenConversationInfo = useCallback(() => {
+    const partner = conversation?.partner || {};
+    const targetPartnerId = String(partner.id || partnerId || "").trim();
+
+    if (!targetPartnerId) {
+      return;
+    }
+
+    router.push({
+      pathname: "/conversation/info",
+      params: {
+        partnerId: targetPartnerId,
+        partnerName: partner.username || partnerName || "",
+        partnerAvatar: partner.avatar || partnerAvatar || "",
+        conversationId: conversation?.id || routeId || "",
+      },
+    });
+  }, [
+    conversation?.id,
+    conversation?.partner,
+    partnerId,
+    partnerName,
+    partnerAvatar,
+    routeId,
+  ]);
+
   return (
     <SafeAreaView style={conversationDetailStyles.safe} edges={["top", "bottom"]}>
       {/* ── Header ── */}
@@ -619,7 +645,11 @@ export default function ConversationDetailScreen() {
           <Pressable style={conversationDetailStyles.iconBtn} hitSlop={8}>
             <Ionicons name="videocam" size={22} color={colors.primary} />
           </Pressable>
-          <Pressable style={conversationDetailStyles.iconBtn} hitSlop={8}>
+          <Pressable
+            onPress={handleOpenConversationInfo}
+            style={conversationDetailStyles.iconBtn}
+            hitSlop={8}
+          >
             <Foundation name="info" size={24} color={colors.primary} />
           </Pressable>
         </View>
