@@ -1,7 +1,8 @@
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
-import { Image, Modal, Pressable, View } from "react-native";
+import { Modal, Pressable, View } from "react-native";
+import { Image } from "expo-image";
 
 export default function ProfileImagePreviewModal({ uri, visible, onClose }) {
   return (
@@ -11,7 +12,13 @@ export default function ProfileImagePreviewModal({ uri, visible, onClose }) {
           <ProfileIcon name="close" size={24} color={colors.white} />
         </Pressable>
         {uri ? (
-          <Image source={{ uri }} style={profileStyles.imagePreview} resizeMode="contain" />
+          <Image
+            source={{ uri }}
+            style={profileStyles.imagePreview}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
         ) : null}
       </View>
     </Modal>

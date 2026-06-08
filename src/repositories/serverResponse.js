@@ -1,5 +1,5 @@
 import { isBackendOk } from "@/repositories/normalizers";
-import { clearAuthSession } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { router } from "expo-router";
 import { Alert } from "react-native";
 
@@ -27,7 +27,7 @@ export function isInvalidSessionResponse(response) {
 
 export async function assertBackendOk(response, options = {}) {
   if (isInvalidSessionResponse(response)) {
-    await clearAuthSession();
+    await clearCurrentUserSession();
     Alert.alert("Lỗi", "Vui lòng đăng nhập lại");
     router.replace("/(auth)/login");
     

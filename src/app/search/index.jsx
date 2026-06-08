@@ -3,8 +3,8 @@ import {
   SearchHeader,
   SearchPostRow,
   SearchSkeletonRow,
+  SearchUserCard,
 } from "@/components/search/SearchScreenParts";
-import { SearchUserCard } from "@/components/search/SearchScreenParts";
 import colors from "@/constants/colors";
 import { toggleLike } from "@/repositories/postRepository";
 import {
@@ -19,7 +19,6 @@ import {
   SEARCH_TABS,
   getSearchScreenCache,
   persistSearchScreenCache,
-  resetSearchScreenCache,
 } from "@/utils/search";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
@@ -41,30 +40,6 @@ function normalizeSearchTab(tab) {
   return tab === "people" || tab === "posts" || tab === "all" ? tab : "all";
 }
 
-function getBestSearchTab(keyword = "", users = [], posts = []) {
-  if (users.length && !posts.length) {
-    return "people";
-  }
-
-  const normalizedKeyword = String(keyword || "").trim().toLowerCase();
-  if (!normalizedKeyword) {
-    return posts.length ? "posts" : "people";
-  }
-
-  const matchedUser = users.some((user) => {
-    const values = [user?.name, user?.handle]
-      .map((value) => String(value || "").trim().toLowerCase())
-      .filter(Boolean);
-
-    return values.some((value) => value.includes(normalizedKeyword) || normalizedKeyword.includes(value));
-  });
-
-  if (matchedUser && users.length) {
-    return "people";
-  }
-
-  return posts.length ? "posts" : "people";
-}
 
 function buildSavedSearchEntry(keyword = "", currentItems = []) {
   const trimmedKeyword = String(keyword || "").trim();

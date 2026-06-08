@@ -17,12 +17,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": true,
       "package": "com.group1.posetracking",
-      "googleServicesFile": "./google-services.json",
-      "notification": {
-        "defaultChannel": "push-voice"
-      }
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -51,7 +47,16 @@
           "sounds": [
             "./assets/sounds/voice_notification.wav",
             "./assets/sounds/sms_notification.wav"
-          ]
+          ],
+          "defaultChannel": "push-voice"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],

@@ -9,13 +9,14 @@ import {
   searchBlockCandidates,
   setBlock,
 } from "@/repositories/blockRepository";
+import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,9 +28,12 @@ function BlockedAvatar({ item }) {
   if (item.avatar) {
     return (
       <Image
-        source={{ uri: item.avatar }}
+        source={{ uri: resolveAvatarUri(item.avatar) }}
         style={styles.avatar}
         blurRadius={3}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
       />
     );
   }

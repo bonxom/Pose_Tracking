@@ -15,12 +15,12 @@ import {
 import styles from "@/styles/notifications.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
+import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   Text,
@@ -54,11 +54,6 @@ function formatTimeAgo(value) {
   if (diffDays < 7) return `${diffDays} ngày`;
 
   return new Date(value).toLocaleDateString("vi-VN");
-}
-
-function getInitial(title = "") {
-  const trimmed = String(title).trim();
-  return trimmed ? trimmed[0].toUpperCase() : "N";
 }
 
 function NotificationTypeBadge({ type = "" }) {
@@ -98,7 +93,10 @@ function NotificationTypeBadge({ type = "" }) {
 
 function NotificationItem({ item, onPress }) {
   const unread = isUnread(item);
-  const avatarUri = resolveAvatarUri(item.avatar || "");
+  const avatarUri = resolveAvatarUri(
+    item.avatar || "",
+    item.avatarVersion || item.profileSyncRequestedAt || "",
+  );
 
   return (
     <Pressable
@@ -110,11 +108,13 @@ function NotificationItem({ item, onPress }) {
       ]}
     >
       <View style={styles.avatarWrap}>
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
-        ) : (
-          <Text style={styles.avatarFallback}>{getInitial(item.title)}</Text>
-        )}
+        <Image
+          source={{ uri: avatarUri }}
+          style={styles.avatar}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
 
         <NotificationTypeBadge type={item.type} />
       </View>
@@ -502,9 +502,7 @@ export default function NotificationsScreen() {
           style={styles.newNotificationPill}
           onPress={refreshNewNotifications}
         >
-          <Text style={styles.newNotificationPillText}>
-            Có thông báo mới
-          </Text>
+          <Text style={styles.newNotificationPillText}>Có thông báo mới</Text>
         </Pressable>
       ) : null}
 

@@ -5,12 +5,12 @@ import { validateProfileUserName } from "@/repositories/userRepository";
 import { registerDeviceForPush } from "@/services/pushNotifications";
 import { saveAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -139,6 +139,7 @@ export default function ChangeInfoAfterSignupScreen() {
           });
 
           if (response.code !== "1000") {
+            Alert.alert("Thông tin người dùng", "Cập nhật thất bại");
             console.warn("Signup profile sync failed:", response);
             return;
           }
@@ -176,6 +177,7 @@ export default function ChangeInfoAfterSignupScreen() {
           );
         } catch (backgroundError) {
           console.warn("Background signup sync failed:", backgroundError);
+          Alert.alert("Thông tin người dùng", "Cập nhật thất bại");
         }
       })();
     } catch {
@@ -204,7 +206,13 @@ export default function ChangeInfoAfterSignupScreen() {
         <View style={styles.avatarBlock}>
           <View style={styles.avatarPreview}>
             {avatar ? (
-              <Image source={{ uri: avatar }} style={styles.avatarImage} />
+              <Image
+                source={{ uri: avatar }}
+                style={styles.avatarImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
             ) : (
               <Ionicons name="person-outline" size={42} color="#64748B" />
             )}

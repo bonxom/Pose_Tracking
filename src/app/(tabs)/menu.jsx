@@ -1,14 +1,12 @@
 import { logoutSession } from "@/repositories/authRepository";
-import { clearNotificationState } from "@/services/notificationStore";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
-import { initials, resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri } from "@/utils/profile";
 import {
-  clearAuthSession,
   getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -104,9 +102,7 @@ export default function MenuScreen() {
     const currentSession = session || (await getAuthSession().catch(() => null));
 
     try {
-      await clearAuthSession();
-      clearNotificationState();
-      await removeCache(CACHE_KEY_PROFILE);
+      await clearCurrentUserSession();
     } finally {
       router.replace("/(auth)/login");
     }
@@ -152,18 +148,14 @@ export default function MenuScreen() {
           onPress={() => router.push("/(tabs)/profile")}
         >
           <View style={styles.avatar}>
-            {avatarUri ? (
-              <Image
-                key={avatarUri}
-                source={{ uri: avatarUri }}
-                style={styles.avatarImage}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={150}
-              />
-            ) : (
-              <Text style={styles.avatarText}>{initials(displayName)}</Text>
-            )}
+            <Image
+              key={session?.id || "guest"}
+              source={{ uri: avatarUri }}
+              style={styles.avatarImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           </View>
           <View style={styles.profileTextBlock}>
             <Text style={styles.profileName}>{displayName}</Text>

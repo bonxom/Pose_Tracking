@@ -8,20 +8,28 @@ import {
   validateProfileUserName,
 } from "@/repositories/userRepository";
 import { queueProfileUpdate } from "@/services/profileUpdateService";
+import { profileCacheState } from "@/state/profileCacheState";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import {
-  clearAuthSession,
+  CACHE_KEY_PROFILE,
+  getProfileCacheOwnerKey,
+  isProfileCacheValidForSession,
+  readCache,
+  writeCache,
+} from "@/utils/cacheStore";
+import {
+  getAuthSession,
   subscribeAuthSession,
 } from "@/utils/session";
-import { resolveAvatarUri } from "@/utils/profile";
+import { resolveAvatarUri, resolveCoverUri } from "@/utils/profile";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,11 +37,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-function initials(name = "") {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
-}
+import { Image } from "expo-image";
 
 function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
   return (
@@ -48,19 +52,19 @@ function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
   );
 }
 
-function AvatarPreview({ uri, name, onPick }) {
-  const resolvedAvatarUri = resolveAvatarUri(uri);
+function AvatarPreview({ uri, version, name, onPick }) {
+  const resolvedAvatarUri = resolveAvatarUri(uri, version);
 
   return (
     <View style={styles.avatarPreviewWrap}>
       <View style={styles.avatarPreview}>
-        {resolvedAvatarUri ? (
-          <Image source={{ uri: resolvedAvatarUri }} style={styles.previewImage} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarFallbackText}>{initials(name)}</Text>
-          </View>
-        )}
+        <Image
+          source={{ uri: resolvedAvatarUri }}
+          style={styles.previewImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       </View>
       <Pressable style={styles.cameraFab} onPress={onPick}>
         <ProfileIcon name="camera" size={20} color={colors.ink} />
@@ -69,11 +73,19 @@ function AvatarPreview({ uri, name, onPick }) {
   );
 }
 
-function CoverPreview({ uri, onPick }) {
+function CoverPreview({ uri, version, onPick }) {
+  const resolvedCoverUri = resolveCoverUri(uri, version);
+
   return (
     <View style={styles.coverPreview}>
-      {uri ? (
-        <Image source={{ uri }} style={styles.previewImage} />
+      {resolvedCoverUri ? (
+        <Image
+          source={{ uri: resolvedCoverUri }}
+          style={styles.previewImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       ) : (
         <View style={styles.coverFallback}>
           <ProfileIcon name="image-outline" size={34} color={colors.subtext} />
@@ -88,13 +100,26 @@ function CoverPreview({ uri, onPick }) {
 }
 
 export default function ProfileEditScreen() {
-  const [username, setUsername] = useState("");
-  const [avatar, setAvatar] = useState("");
-  const [coverImage, setCoverImage] = useState("");
-  const [description, setDescription] = useState("");
+  const initialProfileSnapshot = profileCacheState[""]?.profile || {};
+  const [username, setUsername] = useState(
+    () => initialProfileSnapshot.displayName || initialProfileSnapshot.username || "",
+  );
+  const [avatar, setAvatar] = useState(() => initialProfileSnapshot.avatar || "");
+  const [coverImage, setCoverImage] = useState(
+    () => initialProfileSnapshot.coverImage || "",
+  );
+  const [avatarVersion, setAvatarVersion] = useState(
+    () => initialProfileSnapshot.avatarVersion || "",
+  );
+  const [coverVersion, setCoverVersion] = useState(
+    () => initialProfileSnapshot.coverVersion || "",
+  );
+  const [description, setDescription] = useState(
+    () => initialProfileSnapshot.description || "",
+  );
   const [usernameError, setUsernameError] = useState("");
   const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !profileCacheState[""]?.profile);
   const [saving, setSaving] = useState(false);
   const latestDraftRef = useRef({
     username: "",
@@ -102,6 +127,7 @@ export default function ProfileEditScreen() {
     coverImage: "",
     description: "",
   });
+  const diskCacheLoadedRef = useRef(false);
 
   useEffect(() => {
     latestDraftRef.current = {
@@ -112,18 +138,107 @@ export default function ProfileEditScreen() {
     };
   }, [avatar, coverImage, description, username]);
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
+  const applyProfileSnapshot = useCallback((profileLike = {}) => {
+    setUsername(profileLike.displayName || profileLike.username || "");
+    setAvatar(profileLike.avatar || "");
+    setCoverImage(profileLike.coverImage || "");
+    setDescription(profileLike.description || "");
+    setAvatarVersion(profileLike.avatarVersion || profileLike.profileSyncRequestedAt || "");
+    setCoverVersion(profileLike.coverVersion || profileLike.profileSyncRequestedAt || "");
+  }, []);
+
+  const persistProfileSnapshot = useCallback(async (profileLike = {}) => {
+    const session = await getAuthSession();
+    const ownerKey = getProfileCacheOwnerKey(session || profileLike);
+
+    if (!ownerKey) {
+      return;
+    }
+
+    const nextCache = {
+      profile: profileLike,
+      posts: profileCacheState[""]?.posts || [],
+      ownerKey,
+    };
+
+    profileCacheState[""] = nextCache;
+    writeCache(CACHE_KEY_PROFILE, nextCache);
+  }, []);
+
+  const hydrateFromLocalSnapshot = useCallback(async () => {
+    const session = await getAuthSession();
+    const ownerKey = getProfileCacheOwnerKey(session);
+    const memoryCache = profileCacheState[""];
+
+    if (
+      memoryCache?.profile &&
+      memoryCache?.ownerKey &&
+      memoryCache.ownerKey === ownerKey
+    ) {
+      applyProfileSnapshot(
+        mergeOwnProfileWithSession(memoryCache.profile, session || {}),
+      );
+      return true;
+    }
+
+    if (memoryCache?.profile) {
+      delete profileCacheState[""];
+    }
+
+    if (!diskCacheLoadedRef.current) {
+      diskCacheLoadedRef.current = true;
+      const cached = await readCache(CACHE_KEY_PROFILE);
+
+      if (isProfileCacheValidForSession(cached, session)) {
+        profileCacheState[""] = cached;
+        applyProfileSnapshot(
+          mergeOwnProfileWithSession(cached.profile, session || {}),
+        );
+        return true;
+      }
+    }
+
+    if (!session) return false;
+
+    const draft = latestDraftRef.current;
+    const merged = mergeOwnProfileWithSession(
+      {
+        displayName: draft.username,
+        username: draft.username,
+        avatar: draft.avatar,
+        coverImage: draft.coverImage,
+        description: draft.description,
+      },
+      session,
+    );
+
+    const hasSnapshot = Boolean(
+      merged.displayName ||
+        merged.username ||
+        merged.avatar ||
+        merged.coverImage ||
+        merged.description,
+    );
+
+    if (hasSnapshot) {
+      applyProfileSnapshot(merged);
+    }
+
+    return hasSnapshot;
+  }, [applyProfileSnapshot]);
+
+  const loadProfile = useCallback(async ({ showLoader = true } = {}) => {
+    if (showLoader) {
+      setLoading(true);
+    }
     setStatus("");
     try {
       const user = await getUserInfo();
-      setUsername(user.displayName || user.username || "");
-      setAvatar(user.avatar || "");
-      setCoverImage(user.coverImage || "");
-      setDescription(user.description || "");
+      applyProfileSnapshot(user);
+      await persistProfileSnapshot(user);
     } catch (error) {
       if (error.sessionExpired) {
-        await clearAuthSession();
+        await clearCurrentUserSession();
         router.replace("/(auth)/login");
         return;
       }
@@ -131,12 +246,30 @@ export default function ProfileEditScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyProfileSnapshot, persistProfileSnapshot]);
 
   useFocusEffect(
     useCallback(() => {
-      loadProfile();
-    }, [loadProfile]),
+      let active = true;
+
+      const run = async () => {
+        const hasLocalSnapshot = await hydrateFromLocalSnapshot();
+        if (!active) return;
+
+        if (hasLocalSnapshot) {
+          setLoading(false);
+          return;
+        }
+
+        await loadProfile({ showLoader: !hasLocalSnapshot });
+      };
+
+      run().catch(console.warn);
+
+      return () => {
+        active = false;
+      };
+    }, [hydrateFromLocalSnapshot, loadProfile]),
   );
 
   useFocusEffect(
@@ -158,10 +291,19 @@ export default function ProfileEditScreen() {
           session,
         );
 
-        setUsername(merged.displayName || merged.username || "");
-        setAvatar(merged.avatar || "");
-        setCoverImage(merged.coverImage || "");
-        setDescription(merged.description || "");
+        const hasSnapshot = Boolean(
+          merged.displayName ||
+            merged.username ||
+            merged.avatar ||
+            merged.coverImage ||
+            merged.description,
+        );
+
+        if (hasSnapshot) {
+          setLoading(false);
+        }
+
+        applyProfileSnapshot(merged);
       };
 
       const unsubscribe = subscribeAuthSession(applySession);
@@ -170,7 +312,7 @@ export default function ProfileEditScreen() {
         active = false;
         unsubscribe();
       };
-    }, []),
+    }, [applyProfileSnapshot]),
   );
 
   const pickImage = async (type) => {
@@ -219,6 +361,22 @@ export default function ProfileEditScreen() {
     setStatus("");
     setUsernameError("");
     try {
+      const session = await getAuthSession();
+      const optimisticProfile = mergeOwnProfileWithSession(
+        {
+          displayName: username.trim(),
+          username: username.trim(),
+          avatar,
+          coverImage,
+          description: description.trim().slice(0, 150),
+        },
+        session || {},
+      );
+
+      applyProfileSnapshot(optimisticProfile);
+      await persistProfileSnapshot(optimisticProfile);
+      setLoading(false);
+
       await queueProfileUpdate({
         userName: username.trim(),
         avatar,
@@ -229,7 +387,7 @@ export default function ProfileEditScreen() {
       router.replace("/(tabs)/profile");
     } catch (error) {
       if (error.sessionExpired) {
-        await clearAuthSession();
+        await clearCurrentUserSession();
         router.replace("/(auth)/login");
         return;
       }
@@ -238,6 +396,10 @@ export default function ProfileEditScreen() {
       setSaving(false);
     }
   };
+
+  const hasVisibleProfileData = Boolean(
+    username || avatar || coverImage || description,
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -249,7 +411,7 @@ export default function ProfileEditScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      {loading ? (
+      {loading && !hasVisibleProfileData ? (
         <View style={styles.centerState}>
           <ActivityIndicator color={colors.brand} />
           <Text style={styles.mutedText}>Đang tải hồ sơ...</Text>
@@ -257,14 +419,29 @@ export default function ProfileEditScreen() {
       ) : (
         <>
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            {loading ? (
+              <View style={styles.inlineLoading}>
+                <ActivityIndicator size="small" color={colors.brand} />
+                <Text style={styles.inlineLoadingText}>Dang dong bo ho so...</Text>
+              </View>
+            ) : null}
             <View style={styles.section}>
               <SectionHeader title="Ảnh đại diện" onPress={() => pickImage("avatar")} />
-              <AvatarPreview uri={avatar} name={username} onPick={() => pickImage("avatar")} />
+              <AvatarPreview
+                uri={avatar}
+                version={avatarVersion}
+                name={username}
+                onPick={() => pickImage("avatar")}
+              />
             </View>
 
             <View style={styles.section}>
               <SectionHeader title="Ảnh bìa" onPress={() => pickImage("cover")} />
-              <CoverPreview uri={coverImage} onPick={() => pickImage("cover")} />
+              <CoverPreview
+                uri={coverImage}
+                version={coverVersion}
+                onPick={() => pickImage("cover")}
+              />
             </View>
 
             <View style={styles.section}>
@@ -346,6 +523,22 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 96,
     gap: 8,
+  },
+  inlineLoading: {
+    marginHorizontal: sizes.md,
+    marginTop: sizes.md,
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    borderRadius: sizes.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: sizes.sm,
+    backgroundColor: colors.surfaceMuted,
+  },
+  inlineLoadingText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.inkMuted,
   },
   section: {
     backgroundColor: colors.white,

@@ -1,4 +1,4 @@
-import { clearAuthSession } from "@/utils/session";
+import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { Alert } from "react-native";
 
 export async function redirectIfSessionExpired(error, router) {
@@ -6,7 +6,7 @@ export async function redirectIfSessionExpired(error, router) {
     return false;
   }
 
-  await clearAuthSession();
+  await clearCurrentUserSession();
   Alert.alert("Lỗi", "Vui lòng đăng nhập lại");
   router.replace("/(auth)/login");
 

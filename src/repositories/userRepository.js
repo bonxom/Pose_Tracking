@@ -18,121 +18,65 @@ import {
   getCurrentSession,
   shouldUseServer,
 } from "@/repositories/source";
-import * as localPosts from "@/services/postStore";
-import { saveAuthSession } from "@/utils/session";
 
+// Chuẩn hóa dữ liệu người dùng từ API/local thành định dạng chuẩn
 export function normalizeUser(
   raw = {},
   source = ACTIVE_SOURCES.SERVER,
   options = {},
 ) {
-  const sessionLike = normalizeSession({ data: raw });
-  const session = options.session || {};
-  const isOwnProfile = Boolean(options.isOwnProfile);
-  const id = firstValue(
-    raw.id,
-    raw.user_id,
-    raw._id,
-    raw.uuid,
-    isOwnProfile && session.id,
-  );
+  const data = raw ?? {};
+  const sessionLike = normalizeSession({ data });
+  const session = options.session ?? {};
+  const isOwnProfile = options.isOwnProfile === true;
+  const id = firstValue(data.id, isOwnProfile ? session.id : "");
   const username = firstValue(
-    raw.user_name,
-    raw.username,
-    raw.name,
-    raw.fullname,
-    raw.fullName,
-    isOwnProfile && (session.username || session.displayName),
+    data.username,
+    isOwnProfile ? firstValue(session.username, session.displayName, "") : "",
   );
 
   if (!id || !username) {
     return {
-      id: String(id || ""),
-      username: username || "",
-      displayName: username || "",
+      id: String(id ?? ""),
+      username: username ?? "",
+      displayName: username ?? "",
       source,
       unavailable: true,
       unavailableReason: "Tài khoản không tồn tại.",
-      raw,
+      raw: data,
     };
   }
 
-  const isBlocked = Boolean(
-    raw.blocked ||
-    raw.is_blocked ||
-    raw.isBlocked ||
-    raw.banned ||
-    raw.is_banned ||
-    raw.locked ||
-    raw.is_locked,
-  );
-
-  const normalizedOnline = String(
-    firstValue(raw.online, raw.is_online, "0"),
-  ).toLowerCase();
+  const isBlocked = isBackendEnabled(data.isBlocked);
 
   return {
     ...sessionLike,
     id: String(id),
-    token: sessionLike.token || session.token || "",
+    token: firstValue(sessionLike.token, session.token, ""),
     source,
     username,
-    displayName: firstValue(
-      raw.displayName,
-      raw.fullname,
-      raw.fullName,
-      raw.name,
-      username,
-    ),
-    avatar: normalizeMediaUrl(
-      firstValue(raw.avatar, raw.avatar_url, raw.image, raw.picture, ""),
-    ),
-    coverImage: normalizeMediaUrl(
-      firstValue(
-        raw.cover_image,
-        raw.coverImage,
-        raw.cover_url,
-        raw.background,
-        "",
-      ),
-    ),
-    description: normalizeOptionalText(
-      firstValue(raw.description, raw.described, raw.bio, raw.about, ""),
-      150,
-    ),
-    address: firstValue(raw.address, raw.location, raw.province, raw.city, ""),
-    city: firstValue(raw.city, raw.province, ""),
-    country: firstValue(raw.country, ""),
-    profileLink: firstValue(
-      raw.link,
-      raw.profile_link,
-      raw.website,
-      raw.url,
-      "",
-    ),
-    postCount: toNumber(
-      firstValue(raw.post_count, raw.posts_count, raw.total_posts),
-      0,
-    ),
-    online: ["1", "true", "online", "yes"].includes(normalizedOnline),
-    listing: firstValue(raw.listing, raw.is_listing, true),
-    createdAt: firstValue(
-      raw.createdAt,
-      raw.created_at,
-      raw.created,
-      raw.create_time,
-      "",
-    ),
+    displayName: username,
+    phonenumber: String(data.phonenumber ?? ""),
+    avatar: normalizeMediaUrl(data.avatar),
+    coverImage: normalizeMediaUrl(data.coverImage),
+    description: normalizeOptionalText(data.description, 150),
+    role: firstValue(data.role, "HV"),
+    online: isBackendEnabled(data.online),
+    isRelated: isBackendEnabled(data.isRelated),
+    listing: toNumber(data.listing, 0),
+    followed: toNumber(data.followed, 0),
+    createdAt: String(data.created ?? ""),
     isOwnProfile,
     unavailable: isBlocked,
     unavailableReason: isBlocked
       ? "Tài khoản không tồn tại hoặc bạn không thể xem hồ sơ này."
       : "",
-    height: firstValue(raw.height, session.height, ""),
-    raw,
+    height: firstValue(data.height, session.height, ""),
+    raw: data,
   };
 }
 
+// Hợp nhất thông tin profile cá nhân với session (ưu tiên session nếu đang đồng bộ)
 export function mergeOwnProfileWithSession(profile = {}, session = {}) {
   const syncState = String(session?.profileSyncStatus || "").trim();
   const shouldPreferSession =
@@ -212,7 +156,12 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
       session?.avatarVersion,
       profile?.avatarVersion,
       session?.profileSyncRequestedAt,
-      session?.loggedInAt,
+      "",
+    ),
+    coverVersion: firstValue(
+      session?.coverVersion,
+      profile?.coverVersion,
+      session?.profileSyncRequestedAt,
       "",
     ),
     source: profile?.source || session?.source || ACTIVE_SOURCES.SERVER,
@@ -222,15 +171,7 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
   };
 }
 
-function localUser(session) {
-  const localProfile = buildLocalProfileShape(session);
-
-  return normalizeUser(localProfile, ACTIVE_SOURCES.LOCAL, {
-    session,
-    isOwnProfile: true,
-  });
-}
-
+// Xác thực tên người dùng (độ dài, ký tự đặc biệt, số...)
 export function validateProfileUserName(value = "") {
   const userName = String(value).trim();
 
@@ -253,30 +194,12 @@ export function validateProfileUserName(value = "") {
   return "";
 }
 
-function mapForbiddenNameError(error) {
-  const message = String(error?.message || "").toLowerCase();
-  if (
-    message.includes("forbidden") ||
-    message.includes("banned") ||
-    message.includes("not allowed") ||
-    message.includes("cấm")
-  ) {
-    return new Error("Tên người dùng này không được phép sử dụng.");
-  }
-
-  return error;
-}
-
-function fallbackUserById(userId = "", source = ACTIVE_SOURCES.LOCAL_FALLBACK) {
-  return normalizeUser({ id: userId }, source, {
-    isOwnProfile: false,
-  });
-}
-
+// Kiểm tra xem hai ID có cùng là một người dùng không
 function isSameUser(left, right) {
   return Boolean(left && right && String(left) === String(right));
 }
 
+// Chuẩn hóa chuỗi văn bản tùy chọn (tiểu sử), loại bỏ undefined/null và giới hạn độ dài
 function normalizeOptionalText(value = "", maxLength = 0) {
   const normalized = String(value ?? "")
     .replace(/^undefined$/i, "")
@@ -286,6 +209,16 @@ function normalizeOptionalText(value = "", maxLength = 0) {
   return maxLength ? normalized.slice(0, maxLength) : normalized;
 }
 
+// Kiểm tra xem giá trị từ backend có biểu thị trạng thái kích hoạt/online không
+function isBackendEnabled(value) {
+  return ["1", "true", "yes", "online"].includes(
+    String(value ?? "")
+      .trim()
+      .toLowerCase(),
+  );
+}
+
+// Chuẩn hóa chuỗi để phục vụ việc so sánh (loại bỏ dấu, chữ thường...)
 function normalizeComparable(value = "") {
   return String(value || "")
     .normalize("NFD")
@@ -296,6 +229,7 @@ function normalizeComparable(value = "") {
     .toLowerCase();
 }
 
+// Kiểm tra định danh người dùng có khớp với thông tin ứng viên không
 function matchesUserIdentity(targetUserId = "", candidate = {}) {
   const target = normalizeComparable(targetUserId);
   if (!target) return false;
@@ -321,23 +255,12 @@ function matchesUserIdentity(targetUserId = "", candidate = {}) {
   return candidateValues.some((value) => normalizeComparable(value) === target);
 }
 
+// Lấy dữ liệu lỗi từ response của backend
 function getBackendErrorData(error) {
   return error?.data || null;
 }
 
-function getBackendErrorMessage(error) {
-  const data = getBackendErrorData(error);
-  return String(
-    data?.message || data?.msg || data?.error || error?.message || "",
-  );
-}
-
-function rejectsField(error, fieldName) {
-  return getBackendErrorMessage(error)
-    .toLowerCase()
-    .includes(`property ${fieldName.toLowerCase()} should not exist`);
-}
-
+// Kiểm tra thuộc tính tồn tại và có giá trị hợp lệ trong đối tượng
 function hasOwnValue(object = {}, key) {
   return (
     Object.prototype.hasOwnProperty.call(object, key) &&
@@ -346,17 +269,7 @@ function hasOwnValue(object = {}, key) {
   );
 }
 
-function shouldRetryGetUserInfoWithoutUserId(error) {
-  const message = getBackendErrorMessage(error).toLowerCase();
-  return (
-    message.includes("property userid should not exist") ||
-    rejectsField(error, "userId") ||
-    message.includes("property user_id should not exist") ||
-    rejectsField(error, "user_id") ||
-    error?.status === 400
-  );
-}
-
+// Lấy giá trị đầu tiên tồn tại trong params theo danh sách key
 function firstParamValue(params = {}, keys = [], fallback = "") {
   const key = keys.find((item) => hasOwnValue(params, item));
   return key ? params[key] : fallback;
@@ -396,17 +309,14 @@ function buildLocalProfileShape(session = {}) {
     listing: firstValue(session?.listing, true),
     role: firstValue(session?.role, "HV"),
     phonenumber: firstValue(session?.phonenumber, ""),
-    identifier: firstValue(
-      session?.identifier,
-      session?.phonenumber,
-      "",
-    ),
+    identifier: firstValue(session?.identifier, session?.phonenumber, ""),
     handle: firstValue(session?.handle, ""),
     height: firstValue(session?.height, ""),
     demoMode: Boolean(session?.demoMode),
   };
 }
 
+// Ném lỗi SessionExpiredError nếu phiên đăng nhập hết hạn
 function throwIfExpiredFromApiError(error) {
   const data = getBackendErrorData(error);
   if (isInvalidSessionResponse(data || error)) {
@@ -414,32 +324,12 @@ function throwIfExpiredFromApiError(error) {
   }
 }
 
-async function getLocalUserPosts(
-  targetUserId,
-  includeLocked,
-  source = ACTIVE_SOURCES.LOCAL_FALLBACK,
-) {
-  const posts = await localPosts.getPosts();
-  const filtered = posts.filter((post) => {
-    const matchesUser =
-      !targetUserId || isSameUser(post.author?.id, targetUserId);
-    const canSeeLocked = includeLocked || post.canComment !== false;
-    return matchesUser && canSeeLocked;
-  });
-
-  return {
-    items: filtered,
-    total: filtered.length,
-    hasMore: false,
-    lastId: filtered[0]?.id || "",
-    source,
-  };
-}
-
+// Kiểm tra URI có phải là tài nguyên cục bộ trên thiết bị (file://, ph://...)
 function isLocalAssetUri(value = "") {
   return /^(file|content|asset-library|ph):\/\//i.test(String(value || ""));
 }
 
+// Chuẩn hóa URL ảnh/video (chuyển đường dẫn tương đối thành URL tuyệt đối)
 function normalizeMediaUrl(value = "") {
   const uri = String(value || "").trim();
 
@@ -459,6 +349,7 @@ function normalizeMediaUrl(value = "") {
   }
 }
 
+// Dự đoán MIME type của ảnh dựa trên đuôi file trong URI
 function guessImageMimeType(uri = "") {
   const clean = String(uri || "")
     .split("?")[0]
@@ -474,6 +365,7 @@ function guessImageMimeType(uri = "") {
   return "image/jpeg";
 }
 
+// Tạo payload file ảnh từ URI cục bộ để gửi API Multipart
 function buildImageFilePayload(uri = "", fieldName = "image") {
   const cleanUri = String(uri || "").trim();
   if (!cleanUri) return null;
@@ -503,56 +395,38 @@ function buildImageFilePayload(uri = "", fieldName = "image") {
   };
 }
 
-function buildSetUserInfoRequest(session, params, userName, options = {}) {
-  const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
-  const coverImage = firstParamValue(
-    params,
-    ["coverImage", "cover_image"],
-    session?.coverImage || "",
+// Xây dựng request payload cập nhật thông tin user (fields & files)
+function buildSetUserInfoRequest(session, params, userName) {
+  const avatar = firstParamValue(params, ["avatar"], "");
+  const coverImage = firstParamValue(params, ["coverImage"], "");
+  const description = normalizeOptionalText(
+    firstParamValue(params, ["description"], session?.description || ""),
+    150,
   );
-  const usernameKey = options.usernameKey || "username";
-  const coverImageKey = options.coverImageKey || "coverImage";
   const fields = {
     token: session.token,
+    username: userName,
+    description,
   };
   const files = [];
-
-  fields[usernameKey] = userName;
 
   if (isLocalAssetUri(avatar)) {
     const avatarFile = buildImageFilePayload(avatar, "avatar");
     if (avatarFile) files.push(avatarFile);
-  } else {
-    fields.avatar = avatar;
   }
 
   if (isLocalAssetUri(coverImage)) {
-    const coverFile = buildImageFilePayload(coverImage, coverImageKey);
+    const coverFile = buildImageFilePayload(coverImage, "coverImage");
     if (coverFile) files.push(coverFile);
-  } else {
-    fields[coverImageKey] = coverImage;
-  }
-
-  if (!options.minimal) {
-    const descriptionKey = options.descriptionKey || "description";
-    fields[descriptionKey] = normalizeOptionalText(
-      firstParamValue(params, ["description"], ""),
-      150,
-    );
   }
 
   return { fields, files };
 }
 
-async function setUserInfoWithCompatibility(session, params, userName) {
-  let lastError = null;
-
+// Gọi API backend cập nhật thông tin user (Multipart)
+async function setUserInfoOnBackend(session, params, userName) {
   try {
-    const request = buildSetUserInfoRequest(session, params, userName, {
-      usernameKey: "username",
-      coverImageKey: "coverImage",
-      descriptionKey: "description",
-    });
+    const request = buildSetUserInfoRequest(session, params, userName);
     const response = await backendApi.setUserInfoMultipart(
       request.fields,
       request.files,
@@ -563,27 +437,11 @@ async function setUserInfoWithCompatibility(session, params, userName) {
     return response;
   } catch (error) {
     throwIfExpiredFromApiError(error);
-    lastError = error;
-
-    const canRetry =
-      rejectsField(error, "username") ||
-      rejectsField(error, "user_name") ||
-      rejectsField(error, "avatar") ||
-      rejectsField(error, "coverImage") ||
-      rejectsField(error, "cover_image") ||
-      rejectsField(error, "description") ||
-      rejectsField(error, "described") ||
-      error.status === 400 ||
-      String(error?.message || "").includes("1004");
-
-    if (!canRetry) {
-      throw error;
-    }
+    throw error;
   }
-
-  throw lastError || new Error("Backend set_user_info failed");
 }
 
+// Tạo đối tượng cập nhật profile cục bộ (mock/offline)
 function buildLocalProfileUpdate(
   session,
   params,
@@ -594,7 +452,7 @@ function buildLocalProfileUpdate(
   const avatar = firstParamValue(params, ["avatar"], session?.avatar || "");
   const coverImage = firstParamValue(
     params,
-    ["coverImage", "cover_image"],
+    ["coverImage"],
     session?.coverImage || "",
   );
   const description = normalizeOptionalText(
@@ -651,6 +509,7 @@ function buildLocalProfileUpdate(
   };
 }
 
+// Tạo dữ liệu profile tạm thời (optimistic) để cập nhật nhanh lên UI
 export function createOptimisticUserInfo(session = {}, params = {}) {
   const userName = params.userName || params.user_name || params.username || "";
   const source = shouldUseServer(session)
@@ -662,7 +521,14 @@ export function createOptimisticUserInfo(session = {}, params = {}) {
     (session?.avatar || "");
   const avatarVersion = avatarChanged
     ? new Date().toISOString()
-    : session?.avatarVersion || session?.loggedInAt || "";
+    : session?.avatarVersion || "";
+
+  const coverChanged =
+    firstParamValue(params, ["coverImage"], session?.coverImage || "") !==
+    (session?.coverImage || "");
+  const coverVersion = coverChanged
+    ? new Date().toISOString()
+    : session?.coverVersion || "";
 
   return {
     ...optimistic,
@@ -670,6 +536,7 @@ export function createOptimisticUserInfo(session = {}, params = {}) {
     source,
     demoMode: Boolean(session?.demoMode),
     avatarVersion,
+    coverVersion,
     profileSyncStatus: shouldUseServer(session) ? "pending" : "done",
     profileSyncErrorMessage: "",
     profileSyncRequestedAt: new Date().toISOString(),
@@ -678,7 +545,6 @@ export function createOptimisticUserInfo(session = {}, params = {}) {
 
 export async function getUserInfo(userId = "") {
   const session = await getCurrentSession();
-  console.log(JSON.stringify(session, null, 2));
   const targetUserId = String(userId || "");
   const isOwnProfile =
     !targetUserId ||
@@ -687,18 +553,15 @@ export async function getUserInfo(userId = "") {
       session?.id || session?.user_id || session?.identifier,
     );
 
-  if (!shouldUseServer(session)) {
-    if (isOwnProfile) {
-      return localUser(session);
-    }
-
-    return fallbackUserById(targetUserId, ACTIVE_SOURCES.LOCAL);
-  }
-
   try {
-    const response = await backendApi.getUserInfo({
-      token: session.token,
-      userId: userId,
+    const response = await backendApi.getUserInfo(
+      isOwnProfile
+        ? { token: session.token }
+        : { token: session.token, userId: targetUserId },
+    );
+
+    await assertBackendOk(response, {
+      message: "Backend get_user_info failed",
     });
 
     const normalized = normalizeUser(
@@ -725,22 +588,12 @@ export async function getUserInfo(userId = "") {
   } catch (error) {
     console.info("[DATA] Server get_user_info failed", error.message);
     throwIfExpiredFromApiError(error);
-
-    if (!isOwnProfile) {
-      const fallbackProfile = await resolveBackendProfileFromPosts(
-        session,
-        targetUserId,
-      );
-      if (fallbackProfile) {
-        return fallbackProfile;
-      }
-    }
-
     throw error;
   }
 }
 
-async function getBackendCompatibilityPosts(session, params = {}) {
+// Gọi API lấy danh sách bài đăng từ server
+async function getBackendPostsPage(session, params = {}) {
   const response = await backendApi.getListPosts({
     token: session.token,
     index: String(params.index || 0),
@@ -768,133 +621,84 @@ async function getBackendCompatibilityPosts(session, params = {}) {
   };
 }
 
-async function resolveBackendProfileFromPosts(session, targetUserId) {
-  const page = await getBackendCompatibilityPosts(session, {
-    index: 0,
-    count: 100,
-  });
-  const matchedPosts = page.items.filter((post) =>
-    matchesUserIdentity(targetUserId, post.author),
-  );
-  const firstPost = matchedPosts[0];
-
-  if (!firstPost) {
-    return null;
-  }
-
-  return {
-    ...normalizeUser(
-      {
-        id: firstPost.author?.id,
-        username: firstPost.author?.handle || firstPost.author?.name,
-        user_name: firstPost.author?.handle || firstPost.author?.name,
-        name: firstPost.author?.name,
-        avatar: firstPost.author?.avatar,
-        role: firstPost.author?.role,
-      },
-      ACTIVE_SOURCES.SERVER,
-      { session, isOwnProfile: false },
-    ),
-    postCount: matchedPosts.length,
-  };
-}
-
+// Cập nhật thông tin người dùng (online qua API hoặc offline qua mock)
 export async function updateUserInfo(params = {}) {
   const session = await getCurrentSession();
-  const userName = params.userName || params.user_name || params.username || "";
+  const userName = params.userName || params.username || "";
   const validationError = validateProfileUserName(userName);
 
   if (validationError) {
     throw new Error(validationError);
   }
 
-  if (!shouldUseServer(session)) {
-    const updated = buildLocalProfileUpdate(
-      session,
-      params,
-      userName,
-      ACTIVE_SOURCES.LOCAL,
-    );
-    await saveAuthSession(updated);
-    return updated;
-  }
+  const response = await setUserInfoOnBackend(session, params, userName);
 
-  try {
-    const response = await setUserInfoWithCompatibility(
+  const normalized = normalizeUser(
+    extractObject(response),
+    ACTIVE_SOURCES.SERVER,
+    {
       session,
-      params,
-      userName,
-    );
-
-    const normalized = normalizeUser(
-      extractObject(response),
-      ACTIVE_SOURCES.SERVER,
-      {
-        session,
-        isOwnProfile: true,
-      },
-    );
-    const updated = {
-      ...session,
-      ...normalized,
-      token: session.token || normalized.token || "",
-      phonenumber: session.phonenumber || normalized.phonenumber || "",
-      identifier:
-        session.identifier ||
-        normalized.identifier ||
-        session.id ||
-        normalized.id ||
-        "",
-      role: session.role || normalized.role || "HV",
-      demoMode: session.demoMode || false,
-      source: ACTIVE_SOURCES.SERVER,
-      avatarVersion:
-        firstParamValue(params, ["avatar"], session?.avatar || "") !==
-        (session?.avatar || "")
-          ? new Date().toISOString()
-          : session?.avatarVersion || session?.loggedInAt || "",
-      username: userName || normalized.username || session?.username || "",
-      displayName:
-        userName ||
-        normalized.displayName ||
-        session?.displayName ||
-        session?.username ||
-        "",
-      avatar: normalized.avatar || params.avatar || session?.avatar || "",
-      coverImage:
-        normalized.coverImage ||
-        params.coverImage ||
-        params.cover_image ||
-        session?.coverImage ||
-        "",
-      description:
-        normalized.description ||
-        normalizeOptionalText(
-          firstParamValue(params, ["description"], session?.description || ""),
-          150,
-        ),
-      address:
-        normalized.address ||
-        firstParamValue(params, ["address"], session?.address || ""),
-      profileLink:
-        normalized.profileLink ||
-        firstParamValue(
-          params,
-          ["profileLink", "link"],
-          session?.profileLink || "",
-        ),
-      profileSyncStatus: "done",
-      profileSyncErrorMessage: "",
-      profileSyncRequestedAt: "",
-    };
-    await saveAuthSession(updated);
-    return updated;
-  } catch (error) {
-    const mappedError = mapForbiddenNameError(error);
-    throw mappedError;
-  }
+      isOwnProfile: true,
+    },
+  );
+  const updated = {
+    ...session,
+    ...normalized,
+    token: session.token || normalized.token || "",
+    phonenumber: session.phonenumber || normalized.phonenumber || "",
+    identifier:
+      session.identifier ||
+      normalized.identifier ||
+      session.id ||
+      normalized.id ||
+      "",
+    role: session.role || normalized.role || "HV",
+    demoMode: session.demoMode || false,
+    source: ACTIVE_SOURCES.SERVER,
+    avatarVersion:
+      firstParamValue(params, ["avatar"], session?.avatar || "") !==
+      (session?.avatar || "")
+        ? new Date().toISOString()
+        : session?.avatarVersion || "",
+    coverVersion:
+      firstParamValue(params, ["coverImage"], session?.coverImage || "") !==
+      (session?.coverImage || "")
+        ? new Date().toISOString()
+        : session?.coverVersion || "",
+    username: userName || normalized.username || session?.username || "",
+    displayName:
+      userName ||
+      normalized.displayName ||
+      session?.displayName ||
+      session?.username ||
+      "",
+    avatar: normalized.avatar || params.avatar || session?.avatar || "",
+    coverImage:
+      normalized.coverImage || params.coverImage || session?.coverImage || "",
+    description:
+      normalized.description ||
+      normalizeOptionalText(
+        firstParamValue(params, ["description"], session?.description || ""),
+        150,
+      ),
+    address:
+      normalized.address ||
+      firstParamValue(params, ["address"], session?.address || ""),
+    profileLink:
+      normalized.profileLink ||
+      firstParamValue(
+        params,
+        ["profileLink", "link"],
+        session?.profileLink || "",
+      ),
+    profileSyncStatus: "done",
+    profileSyncErrorMessage: "",
+    profileSyncRequestedAt: "",
+  };
+  return updated;
 }
 
+// Lấy danh sách bài viết của người dùng (tự động phân nhánh server/local)
 export async function getUserPosts(userId = "", paging = {}) {
   const session = await getCurrentSession();
   const targetUserId = String(
@@ -902,47 +706,24 @@ export async function getUserPosts(userId = "", paging = {}) {
   );
   const includeLocked = paging.includeLocked !== false;
 
-  if (!shouldUseServer(session)) {
-    return getLocalUserPosts(targetUserId, includeLocked, ACTIVE_SOURCES.LOCAL);
-  }
-
   const mapVisibleItems = (items = []) =>
     items.filter(
       (post) => post.id && (includeLocked || post.canComment !== false),
     );
 
   try {
-    const directPage = await getBackendCompatibilityPosts(session, {
+    const page = await getBackendPostsPage(session, {
       user_id: targetUserId,
       index: paging.index || 0,
       count: paging.count || 20,
     });
 
-    const directItems = mapVisibleItems(directPage.items || []);
-    if (directItems.length || !targetUserId) {
-      return {
-        ...directPage,
-        items: directItems,
-        total: directItems.length || directPage.total,
-      };
-    }
-
-    const compatibilityPage = await getBackendCompatibilityPosts(session, {
-      index: 0,
-      count: Math.max(100, Number(paging.count || 20)),
-    });
-    const matchedItems = mapVisibleItems(
-      (compatibilityPage.items || []).filter((post) =>
-        matchesUserIdentity(targetUserId, post.author),
-      ),
-    );
+    const items = mapVisibleItems(page.items || []);
 
     return {
-      items: matchedItems,
-      total: matchedItems.length,
-      hasMore: false,
-      lastId: matchedItems[matchedItems.length - 1]?.id || "",
-      source: ACTIVE_SOURCES.SERVER,
+      ...page,
+      items,
+      total: items.length || page.total,
     };
   } catch (error) {
     console.info("[DATA] Server user posts failed", error.message);
@@ -951,6 +732,7 @@ export async function getUserPosts(userId = "", paging = {}) {
   }
 }
 
+// Tìm kiếm bài đăng trong trang cá nhân theo từ khóa
 export async function searchUserProfile(userId = "", keyword = "") {
   const session = await getCurrentSession();
   const normalizedKeyword = String(keyword || "").trim();
@@ -960,13 +742,6 @@ export async function searchUserProfile(userId = "", keyword = "") {
 
   if (!normalizedKeyword) {
     return [];
-  }
-
-  if (!shouldUseServer(session)) {
-    const items = await localPosts.searchPosts(normalizedKeyword);
-    return targetUserId
-      ? items.filter((post) => isSameUser(post.author?.id, targetUserId))
-      : items;
   }
 
   try {
@@ -993,9 +768,4 @@ export async function searchUserProfile(userId = "", keyword = "") {
     throwIfExpiredFromApiError(error);
     throw error;
   }
-}
-
-export async function blockUser(userId) {
-  const { setBlock } = await import("@/repositories/blockRepository");
-  return setBlock(userId, "block");
 }

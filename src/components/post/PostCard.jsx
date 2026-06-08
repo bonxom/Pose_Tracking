@@ -6,20 +6,14 @@ import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
-import { getAuthSession } from "@/utils/session";
+import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import ThumbUpWithCircleIcon from "../icons/ThumbUpWithCircleIcon";
 
 const EXPAND_THRESHOLD = 180;
@@ -44,14 +38,10 @@ export default function PostCard({
   flat = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(detail);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { session: currentUser } = useAuthSession();
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
   const [isDeleteAnimating, setIsDeleteAnimating] = useState(false);
   const removeAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    getAuthSession().then(setCurrentUser).catch(console.warn);
-  }, []);
 
   const isOwnPost = Boolean(
     currentUser?.id && post?.author?.id && currentUser.id === post.author.id,
@@ -95,7 +85,31 @@ export default function PostCard({
     if (post.exerciseId) values.add(`#${post.exerciseId}`);
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
-  const avatarUri = resolveAvatarUri(post.author?.avatar || "");
+  const avatarUri = useMemo(() => {
+    const authorId = String(post.author?.id || "").trim();
+    const isOwn = Boolean(
+      currentUser?.id && authorId && currentUser.id === authorId,
+    );
+    if (isOwn) {
+      return resolveAvatarUri(
+        currentUser?.avatar || post.author?.avatar || "",
+        currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || "",
+      );
+    }
+    return resolveAvatarUri(
+      post.author?.avatar || "",
+      post.author?.avatarVersion || "",
+    );
+  }, [
+    post.author?.avatar,
+    post.author?.avatarVersion,
+    post.author?.id,
+    currentUser?.avatar,
+    currentUser?.avatarVersion,
+    currentUser?.profileSyncRequestedAt,
+    currentUser?.id,
+  ]);
+
   const cardScale = removeAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.98, 1],
@@ -143,6 +157,10 @@ export default function PostCard({
     });
   };
 
+  const handleOpenPostDetail = () => {
+    onPress?.();
+  };
+
   const ContentContainer = onPress ? Pressable : View;
 
   return (
@@ -159,32 +177,66 @@ export default function PostCard({
     >
       <View style={postStyles.headerRow}>
         <Pressable
+          onPress={handleOpenPostDetail}
+          disabled={!onPress}
           style={localStyles.authorPressable}
-          onPress={handleOpenAuthorProfile}
-          disabled={!authorId}
         >
-          <Image source={{ uri: avatarUri }} style={postStyles.avatar} />
+          <Pressable
+            onPress={handleOpenAuthorProfile}
+            disabled={!authorId}
+            hitSlop={8}
+            style={localStyles.avatarPressable}
+          >
+            <Image
+              source={{ uri: avatarUri }}
+              style={postStyles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
+          </Pressable>
 
           <View style={postStyles.authorMetaGroup}>
-            <Text style={postStyles.authorName}>
-              {post.author?.name || "Người dùng"}
-            </Text>
-            <Text
-              style={[
-                postStyles.metaText,
-                metaIsFresh && postStyles.freshMetaText,
-              ]}
+            <Pressable
+              onPress={handleOpenAuthorProfile}
+              disabled={!authorId}
+              hitSlop={8}
+              style={localStyles.authorNamePressable}
             >
-              {formatRelativeTime(post.createdAt)} · <EarthIcon />
-            </Text>
+              <Text style={postStyles.authorName}>
+                {post.author?.name || "Người dùng"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleOpenPostDetail}
+              disabled={!onPress}
+              hitSlop={8}
+              style={localStyles.metaPressable}
+            >
+              <Text
+                style={[
+                  postStyles.metaText,
+                  metaIsFresh && postStyles.freshMetaText,
+                ]}
+              >
+                {post.author?.handle || "@nguoidung"} {" - "}
+                {formatRelativeTime(post.createdAt)} {" - "} <EarthIcon />
+              </Text>
+            </Pressable>
           </View>
         </Pressable>
 
-        <View style={postStyles.roleBadge}>
+        <Pressable
+          onPress={handleOpenPostDetail}
+          disabled={!onPress}
+          hitSlop={8}
+          style={postStyles.roleBadge}
+        >
           <Text style={postStyles.roleBadgeText}>
             {post.author?.role || "HV"}
           </Text>
-        </View>
+        </Pressable>
 
         <Pressable
           style={{ padding: 4, marginLeft: 4 }}
@@ -262,15 +314,6 @@ export default function PostCard({
           </View>
         ) : null}
 
-        {/* {post.timeSeriesPoses ? (
-        <View style={postStyles.exerciseBanner}>
-          <Text style={postStyles.exerciseBannerTitle}>time_series_poses</Text>
-          <Text style={postStyles.exerciseBannerMeta}>
-            Backend có dữ liệu tư thế theo thời gian cho bài này.
-          </Text>
-        </View>
-      ) : null} */}
-
         {isSubmissionPost && post.scoreSummary ? (
           <View style={postStyles.scoreSummaryCard}>
             <Text style={postStyles.scoreSummaryNumber}>
@@ -288,7 +331,11 @@ export default function PostCard({
         ) : null}
       </ContentContainer>
 
-      <View style={postStyles.statsRow}>
+      <Pressable
+        onPress={handleOpenPostDetail}
+        disabled={!onPress}
+        style={postStyles.statsRow}
+      >
         {likeCount > 0 && (
           <View style={localStyles.likeSummaryInline}>
             <ThumbUpWithCircleIcon />
@@ -300,12 +347,14 @@ export default function PostCard({
             {formatCount(commentCount)} bình luận
           </Text>
         )}
-      </View>
+      </Pressable>
 
       {post.canComment === false ? (
-        <Text style={postStyles.lockedText}>
-          Bài viết này đang khóa bình luận.
-        </Text>
+        <Pressable onPress={handleOpenPostDetail} disabled={!onPress}>
+          <Text style={postStyles.lockedText}>
+            Bài viết này đang khóa bình luận.
+          </Text>
+        </Pressable>
       ) : null}
 
       <View style={postStyles.actionRow}>
@@ -366,6 +415,18 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  avatarPressable: {
+    alignSelf: "flex-start",
+  },
+  authorNamePressable: {
+    alignSelf: "flex-start",
+    minWidth: 120,
+    maxWidth: "100%",
+  },
+  metaPressable: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
   },
   flatCard: {
     borderRadius: 0,
