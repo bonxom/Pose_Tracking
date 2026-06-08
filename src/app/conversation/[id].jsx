@@ -4,6 +4,7 @@ import ChatSmileIcon from "@/components/icons/ChatSmileIcon";
 import ChatThumbUpIcon from "@/components/icons/ChatThumbUpIcon";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import colors from "@/constants/colors";
+import sizes from "@/constants/sizes";
 import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import {
   getConversation,
@@ -22,7 +23,6 @@ import {
   Alert,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   Text,
@@ -36,6 +36,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const PAGE_SIZE = 20;
 const JUMP_COUNT = 500;
 const AVATAR_SIZE = 28;
+const KEYBOARD_SCROLL_DELAY_MS = 120;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -373,9 +374,11 @@ export default function ConversationDetailScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [blockedByMe, setBlockedByMe] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const flatListRef = useRef(null);
   const isAtBottomRef = useRef(false);
+  const hasInitialScrollRef = useRef(false);
   const [layoutHeight, setLayoutHeight] = useState(0);
 
   const updateBlockedByMe = useCallback(
@@ -403,6 +406,21 @@ export default function ConversationDetailScreen() {
       }
     },
     [partnerId],
+  )
+
+  const scrollToConversationEnd = useCallback((animated = false) => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated });
+    });
+  }, []);
+
+  const scheduleScrollToConversationEnd = useCallback(
+    (animated = false, delay = KEYBOARD_SCROLL_DELAY_MS) => {
+      setTimeout(() => {
+        scrollToConversationEnd(animated);
+      }, delay);
+    },
+    [scrollToConversationEnd],
   );
 
   const load = useCallback(() => {
@@ -501,6 +519,35 @@ export default function ConversationDetailScreen() {
 
   useFocusEffect(load);
 
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const handleShow = (event) => {
+      const nextHeight = Math.max(0, event?.endCoordinates?.height || 0);
+      setKeyboardHeight(nextHeight);
+
+      if (isAtBottomRef.current) {
+        scheduleScrollToConversationEnd(false, 80);
+        scheduleScrollToConversationEnd(false, 180);
+      }
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [scheduleScrollToConversationEnd]);
+
   // ── Load more (newer messages, scroll down) ──────────────────────────────
 
   const loadMore = async () => {
@@ -548,9 +595,7 @@ export default function ConversationDetailScreen() {
       setTotalLoaded(data.messages.length);
       setHasLatest(true);
       setShowJumpButton(false);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 80);
+      scheduleScrollToConversationEnd(true, 80);
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
     }
@@ -624,7 +669,7 @@ export default function ConversationDetailScreen() {
     }));
     setTotalLoaded((n) => n + 1);
 
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+    setTimeout(() => scrollToConversationEnd(true), 80);
 
     try {
       const targetConversationId = conversation?.id || "";
@@ -671,6 +716,10 @@ export default function ConversationDetailScreen() {
   const hasText = inputText.trim().length > 0;
   const isBlocked = isBlockedConversation(conversation?.isBlocked);
   const blockedByOther = isBlocked && !blockedByMe;
+  const keyboardInset =
+    keyboardHeight > 0 ? Math.max(0, keyboardHeight) + sizes.xs : 0;
+  const chatBodyBottomPadding = keyboardInset;
+  const messageListBottomPadding = sizes.md;
 
   const messages = conversation?.messages || [];
   const latestMessage = messages[messages.length - 1];
@@ -752,6 +801,15 @@ export default function ConversationDetailScreen() {
     partnerAvatar,
     routeId,
   ]);
+  useEffect(() => {
+    if (!items.length || hasInitialScrollRef.current) {
+      return;
+    }
+
+    hasInitialScrollRef.current = true;
+    isAtBottomRef.current = true;
+    scheduleScrollToConversationEnd(false, 80);
+  }, [items.length, scheduleScrollToConversationEnd]);
 
   return (
     <SafeAreaView style={conversationDetailStyles.safe} edges={["top", "bottom"]}>
@@ -787,9 +845,11 @@ export default function ConversationDetailScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={conversationDetailStyles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      <View
+        style={[
+          conversationDetailStyles.flex,
+          { paddingBottom: chatBodyBottomPadding },
+        ]}
       >
         {/* ── Message list ── */}
         <View style={conversationDetailStyles.flex}>
@@ -798,7 +858,10 @@ export default function ConversationDetailScreen() {
             data={items}
             keyExtractor={(item) => item.key}
             renderItem={renderItem}
-            contentContainerStyle={conversationDetailStyles.listContent}
+            contentContainerStyle={[
+              conversationDetailStyles.listContent,
+              { paddingBottom: messageListBottomPadding },
+            ]}
             onEndReached={loadMore}
             onEndReachedThreshold={0.1}
             onScroll={handleScroll}
@@ -817,13 +880,29 @@ export default function ConversationDetailScreen() {
               Keyboard.dismiss();
             }}
             onLayout={handleLayout}
-            onContentSizeChange={handleContentSizeChange}
+            onContentSizeChange={(contentWidth, contentHeight) => {
+              handleContentSizeChange(contentWidth, contentHeight);
+
+              if (isAtBottomRef.current) {
+                scheduleScrollToConversationEnd(false, 40);
+              }
+            }}
           />
+
+          {showEmojiPicker ? (
+            <Pressable
+              style={conversationDetailStyles.emojiDismissOverlay}
+              onPress={() => setShowEmojiPicker(true)}
+            />
+          ) : null}
 
           {/* ── Jump to latest FAB ── */}
           {showJumpButton && (
             <View
-              style={conversationDetailStyles.jumpContainer}
+              style={[
+                conversationDetailStyles.jumpContainer,
+                { bottom: 12 + keyboardInset },
+              ]}
               pointerEvents="box-none"
             >
               <Pressable
@@ -860,59 +939,64 @@ export default function ConversationDetailScreen() {
           </View>
         ) : (
           <View style={[conversationDetailStyles.inputBar]}>
-          <View style={conversationDetailStyles.inputWrap}>
-            <TextInput
-              style={conversationDetailStyles.textInput}
-              placeholder="Nhắn tin"
-              placeholderTextColor={colors.placeholder}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              returnKeyType="send"
-              onSubmitEditing={() => handleSend(inputText)}
-            />
+            <View style={conversationDetailStyles.inputWrap}>
+              <TextInput
+                style={conversationDetailStyles.textInput}
+                placeholder="Nhắn tin"
+                placeholderTextColor={colors.placeholder}
+                value={inputText}
+                onChangeText={setInputText}
+                onFocus={() => {
+                  setShowEmojiPicker(false);
+                  scheduleScrollToConversationEnd(false, 80);
+                  scheduleScrollToConversationEnd(false, 180);
+                }}
+                multiline
+                returnKeyType="send"
+                onSubmitEditing={() => handleSend(inputText)}
+              />
 
-            {/* Emoji button + picker */}
-            <View style={conversationDetailStyles.emojiAnchor}>
-              <Pressable
-                style={conversationDetailStyles.emojiBtn}
-                onPress={() => setShowEmojiPicker((v) => !v)}
-                hitSlop={6}
-              >
-                <ChatSmileIcon size={18} color={colors.primary} />
-              </Pressable>
-              {showEmojiPicker && (
-                <CommentReactionPicker
-                  onSelectReaction={(emoji) => {
-                    setInputText((prev) => prev + emoji);
-                    setShowEmojiPicker(false);
-                  }}
+              {/* Emoji button + picker */}
+              <View style={conversationDetailStyles.emojiAnchor}>
+                <Pressable
+                  style={conversationDetailStyles.emojiBtn}
+                  onPress={() => setShowEmojiPicker((v) => !v)}
+                  hitSlop={6}
+                >
+                  <ChatSmileIcon size={18} color={colors.primary} />
+                </Pressable>
+                {showEmojiPicker && (
+                  <CommentReactionPicker
+                    onSelectReaction={(emoji) => {
+                      setInputText((prev) => prev + emoji);
+                      setShowEmojiPicker(false);
+                    }}
+                  />
+                )}
+              </View>
+            </View>
+
+            <Pressable
+              style={conversationDetailStyles.likeBtn}
+              onPress={() => handleSend(hasText ? inputText : "👍")}
+              disabled={isSending}
+              hitSlop={8}
+            >
+              {hasText ? (
+                <ChatSendIcon
+                  size={24}
+                  color={isSending ? colors.disabled : colors.primary}
+                />
+              ) : (
+                <ChatThumbUpIcon
+                  size={24}
+                  color={isSending ? colors.disabled : colors.primary}
                 />
               )}
-            </View>
+            </Pressable>
           </View>
-
-          <Pressable
-            style={conversationDetailStyles.likeBtn}
-            onPress={() => handleSend(hasText ? inputText : "👍")}
-            disabled={isSending}
-            hitSlop={8}
-          >
-            {hasText ? (
-              <ChatSendIcon
-                size={24}
-                color={isSending ? colors.disabled : colors.primary}
-              />
-            ) : (
-              <ChatThumbUpIcon
-                size={24}
-                color={isSending ? colors.disabled : colors.primary}
-              />
-            )}
-          </Pressable>
-        </View>
         )}
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }

@@ -70,6 +70,7 @@ export default function PostDetailScreen() {
         courseId: post.courseId,
         exerciseId: post.exerciseId,
         teacherId: post.author?.id || "",
+        teacherUsername: post.author?.name || post.author?.handle || "",
       },
     });
   };

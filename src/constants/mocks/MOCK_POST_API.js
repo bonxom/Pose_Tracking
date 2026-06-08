@@ -1,6 +1,7 @@
 import MOCK_GET_LIST_POSTS from "@/constants/mocks/MOCK_GET_LIST_POSTS";
 import MOCK_GET_POST from "@/constants/mocks/MOCK_GET_POST";
 import * as postStore from "@/services/postStore";
+import { splitContentAndHashtags } from "@/utils/hashtags";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -189,11 +190,14 @@ export async function getMockGetPostResponse(params = {}) {
 }
 
 export async function getMockAddPostResponse(fields = {}, files = []) {
+  const hashtagPayload = splitContentAndHashtags(toStringValue(fields?.described));
   const params = {
-    content: toStringValue(fields?.described),
+    content: hashtagPayload.content,
     courseId: toStringValue(fields?.course_id),
     exerciseId: toStringValue(fields?.exercise_id),
     sourcePostId: toStringValue(fields?.source_post_id),
+    generatedHashtag: hashtagPayload.generatedHashtag,
+    hashtags: hashtagPayload.hashtags,
     videos: Array.isArray(files) ? files.filter(Boolean).map(buildLocalVideoInput) : [],
   };
 
@@ -226,9 +230,17 @@ export async function getMockEditPostResponse(fields = {}, files = []) {
     nextVideos[slotIndex] = buildLocalVideoInput(file, slotIndex);
   });
 
+  const hashtagPayload = splitContentAndHashtags(
+    toStringValue(fields?.described ?? existingPost.content),
+    existingPost.hashtags,
+  );
+
   const updatedPost = await postStore.updatePost(postId, {
-    content: toStringValue(fields?.described ?? existingPost.content),
-    described: toStringValue(fields?.described ?? existingPost.described),
+    content: hashtagPayload.content,
+    described: hashtagPayload.content,
+    hashtags: hashtagPayload.hashtags,
+    generatedHashtag:
+      hashtagPayload.generatedHashtag || existingPost.generatedHashtag || "",
     videos:
       Array.isArray(files) && files.length > 0
         ? nextVideos
