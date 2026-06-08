@@ -119,7 +119,8 @@ export function isNotificationUnread(item = {}) {
 
   if (item.raw?.unread !== undefined) return toBoolFlag(item.raw.unread, true);
   if (item.raw?.read !== undefined) return !toBoolFlag(item.raw.read, false);
-  if (item.raw?.is_read !== undefined) return !toBoolFlag(item.raw.is_read, false);
+  if (item.raw?.is_read !== undefined)
+    return !toBoolFlag(item.raw.is_read, false);
 
   return true;
 }
@@ -226,7 +227,10 @@ export function markNotificationReadLocal(notificationId) {
   }
 
   // Badge là tổng unread toàn hệ thống, không phải số unread trong page hiện tại.
-  const unreadCount = Math.max(0, Number(notificationCache.unreadCount || 0) - 1);
+  const unreadCount = Math.max(
+    0,
+    Number(notificationCache.unreadCount || 0) - 1,
+  );
 
   notificationCache = {
     ...notificationCache,
@@ -242,7 +246,8 @@ export function markNotificationReadLocal(notificationId) {
 
 function firstNonEmpty(...values) {
   return values.find(
-    (value) => value !== undefined && value !== null && String(value).trim() !== "",
+    (value) =>
+      value !== undefined && value !== null && String(value).trim() !== "",
   );
 }
 
@@ -250,7 +255,11 @@ function normalizeImageUrl(value = "") {
   const url = String(value || "").trim();
 
   if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("data:")
+  ) {
     return url;
   }
 
@@ -319,7 +328,11 @@ function getNotificationAvatar(raw = {}) {
   );
 }
 
-function normalizeNotification(raw = {}, index = 0, source = ACTIVE_SOURCES.SERVER) {
+function normalizeNotification(
+  raw = {},
+  index = 0,
+  source = ACTIVE_SOURCES.SERVER,
+) {
   const type = raw.type || raw.notification_type || "info";
 
   const notificationId = String(
@@ -404,10 +417,7 @@ function normalizeNotificationPage(response, source) {
     response?.data && !Array.isArray(response.data) ? response.data : {};
 
   const badgeValue =
-    data.badge ??
-    data.unread ??
-    response?.badge ??
-    response?.unread;
+    data.badge ?? data.unread ?? response?.badge ?? response?.unread;
 
   const badgeNumber = toNumberOrUndefined(badgeValue);
 

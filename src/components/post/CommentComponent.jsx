@@ -1,23 +1,42 @@
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import postStyles from "@/styles/post.styles";
-import { formatRelativeTime, getInitials } from "@/utils/formatters";
+import { formatRelativeTime } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { useAuthSession } from "@/hooks/useAuthSession";
+import { useMemo } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 
 export default function CommentComponent({ comment }) {
-  const avatarUri = resolveAvatarUri(comment?.author?.avatar || "");
+  const { session: currentUser } = useAuthSession();
+
+  const avatarUri = useMemo(() => {
+    const authorId = String(comment?.author?.id || "").trim();
+    const isOwn = Boolean(currentUser?.id && authorId && currentUser.id === authorId);
+    if (isOwn) {
+      return resolveAvatarUri(
+        currentUser?.avatar || comment?.author?.avatar || "",
+        currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || ""
+      );
+    }
+    return resolveAvatarUri(
+      comment?.author?.avatar || "",
+      comment?.author?.avatarVersion || ""
+    );
+  }, [comment?.author?.avatar, comment?.author?.avatarVersion, comment?.author?.id, currentUser?.avatar, currentUser?.avatarVersion, currentUser?.profileSyncRequestedAt, currentUser?.id]);
+
 
   return (
     <View style={styles.commentRow}>
       <View style={styles.avatar}>
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-        ) : (
-          <Text style={styles.avatarText}>
-            {getInitials(comment.authorName || "U")}
-          </Text>
-        )}
+        <Image
+          source={{ uri: avatarUri }}
+          style={styles.avatarImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       </View>
 
       <View style={styles.contentColumn}>

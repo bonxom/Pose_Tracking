@@ -27,7 +27,9 @@ function networkError(error, fallbackMessage) {
 }
 
 function guessImageMimeType(uri = "") {
-  const clean = String(uri || "").split("?")[0].toLowerCase();
+  const clean = String(uri || "")
+    .split("?")[0]
+    .toLowerCase();
 
   if (clean.endsWith(".png")) return "image/png";
   if (clean.endsWith(".webp")) return "image/webp";
@@ -151,7 +153,10 @@ const authApi = {
         data: {
           ...data,
           signupRequestId:
-            data.signupRequestId || data.signup_request_id || data.id || phonenumber,
+            data.signupRequestId ||
+            data.signup_request_id ||
+            data.id ||
+            phonenumber,
           phonenumber: data.phonenumber || phonenumber,
           role: data.role || role,
           token:
@@ -361,16 +366,17 @@ const authApi = {
               token: response.data?.token || response.token || token,
               phonenumber: response.data?.phonenumber || phonenumber,
               username:
-                response.data?.username ||
-                response.data?.user_name ||
-                username,
+                response.data?.username || response.data?.user_name || username,
               height: response.data?.height || height || "",
               avatar: response.data?.avatar || avatar || "",
             },
           }
         : backendError(response, "Backend change_info_after_signup failed");
     } catch (error) {
-      return networkError(error, "Backend change_info_after_signup unavailable");
+      return networkError(
+        error,
+        "Backend change_info_after_signup unavailable",
+      );
     }
   },
 };

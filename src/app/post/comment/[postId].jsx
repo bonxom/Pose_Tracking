@@ -11,7 +11,7 @@ import { addComment, getComments } from "@/repositories/commentRepository";
 import { getPostById } from "@/repositories/postRepository";
 import postStyles from "@/styles/post.styles";
 import commentOverlayStyles from "@/styles/post/comment-overlay.styles";
-import { getInitials } from "@/utils/formatters";
+import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
 import { router, useLocalSearchParams } from "expo-router";
@@ -22,7 +22,6 @@ import {
   Animated,
   Easing,
   FlatList,
-  Image,
   Keyboard,
   PanResponder,
   Platform,
@@ -31,6 +30,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SHEET_OPEN_DELAY_MS = 80;
@@ -347,11 +347,16 @@ export default function CommentScreen() {
     : likeCount > 0
       ? String(likeCount)
       : "";
-  const composerAvatarUri =
+  const composerAvatarUri = resolveAvatarUri(
     (typeof currentUser?.avatar === "string" && currentUser.avatar.trim()) ||
-    (typeof currentUser?.user?.avatar === "string" &&
-      currentUser.user.avatar.trim()) ||
-    "";
+      (typeof currentUser?.user?.avatar === "string" &&
+        currentUser.user.avatar.trim()) ||
+      "",
+    currentUser?.avatarVersion ||
+      currentUser?.profileSyncRequestedAt ||
+      currentUser?.loggedInAt ||
+      "",
+  );
 
   return (
     <View style={styles.modalRoot}>
@@ -454,20 +459,13 @@ export default function CommentScreen() {
                 ) : null}
                 <View style={styles.composerRow}>
                   <View style={styles.composerAvatar}>
-                    {composerAvatarUri ? (
-                      <Image
-                        source={{ uri: composerAvatarUri }}
-                        style={localStyles.composerAvatarImage}
-                      />
-                    ) : (
-                      <Text style={styles.composerAvatarText}>
-                        {getInitials(
-                          currentUser?.username ||
-                            currentUser?.identifier ||
-                            "Tôi",
-                        )}
-                      </Text>
-                    )}
+                    <Image
+                      source={{ uri: composerAvatarUri }}
+                      style={localStyles.composerAvatarImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
+                    />
                   </View>
                   <AppInput
                     ref={inputRef}
@@ -554,3 +552,4 @@ const localStyles = StyleSheet.create({
     borderRadius: 999,
   },
 });
+

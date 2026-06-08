@@ -3,8 +3,8 @@ import { loginWithPassword } from "@/repositories/authRepository";
 import { registerDeviceForPush } from "@/services/pushNotifications";
 import baseStyles from "@/styles/auth/base.styles";
 import loginStyles from "@/styles/auth/login.styles";
-import { CACHE_KEY_PROFILE, removeCache } from "@/utils/cacheStore";
 import { saveAuthSession } from "@/utils/session";
+import { clearCurrentUserSessionArtifacts } from "@/utils/userSessionCleanup";
 import { validatePassword, validatePhoneNumber } from "@/utils/validation";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -32,8 +32,7 @@ export default function LoginScreen() {
 
   const persistAndNavigate = async (data = {}) => {
     try {
-      await removeCache(CACHE_KEY_PROFILE);
-
+      await clearCurrentUserSessionArtifacts();
       await saveAuthSession({
         id: data.id || data.user_id || data.phonenumber || phoneNumber,
         token: data.token,
@@ -42,11 +41,11 @@ export default function LoginScreen() {
         username: data.username || data.displayName || data.name || "",
         displayName: data.displayName || data.username || data.name || "",
         role: data.role,
-        avatar: data.avatar || "",
-        height: data.height || "",
-        handle: data.handle || "",
-        source: "server",
-        demoMode: false,
+        avatar: data.avatar,
+        height: data.height,
+        handle: data.handle,
+        source: data.source,
+        demoMode: Boolean(data.demoMode),
         avatarVersion: new Date().toISOString(),
         loggedInAt: new Date().toISOString(),
       });

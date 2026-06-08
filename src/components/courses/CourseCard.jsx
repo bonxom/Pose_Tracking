@@ -1,11 +1,7 @@
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View
-} from "react-native";
+import { resolveAvatarUri } from "@/utils/profile";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import UserAvatar from "./UserAvatar";
 
 // ─── Join Button ────────────────────────────────────────────────────────────
@@ -22,11 +18,27 @@ function joinButtonProps(item) {
 // ─── CourseCard ──────────────────────────────────────────────────────────────
 export default function CourseCard({ item, onJoin, flat = false }) {
   const { title: btnTitle, disabled: btnDisabled } = joinButtonProps(item);
+  const avatarUri = resolveAvatarUri(
+    item.avatar || "",
+    item.avatarVersion || item.profileSyncRequestedAt || "",
+  );
 
   // Build video list from left_video / right_video (skip empty strings)
   const videos = [
-    item.left_video ? { uri: item.left_video, thumb: item.left_video_thumb, angle: "Góc quay trái" } : null,
-    item.right_video ? { uri: item.right_video, thumb: item.right_video_thumb, angle: "Góc quay phải" } : null,
+    item.left_video
+      ? {
+          uri: item.left_video,
+          thumb: item.left_video_thumb,
+          angle: "Góc quay trái",
+        }
+      : null,
+    item.right_video
+      ? {
+          uri: item.right_video,
+          thumb: item.right_video_thumb,
+          angle: "Góc quay phải",
+        }
+      : null,
   ].filter(Boolean);
 
   return (
@@ -53,7 +65,12 @@ export default function CourseCard({ item, onJoin, flat = false }) {
 
       {/* ── Videos ── */}
       {videos.length > 0 ? (
-        <View style={[localStyles.videoGrid, flat && localStyles.videoGridFullBleed]}>
+        <View
+          style={[
+            localStyles.videoGrid,
+            flat && localStyles.videoGridFullBleed,
+          ]}
+        >
           {videos.slice(0, 2).map((video, index) => (
             <VideoTile
               key={video.uri || `${video.uri}_${index}`}
