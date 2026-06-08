@@ -53,7 +53,10 @@ const conversationDetailStyles = StyleSheet.create({
 
   // Message list
   listContent: {
+    flexGrow: 1,
+    justifyContent: "flex-end",
     paddingHorizontal: 12,
+    paddingTop: 12,
   },
 
   // Date delimiter

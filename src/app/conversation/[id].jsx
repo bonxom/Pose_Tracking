@@ -19,7 +19,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   Text,
@@ -28,7 +27,6 @@ import {
 } from "react-native";
 import {
   SafeAreaView,
-  useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -36,6 +34,7 @@ import {
 const PAGE_SIZE = 20;
 const JUMP_COUNT = 500;
 const AVATAR_SIZE = 28;
+const KEYBOARD_SCROLL_DELAY_MS = 120;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -285,7 +284,6 @@ function MessageItem({ item, myId, isLatestFromMe }) {
 export default function ConversationDetailScreen() {
   const params = useLocalSearchParams();
   const conversationId = typeof params.id === "string" ? params.id : "";
-  const insets = useSafeAreaInsets();
 
   const [conversation, setConversation] = useState(null);
   const [mySession, setMySession] = useState(null);
@@ -300,7 +298,23 @@ export default function ConversationDetailScreen() {
 
   const flatListRef = useRef(null);
   const isAtBottomRef = useRef(false);
+  const hasInitialScrollRef = useRef(false);
   const [layoutHeight, setLayoutHeight] = useState(0);
+
+  const scrollToConversationEnd = useCallback((animated = false) => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated });
+    });
+  }, []);
+
+  const scheduleScrollToConversationEnd = useCallback(
+    (animated = false, delay = KEYBOARD_SCROLL_DELAY_MS) => {
+      setTimeout(() => {
+        scrollToConversationEnd(animated);
+      }, delay);
+    },
+    [scrollToConversationEnd],
+  );
 
   const load = useCallback(() => {
     const init = async () => {
@@ -335,9 +349,8 @@ export default function ConversationDetailScreen() {
       setKeyboardHeight(nextHeight);
 
       if (isAtBottomRef.current) {
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: false });
-        }, 80);
+        scheduleScrollToConversationEnd(false, 80);
+        scheduleScrollToConversationEnd(false, 180);
       }
     };
 
@@ -352,7 +365,7 @@ export default function ConversationDetailScreen() {
       showSubscription.remove();
       hideSubscription.remove();
     };
-  }, []);
+  }, [scheduleScrollToConversationEnd]);
 
   // ── Load more (newer messages, scroll down) ──────────────────────────────
 
@@ -397,9 +410,7 @@ export default function ConversationDetailScreen() {
       setTotalLoaded(data.messages.length);
       setHasLatest(true);
       setShowJumpButton(false);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 80);
+      scheduleScrollToConversationEnd(true, 80);
     } catch (error) {
       if (await redirectIfSessionExpired(error, router)) return;
     }
@@ -463,7 +474,7 @@ export default function ConversationDetailScreen() {
     }));
     setTotalLoaded((n) => n + 1);
 
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+    setTimeout(() => scrollToConversationEnd(true), 80);
 
     try {
       const saved = await sendMessage(
@@ -493,11 +504,10 @@ export default function ConversationDetailScreen() {
   const items = buildItems(conversation?.messages);
   const myId = mySession?.id;
   const hasText = inputText.trim().length > 0;
-  const messageListBottomPadding =
-    sizes.md +
-    (keyboardHeight > 0
-      ? Math.max(0, keyboardHeight - insets.bottom) + sizes.xs
-      : 0);
+  const keyboardInset =
+    keyboardHeight > 0 ? Math.max(0, keyboardHeight) + sizes.xs : 0;
+  const chatBodyBottomPadding = keyboardInset;
+  const messageListBottomPadding = sizes.md;
 
   const messages = conversation?.messages || [];
   const latestMessage = messages[messages.length - 1];
@@ -520,6 +530,16 @@ export default function ConversationDetailScreen() {
       />
     );
   };
+
+  useEffect(() => {
+    if (!items.length || hasInitialScrollRef.current) {
+      return;
+    }
+
+    hasInitialScrollRef.current = true;
+    isAtBottomRef.current = true;
+    scheduleScrollToConversationEnd(false, 80);
+  }, [items.length, scheduleScrollToConversationEnd]);
 
   return (
     <SafeAreaView style={conversationDetailStyles.safe}>
@@ -551,9 +571,11 @@ export default function ConversationDetailScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={conversationDetailStyles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      <View
+        style={[
+          conversationDetailStyles.flex,
+          { paddingBottom: chatBodyBottomPadding },
+        ]}
       >
         {/* ── Message list ── */}
         <View style={conversationDetailStyles.flex}>
@@ -576,13 +598,22 @@ export default function ConversationDetailScreen() {
               Keyboard.dismiss();
             }}
             onLayout={handleLayout}
-            onContentSizeChange={handleContentSizeChange}
+            onContentSizeChange={(contentWidth, contentHeight) => {
+              handleContentSizeChange(contentWidth, contentHeight);
+
+              if (isAtBottomRef.current) {
+                scheduleScrollToConversationEnd(false, 40);
+              }
+            }}
           />
 
           {/* ── Jump to latest FAB ── */}
           {showJumpButton && (
             <View
-              style={conversationDetailStyles.jumpContainer}
+              style={[
+                conversationDetailStyles.jumpContainer,
+                { bottom: 12 + keyboardInset },
+              ]}
               pointerEvents="box-none"
             >
               <Pressable
@@ -604,6 +635,10 @@ export default function ConversationDetailScreen() {
               placeholderTextColor={colors.placeholder}
               value={inputText}
               onChangeText={setInputText}
+              onFocus={() => {
+                scheduleScrollToConversationEnd(false, 80);
+                scheduleScrollToConversationEnd(false, 180);
+              }}
               multiline
               returnKeyType="send"
               onSubmitEditing={() => handleSend(inputText)}
@@ -647,7 +682,7 @@ export default function ConversationDetailScreen() {
             )}
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
