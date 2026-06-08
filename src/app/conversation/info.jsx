@@ -153,13 +153,7 @@ export default function ConversationInfoScreen() {
         },
       ],
     );
-  }, [
-    conversationId,
-    partner.avatar,
-    partner.username,
-    partnerId,
-    isBlocking,
-  ]);
+  }, [conversationId, partner.avatar, partner.username, partnerId, isBlocking]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -183,7 +177,11 @@ export default function ConversationInfoScreen() {
           contentContainerStyle={styles.contentContainer}
         >
           <View style={styles.profileBlock}>
-            <UserAvatar uri={partner.avatar} size={96} name={partner.username} />
+            <UserAvatar
+              uri={partner.avatar}
+              size={96}
+              name={partner.username}
+            />
 
             <Text numberOfLines={1} style={styles.partnerName}>
               {partner.username || "Người dùng"}
@@ -240,8 +238,6 @@ export default function ConversationInfoScreen() {
                   Người này sẽ không thể nhắn tin hoặc tương tác với bạn.
                 </Text>
               </View>
-
-              <Ionicons name="chevron-forward" size={20} color="#8A8D91" />
             </Pressable>
           </View>
         </ScrollView>
