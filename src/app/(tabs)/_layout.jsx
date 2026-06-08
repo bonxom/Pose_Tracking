@@ -13,7 +13,7 @@ import {
 import {
   getNotificationBadge,
   getNotificationPage,
-  subscribeNotificationBadge
+  subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
 import { getInitials } from "@/utils/formatters";
 import { resolveAvatarUri } from "@/utils/profile";
@@ -145,12 +145,16 @@ export default function TabsLayout() {
   const displayName = session?.displayName || session?.username || "Người dùng";
   const avatar = resolveAvatarUri(
     session?.avatar || session?.user?.avatar || "",
-    session?.avatarVersion || session?.profileSyncRequestedAt || session?.loggedInAt || "",
+    session?.avatarVersion ||
+      session?.profileSyncRequestedAt ||
+      session?.loggedInAt ||
+      "",
   );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {isHome && <HomeTopSection />}
+
       <Tabs
         screenOptions={{
           tabBarPosition: "top",
@@ -186,7 +190,9 @@ export default function TabsLayout() {
           name="courses"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <CoursesIcon focused={focused} size={28} />,
+            tabBarIcon: ({ focused }) => (
+              <CoursesIcon focused={focused} size={28} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -230,7 +236,9 @@ export default function TabsLayout() {
           name="menu"
           options={{
             tabBarButton: (props) => <TabButton {...props} />,
-            tabBarIcon: ({ focused }) => <MenuIcon focused={focused} size={28} />,
+            tabBarIcon: ({ focused }) => (
+              <MenuIcon focused={focused} size={28} />
+            ),
           }}
         />
       </Tabs>

@@ -126,6 +126,13 @@ export async function getPushSettings() {
   const session = await getCurrentSession();
   requireToken(session, "Cần đăng nhập để tải cài đặt thông báo.");
 
+  if (!session?.token) {
+    return {
+      ...normalizePushSettings(localPushSettings),
+      source: ACTIVE_SOURCES.LOCAL,
+    };
+  }
+
   try {
     const response = await backendApi.getPushSettings({ token: session.token });
 
@@ -152,6 +159,10 @@ export async function getPushSettings() {
 export async function setPushSettings(settings = {}) {
   const session = await getCurrentSession();
   requireToken(session, "Cần đăng nhập để lưu cài đặt thông báo.");
+
+  if (!session?.token) {
+    throw new Error("Bạn cần đăng nhập để lưu cài đặt thông báo.");
+  }
 
   const response = await backendApi.setPushSettings({
     token: session.token,
@@ -213,6 +224,7 @@ export async function checkNewVersion() {
     console.info(
       "[DATA] check_new_version deployed compatibility: retrying with lastUpdate",
     );
+
     response = await backendApi.checkNewVersion({
       token: session?.token || "",
       lastUpdate: "2026-05-10T00:00:00.000Z",
@@ -226,16 +238,30 @@ export async function checkNewVersion() {
   return extractObject(response);
 }
 
-export async function setDeviceToken(devtoken = DEFAULT_DEVICE_TOKEN) {
+export async function setDeviceToken(
+  devtoken = DEFAULT_DEVICE_TOKEN,
+  devtype = "1",
+) {
   const session = await getCurrentSession();
+
+  if (!session?.token) {
+    return null;
+  }
 
   const response = await backendApi.setDevtoken({
     token: session.token,
     devtoken,
-    devtype: "1",
+    devtype,
   });
 
-  await assertBackendOk(response, { message: "Backend set_devtoken failed" });
+  await assertBackendOk(response, {
+    message: "Backend set_devtoken failed",
+  });
 
-  return { registered: true, devtoken, source: ACTIVE_SOURCES.SERVER };
+  return {
+    registered: true,
+    devtoken,
+    devtype,
+    source: ACTIVE_SOURCES.SERVER,
+  };
 }

@@ -7,6 +7,7 @@ import {
   normalizePushSettings,
   setPushSettings,
 } from "@/repositories/settingsRepository";
+import { loadAndApplyPushSettings } from "@/services/pushNotifications";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -173,6 +174,7 @@ export default function PushSettingsScreen() {
 
     try {
       const saved = await setPushSettings(nextSettings);
+      await loadAndApplyPushSettings();
       setSettings(normalizePushSettings(saved, previousSettings));
       setStatus("Đã lưu cài đặt thông báo.");
     } catch (error) {

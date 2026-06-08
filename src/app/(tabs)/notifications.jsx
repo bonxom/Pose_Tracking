@@ -6,15 +6,17 @@ import {
   getNotificationCache,
   getNotificationPage,
   isNotificationAuthError,
+  isNotificationUnread,
   markNotificationRead,
   markNotificationReadLocal,
   setNotificationBadge,
+  subscribeNotificationBadge,
 } from "@/repositories/notificationRepository";
 import styles from "@/styles/notifications.styles";
 import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -29,9 +31,7 @@ import Svg, { Path } from "react-native-svg";
 const PAGE_SIZE = 20;
 
 function isUnread(item) {
-  if (item?.unread !== undefined) return Boolean(item.unread);
-  if (item?.read !== undefined) return !Boolean(item.read);
-  return true;
+  return isNotificationUnread(item);
 }
 
 function formatTimeAgo(value) {
@@ -157,14 +157,20 @@ export default function NotificationsScreen() {
 
   const [items, setItems] = useState(initialCache.items);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [badge, setBadge] = useState(initialCache.unreadCount);
+  const [, setBadge] = useState(initialCache.unreadCount);
   const [hasMore, setHasMore] = useState(initialCache.hasMore);
   const [isLoading, setIsLoading] = useState(!initialCache.hasLoaded);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
-  const [lastUpdate, setLastUpdate] = useState(initialCache.lastUpdate);
+  const [, setLastUpdate] = useState(initialCache.lastUpdate);
+  const [hasNewNotification, setHasNewNotification] = useState(false);
+
+  const listRef = useRef(null);
+  const latestBadgeRef = useRef(Number(initialCache.unreadCount || 0));
+  const badgeReadyRef = useRef(false);
+  const initialLoadingRef = useRef(!initialCache.hasLoaded);
 
   const visibleItems = useMemo(() => {
     if (activeFilter === "unread") {
@@ -174,46 +180,74 @@ export default function NotificationsScreen() {
     return items;
   }, [activeFilter, items]);
 
-  const loadPage = useCallback(async ({ refresh = false } = {}) => {
-    try {
-      setError("");
-      const cache = getNotificationCache();
-
-      if (refresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-      let page;
-      await executeWithInternetCheck(async () => {
-        page = await getNotificationPage({
-          index: 0,
-          count: PAGE_SIZE,
-          lastUpdate: refresh ? cache.lastUpdate : "",
-        });
-      });
-
-      setItems(page.items);
-      setBadge(page.unreadCount);
-      setNotificationBadge(page.unreadCount);
-      setHasMore(page.hasMore);
-      setLastUpdate(page.lastUpdate);
-    } catch (err) {
-      if (API_TYPE !== API_TYPES.MOCK) {
-        if (await handleNotificationAuthError(err)) {
-          setItems([]);
-          setBadge(0);
-          setHasMore(false);
-          return;
-        }
-      }
-
-      setError(err?.message || "Không tải được thông báo.");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+  const handleNotificationAuthError = useCallback(async (err) => {
+    if (!isNotificationAuthError(err)) {
+      return false;
     }
+
+    await clearAuthSession();
+
+    setItems([]);
+    setBadge(0);
+    setNotificationBadge(0);
+    setHasMore(false);
+
+    router.replace("/(auth)/login");
+
+    return true;
   }, []);
+
+  const loadPage = useCallback(
+    async ({ refresh = false } = {}) => {
+      try {
+        setError("");
+
+        const cache = getNotificationCache();
+
+        if (refresh) {
+          setIsRefreshing(true);
+        } else {
+          setIsLoading(true);
+        }
+
+        let page;
+
+        await executeWithInternetCheck(async () => {
+          page = await getNotificationPage({
+            index: 0,
+            count: PAGE_SIZE,
+            lastUpdate: refresh ? cache.lastUpdate : "",
+            mergeWithExisting: false,
+          });
+        });
+
+        const nextBadge = Number(page.unreadCount || 0);
+
+        latestBadgeRef.current = nextBadge;
+        badgeReadyRef.current = true;
+        initialLoadingRef.current = false;
+        setHasNewNotification(false);
+
+        setItems(page.items);
+        setBadge(nextBadge);
+        setNotificationBadge(nextBadge);
+        setHasMore(page.hasMore);
+        setLastUpdate(page.lastUpdate);
+      } catch (err) {
+        if (API_TYPE !== API_TYPES.MOCK) {
+          if (await handleNotificationAuthError(err)) {
+            return;
+          }
+        }
+
+        setError(err?.message || "Không tải được thông báo.");
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [executeWithInternetCheck, handleNotificationAuthError],
+  );
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || isLoading || isRefreshing || !hasMore) {
@@ -249,7 +283,28 @@ export default function NotificationsScreen() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoading, isRefreshing, isLoadingMore, items.length]);
+  }, [
+    executeWithInternetCheck,
+    hasMore,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    items.length,
+    handleNotificationAuthError,
+  ]);
+
+  const refreshNewNotifications = useCallback(async () => {
+    setHasNewNotification(false);
+
+    await loadPage({ refresh: true });
+
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({
+        offset: 0,
+        animated: true,
+      });
+    });
+  }, [loadPage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -262,33 +317,61 @@ export default function NotificationsScreen() {
         setHasMore(cache.hasMore);
         setLastUpdate(cache.lastUpdate);
         setIsLoading(false);
-        return;
+
+        latestBadgeRef.current = Number(cache.unreadCount || 0);
       }
 
-      loadPage({
-        refresh: true,
+      loadPage({ refresh: true });
+
+      setHasNewNotification(false);
+
+      const cacheBadge = Number(cache.unreadCount || 0);
+      latestBadgeRef.current = cacheBadge;
+      badgeReadyRef.current = cache.hasLoaded;
+      initialLoadingRef.current = !cache.hasLoaded;
+
+      const unsubscribeBadge = subscribeNotificationBadge((nextBadge) => {
+        const next = Number(nextBadge || 0);
+
+        setBadge(next);
+
+        if (initialLoadingRef.current) {
+          latestBadgeRef.current = next;
+          return;
+        }
+
+        if (!badgeReadyRef.current) {
+          badgeReadyRef.current = true;
+          latestBadgeRef.current = next;
+          return;
+        }
+
+        if (next > latestBadgeRef.current) {
+          setHasNewNotification(true);
+        }
+
+        latestBadgeRef.current = next;
       });
+
+      return () => {
+        unsubscribeBadge?.();
+      };
     }, [loadPage]),
   );
 
-  async function handleNotificationAuthError(error) {
-    if (!isNotificationAuthError(error)) {
-      return false;
-    }
-
-    await clearAuthSession();
-
-    router.replace("/login");
-
-    return true;
-  }
-
   const handlePressNotification = useCallback(
     async (item) => {
-      const notificationId = item.notificationId || item.id;
+      const notificationId = String(
+        item.notificationId ||
+          item.raw?.notificationId ||
+          item.raw?.notification_id ||
+          item.id ||
+          "",
+      ).trim();
+
       const unread = isUnread(item);
 
-      if (unread) {
+      if (unread && notificationId) {
         const cache = markNotificationReadLocal(notificationId);
 
         setItems(cache.items);
@@ -296,7 +379,14 @@ export default function NotificationsScreen() {
         setNotificationBadge(cache.unreadCount);
 
         try {
-          await markNotificationRead(notificationId);
+          const result = await markNotificationRead(notificationId);
+
+          if (Number.isFinite(Number(result?.badge))) {
+            const nextBadge = Number(result.badge);
+
+            setBadge(nextBadge);
+            setNotificationBadge(nextBadge);
+          }
         } catch (err) {
           if (API_TYPE !== API_TYPES.MOCK) {
             if (await handleNotificationAuthError(err)) {
@@ -314,9 +404,10 @@ export default function NotificationsScreen() {
         item.objectId ||
           item.targetId ||
           item.postId ||
+          item.raw?.objectId ||
           item.raw?.object_id ||
-          item.raw?.post_id ||
           item.raw?.postId ||
+          item.raw?.post_id ||
           item.raw?.id ||
           "",
       ).trim();
@@ -344,7 +435,7 @@ export default function NotificationsScreen() {
         params: { id: postId },
       });
     },
-    [badge, items],
+    [handleNotificationAuthError],
   );
 
   if (isLoading && items.length === 0) {
@@ -406,6 +497,17 @@ export default function NotificationsScreen() {
         </View>
       </View>
 
+      {hasNewNotification ? (
+        <Pressable
+          style={styles.newNotificationPill}
+          onPress={refreshNewNotifications}
+        >
+          <Text style={styles.newNotificationPillText}>
+            Có thông báo mới
+          </Text>
+        </Pressable>
+      ) : null}
+
       {isNoInternet ? (
         <NoInternetView
           onRefresh={() => loadPage({ refresh: true })}
@@ -421,6 +523,7 @@ export default function NotificationsScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={visibleItems}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
@@ -433,7 +536,10 @@ export default function NotificationsScreen() {
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              onRefresh={() => loadPage({ refresh: true })}
+              onRefresh={() => {
+                setHasNewNotification(false);
+                loadPage({ refresh: true });
+              }}
             />
           }
           onEndReached={loadMore}
