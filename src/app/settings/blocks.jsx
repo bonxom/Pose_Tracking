@@ -4,8 +4,11 @@ import Screen from "@/components/common/Screen";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
-import { getBlocks, setBlock } from "@/repositories/blockRepository";
-import { searchScreenSearch } from "@/repositories/searchRepository";
+import {
+  getBlocks,
+  searchBlockCandidates,
+  setBlock,
+} from "@/repositories/blockRepository";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -86,8 +89,7 @@ export default function BlocksScreen() {
     try {
       setIsSearching(true);
       setStatus("");
-      const result = await searchScreenSearch(keyword, { count: 8 });
-      const users = (result.users || []).filter((user) => user.id);
+      const users = await searchBlockCandidates(keyword, { count: 8 });
       setSearchResults(users);
       if (users.length === 0) {
         setStatus("Không tìm thấy người dùng phù hợp.");
