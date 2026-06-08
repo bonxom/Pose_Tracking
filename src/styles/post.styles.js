@@ -39,10 +39,82 @@ const postStyles = StyleSheet.create({
   detailScrollContent: {
     paddingTop: sizes.sm,
     paddingBottom: sizes.xl,
+    gap: 0,
+  },
+  detailCommentsSection: {
+    backgroundColor: colors.white,
+    borderTopWidth: sizes.borderWidth,
+    borderTopColor: colors.border,
+    paddingHorizontal: sizes.md,
+    paddingTop: sizes.md,
+    paddingBottom: sizes.lg,
     gap: sizes.sm,
+  },
+  detailCommentsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: sizes.md,
+  },
+  detailCommentsTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  detailCommentsCount: {
+    fontSize: 13,
+    color: colors.subtext,
+  },
+  detailCommentList: {
+    gap: sizes.sm,
+  },
+  detailCommentSkeletons: {
+    gap: sizes.sm,
+  },
+  detailCommentsState: {
+    paddingVertical: sizes.xs,
+  },
+  detailCommentsEmpty: {
+    fontSize: 14,
+    color: colors.subtext,
+    paddingVertical: sizes.xs,
+  },
+  detailLoadMoreComments: {
+    alignSelf: "flex-start",
+    paddingVertical: sizes.xs,
+  },
+  detailLoadMoreCommentsPressed: {
+    opacity: 0.7,
+  },
+  detailLoadMoreCommentsText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  detailCommentComposerLink: {
+    minHeight: 40,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    paddingHorizontal: sizes.md,
+    marginTop: sizes.xs,
+  },
+  detailCommentComposerLinkPressed: {
+    opacity: 0.75,
+  },
+  detailCommentComposerText: {
+    fontSize: 14,
+    color: colors.subtext,
+  },
+  detailCommentsLocked: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.subtext,
+    paddingTop: sizes.xs,
   },
   detailStatus: {
     marginHorizontal: sizes.md,
+    marginTop: sizes.sm,
     borderRadius: sizes.radiusMd,
     backgroundColor: colors.white,
     borderWidth: sizes.borderWidth,

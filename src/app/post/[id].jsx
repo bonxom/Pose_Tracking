@@ -1,6 +1,9 @@
 import Screen from "@/components/common/Screen";
+import CommentComponent from "@/components/post/CommentComponent";
 import PostCard from "@/components/post/PostCard";
+import SkeletonComment from "@/components/post/SkeletonComment";
 import colors from "@/constants/colors";
+import { getComments } from "@/repositories/commentRepository";
 import {
   getPostById,
   reportPost,
@@ -20,12 +23,19 @@ import {
   View,
 } from "react-native";
 
+const COMMENT_PREVIEW_COUNT = 3;
+
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams();
   const [post, setPost] = useState(null);
   const [session, setSession] = useState(null);
   const [statusText, setStatusText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [comments, setComments] = useState([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [commentError, setCommentError] = useState("");
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [isCommentBlocked, setIsCommentBlocked] = useState(false);
 
   const handleGoBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -40,6 +50,7 @@ export default function PostDetailScreen() {
     try {
       setIsLoading(true);
       setStatusText("");
+      setCommentError("");
       const currentSession = await getAuthSession();
       setSession(currentSession);
       const data = await getPostById(id);
@@ -53,9 +64,60 @@ export default function PostDetailScreen() {
     }
   }, [id]);
 
+  const openComments = useCallback(() => {
+    if (!post?.id) return;
+    router.push(`/post/comment/${post.id}`);
+  }, [post?.id]);
+
+  const loadCommentPreview = useCallback(async () => {
+    if (!post?.id) {
+      setComments([]);
+      setHasMoreComments(false);
+      setIsCommentBlocked(false);
+      return;
+    }
+
+    try {
+      setIsLoadingComments(true);
+      setCommentError("");
+      setIsCommentBlocked(false);
+
+      const result = await getComments(post, {
+        index: 0,
+        count: COMMENT_PREVIEW_COUNT,
+      });
+      const loadedComments = Array.isArray(result?.comments)
+        ? result.comments
+        : [];
+      const commentCount = Number(post?.commentCount) || 0;
+      const blocked = result?.isBlocked === true;
+
+      setComments(loadedComments);
+      setIsCommentBlocked(blocked);
+      setHasMoreComments(
+        result?.hasOlder === true ||
+          commentCount > loadedComments.length ||
+          loadedComments.length >= COMMENT_PREVIEW_COUNT,
+      );
+    } catch (error) {
+      console.warn("Failed to load comment preview:", error);
+      if (await redirectIfSessionExpired(error, router)) return;
+      setCommentError("Không thể tải bình luận. Vui lòng thử lại.");
+      setComments([]);
+      setHasMoreComments(false);
+      setIsCommentBlocked(false);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  }, [post]);
+
   useEffect(() => {
     loadPost();
   }, [loadPost]);
+
+  useEffect(() => {
+    loadCommentPreview();
+  }, [loadCommentPreview]);
 
   const handleToggleLike = async () => {
     if (!post) return;
@@ -98,6 +160,10 @@ export default function PostDetailScreen() {
     session?.id &&
     post.author.id === session.id &&
     session.role === "HV";
+  const visibleCommentCount = Math.max(
+    Number(post?.commentCount) || 0,
+    comments.length,
+  );
 
   const handleDeletePost = () => {
     router.replace("/(tabs)/home");
@@ -199,12 +265,78 @@ export default function PostDetailScreen() {
           detail={true}
           flat
           onToggleLike={handleToggleLike}
-          onPressComment={() => router.push(`/post/comment/${post.id}`)}
+          onPressComment={openComments}
           onSubmitExercise={handleSubmitExercise}
           onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
           onDeletePost={handleDeletePost}
           onReportPost={handleReportPost}
         />
+
+        <View style={postStyles.detailCommentsSection}>
+          <View style={postStyles.detailCommentsHeader}>
+            <Text style={postStyles.detailCommentsTitle}>Bình luận</Text>
+            {visibleCommentCount > 0 ? (
+              <Text style={postStyles.detailCommentsCount}>
+                {visibleCommentCount} bình luận
+              </Text>
+            ) : null}
+          </View>
+
+          {isLoadingComments ? (
+            <View style={postStyles.detailCommentSkeletons}>
+              <SkeletonComment />
+              <SkeletonComment />
+            </View>
+          ) : commentError ? (
+            <View style={postStyles.detailCommentsState}>
+              <Text style={postStyles.warningText}>{commentError}</Text>
+            </View>
+          ) : comments.length > 0 ? (
+            <View style={postStyles.detailCommentList}>
+              {comments.map((comment) => (
+                <CommentComponent key={comment.id} comment={comment} />
+              ))}
+            </View>
+          ) : (
+            <Text style={postStyles.detailCommentsEmpty}>
+              Chưa có bình luận nào.
+            </Text>
+          )}
+
+          {hasMoreComments ? (
+            <Pressable
+              onPress={openComments}
+              style={({ pressed }) => [
+                postStyles.detailLoadMoreComments,
+                pressed && postStyles.detailLoadMoreCommentsPressed,
+              ]}
+              accessibilityRole="button"
+            >
+              <Text style={postStyles.detailLoadMoreCommentsText}>
+                Xem thêm bình luận
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {post.canComment === false || isCommentBlocked ? (
+            <Text style={postStyles.detailCommentsLocked}>
+              Bài viết này hiện không thể bình luận.
+            </Text>
+          ) : (
+            <Pressable
+              onPress={openComments}
+              style={({ pressed }) => [
+                postStyles.detailCommentComposerLink,
+                pressed && postStyles.detailCommentComposerLinkPressed,
+              ]}
+              accessibilityRole="button"
+            >
+              <Text style={postStyles.detailCommentComposerText}>
+                Viết bình luận...
+              </Text>
+            </Pressable>
+          )}
+        </View>
 
         {statusText ? (
           <View style={postStyles.detailStatus}>
