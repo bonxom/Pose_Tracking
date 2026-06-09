@@ -149,9 +149,7 @@ function buildAddPostFields(session, params = {}) {
     : "";
   const fields = {
     token: session.token,
-    described: appendHashtagsToContent(params.content || "", [
-      generatedHashtag,
-    ]),
+    described: appendHashtagsToContent(params.content, [generatedHashtag]),
     course_id: params.courseId || "",
     device_slave: DEFAULT_DEVICE_TOKEN,
     device_master: DEFAULT_DEVICE_TOKEN,
@@ -554,6 +552,7 @@ export async function createPost(params) {
   const videos = params.videos || [];
   const allowServer = shouldUsePostApi(session);
   const createdAt = params.createdAt || new Date().toISOString();
+  const described = String(params.described ?? params.content ?? "").trim();
   const authorUsername =
     params.hashtagUsername ||
     session?.username ||
@@ -565,13 +564,14 @@ export async function createPost(params) {
     : buildPostHashtag({
         username: authorUsername,
         createdAt,
-        described: params.content || "",
+        described,
       });
   const hashtags = mergeHashtags([generatedHashtag], params.hashtags || []);
 
   if (!allowServer) {
     return localPosts.createPost({
       content: params.content || "",
+      described,
       videos,
       courseId: params.courseId || "",
       exerciseId: params.exerciseId || "",
@@ -605,7 +605,7 @@ export async function createPost(params) {
         id: String(response?.data?.id || response?.data?.post_id || Date.now()),
         source: ACTIVE_SOURCES.SERVER,
         content: params.content || "",
-        described: params.content || "",
+        described,
         videos,
         author: {
           id: session.id,
@@ -646,14 +646,16 @@ export async function createExerciseSubmission(params) {
     params.teacherUsername || params.hashtagUsername || "";
   const submissionContent =
     String(params.content || "").trim() || "Nộp bài tập.";
+  const submissionDescribed =
+    String(params.described || "").trim() || submissionContent;
   const generatedHashtag = params.generatedHashtag
     ? mergeHashtags([params.generatedHashtag])[0] || ""
     : buildPostHashtag({
         username: teacherUsername,
         createdAt,
-        described: params.content || "",
+        described: submissionDescribed,
       });
-  //console.log("@@@@@@@@@@@@@@@@@ generated hashtag: ", generatedHashtag);
+  console.log("@@@@@@@@@@@@@@@@@ generated hashtag: ", generatedHashtag);
   const hashtags = mergeHashtags(
     [generatedHashtag],
     [params.courseId || "", params.exerciseId || ""],
@@ -662,6 +664,7 @@ export async function createExerciseSubmission(params) {
   if (!allowServer) {
     return localPosts.createExerciseSubmission({
       content: submissionContent,
+      described: submissionDescribed,
       videos,
       courseId: params.courseId || "",
       exerciseId: params.exerciseId || "",
@@ -680,6 +683,7 @@ export async function createExerciseSubmission(params) {
       buildAddPostFields(session, {
         ...params,
         content: submissionContent,
+        described: submissionDescribed,
         createdAt,
         hashtagUsername: teacherUsername,
         hashtags,
@@ -697,6 +701,7 @@ export async function createExerciseSubmission(params) {
       buildAddPostFields(session, {
         ...params,
         content: submissionContent,
+        described: submissionDescribed,
         createdAt,
         hashtagUsername: teacherUsername,
         hashtags,
@@ -715,7 +720,7 @@ export async function createExerciseSubmission(params) {
         id: String(response?.data?.id || response?.data?.post_id || Date.now()),
         source: ACTIVE_SOURCES.SERVER,
         content: submissionContent,
-        described: submissionContent,
+        described: submissionDescribed,
         videos,
         author: {
           id: session.id,

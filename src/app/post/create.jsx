@@ -394,6 +394,9 @@ export default function CreatePostScreen() {
         const newPost = isSubmissionMode
           ? await createExerciseSubmission({
               content: trimmedContent,
+              described: String(
+                sourcePost?.described || sourcePost?.content || "",
+              ),
               videos: completeVideos,
               courseId: String(params.courseId || ""),
               exerciseId: String(params.exerciseId || exercise?.id || ""),

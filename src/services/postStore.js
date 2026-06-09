@@ -216,6 +216,7 @@ export async function getPostById(postId) {
 
 export async function createPost({
   content,
+  described = "",
   videos = [],
   courseId = "",
   exerciseId = "",
@@ -234,6 +235,7 @@ export async function createPost({
   const session = await getAuthSession();
 
   const trimmedContent = content.trim();
+  const trimmedDescribed = String(described || content || "").trim();
   const normalizedVideos = videos
     .filter(Boolean)
     .slice(0, 2)
@@ -260,7 +262,7 @@ export async function createPost({
     : buildPostHashtag({
         username: hashtagUsername || authorName,
         createdAt: normalizedCreatedAt,
-        described: trimmedContent,
+        described: trimmedDescribed,
       });
   const mergedHashtags = mergeHashtags([teacherHashtag], hashtags);
 
@@ -276,7 +278,7 @@ export async function createPost({
     },
     createdAt: normalizedCreatedAt,
     content: trimmedContent,
-    described: trimmedContent,
+    described: trimmedDescribed,
     videos: normalizedVideos,
     likeCount: 0,
     isLiked: false,
@@ -379,6 +381,7 @@ function buildScoringComment(
 
 export async function createExerciseSubmission({
   content = "",
+  described = "",
   courseId = "",
   exerciseId = "",
   createdAt = "",
@@ -398,17 +401,19 @@ export async function createExerciseSubmission({
   const scoringComment = buildScoringComment(scoreTemplate);
   const normalizedVideos = videos.filter(Boolean).slice(0, 2);
   const body = content.trim() ? content.trim() : "Nộp bài tập.";
+  const submissionDescribed = String(described || "").trim() || body;
   const normalizedCreatedAt = createdAt || new Date().toISOString();
   const normalizedGeneratedHashtag =
     mergeHashtags([generatedHashtag])[0] ||
     buildPostHashtag({
       username: teacherUsername,
       createdAt: normalizedCreatedAt,
-      described: body,
+      described: submissionDescribed,
     });
 
   return createPost({
     content: body,
+    described: submissionDescribed,
     videos: normalizedVideos,
     courseId,
     exerciseId,
