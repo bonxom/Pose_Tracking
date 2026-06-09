@@ -69,12 +69,11 @@ async function safeJson(response) {
 }
 
 async function request(path, body = {}, options = {}) {
-  if (API_TYPE === API_TYPES.MOCK) {
-    throw new ApiError("Backend requests are disabled in mock mode", {
-      code: "MOCK_MODE_BACKEND_DISABLED",
-    });
+  if (path === "/add_post") {
+    console.log("-------------------------------------");
+    console.log(path);
+    console.log("BODY: ", JSON.stringify(body, null, 2));
   }
-
   const controller = new AbortController();
   const timeoutId = setTimeout(
     () => controller.abort(),
@@ -111,7 +110,7 @@ async function request(path, body = {}, options = {}) {
     logApi("response", { path, status: response.status, code: data?.code });
 
     if (!response.ok) {
-      throw new ApiError("Backend request failed", {
+      throw new ApiError("Vui lòng kiểm tra kết nối Internet", {
         status: response.status,
         code: data?.code || "HTTP_ERROR",
         data,
@@ -124,14 +123,9 @@ async function request(path, body = {}, options = {}) {
       throw error;
     }
 
-    throw new ApiError(
-      error.name === "AbortError"
-        ? "Backend request timed out"
-        : "Backend unreachable",
-      {
-        code: error.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR",
-      },
-    );
+    throw new ApiError("Vui lòng kiểm tra kết nối Internet", {
+      code: error.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR",
+    });
   } finally {
     clearTimeout(timeoutId);
   }
@@ -198,6 +192,8 @@ export async function postMultipart(
       type: file.mimeType || file.type || "video/mp4",
     });
   });
+
+  // console.log("form data: ", JSON.stringify(formData, null, 2));
 
   return request(path, formData, { ...options, transport: "multipart" });
 }

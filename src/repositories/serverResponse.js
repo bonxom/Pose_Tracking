@@ -45,6 +45,8 @@ export async function assertBackendOk(response, options = {}) {
   }
 
   throw new Error(
-    response?.message || options.message || "Backend request failed",
+    response?.message ||
+      options.message ||
+      "Vui lòng kiểm tra kết nối Internet",
   );
 }

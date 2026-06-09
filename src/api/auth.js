@@ -9,7 +9,10 @@ function isOk(response) {
   );
 }
 
-function backendError(response, fallbackMessage = "Backend request failed") {
+function backendError(
+  response,
+  fallbackMessage = "Vui lòng kiểm tra kết nối Internet",
+) {
   return {
     code: String(response?.code || "BACKEND_ERROR"),
     message:
