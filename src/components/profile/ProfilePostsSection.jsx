@@ -2,12 +2,13 @@ import UserAvatar from "@/components/common/UserAvatar";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import PostCard from "@/components/post/PostCard";
 import PostUploadingCard from "@/components/post/PostUploadingCard";
+import FeedLoadingCard from "@/components/post/FeedLoadingCard";
 import colors from "@/constants/colors";
 import profileStyles from "@/styles/profile.styles";
 import homeStyles from "@/styles/home.styles";
 import { router } from "expo-router";
-import { useMemo, useEffect, useRef } from "react";
-import { FlatList, Pressable, RefreshControl, Text, View, Animated } from "react-native";
+import { useMemo } from "react";
+import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 
 function EmptyState({ icon, title, body }) {
   return (
@@ -32,48 +33,6 @@ function ComposerCard({ profile }) {
         </Pressable>
       </View>
     </View>
-  );
-}
-
-function FeedLoadingCard() {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  }, [animatedValue]);
-
-  return (
-    <Animated.View
-      style={[
-        homeStyles.loadingCard,
-        {
-          opacity: animatedValue,
-          transform: [
-            {
-              translateY: animatedValue.interpolate({
-                inputRange: [0, 1],
-                outputRange: [12, 0],
-              }),
-            },
-          ],
-        },
-      ]}
-    >
-      <View style={homeStyles.loadingHeader}>
-        <View style={homeStyles.loadingAvatar} />
-        <View style={homeStyles.loadingMeta}>
-          <View style={homeStyles.loadingLinePrimary} />
-          <View style={homeStyles.loadingLineSecondary} />
-        </View>
-      </View>
-      <View style={homeStyles.loadingBlock} />
-      <View style={homeStyles.loadingLineTertiary} />
-      <View style={homeStyles.loadingLineSecondary} />
-    </Animated.View>
   );
 }
 
