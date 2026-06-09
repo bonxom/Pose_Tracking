@@ -12,6 +12,12 @@ const postStyles = StyleSheet.create({
     padding: 0,
     backgroundColor: colors.surface,
   },
+  detailBody: {
+    flex: 1,
+  },
+  detailScrollView: {
+    flex: 1,
+  },
   detailHeader: {
     minHeight: 56,
     paddingHorizontal: sizes.md,
@@ -48,7 +54,7 @@ const postStyles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingHorizontal: sizes.md,
     paddingTop: sizes.md,
-    paddingBottom: sizes.lg,
+    paddingBottom: sizes.md,
     gap: sizes.sm,
   },
   detailCommentsHeader: {
@@ -108,11 +114,22 @@ const postStyles = StyleSheet.create({
     color: colors.subtext,
   },
   detailInlineComposer: {
-    paddingTop: sizes.xs,
+    paddingTop: 0,
     paddingBottom: 0,
   },
   detailInlineComposerInput: {
     marginBottom: 0,
+  },
+  detailBottomComposerBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.white,
+    borderTopWidth: sizes.borderWidth,
+    borderTopColor: colors.border,
+    paddingHorizontal: sizes.md,
+    paddingTop: sizes.md,
   },
   detailCommentsLocked: {
     fontSize: 13,

@@ -32,6 +32,7 @@ export default function CommentComposer({
   disabledText = "Bài viết này hiện không thể bình luận.",
   autoFocus = false,
   onFocus,
+  onLayout,
   containerStyle,
   inputContainerStyle,
   showCharacterCount = true,
@@ -46,6 +47,10 @@ export default function CommentComposer({
     setIsReactionPickerVisible((current) => !current);
   };
 
+  const handleDismissReactionPicker = () => {
+    setIsReactionPickerVisible(false);
+  };
+
   const handleSelectReaction = (reaction) => {
     onChangeText?.(value?.trim()?.length ? `${value} ${reaction}` : reaction);
     inputRef?.current?.focus();
@@ -53,16 +58,24 @@ export default function CommentComposer({
 
   if (disabled) {
     return (
-      <View style={[styles.composer, containerStyle]}>
+      <View onLayout={onLayout} style={[styles.composer, containerStyle]}>
         <Text style={postStyles.subtitle}>{disabledText}</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.composer, containerStyle]}>
+    <View onLayout={onLayout} style={[styles.composer, containerStyle]}>
       {isReactionPickerVisible ? (
-        <CommentReactionPicker onSelectReaction={handleSelectReaction} />
+        <>
+          <Pressable
+            style={styles.reactionDismissOverlay}
+            onPress={handleDismissReactionPicker}
+            accessibilityRole="button"
+            accessibilityLabel="Đóng bảng cảm xúc"
+          />
+          <CommentReactionPicker onSelectReaction={handleSelectReaction} />
+        </>
       ) : null}
 
       <View style={styles.composerRow}>
