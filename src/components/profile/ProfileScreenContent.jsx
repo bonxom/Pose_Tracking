@@ -491,8 +491,19 @@ export default function ProfileScreenContent({ userId = "" }) {
           if (!isActive) return;
 
           if (isProfileCacheValidForSession(cached, session)) {
-            profileCacheState[userId] = cached;
-            setProfile(cached.profile);
+            const mergedProfile = mergeOwnProfileWithSession(
+              cached.profile,
+              session || {},
+            );
+            const mergedCache = {
+              ...cached,
+              profile: mergedProfile,
+            };
+            profileCacheState[userId] = mergedCache;
+            if (cacheKey) {
+              writeCache(cacheKey, mergedCache);
+            }
+            setProfile(mergedProfile);
             setPosts(cached.posts || []);
           }
           setIsLoading(false);
@@ -558,6 +569,7 @@ export default function ProfileScreenContent({ userId = "" }) {
       if (result.canceled || !result.assets?.length) return;
 
       const uri = result.assets[0].uri;
+      const previousProfileSnapshot = profile;
       const nextProfile =
         type === "avatar"
           ? { ...profile, avatar: uri }
@@ -577,6 +589,8 @@ export default function ProfileScreenContent({ userId = "" }) {
         userName: profile.displayName || profile.username,
         avatar: nextProfile.avatar,
         coverImage: nextProfile.coverImage,
+      }, {
+        previousProfileSnapshot,
       });
     } catch (error) {
       Alert.alert(

@@ -81,6 +81,41 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
   const syncState = String(session?.profileSyncStatus || "").trim();
   const shouldPreferSession =
     syncState === "pending" || syncState === "error" || !profile?.id;
+  const hasOwnField = (target, fieldName) =>
+    Object.prototype.hasOwnProperty.call(target || {}, fieldName);
+  const firstDefinedValue = (...values) =>
+    values.find((value) => value !== undefined && value !== null);
+  const pickProfileField = (
+    sessionFields = [],
+    profileFields = [],
+    fallback = "",
+  ) => {
+    if (shouldPreferSession) {
+      if (sessionFields.some((fieldName) => hasOwnField(session, fieldName))) {
+        return firstDefinedValue(
+          ...sessionFields.map((fieldName) => session?.[fieldName]),
+          fallback,
+        );
+      }
+
+      return firstDefinedValue(
+        ...profileFields.map((fieldName) => profile?.[fieldName]),
+        fallback,
+      );
+    }
+
+    if (profileFields.some((fieldName) => hasOwnField(profile, fieldName))) {
+      return firstDefinedValue(
+        ...profileFields.map((fieldName) => profile?.[fieldName]),
+        fallback,
+      );
+    }
+
+    return firstDefinedValue(
+      ...sessionFields.map((fieldName) => session?.[fieldName]),
+      fallback,
+    );
+  };
 
   return {
     ...profile,
@@ -92,46 +127,20 @@ export function mergeOwnProfileWithSession(profile = {}, session = {}) {
       session?.identifier,
       "",
     ),
-    username: shouldPreferSession
-      ? firstValue(
-          session?.username,
-          session?.displayName,
-          profile?.username,
-          profile?.displayName,
-          "",
-        )
-      : firstValue(
-          profile?.username,
-          profile?.displayName,
-          session?.username,
-          session?.displayName,
-          "",
-        ),
-    displayName: shouldPreferSession
-      ? firstValue(
-          session?.displayName,
-          session?.username,
-          profile?.displayName,
-          profile?.username,
-          "",
-        )
-      : firstValue(
-          profile?.displayName,
-          profile?.username,
-          session?.displayName,
-          session?.username,
-          "",
-        ),
-    avatar: shouldPreferSession
-      ? firstValue(session?.avatar, profile?.avatar, "")
-      : firstValue(profile?.avatar, session?.avatar, ""),
-    coverImage: shouldPreferSession
-      ? firstValue(session?.coverImage, profile?.coverImage, "")
-      : firstValue(profile?.coverImage, session?.coverImage, ""),
+    username: pickProfileField(
+      ["username", "displayName"],
+      ["username", "displayName"],
+      "",
+    ),
+    displayName: pickProfileField(
+      ["displayName", "username"],
+      ["displayName", "username"],
+      "",
+    ),
+    avatar: pickProfileField(["avatar"], ["avatar"], ""),
+    coverImage: pickProfileField(["coverImage"], ["coverImage"], ""),
     description: normalizeOptionalText(
-      shouldPreferSession
-        ? firstValue(session?.description, profile?.description, "")
-        : firstValue(profile?.description, session?.description, ""),
+      pickProfileField(["description"], ["description"], ""),
       150,
     ),
     address: shouldPreferSession
@@ -187,8 +196,11 @@ export function validateProfileUserName(value = "") {
   if (/\d/.test(userName)) {
     return "Tên người dùng không được chứa số.";
   }
-  if (!/^[\p{L}_\s]+$/u.test(userName)) {
-    return "Tên người dùng chỉ được chứa chữ cái, khoảng trắng và dấu gạch dưới.";
+  if (/\s/.test(userName)) {
+    return "Tên người dùng không được chứa khoảng trắng.";
+  }
+  if (!/^[\p{L}_]+$/u.test(userName)) {
+    return "Tên người dùng chỉ được chứa chữ cái và dấu gạch dưới.";
   }
 
   return "";
