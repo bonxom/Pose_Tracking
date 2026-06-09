@@ -11,6 +11,7 @@ import colors from "@/constants/colors";
 import {
   deleteConversation,
   getConversationList,
+  isConversationAuthError,
   markConversationRead,
   subscribeConversations,
 } from "@/repositories/conversationRepository";
@@ -65,6 +66,23 @@ function formatMessageTime(dateString) {
   return `${d.getDate()} thg ${d.getMonth() + 1}`;
 }
 
+async function redirectIfConversationAuthError(error, router) {
+  if (!isConversationAuthError(error)) {
+    return redirectIfSessionExpired(error, router);
+  }
+
+  const sessionError = Object.assign(
+    new Error(error?.message || "Session expired"),
+    error,
+    {
+      name: "SessionExpiredError",
+      sessionExpired: true,
+    },
+  );
+
+  return redirectIfSessionExpired(sessionError, router);
+}
+
 export default function ConversationsScreen() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
@@ -90,8 +108,16 @@ export default function ConversationsScreen() {
     try {
       await getConversationList();
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
-      setError(err.message);
+      console.log("CONVERSATION_LIST_LOAD_ERROR", {
+        message: err?.message,
+        status: err?.status,
+        code: err?.code,
+        data: err?.data,
+      });
+
+      if (await redirectIfConversationAuthError(err, router)) return;
+
+      setError(err?.message || "Không tải được danh sách trò chuyện.");
     }
   }, []);
 
@@ -113,8 +139,15 @@ export default function ConversationsScreen() {
       await getConversationList();
       setError("");
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
-      setError(err.message || "Không thể tải dữ liệu.");
+      console.log("CONVERSATION_LIST_REFRESH_ERROR", {
+        message: err?.message,
+        status: err?.status,
+        code: err?.code,
+        data: err?.data,
+      });
+
+      if (await redirectIfConversationAuthError(err, router)) return;
+      setError(err?.message || "Không tải được danh sách trò chuyện.");
     } finally {
       setIsRefreshing(false);
     }
@@ -156,7 +189,8 @@ export default function ConversationsScreen() {
     }
 
     markConversationRead(conversationId).catch(async (err) => {
-      if (await redirectIfSessionExpired(err, router)) return;
+      if (await redirectIfConversationAuthError(err, router)) return;
+
       console.warn("Failed to mark conversation read:", err?.message);
     });
 
@@ -167,7 +201,7 @@ export default function ConversationsScreen() {
     try {
       await deleteConversation(item.id);
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
+      if (await redirectIfConversationAuthError(err, router)) return;
       setError(err.message || "Không thể xóa cuộc trò chuyện.");
     }
   };

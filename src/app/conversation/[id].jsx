@@ -8,6 +8,7 @@ import sizes from "@/constants/sizes";
 import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import {
   getConversation,
+  isConversationAuthError,
   markConversationRead,
   sendMessage,
 } from "@/repositories/conversationRepository";
@@ -37,6 +38,23 @@ const PAGE_SIZE = 20;
 const JUMP_COUNT = 500;
 const AVATAR_SIZE = 28;
 const KEYBOARD_SCROLL_DELAY_MS = 120;
+
+async function redirectIfConversationAuthError(error, router) {
+  if (!isConversationAuthError(error)) {
+    return redirectIfSessionExpired(error, router);
+  }
+
+  const sessionError = Object.assign(
+    new Error(error?.message || "Session expired"),
+    error,
+    {
+      name: "SessionExpiredError",
+      sessionExpired: true,
+    },
+  );
+
+  return redirectIfSessionExpired(sessionError, router);
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -401,6 +419,8 @@ export default function ConversationDetailScreen() {
           ),
         );
       } catch (error) {
+        if (await redirectIfConversationAuthError(error, router)) return;
+
         console.warn("Failed to verify blocked partner:", error?.message);
         setBlockedByMe(false);
       }
@@ -449,7 +469,7 @@ export default function ConversationDetailScreen() {
             setHasLatest(data.messages.length < PAGE_SIZE);
             if (data.id) {
               markConversationRead(data.id).catch(async (error) => {
-                if (await redirectIfSessionExpired(error, router)) return;
+                if (await redirectIfConversationAuthError(error, router)) return;
                 console.warn(
                   "Failed to mark partner conversation read:",
                   error?.message,
@@ -458,7 +478,9 @@ export default function ConversationDetailScreen() {
             }
             await updateBlockedByMe(data);
             return;
-          } catch (_error) {
+          } catch (error) {
+            if (await redirectIfConversationAuthError(error, router)) return;
+
             const profile = await getUserInfo(partnerId);
 
             const nextConversation = {
@@ -497,14 +519,14 @@ export default function ConversationDetailScreen() {
 
         if (data.id || routeId) {
           markConversationRead(data.id || routeId).catch(async (error) => {
-            if (await redirectIfSessionExpired(error, router)) return;
+            if (await redirectIfConversationAuthError(error, router)) return;
             console.warn("Failed to mark conversation read:", error?.message);
           });
         }
 
         await updateBlockedByMe(data);
       } catch (error) {
-        if (await redirectIfSessionExpired(error, router)) return;
+        if (await redirectIfConversationAuthError(error, router)) return;
       }
     };
     init();
@@ -576,7 +598,7 @@ export default function ConversationDetailScreen() {
         setShowJumpButton(false);
       }
     } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
+      if (await redirectIfConversationAuthError(error, router)) return;
     } finally {
       setIsLoadingMore(false);
     }
@@ -597,7 +619,7 @@ export default function ConversationDetailScreen() {
       setShowJumpButton(false);
       scheduleScrollToConversationEnd(true, 80);
     } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
+      if (await redirectIfConversationAuthError(error, router)) return;
     }
   };
 
@@ -703,7 +725,7 @@ export default function ConversationDetailScreen() {
         messages: prev.messages.filter((m) => m.id !== tempId),
       }));
       setTotalLoaded((n) => n - 1);
-      if (await redirectIfSessionExpired(error, router)) return;
+      if (await redirectIfConversationAuthError(error, router)) return;
     } finally {
       setIsSending(false);
     }
@@ -770,7 +792,7 @@ export default function ConversationDetailScreen() {
         isBlocked: "0",
       }));
     } catch (error) {
-      if (await redirectIfSessionExpired(error, router)) return;
+      if (await redirectIfConversationAuthError(error, router)) return;
 
       Alert.alert("Không thể bỏ chặn", error?.message || "Đã có lỗi xảy ra.");
     }
