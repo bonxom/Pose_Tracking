@@ -13,7 +13,8 @@
     "mobile:tunnel": "expo start --tunnel",
     "backend:probe": "node scripts/probe-backend.mjs",
     "e2e:server": "node scripts/e2e-server.mjs",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "push:test": "node scripts/send-push.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
