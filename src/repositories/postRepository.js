@@ -65,9 +65,7 @@ function normalizeReportPayload(report = "") {
 }
 
 function isPostUnavailableResponse(response) {
-  return ["1010", "9992"].includes(
-    String(response?.code || response?.status || ""),
-  );
+  return ["9992"].includes(String(response?.code || response?.status || ""));
 }
 
 function isUnavailableFlag(value) {

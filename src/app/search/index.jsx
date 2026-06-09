@@ -14,6 +14,7 @@ import {
   searchScreenSearch,
 } from "@/repositories/searchRepository";
 import searchStyles from "@/styles/search.styles";
+import { isPostReported } from "@/state/feedCacheState";
 import {
   PAGE_SIZE,
   SEARCH_TABS,
@@ -189,6 +190,14 @@ export default function SearchScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setPosts((current) => {
+        const filtered = current.filter((item) => !isPostReported(item.id));
+        if (filtered.length !== current.length) {
+          searchScreenCache.posts = filtered;
+        }
+        return filtered;
+      });
+
       loadSavedSearches().catch((bootstrapError) => {
         setError(bootstrapError.message || "Không thể khởi tạo tìm kiếm.");
       });
@@ -236,9 +245,13 @@ export default function SearchScreen() {
 
         startTransition(() => {
           setPosts((current) => {
-            if (!append) return result.posts;
+            if (!append) return result.posts.filter((item) => !isPostReported(item.id));
             const map = new Map(current.map((item) => [item.id, item]));
-            result.posts.forEach((item) => map.set(item.id, item));
+            result.posts.forEach((item) => {
+              if (!isPostReported(item.id)) {
+                map.set(item.id, item);
+              }
+            });
             return Array.from(map.values());
           });
 
@@ -373,6 +386,15 @@ export default function SearchScreen() {
     [runSearch],
   );
 
+  const handleReportPost = useCallback((postId) => {
+    if (!postId) return;
+    setPosts((current) => {
+      const next = current.filter((item) => item.id !== postId);
+      searchScreenCache.posts = next;
+      return next;
+    });
+  }, []);
+
   const renderPostItem = useCallback(
     ({ item }) => (
       <SearchPostRow
@@ -380,9 +402,10 @@ export default function SearchScreen() {
         onPressPost={handlePressPost}
         onToggleLike={handleToggleLike}
         onPressComment={handlePressPostComment}
+        onReportPost={(reportedPostId) => handleReportPost(reportedPostId || item.id)}
       />
     ),
-    [handlePressPost, handlePressPostComment, handleToggleLike],
+    [handlePressPost, handlePressPostComment, handleToggleLike, handleReportPost],
   );
 
   const keyExtractor = useCallback((item) => item.id, []);

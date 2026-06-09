@@ -143,6 +143,7 @@ export const SearchPostRow = memo(function SearchPostRow({
   onPressPost,
   onToggleLike,
   onPressComment,
+  onReportPost,
 }) {
   return (
     <PostCard
@@ -150,6 +151,7 @@ export const SearchPostRow = memo(function SearchPostRow({
       onPress={() => onPressPost(item)}
       onToggleLike={() => onToggleLike(item)}
       onPressComment={() => onPressComment(item)}
+      onReportPost={onReportPost}
     />
   );
 });

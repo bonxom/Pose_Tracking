@@ -12,7 +12,7 @@ import {
   consumeFinishedUploadedPosts,
   subscribePostUploading,
 } from "@/services/postUploadingStore";
-import { feedCacheState } from "@/state/feedCacheState";
+import { feedCacheState, isPostReported } from "@/state/feedCacheState";
 import { profileCacheState } from "@/state/profileCacheState";
 import homeStyles from "@/styles/home.styles";
 import { CACHE_KEY_HOME_FEED, readCache, writeCache } from "@/utils/cacheStore";
@@ -74,7 +74,7 @@ export default function HomeScreen() {
           count: FEED_PAGE_SIZE,
           lastId: "",
         });
-        const nextItems = result.items || [];
+        const nextItems = (result.items || []).filter(item => !isPostReported(item.id));
         const hadCachedPosts = feedCacheState.homeFeedCache.length > 0;
         const mergedFeed =
           !refresh && hadCachedPosts
@@ -120,6 +120,11 @@ export default function HomeScreen() {
     useCallback(() => {
       // In-memory cache already populated → render instantly, refresh in background
       if (feedCacheState.homeFeedCache.length > 0) {
+        const filteredCache = feedCacheState.homeFeedCache.filter(item => !isPostReported(item.id));
+        if (filteredCache.length !== feedCacheState.homeFeedCache.length) {
+          feedCacheState.homeFeedCache = filteredCache;
+        }
+        setPosts(filteredCache);
         setIsLoading(false);
         loadPosts();
         return;
@@ -129,9 +134,10 @@ export default function HomeScreen() {
       if (!diskCacheLoadedRef.current) {
         diskCacheLoadedRef.current = true;
         readCache(CACHE_KEY_HOME_FEED).then((cached) => {
-          if (cached?.length > 0 && feedCacheState.homeFeedCache.length === 0) {
-            feedCacheState.homeFeedCache = cached;
-            setPosts(cached);
+          const filteredCached = (cached || []).filter(item => !isPostReported(item.id));
+          if (filteredCached.length > 0 && feedCacheState.homeFeedCache.length === 0) {
+            feedCacheState.homeFeedCache = filteredCached;
+            setPosts(filteredCached);
             setIsLoading(false);
           }
           // Either way, fetch fresh data in background
@@ -156,14 +162,14 @@ export default function HomeScreen() {
         lastId,
       });
 
-      let nextItems = result.items || [];
+      let nextItems = (result.items || []).filter(item => !isPostReported(item.id));
       if (nextItems.length === 0 && posts.length >= FEED_PAGE_SIZE) {
         result = await getFeedPage({
           index: posts.length,
           count: FEED_PAGE_SIZE,
           lastId,
         });
-        nextItems = result.items || [];
+        nextItems = (result.items || []).filter(item => !isPostReported(item.id));
       }
 
       if (nextItems.length === 0) {
@@ -365,6 +371,25 @@ export default function HomeScreen() {
     });
   }, []);
 
+  const handleReportPost = useCallback((postId) => {
+    if (!postId) return;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPosts((current) => {
+      const next = current.filter((item) => item.id !== postId);
+      feedCacheState.homeFeedCache = next;
+      return next;
+    });
+
+    // Sync with profile cache
+    Object.keys(profileCacheState).forEach((uId) => {
+      const cache = profileCacheState[uId];
+      if (cache?.posts) {
+        cache.posts = cache.posts.filter((item) => item.id !== postId);
+      }
+    });
+  }, []);
+
   const feedItems = useMemo(() => {
     const uploadingItems = uploadingCards.map((item) => ({
       id: item.id,
@@ -435,6 +460,9 @@ export default function HomeScreen() {
                 onSubmitExercise={() => handleSubmitExercise(item)}
                 onDeletePost={(deletedPostId) =>
                   handleDeletePost(deletedPostId || item.id)
+                }
+                onReportPost={(reportedPostId) =>
+                  handleReportPost(reportedPostId || item.id)
                 }
               />
             )

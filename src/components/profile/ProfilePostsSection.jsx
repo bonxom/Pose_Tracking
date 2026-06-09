@@ -49,6 +49,7 @@ export default function ProfilePostsSection({
   onToggleLike,
   onSubmitExercise,
   onDeletePost,
+  onReportPost,
   headerComponent,
 }) {
   const feedItems = useMemo(() => {
@@ -101,6 +102,7 @@ export default function ProfilePostsSection({
             onDeletePost={(deletedPostId) =>
               onDeletePost?.(deletedPostId || item.id)
             }
+            onReportPost={onReportPost}
           />
         )
       }

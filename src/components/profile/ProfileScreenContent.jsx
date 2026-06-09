@@ -23,7 +23,7 @@ import {
   writeCache,
 } from "@/utils/cacheStore";
 import { profileCacheState } from "@/state/profileCacheState";
-import { feedCacheState } from "@/state/feedCacheState";
+import { feedCacheState, isPostReported } from "@/state/feedCacheState";
 import { getAuthSession, saveAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import * as ImagePicker from "expo-image-picker";
@@ -129,7 +129,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           });
 
           const nextProfile = { ...user, isOwnProfile };
-          const nextPosts = postPage.items || [];
+          const nextPosts = (postPage.items || []).filter((item) => !isPostReported(item.id));
           const ownerKey = isOwnProfile
             ? getProfileCacheOwnerKey(session || nextProfile)
             : "";
@@ -151,6 +151,9 @@ export default function ProfileScreenContent({ userId = "" }) {
           const hadCachedPosts =
             profileCacheState[userId] &&
             profileCacheState[userId].posts?.length > 0;
+          if (hadCachedPosts) {
+            profileCacheState[userId].posts = profileCacheState[userId].posts.filter(item => !isPostReported(item.id));
+          }
           const mergedPosts =
             !isRefresh && hadCachedPosts
               ? mergeRefreshedFeed(profileCacheState[userId].posts, nextPosts)
@@ -255,7 +258,7 @@ export default function ProfileScreenContent({ userId = "" }) {
         includeLocked: profile?.isOwnProfile,
       });
 
-      let nextItems = result.items || [];
+      let nextItems = (result.items || []).filter((item) => !isPostReported(item.id));
       if (nextItems.length === 0 && posts.length >= 10) {
         result = await getUserPosts(targetUserId, {
           index: posts.length,
@@ -263,7 +266,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           lastId,
           includeLocked: profile?.isOwnProfile,
         });
-        nextItems = result.items || [];
+        nextItems = (result.items || []).filter((item) => !isPostReported(item.id));
       }
 
       if (nextItems.length === 0) {
@@ -336,6 +339,29 @@ export default function ProfileScreenContent({ userId = "" }) {
   };
 
   const handleDeletePost = useCallback((postId) => {
+    if (!postId) return;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPosts((current) => {
+      const next = current.filter((item) => item.id !== postId);
+      if (profileCacheState[userId]) {
+        profileCacheState[userId].posts = next;
+      }
+      if (cacheKey) {
+        writeCache(cacheKey, profileCacheState[userId]);
+      }
+      return next;
+    });
+
+    // Sync with home feed cache
+    if (feedCacheState.homeFeedCache?.length > 0) {
+      feedCacheState.homeFeedCache = feedCacheState.homeFeedCache.filter(
+        (item) => item.id !== postId,
+      );
+    }
+  }, [userId, cacheKey]);
+
+  const handleReportPost = useCallback((postId) => {
     if (!postId) return;
 
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -473,6 +499,8 @@ export default function ProfileScreenContent({ userId = "" }) {
           return;
         }
 
+        setPosts((current) => current.filter((item) => !isPostReported(item.id)));
+
         const session = await getAuthSession();
         const ownerKey = getProfileCacheOwnerKey(session);
         const memoryCache = profileCacheState[userId];
@@ -490,6 +518,9 @@ export default function ProfileScreenContent({ userId = "" }) {
         if (!isActive) return;
 
         if (hasValidMemoryCache) {
+          const filteredPosts = (memoryCache.posts || []).filter((item) => !isPostReported(item.id));
+          memoryCache.posts = filteredPosts;
+          setPosts(filteredPosts);
           setIsLoading(false);
           loadProfile(false);
           return;
@@ -501,9 +532,11 @@ export default function ProfileScreenContent({ userId = "" }) {
           if (!isActive) return;
 
           if (isProfileCacheValidForSession(cached, session)) {
-            profileCacheState[userId] = cached;
+            const filteredPosts = (cached.posts || []).filter((item) => !isPostReported(item.id));
+            const cachedFiltered = { ...cached, posts: filteredPosts };
+            profileCacheState[userId] = cachedFiltered;
             setProfile(cached.profile);
-            setPosts(cached.posts || []);
+            setPosts(filteredPosts);
           }
           setIsLoading(false);
           loadProfile(false);
@@ -682,6 +715,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           onToggleLike={handleToggleLike}
           onSubmitExercise={handleSubmitExercise}
           onDeletePost={handleDeletePost}
+          onReportPost={handleReportPost}
           headerComponent={
             <ProfileHero
               profile={profile}

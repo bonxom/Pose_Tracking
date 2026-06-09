@@ -9,6 +9,7 @@ import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { addReportedPostId } from "@/state/feedCacheState";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
 import { router } from "expo-router";
@@ -42,6 +43,7 @@ export default function PostCard({
   const { session: currentUser } = useAuthSession();
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
   const [isDeleteAnimating, setIsDeleteAnimating] = useState(false);
+  const [isReported, setIsReported] = useState(false);
   const removeAnim = useRef(new Animated.Value(1)).current;
 
   const isOwnPost = Boolean(
@@ -126,6 +128,22 @@ export default function PostCard({
     }).start(() => {
       onDeletePost?.(post?.id);
     });
+  };
+
+  const handleCloseOptions = () => {
+    setIsOptionsVisible(false);
+    if (isReported) {
+      if (isDeleteAnimating) return;
+      setIsDeleteAnimating(true);
+
+      Animated.timing(removeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(() => {
+        onReportPost?.(post?.id);
+      });
+    }
   };
 
   const handleOpenAuthorProfile = () => {
@@ -379,7 +397,7 @@ export default function PostCard({
 
       <PostOptionsSheet
         visible={isOptionsVisible}
-        onClose={() => setIsOptionsVisible(false)}
+        onClose={handleCloseOptions}
         isOwnPost={isOwnPost}
         post={post}
         postId={post?.id}
@@ -394,7 +412,10 @@ export default function PostCard({
               }
             : undefined
         }
-        onReportPost={onReportPost}
+        onReportPost={(reportedResult) => {
+          addReportedPostId(post?.id);
+          setIsReported(true);
+        }}
         onPostUnavailable={(unavailablePostId) => {
           onPostUnavailable?.(unavailablePostId || post?.id);
           if (!onPostUnavailable && onDeletePost) {

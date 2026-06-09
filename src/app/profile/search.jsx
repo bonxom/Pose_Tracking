@@ -8,6 +8,7 @@ import sizes from "@/constants/sizes";
 import { toggleLike } from "@/repositories/postRepository";
 import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
 import { profileCacheState } from "@/state/profileCacheState";
+import { isPostReported } from "@/state/feedCacheState";
 import { getAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -28,6 +29,7 @@ const SearchPostRow = memo(function SearchPostRow({
   onPressPost,
   onToggleLike,
   onPressComment,
+  onReportPost,
 }) {
   return (
     <PostCard
@@ -35,6 +37,7 @@ const SearchPostRow = memo(function SearchPostRow({
       onPress={() => onPressPost(item)}
       onToggleLike={() => onToggleLike(item)}
       onPressComment={() => onPressComment(item)}
+      onReportPost={onReportPost}
     />
   );
 });
@@ -59,6 +62,8 @@ export default function ProfileSearchScreen() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
+
+      setResults((current) => current.filter((item) => !isPostReported(item.id)));
 
       const hydrateFromSnapshot = async () => {
         const session = await getAuthSession();
@@ -133,7 +138,7 @@ export default function ProfileSearchScreen() {
     try {
       const items = await searchUserProfile(userId, normalizedKeyword);
       startTransition(() => {
-        setResults(items);
+        setResults(items.filter((item) => !isPostReported(item.id)));
       });
     } catch (searchError) {
       if (searchError.sessionExpired) {
@@ -173,6 +178,11 @@ export default function ProfileSearchScreen() {
     router.push(`/post/comment/${post.id}`);
   }, []);
 
+  const handleReportPost = useCallback((postId) => {
+    if (!postId) return;
+    setResults((current) => current.filter((item) => item.id !== postId));
+  }, []);
+
   const renderPostItem = useCallback(
     ({ item }) => (
       <SearchPostRow
@@ -180,9 +190,10 @@ export default function ProfileSearchScreen() {
         onPressPost={handlePressPost}
         onToggleLike={handleToggleLike}
         onPressComment={handlePressComment}
+        onReportPost={(reportedPostId) => handleReportPost(reportedPostId || item.id)}
       />
     ),
-    [handlePressComment, handlePressPost, handleToggleLike],
+    [handlePressComment, handlePressPost, handleToggleLike, handleReportPost],
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
