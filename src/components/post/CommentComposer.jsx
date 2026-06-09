@@ -7,10 +7,15 @@ import colors from "@/constants/colors";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import postStyles from "@/styles/post.styles";
 import commentOverlayStyles from "@/styles/post/comment-overlay.styles";
-import { resolveAvatarUri } from "@/utils/profile";
-import { Image } from "expo-image";
-import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import UserAvatar from "../common/UserAvatar";
 
 const COMMENT_INPUT_MIN_HEIGHT = 48;
 const COMMENT_INPUT_MAX_HEIGHT = 132;
@@ -37,27 +42,6 @@ export default function CommentComposer({
   );
   const [isReactionPickerVisible, setIsReactionPickerVisible] = useState(false);
 
-  const composerAvatarUri = useMemo(
-    () =>
-      resolveAvatarUri(
-        (typeof currentUser?.avatar === "string" && currentUser.avatar.trim()) ||
-          (typeof currentUser?.user?.avatar === "string" &&
-            currentUser.user.avatar.trim()) ||
-          "",
-        currentUser?.avatarVersion ||
-          currentUser?.profileSyncRequestedAt ||
-          currentUser?.loggedInAt ||
-          "",
-      ),
-    [
-      currentUser?.avatar,
-      currentUser?.avatarVersion,
-      currentUser?.loggedInAt,
-      currentUser?.profileSyncRequestedAt,
-      currentUser?.user?.avatar,
-    ],
-  );
-
   const handleToggleReactionPicker = () => {
     setIsReactionPickerVisible((current) => !current);
   };
@@ -82,15 +66,7 @@ export default function CommentComposer({
       ) : null}
 
       <View style={styles.composerRow}>
-        <View style={styles.composerAvatar}>
-          <Image
-            source={{ uri: composerAvatarUri }}
-            style={localStyles.composerAvatarImage}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={150}
-          />
-        </View>
+        <UserAvatar uri={currentUser?.avatar} size={36} />
 
         <AppInput
           ref={inputRef}

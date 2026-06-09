@@ -1,3 +1,4 @@
+import UserAvatar from "@/components/common/UserAvatar";
 import BackIcon from "@/components/icons/BackIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
 import SearchIcon from "@/components/icons/SearchIcon";
@@ -7,7 +8,6 @@ import sizes from "@/constants/sizes";
 import { toggleLike } from "@/repositories/postRepository";
 import { getUserInfo, searchUserProfile } from "@/repositories/userRepository";
 import { profileCacheState } from "@/state/profileCacheState";
-import { resolveAvatarUri } from "@/utils/profile";
 import { getAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -22,7 +22,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 
 const SearchPostRow = memo(function SearchPostRow({
   item,
@@ -43,7 +42,10 @@ const SearchPostRow = memo(function SearchPostRow({
 export default function ProfileSearchScreen() {
   const params = useLocalSearchParams();
   const userId = typeof params.userId === "string" ? params.userId : "";
-  const initialProfile = profileCacheState[userId]?.profile ?? profileCacheState[""]?.profile ?? null;
+  const initialProfile =
+    profileCacheState[userId]?.profile ??
+    profileCacheState[""]?.profile ??
+    null;
 
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState([]);
@@ -184,10 +186,6 @@ export default function ProfileSearchScreen() {
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
-  const avatarUri = resolveAvatarUri(
-    profile?.avatar || "",
-    profile?.avatarVersion || profile?.profileSyncRequestedAt || "",
-  );
   const displayName =
     profile?.displayName || profile?.username || "trang cá nhân này";
 
@@ -235,17 +233,11 @@ export default function ProfileSearchScreen() {
               </View>
             ) : (
               <View style={styles.emptyIntro}>
-                <View style={styles.avatar}>
-                  <Image
-                    source={{ uri: avatarUri }}
-                    style={styles.avatarImage}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={150}
-                  />
-                </View>
+                <UserAvatar uri={profile?.avatar} size={74} />
                 <Text style={styles.emptyTitle}>
-                  {hasSearched ? "Không tìm thấy kết quả" : "Bạn đang tìm gì à?"}
+                  {hasSearched
+                    ? "Không tìm thấy kết quả"
+                    : "Bạn đang tìm gì à?"}
                 </Text>
                 <Text style={styles.emptyText}>
                   Tìm kiếm trên trang cá nhân của {displayName} để xem bài viết,
@@ -339,10 +331,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.surfaceAccent,
     marginBottom: sizes.lg,
-  },
-  avatarImage: {
-    width: "100%",
-    height: "100%",
   },
   avatarText: {
     color: colors.brand,

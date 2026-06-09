@@ -1,42 +1,36 @@
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime } from "@/utils/formatters";
-import { resolveAvatarUri } from "@/utils/profile";
-import { useAuthSession } from "@/hooks/useAuthSession";
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Image } from "expo-image";
+import UserAvatar from "../common/UserAvatar";
 
 export default function CommentComponent({ comment }) {
   const { session: currentUser } = useAuthSession();
 
   const avatarUri = useMemo(() => {
     const authorId = String(comment?.author?.id || "").trim();
-    const isOwn = Boolean(currentUser?.id && authorId && currentUser.id === authorId);
-    if (isOwn) {
-      return resolveAvatarUri(
-        currentUser?.avatar || comment?.author?.avatar || "",
-        currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || ""
-      );
-    }
-    return resolveAvatarUri(
-      comment?.author?.avatar || "",
-      comment?.author?.avatarVersion || ""
+    const isOwn = Boolean(
+      currentUser?.id && authorId && currentUser.id === authorId,
     );
-  }, [comment?.author?.avatar, comment?.author?.avatarVersion, comment?.author?.id, currentUser?.avatar, currentUser?.avatarVersion, currentUser?.profileSyncRequestedAt, currentUser?.id]);
-
+    if (isOwn) {
+      return currentUser?.avatar || comment?.author?.avatar || "";
+    }
+    return comment?.author?.avatar || "";
+  }, [
+    comment?.author?.avatar,
+    comment?.author?.id,
+    currentUser?.avatar,
+    currentUser?.profileSyncRequestedAt,
+    currentUser?.id,
+  ]);
 
   return (
     <View style={styles.commentRow}>
       <View style={styles.avatar}>
-        <Image
-          source={{ uri: avatarUri }}
-          style={styles.avatarImage}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-        />
+        <UserAvatar uri={avatarUri} size={36} />
       </View>
 
       <View style={styles.contentColumn}>

@@ -69,7 +69,9 @@ function isSameDay(a, b) {
 }
 
 function isBlockedConversation(value) {
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
 
   return (
     value === true ||
@@ -317,7 +319,7 @@ function MessageItem({ item, myId, isLatestFromMe }) {
       {/* Avatar or invisible spacer */}
       <View style={conversationDetailStyles.avatarSlot}>
         {isGroupEnd ? (
-          <UserAvatar uri={msg.sender.avatar} size={AVATAR_SIZE} />
+          <UserAvatar uri={msg?.sender?.avatar} size={AVATAR_SIZE} />
         ) : (
           <View style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }} />
         )}
@@ -340,7 +342,7 @@ function MessageItem({ item, myId, isLatestFromMe }) {
 function EmptyConversationIntro({ partner, onOpenProfile }) {
   return (
     <View style={conversationDetailStyles.emptyConversationIntro}>
-      <UserAvatar uri={partner?.avatar} size={92} name={partner?.username} />
+      <UserAvatar uri={partner?.avatar} size={92} />
 
       <Text numberOfLines={1} style={conversationDetailStyles.emptyPartnerName}>
         {partner?.username || "Người dùng"}
@@ -375,7 +377,8 @@ function EmptyConversationIntro({ partner, onOpenProfile }) {
 export default function ConversationDetailScreen() {
   const params = useLocalSearchParams();
   const routeId = typeof params.id === "string" ? params.id : "";
-  const partnerId = typeof params.partnerId === "string" ? params.partnerId : "";
+  const partnerId =
+    typeof params.partnerId === "string" ? params.partnerId : "";
   const partnerName =
     typeof params.partnerName === "string" ? params.partnerName : "";
   const partnerAvatar =
@@ -426,7 +429,7 @@ export default function ConversationDetailScreen() {
       }
     },
     [partnerId],
-  )
+  );
 
   const scrollToConversationEnd = useCallback((animated = false) => {
     requestAnimationFrame(() => {
@@ -469,7 +472,8 @@ export default function ConversationDetailScreen() {
             setHasLatest(data.messages.length < PAGE_SIZE);
             if (data.id) {
               markConversationRead(data.id).catch(async (error) => {
-                if (await redirectIfConversationAuthError(error, router)) return;
+                if (await redirectIfConversationAuthError(error, router))
+                  return;
                 console.warn(
                   "Failed to mark partner conversation read:",
                   error?.message,
@@ -834,7 +838,10 @@ export default function ConversationDetailScreen() {
   }, [items.length, scheduleScrollToConversationEnd]);
 
   return (
-    <SafeAreaView style={conversationDetailStyles.safe} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={conversationDetailStyles.safe}
+      edges={["top", "bottom"]}
+    >
       {/* ── Header ── */}
       <View style={conversationDetailStyles.header}>
         <View style={conversationDetailStyles.headerLeft}>

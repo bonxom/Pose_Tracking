@@ -120,7 +120,7 @@ function NotificationItem({ item, onPress, nowTick }) {
       ]}
     >
       <View style={styles.avatarWrap}>
-        <UserAvatar uri={item.avatar} version={item.avatarVersion} size={58} />
+        <UserAvatar uri={item?.avatar} size={58} />
       </View>
 
       <View style={styles.notificationBody}>

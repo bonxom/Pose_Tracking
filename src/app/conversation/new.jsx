@@ -109,9 +109,7 @@ export default function NewConversationScreen() {
     } catch (suggestionError) {
       if (await redirectIfSessionExpired(suggestionError, router)) return;
 
-      setError(
-        suggestionError?.message || "Không thể tải danh sách gợi ý.",
-      );
+      setError(suggestionError?.message || "Không thể tải danh sách gợi ý.");
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -241,7 +239,7 @@ export default function NewConversationScreen() {
         ]}
       >
         <View style={styles.avatarWrap}>
-          <UserAvatar uri={item.avatar} size={42} name={item.name} />
+          <UserAvatar uri={item?.avatar} size={42} />
         </View>
 
         <View style={styles.userTextWrap}>

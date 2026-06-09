@@ -55,7 +55,7 @@ function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
   );
 }
 
-function AvatarPreview({ uri, version, name, onPick }) {
+function AvatarPreview({ uri, onPick }) {
   return (
     <View style={styles.avatarPreviewWrap}>
       <View style={styles.avatarPreview}>
@@ -76,7 +76,10 @@ function CoverPreview({ uri, version, onPick }) {
       {resolvedCoverUri ? (
         <Image
           source={{ uri: resolvedCoverUri }}
-          style={styles.previewImage}
+          style={{
+            width: "100%",
+            height: "100%",
+          }}
           contentFit="cover"
           cachePolicy="memory-disk"
           transition={150}
@@ -517,12 +520,7 @@ export default function ProfileEditScreen() {
                 title="Ảnh đại diện"
                 onPress={() => pickImage("avatar")}
               />
-              <AvatarPreview
-                uri={avatar}
-                version={avatarVersion}
-                name={username}
-                onPick={() => pickImage("avatar")}
-              />
+              <AvatarPreview uri={avatar} onPick={() => pickImage("avatar")} />
             </View>
 
             <View style={styles.section}>

@@ -196,11 +196,7 @@ export default function ConversationInfoScreen() {
           contentContainerStyle={styles.contentContainer}
         >
           <View style={styles.profileBlock}>
-            <UserAvatar
-              uri={partner.avatar}
-              size={96}
-              name={partner.username}
-            />
+            <UserAvatar uri={partner?.avatar} size={96} />
 
             <Text numberOfLines={1} style={styles.partnerName}>
               {partner.username || "Người dùng"}
@@ -246,7 +242,9 @@ export default function ConversationInfoScreen() {
               ]}
             >
               <View
-                style={blockedByMe ? styles.menuIconPrimary : styles.menuIconDanger}
+                style={
+                  blockedByMe ? styles.menuIconPrimary : styles.menuIconDanger
+                }
               >
                 <Ionicons
                   name={
@@ -260,7 +258,9 @@ export default function ConversationInfoScreen() {
               <View style={styles.menuTextWrap}>
                 <Text
                   style={
-                    blockedByMe ? styles.menuTitlePrimary : styles.menuTitleDanger
+                    blockedByMe
+                      ? styles.menuTitlePrimary
+                      : styles.menuTitleDanger
                   }
                 >
                   {isBlocking

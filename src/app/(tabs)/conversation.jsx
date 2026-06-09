@@ -255,7 +255,7 @@ export default function ConversationsScreen() {
           pressed && { backgroundColor: "#f3f4f6" },
         ]}
       >
-        <UserAvatar uri={item.partner.avatar} size={62} />
+        <UserAvatar uri={item?.partner?.avatar} size={62} />
         <View style={conversationStyles.contentWrapper}>
           <View style={conversationStyles.textContainer}>
             <Text style={conversationStyles.partnerName} numberOfLines={1}>

@@ -7,11 +7,10 @@ import { View } from "react-native";
 export default function UserAvatar({
   uri,
   size = 44,
-  version = "",
   bordered = false,
   borderColor = colors.background,
 }) {
-  const avatarUri = resolveAvatarUri(uri || "", version);
+  const avatarUri = resolveAvatarUri(uri || "");
 
   const dynamicStyle = {
     width: size,

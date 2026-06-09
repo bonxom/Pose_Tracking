@@ -3,7 +3,6 @@ import ProfileIcon from "@/components/icons/ProfileIcon";
 import PostCard from "@/components/post/PostCard";
 import colors from "@/constants/colors";
 import searchStyles from "@/styles/search.styles";
-import { resolveAvatarUri } from "@/utils/profile";
 import { memo } from "react";
 import {
   ActivityIndicator,
@@ -12,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Image } from "expo-image";
+import UserAvatar from "../common/UserAvatar";
 
 const SearchTabButton = memo(function SearchTabButton({
   label,
@@ -24,7 +23,9 @@ const SearchTabButton = memo(function SearchTabButton({
       onPress={onPress}
       style={[searchStyles.tabButton, active && searchStyles.tabButtonActive]}
     >
-      <Text style={[searchStyles.tabText, active && searchStyles.tabTextActive]}>
+      <Text
+        style={[searchStyles.tabText, active && searchStyles.tabTextActive]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -74,13 +75,23 @@ export const SearchSkeletonRow = memo(function SearchSkeletonRow({
 }) {
   return (
     <View
-      style={[searchStyles.skeletonRow, compact && searchStyles.skeletonRowCompact]}
+      style={[
+        searchStyles.skeletonRow,
+        compact && searchStyles.skeletonRowCompact,
+      ]}
     >
       {avatar ? <View style={searchStyles.skeletonAvatar} /> : null}
       <View style={searchStyles.skeletonBody}>
-        <View style={[searchStyles.skeletonLine, searchStyles.skeletonLinePrimary]} />
+        <View
+          style={[searchStyles.skeletonLine, searchStyles.skeletonLinePrimary]}
+        />
         {subtitle ? (
-          <View style={[searchStyles.skeletonLine, searchStyles.skeletonLineSecondary]} />
+          <View
+            style={[
+              searchStyles.skeletonLine,
+              searchStyles.skeletonLineSecondary,
+            ]}
+          />
         ) : null}
       </View>
     </View>
@@ -106,20 +117,10 @@ export const SearchSuggestionRow = memo(function SearchSuggestionRow({
 
 export const SearchUserCard = memo(function SearchUserCard({ user, onPress }) {
   const subtitle = user.description || "";
-  const avatarUri = resolveAvatarUri(
-    user.avatar || "",
-    user.avatarVersion || user.profileSyncRequestedAt || "",
-  );
 
   return (
     <Pressable style={searchStyles.userCard} onPress={onPress}>
-      <Image
-        source={{ uri: avatarUri }}
-        style={searchStyles.userAvatar}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        transition={150}
-      />
+      <UserAvatar uri={user.avatar} size={56} />
       <View style={searchStyles.userInfo}>
         <Text style={searchStyles.userName} numberOfLines={1}>
           {user.name}
@@ -202,7 +203,10 @@ export function SearchHeader({
             autoFocus
           />
           {keyword ? (
-            <Pressable style={searchStyles.clearButton} onPress={onClearKeyword}>
+            <Pressable
+              style={searchStyles.clearButton}
+              onPress={onClearKeyword}
+            >
               <ProfileIcon name="close" size={18} color={colors.subtext} />
             </Pressable>
           ) : null}
