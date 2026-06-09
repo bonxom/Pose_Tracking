@@ -35,11 +35,17 @@ import {
   Alert,
   Clipboard,
   LayoutAnimation,
-  RefreshControl,
-  ScrollView,
   Text,
   View,
 } from "react-native";
+import {
+  consumeFinishedUploadedPosts,
+  subscribePostUploading,
+} from "@/services/postUploadingStore";
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function buildProfileCacheEntry(profile, posts, ownerKey = "") {
   return {
@@ -60,10 +66,15 @@ export default function ProfileScreenContent({ userId = "" }) {
   const [posts, setPosts] = useState(() =>
     canUseProfileCache ? profileCacheState[userId]?.posts ?? [] : [],
   );
-  const [loading, setLoading] = useState(() =>
+  const [isLoading, setIsLoading] = useState(() =>
     canUseProfileCache ? !profileCacheState[userId] : true,
   );
-  const [refreshing, setRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasLoadedAllPosts, setHasLoadedAllPosts] = useState(false);
+  const [lastId, setLastId] = useState("");
+  const [uploadingCards, setUploadingCards] = useState([]);
   const [error, setError] = useState("");
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
   const [menuVisible, setMenuVisible] = useState(false);
@@ -72,10 +83,44 @@ export default function ProfileScreenContent({ userId = "" }) {
   const [previewImage, setPreviewImage] = useState("");
   const diskCacheLoadedRef = useRef(false);
 
+  const loadMoreTriggerLock = useRef(false);
+  const lastContentHeightRef = useRef(0);
+  const lastTriggeredContentHeightRef = useRef(0);
+
+  const mergeUniquePosts = useCallback((currentPosts, incomingPosts) => {
+    if (!Array.isArray(incomingPosts) || incomingPosts.length === 0) {
+      return currentPosts;
+    }
+
+    const seenIds = new Set(currentPosts.map((item) => item.id));
+    const uniqueIncomingPosts = incomingPosts.filter(
+      (item) => item?.id && !seenIds.has(item.id),
+    );
+
+    return uniqueIncomingPosts.length
+      ? [...currentPosts, ...uniqueIncomingPosts]
+      : currentPosts;
+  }, []);
+
+  const mergeRefreshedFeed = useCallback((currentPosts, firstPagePosts) => {
+    if (!Array.isArray(firstPagePosts) || firstPagePosts.length === 0) {
+      return currentPosts;
+    }
+
+    const firstPageIds = new Set(firstPagePosts.map((item) => item?.id));
+    const remainingPosts = currentPosts.filter(
+      (item) => item?.id && !firstPageIds.has(item.id),
+    );
+
+    return [...firstPagePosts, ...remainingPosts];
+  }, []);
+
   const loadProfile = useCallback(
     async (isRefresh = false) => {
       if (isRefresh) {
-        setRefreshing(true);
+        setIsRefreshing(true);
+      } else if (!profileCacheState[userId]) {
+        setIsLoading(true);
       }
       setError("");
 
@@ -105,7 +150,7 @@ export default function ProfileScreenContent({ userId = "" }) {
 
           const postPage = await getUserPosts(user.id, {
             index: 0,
-            count: 20,
+            count: 10,
             includeLocked: isOwnProfile,
           });
 
@@ -115,9 +160,6 @@ export default function ProfileScreenContent({ userId = "" }) {
             ? getProfileCacheOwnerKey(session || nextProfile)
             : "";
 
-          // If the network fetch failed and returned empty local mock data,
-          // BUT we already have cached posts in memory, ignore the mock data
-          // and let the catch block (or executeWithInternetCheck) handle the error state.
           const isFallback =
             user.source === "local-fallback" ||
             postPage.source === "local-fallback";
@@ -127,24 +169,25 @@ export default function ProfileScreenContent({ userId = "" }) {
             profileCacheState[userId] &&
             profileCacheState[userId].posts?.length > 0
           ) {
-            // Throw a network error so useInternetFetch can catch it
             throw new Error("Không thể kết nối đến máy chủ");
           }
 
-          // Always update profile after a successful fetch so bio/cover/name
-          // changes appear immediately when returning from edit screen.
           setProfile(nextProfile);
-          setPosts((prev) => {
-            const prevIds = prev.map((p) => p.id).join(",");
-            const nextIds = nextPosts.map((p) => p.id).join(",");
-            return prevIds !== nextIds ? nextPosts : prev;
-          });
 
-          // Persist only own profile to memory + disk
+          const hadCachedPosts =
+            profileCacheState[userId] &&
+            profileCacheState[userId].posts?.length > 0;
+          const mergedPosts =
+            !isRefresh && hadCachedPosts
+              ? mergeRefreshedFeed(profileCacheState[userId].posts, nextPosts)
+              : nextPosts;
+
+          setPosts(mergedPosts);
+
           if (isOwnProfile) {
             profileCacheState[userId] = buildProfileCacheEntry(
               nextProfile,
-              nextPosts,
+              mergedPosts,
               ownerKey,
             );
 
@@ -152,6 +195,19 @@ export default function ProfileScreenContent({ userId = "" }) {
               writeCache(cacheKey, profileCacheState[userId]);
             }
           }
+
+          const loadedCount = mergedPosts.length;
+          setCurrentPage(Math.max(0, Math.ceil(loadedCount / 10) - 1));
+          
+          if (isRefresh || !hadCachedPosts) {
+            setHasLoadedAllPosts(
+              Boolean(postPage.hasMore) === false && nextPosts.length > 0,
+            );
+          }
+          
+          loadMoreTriggerLock.current = false;
+          lastTriggeredContentHeightRef.current = 0;
+          setLastId(postPage.lastId || "");
         });
       } catch (loadError) {
         if (loadError.sessionExpired) {
@@ -159,16 +215,15 @@ export default function ProfileScreenContent({ userId = "" }) {
           router.replace("/(auth)/login");
           return;
         }
-        // Only show error if we have no cached data to display
         if (!profileCacheState[userId]) {
           setError(loadError.message || "Không thể tải hồ sơ.");
         }
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        setIsLoading(false);
+        setIsRefreshing(false);
       }
     },
-    [isViewingOtherProfile, userId, cacheKey, executeWithInternetCheck],
+    [userId, cacheKey, executeWithInternetCheck, mergeRefreshedFeed],
   );
 
   const syncOwnProfileFromSession = useCallback(async () => {
@@ -195,7 +250,126 @@ export default function ProfileScreenContent({ userId = "" }) {
       }
       return nextProfile;
     });
-  }, [cacheKey, userId]);
+  }, [cacheKey, userId, posts]);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || hasLoadedAllPosts || posts.length === 0) return;
+
+    try {
+      setIsLoadingMore(true);
+      await wait(1000);
+      const nextPage = currentPage + 1;
+      const targetUserId = userId || profile?.id || "";
+      if (!targetUserId) return;
+
+      let result = await getUserPosts(targetUserId, {
+        index: nextPage,
+        count: 10,
+        lastId,
+        includeLocked: profile?.isOwnProfile,
+      });
+
+      let nextItems = result.items || [];
+      if (nextItems.length === 0 && posts.length >= 10) {
+        result = await getUserPosts(targetUserId, {
+          index: posts.length,
+          count: 10,
+          lastId,
+          includeLocked: profile?.isOwnProfile,
+        });
+        nextItems = result.items || [];
+      }
+
+      if (nextItems.length === 0) {
+        setHasLoadedAllPosts(true);
+        return;
+      }
+
+      setPosts((current) => {
+        const next = mergeUniquePosts(current, nextItems);
+        if (profile?.isOwnProfile) {
+          if (profileCacheState[userId]) {
+            profileCacheState[userId].posts = next;
+          }
+          if (cacheKey && profileCacheState[userId]) {
+            writeCache(cacheKey, profileCacheState[userId]);
+          }
+        }
+        return next;
+      });
+      setCurrentPage(nextPage);
+      setLastId(result.lastId || "");
+    } catch (loadError) {
+      console.warn("Failed to load more posts on profile:", loadError);
+      if (loadError.sessionExpired) {
+        await clearCurrentUserSession();
+        router.replace("/(auth)/login");
+      }
+    } finally {
+      loadMoreTriggerLock.current = false;
+      setIsLoadingMore(false);
+    }
+  }, [
+    currentPage,
+    hasLoadedAllPosts,
+    isLoadingMore,
+    lastId,
+    mergeUniquePosts,
+    posts.length,
+    profile?.isOwnProfile,
+    profile?.id,
+    userId,
+    cacheKey,
+  ]);
+
+  const queueLoadMore = useCallback(
+    (contentHeight = 0) => {
+      if (
+        loadMoreTriggerLock.current ||
+        isLoadingMore ||
+        hasLoadedAllPosts ||
+        posts.length === 0
+      ) {
+        return;
+      }
+
+      if (
+        contentHeight > 0 &&
+        contentHeight <= lastTriggeredContentHeightRef.current
+      ) {
+        return;
+      }
+
+      lastTriggeredContentHeightRef.current = contentHeight;
+      loadMoreTriggerLock.current = true;
+      void loadMore();
+    },
+    [hasLoadedAllPosts, isLoadingMore, loadMore, posts.length],
+  );
+
+  const handleListScroll = useCallback(
+    ({ nativeEvent }) => {
+      if (loadMoreTriggerLock.current || isLoadingMore || hasLoadedAllPosts) {
+        return;
+      }
+
+      const visibleHeight = nativeEvent.layoutMeasurement?.height || 0;
+      const offsetY = nativeEvent.contentOffset?.y || 0;
+      const contentHeight = nativeEvent.contentSize?.height || 0;
+      const distanceToBottom = contentHeight - (visibleHeight + offsetY);
+
+      lastContentHeightRef.current = contentHeight;
+
+      if (distanceToBottom <= 140 && contentHeight > visibleHeight) {
+        queueLoadMore(contentHeight);
+      }
+    },
+    [hasLoadedAllPosts, isLoadingMore, queueLoadMore],
+  );
+
+  const handleEndReached = useCallback(() => {
+    queueLoadMore(lastContentHeightRef.current);
+  }, [queueLoadMore]);
 
   const handleToggleLike = async (post) => {
     try {
@@ -298,6 +472,61 @@ export default function ProfileScreenContent({ userId = "" }) {
     };
   }, [cacheKey, userId]);
 
+  const uploadSuccessAlertLock = useRef(false);
+
+  const showUploadSuccessAlert = useCallback(() => {
+    if (uploadSuccessAlertLock.current) return;
+
+    uploadSuccessAlertLock.current = true;
+    Alert.alert("Thông báo", "Bài viết đã được đăng", [
+      {
+        text: "OK",
+        onPress: () => {
+          uploadSuccessAlertLock.current = false;
+          void loadProfile(true);
+        },
+        onDismiss: () => {
+          uploadSuccessAlertLock.current = false;
+          void loadProfile(true);
+        },
+      },
+    ]);
+  }, [loadProfile]);
+
+  useEffect(() => {
+    if (isViewingOtherProfile) return;
+
+    return subscribePostUploading((nextState) => {
+      setUploadingCards(nextState.uploadingCards || []);
+
+      if (!nextState.finishedPosts?.length) {
+        return;
+      }
+
+      const completedPosts = consumeFinishedUploadedPosts();
+      if (!completedPosts.length) {
+        return;
+      }
+
+      setPosts((current) => {
+        const existingIds = new Set(current.map((item) => item.id));
+        const uniqueNewPosts = completedPosts.filter(
+          (item) => item?.id && !existingIds.has(item.id),
+        );
+
+        const next = uniqueNewPosts.length
+          ? [...uniqueNewPosts, ...current]
+          : current;
+        if (profileCacheState[userId]) {
+          profileCacheState[userId].posts = next;
+        }
+        return next;
+      });
+
+      showUploadSuccessAlert();
+    });
+  }, [showUploadSuccessAlert, isViewingOtherProfile, userId]);
+
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -309,7 +538,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           setProfile(null);
           setPosts([]);
           setError("");
-          setLoading(true);
+          setIsLoading(true);
 
           loadProfile(false);
           return;
@@ -331,14 +560,12 @@ export default function ProfileScreenContent({ userId = "" }) {
 
         if (!isActive) return;
 
-        // If we have valid in-memory cache, render it instantly then fetch in background
         if (hasValidMemoryCache) {
-          setLoading(false);
+          setIsLoading(false);
           loadProfile(false);
           return;
         }
 
-        // No valid in-memory cache: try disk first, then fetch
         if (cacheKey && !diskCacheLoadedRef.current) {
           diskCacheLoadedRef.current = true;
           const cached = await readCache(cacheKey);
@@ -349,7 +576,7 @@ export default function ProfileScreenContent({ userId = "" }) {
             setProfile(cached.profile);
             setPosts(cached.posts || []);
           }
-          setLoading(false);
+          setIsLoading(false);
           loadProfile(false);
           return;
         }
@@ -459,7 +686,7 @@ export default function ProfileScreenContent({ userId = "" }) {
     setPreviewImage(profile.avatar);
   };
 
-  if (loading && !profile) {
+  if (isLoading && !profile) {
     return (
       <View style={profileStyles.centerState}>
         <ActivityIndicator size="large" color={colors.brand} />
@@ -506,47 +733,45 @@ export default function ProfileScreenContent({ userId = "" }) {
 
   return (
     <View style={profileStyles.screen}>
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => loadProfile(true)}
-            tintColor={colors.brand}
-          />
-        }
-        contentContainerStyle={profileStyles.scrollContent}
-      >
-        <ProfileHero
+      {isNoInternet && posts.length === 0 ? (
+        <NoInternetView
+          onRefresh={() => loadProfile(true)}
+          refreshing={isRefreshing}
+          style={{ minHeight: 300 }}
+        />
+      ) : (
+        <ProfilePostsSection
           profile={profile}
-          isOwnProfile={profile.isOwnProfile}
-          onOpenCoverMenu={() => setCoverMenuVisible(true)}
-          onOpenAvatarMenu={() => setAvatarMenuVisible(true)}
-          onOpenMenu={() =>
-            profile.isOwnProfile
-              ? router.push("/profile/settings")
-              : setMenuVisible(true)
+          posts={posts}
+          loading={isLoading}
+          uploadingCards={uploadingCards}
+          isRefreshing={isRefreshing}
+          isLoadingMore={isLoadingMore}
+          hasLoadedAllPosts={hasLoadedAllPosts}
+          onRefresh={() => loadProfile(true)}
+          onScroll={handleListScroll}
+          onContentSizeChange={(_, height) => {
+            lastContentHeightRef.current = height;
+          }}
+          onEndReached={handleEndReached}
+          onToggleLike={handleToggleLike}
+          onSubmitExercise={handleSubmitExercise}
+          onDeletePost={handleDeletePost}
+          headerComponent={
+            <ProfileHero
+              profile={profile}
+              isOwnProfile={profile?.isOwnProfile}
+              onOpenCoverMenu={() => setCoverMenuVisible(true)}
+              onOpenAvatarMenu={() => setAvatarMenuVisible(true)}
+              onOpenMenu={() =>
+                profile?.isOwnProfile
+                  ? router.push("/profile/settings")
+                  : setMenuVisible(true)
+              }
+            />
           }
         />
-
-        <View style={profileStyles.fbBody}>
-          {isNoInternet && posts.length === 0 ? (
-            <NoInternetView
-              onRefresh={() => loadProfile(true)}
-              refreshing={refreshing}
-              style={{ minHeight: 300 }}
-            />
-          ) : (
-            <ProfilePostsSection
-              profile={profile}
-              posts={posts}
-              loading={loading}
-              onToggleLike={handleToggleLike}
-              onDeletePost={handleDeletePost}
-              onSubmitExercise={handleSubmitExercise}
-            />
-          )}
-        </View>
-      </ScrollView>
+      )}
 
       <ProfileActionSheet
         visible={menuVisible}
