@@ -1,7 +1,7 @@
 import MOCK_GET_LIST_POSTS from "@/constants/mocks/MOCK_GET_LIST_POSTS";
 import MOCK_GET_POST from "@/constants/mocks/MOCK_GET_POST";
 import * as postStore from "@/services/postStore";
-import { splitContentAndHashtags } from "@/utils/hashtags";
+import { buildDescribedWithHashtags, splitContentAndHashtags } from "@/utils/hashtags";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -229,13 +229,18 @@ export async function getMockEditPostResponse(fields = {}, files = []) {
   });
 
   const hashtagPayload = splitContentAndHashtags(
-    toStringValue(fields?.described ?? existingPost.content),
+    toStringValue(fields?.described ?? existingPost.described ?? existingPost.content),
     existingPost.hashtags,
+  );
+  const nextDescribed = buildDescribedWithHashtags(
+    hashtagPayload.content,
+    hashtagPayload.hashtags,
+    hashtagPayload.generatedHashtag || existingPost.generatedHashtag || "",
   );
 
   const updatedPost = await postStore.updatePost(postId, {
     content: hashtagPayload.content,
-    described: hashtagPayload.content,
+    described: nextDescribed,
     hashtags: hashtagPayload.hashtags,
     generatedHashtag:
       hashtagPayload.generatedHashtag || existingPost.generatedHashtag || "",

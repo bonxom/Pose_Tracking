@@ -15,8 +15,11 @@ import {
 import * as localPosts from "@/services/postStore";
 import {
   appendHashtagsToContent,
+  buildDescribedWithHashtags,
   buildPostHashtag,
   mergeHashtags,
+  mergeHashtagsKeepingGeneratedLast,
+  splitContentAndHashtags,
 } from "@/utils/hashtags";
 
 function serverResult(value) {
@@ -144,12 +147,16 @@ function normalizeApiBoolean(value, fallback = false) {
 }
 
 function buildAddPostFields(session, params = {}) {
-  const generatedHashtag = params.generatedHashtag
-    ? mergeHashtags([params.generatedHashtag])[0] || ""
-    : "";
+  const describedContent = String(
+    params.describedContent ?? params.described ?? params.content ?? "",
+  ).trim();
+  const hashtags = mergeHashtagsKeepingGeneratedLast(
+    params.hashtags || [],
+    params.generatedHashtag || "",
+  );
   const fields = {
     token: session.token,
-    described: appendHashtagsToContent(params.content, [generatedHashtag]),
+    described: appendHashtagsToContent(describedContent, hashtags),
     course_id: params.courseId || "",
     device_slave: DEFAULT_DEVICE_TOKEN,
     device_master: DEFAULT_DEVICE_TOKEN,
@@ -271,6 +278,18 @@ function extractFeedMeta(response, params, itemCount) {
   };
 }
 
+function normalizeDescribedPayload(value = "", explicitHashtags = []) {
+  const normalizedValue = String(value || "").trim();
+  const payload = splitContentAndHashtags(normalizedValue, explicitHashtags);
+
+  return {
+    raw: normalizedValue,
+    content: payload.content,
+    hashtags: mergeHashtags(payload.hashtags),
+    generatedHashtag: payload.generatedHashtag,
+  };
+}
+
 export async function getFeedPage(params = {}) {
   const session = await getCurrentSession();
   assertServerSession(session);
@@ -288,9 +307,11 @@ export async function getFeedPage(params = {}) {
   });
 
   const items = normalizeServerFeedList(response);
+  const hashtags = mergeHashtags(items.flatMap((post) => post?.hashtags || []));
   const meta = extractFeedMeta(response, params, items.length);
   return serverResult({
     items,
+    hashtags,
     total: meta.total,
     hasMore: meta.hasMore,
     lastId: meta.lastId,
@@ -412,8 +433,31 @@ export async function deleteSavedSearch(searchId) {
 }
 
 export async function editPost(post, params = {}) {
+  const describedPayload = normalizeDescribedPayload(
+    params.described ?? params.content ?? post.described ?? post.content ?? "",
+    Array.isArray(params.hashtags) ? params.hashtags : post.hashtags || [],
+  );
+  const generatedHashtag =
+    mergeHashtags([params.generatedHashtag || post.generatedHashtag || ""])[0] ||
+    "";
+  const hashtags = mergeHashtagsKeepingGeneratedLast(
+    describedPayload.hashtags,
+    generatedHashtag,
+  );
+  const described = buildDescribedWithHashtags(
+    describedPayload.content,
+    hashtags,
+    "",
+  );
+
   if (!isServerPost(post)) {
-    return localPosts.updatePost(post.id, params);
+    return localPosts.updatePost(post.id, {
+      ...params,
+      content: describedPayload.content,
+      described,
+      hashtags,
+      generatedHashtag,
+    });
   }
 
   const session = await getCurrentSession();
@@ -433,14 +477,7 @@ export async function editPost(post, params = {}) {
   const fields = {
     token: session.token,
     id: post.id,
-    described: appendHashtagsToContent(
-      params.content ||
-        params.described ||
-        post.described ||
-        post.content ||
-        "",
-      [params.generatedHashtag || post.generatedHashtag || ""],
-    ),
+    described,
   };
 
   const response = await backendApi.editPostMultipart(fields, multipartVideos);
@@ -449,8 +486,10 @@ export async function editPost(post, params = {}) {
   return (
     normalizeServerPostObject(response) || {
       ...post,
-      content: params.content || post.content,
-      described: params.described || params.content || post.described,
+      content: describedPayload.content || post.content,
+      described,
+      hashtags,
+      generatedHashtag,
     }
   );
 }
@@ -552,7 +591,13 @@ export async function createPost(params) {
   const videos = params.videos || [];
   const allowServer = shouldUsePostApi(session);
   const createdAt = params.createdAt || new Date().toISOString();
-  const described = String(params.described ?? params.content ?? "").trim();
+  const describedPayload = normalizeDescribedPayload(
+    params.described ?? params.content ?? "",
+    params.hashtags || [],
+  );
+  const content = String(
+    params.content ?? describedPayload.content ?? "",
+  ).trim();
   const authorUsername =
     params.hashtagUsername ||
     session?.username ||
@@ -564,13 +609,21 @@ export async function createPost(params) {
     : buildPostHashtag({
         username: authorUsername,
         createdAt,
-        described,
+        described: describedPayload.content || content,
       });
-  const hashtags = mergeHashtags([generatedHashtag], params.hashtags || []);
+  const hashtags = mergeHashtagsKeepingGeneratedLast(
+    describedPayload.hashtags,
+    generatedHashtag,
+  );
+  const described = buildDescribedWithHashtags(
+    describedPayload.content || content,
+    hashtags,
+    "",
+  );
 
   if (!allowServer) {
     return localPosts.createPost({
-      content: params.content || "",
+      content,
       described,
       videos,
       courseId: params.courseId || "",
@@ -588,6 +641,8 @@ export async function createPost(params) {
     const response = await backendApi.addPost(
       buildAddPostFields(session, {
         ...params,
+        content,
+        describedContent: describedPayload.content || content,
         createdAt,
         hashtagUsername: authorUsername,
         hashtags,
@@ -604,7 +659,7 @@ export async function createPost(params) {
       normalizeServerPostObject(response) || {
         id: String(response?.data?.id || response?.data?.post_id || Date.now()),
         source: ACTIVE_SOURCES.SERVER,
-        content: params.content || "",
+        content,
         described,
         videos,
         author: {
@@ -646,19 +701,11 @@ export async function createExerciseSubmission(params) {
     params.teacherUsername || params.hashtagUsername || "";
   const submissionContent =
     String(params.content || "").trim() || "Nộp bài tập.";
-  const submissionDescribed =
-    String(params.described || "").trim() || submissionContent;
-  const generatedHashtag = params.generatedHashtag
-    ? mergeHashtags([params.generatedHashtag])[0] || ""
-    : buildPostHashtag({
-        username: teacherUsername,
-        createdAt,
-        described: submissionDescribed,
-      });
-  console.log("@@@@@@@@@@@@@@@@@ generated hashtag: ", generatedHashtag);
-  const hashtags = mergeHashtags(
-    [generatedHashtag],
-    [params.courseId || "", params.exerciseId || ""],
+  const hashtags = mergeHashtags(params.hashtags || []);
+  const submissionDescribed = buildDescribedWithHashtags(
+    submissionContent,
+    hashtags,
+    "",
   );
 
   if (!allowServer) {
@@ -671,41 +718,22 @@ export async function createExerciseSubmission(params) {
       teacherUsername,
       createdAt,
       hashtags,
-      generatedHashtag,
+      generatedHashtag: "",
     });
   }
 
   try {
     assertServerSession(session);
     validateTwoVideos(videos);
-    console.log(
-      "field: ",
-      buildAddPostFields(session, {
-        ...params,
-        content: submissionContent,
-        described: submissionDescribed,
-        createdAt,
-        hashtagUsername: teacherUsername,
-        hashtags,
-        generatedHashtag,
-      }),
-    );
-    console.log(
-      "videos: ",
-      videos.map((video, index) => ({
-        ...video,
-        fieldName: index === 0 ? "left_video" : "right_video",
-      })),
-    );
     const response = await backendApi.addPost(
       buildAddPostFields(session, {
         ...params,
         content: submissionContent,
-        described: submissionDescribed,
+        describedContent: submissionContent,
         createdAt,
         hashtagUsername: teacherUsername,
         hashtags,
-        generatedHashtag,
+        generatedHashtag: "",
       }),
       videos.map((video, index) => ({
         ...video,
@@ -735,7 +763,7 @@ export async function createExerciseSubmission(params) {
         courseId: params.courseId || "",
         exerciseId: params.exerciseId || "",
         hashtags,
-        generatedHashtag,
+        generatedHashtag: "",
         type: "submission",
       }
     );
