@@ -1,4 +1,5 @@
 import AppButton from "@/components/common/AppButton";
+import UserAvatar from "@/components/common/UserAvatar";
 import EarthIcon from "@/components/icons/EarthIcon";
 import EllipsisHorizontalIcon from "@/components/icons/EllipsisHorizontalIcon";
 import CommentButton from "@/components/post/CommentButton";
@@ -6,11 +7,10 @@ import LikeButton from "@/components/post/LikeButton";
 import PostOptionsSheet from "@/components/post/PostOptionsSheet";
 import VideoTile from "@/components/post/VideoTile";
 import colors from "@/constants/colors";
+import sizes from "@/constants/sizes";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import postStyles from "@/styles/post.styles";
 import { formatRelativeTime, isFreshPost } from "@/utils/formatters";
-import { resolveAvatarUri } from "@/utils/profile";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
@@ -34,6 +34,7 @@ export default function PostCard({
   onEditPost,
   onDeletePost,
   onReportPost,
+  onPostUnavailable,
   detail = false,
   flat = false,
 }) {
@@ -85,21 +86,21 @@ export default function PostCard({
     if (post.exerciseId) values.add(`#${post.exerciseId}`);
     return Array.from(values);
   }, [post.courseId, post.exerciseId, post.hashtags]);
-  const avatarUri = useMemo(() => {
+  const avatarInfo = useMemo(() => {
     const authorId = String(post.author?.id || "").trim();
     const isOwn = Boolean(
       currentUser?.id && authorId && currentUser.id === authorId,
     );
     if (isOwn) {
-      return resolveAvatarUri(
-        currentUser?.avatar || post.author?.avatar || "",
-        currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || "",
-      );
+      return {
+        uri: currentUser?.avatar || post.author?.avatar || "",
+        version: currentUser?.avatarVersion || currentUser?.profileSyncRequestedAt || "",
+      };
     }
-    return resolveAvatarUri(
-      post.author?.avatar || "",
-      post.author?.avatarVersion || "",
-    );
+    return {
+      uri: post.author?.avatar || "",
+      version: post.author?.avatarVersion || "",
+    };
   }, [
     post.author?.avatar,
     post.author?.avatarVersion,
@@ -153,6 +154,7 @@ export default function PostCard({
         keyword: normalizedTag,
         autoSearch: "1",
         tab: "posts",
+        requestId: String(Date.now()),
       },
     });
   };
@@ -187,13 +189,7 @@ export default function PostCard({
             hitSlop={8}
             style={localStyles.avatarPressable}
           >
-            <Image
-              source={{ uri: avatarUri }}
-              style={postStyles.avatar}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              transition={150}
-            />
+            <UserAvatar uri={avatarInfo.uri} version={avatarInfo.version} size={44} />
           </Pressable>
 
           <View style={postStyles.authorMetaGroup}>
@@ -388,6 +384,7 @@ export default function PostCard({
         visible={isOptionsVisible}
         onClose={() => setIsOptionsVisible(false)}
         isOwnPost={isOwnPost}
+        post={post}
         postId={post?.id}
         onTurnOffNotifications={() => setIsOptionsVisible(false)}
         onTurnOnNotifications={() => setIsOptionsVisible(false)}
@@ -400,9 +397,12 @@ export default function PostCard({
               }
             : undefined
         }
-        onReportPost={() => {
-          setIsOptionsVisible(false);
-          onReportPost?.();
+        onReportPost={onReportPost}
+        onPostUnavailable={(unavailablePostId) => {
+          onPostUnavailable?.(unavailablePostId || post?.id);
+          if (!onPostUnavailable && onDeletePost) {
+            onDeletePost(unavailablePostId || post?.id);
+          }
         }}
       />
     </Animated.View>
@@ -437,6 +437,7 @@ const localStyles = StyleSheet.create({
   videoGrid: {
     flexDirection: "row",
     gap: 0,
+    marginTop: sizes.sm,
   },
   videoGridFullBleed: {
     marginHorizontal: -16,

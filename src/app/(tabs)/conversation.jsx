@@ -1,7 +1,7 @@
 import IconButton from "@/components/common/IconButton";
 import Screen from "@/components/common/Screen";
 import SearchInput from "@/components/common/SearchInput";
-import UserAvatar from "@/components/courses/UserAvatar";
+import UserAvatar from "@/components/common/UserAvatar";
 import CameraIcon from "@/components/icons/CameraIcon";
 import EditIcon from "@/components/icons/EditIcon";
 import TrashIcon from "@/components/icons/TrashIcon";
@@ -11,16 +11,24 @@ import colors from "@/constants/colors";
 import {
   deleteConversation,
   getConversationList,
+  isConversationAuthError,
   markConversationRead,
   subscribeConversations,
 } from "@/repositories/conversationRepository";
 import { getCurrentSession } from "@/repositories/source";
 import conversationStyles from "@/styles/conversation/conversation.styles";
-import { resolveAvatarUri } from "@/utils/profile";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+} from "react-native";
 
 function formatMessageTime(dateString) {
   if (!dateString) return "";
@@ -57,6 +65,23 @@ function formatMessageTime(dateString) {
   return `${d.getDate()} thg ${d.getMonth() + 1}`;
 }
 
+async function redirectIfConversationAuthError(error, router) {
+  if (!isConversationAuthError(error)) {
+    return redirectIfSessionExpired(error, router);
+  }
+
+  const sessionError = Object.assign(
+    new Error(error?.message || "Session expired"),
+    error,
+    {
+      name: "SessionExpiredError",
+      sessionExpired: true,
+    },
+  );
+
+  return redirectIfSessionExpired(sessionError, router);
+}
+
 export default function ConversationsScreen() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
@@ -82,8 +107,16 @@ export default function ConversationsScreen() {
     try {
       await getConversationList();
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
-      setError(err.message);
+      console.log("CONVERSATION_LIST_LOAD_ERROR", {
+        message: err?.message,
+        status: err?.status,
+        code: err?.code,
+        data: err?.data,
+      });
+
+      if (await redirectIfConversationAuthError(err, router)) return;
+
+      setError(err?.message || "Không tải được danh sách trò chuyện.");
     }
   }, []);
 
@@ -105,29 +138,69 @@ export default function ConversationsScreen() {
       await getConversationList();
       setError("");
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
-      setError(err.message || "Không thể tải dữ liệu.");
+      console.log("CONVERSATION_LIST_REFRESH_ERROR", {
+        message: err?.message,
+        status: err?.status,
+        code: err?.code,
+        data: err?.data,
+      });
+
+      if (await redirectIfConversationAuthError(err, router)) return;
+      setError(err?.message || "Không tải được danh sách trò chuyện.");
     } finally {
       setIsRefreshing(false);
     }
   }, []);
 
+  const handleOpenCamera = useCallback(async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Cần quyền camera",
+        "Vui lòng cấp quyền camera để sử dụng tính năng này.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (result.canceled) {
+      return;
+    }
+
+    console.log("CONVERSATION_CAMERA_RESULT", result.assets?.[0]);
+  }, []);
+
+  const handleOpenNewConversation = useCallback(() => {
+    router.push("/conversation/new");
+  }, []);
+
   const open = (item) => {
-    router.push(`/conversation/${item.id}`);
-    setTimeout(async () => {
-      try {
-        await markConversationRead(item.id);
-      } catch (err) {
-        if (await redirectIfSessionExpired(err, router)) return;
-      }
-    }, 300);
+    const conversationId = String(item?.id || "").trim();
+
+    if (!conversationId) {
+      return;
+    }
+
+    markConversationRead(conversationId).catch(async (err) => {
+      if (await redirectIfConversationAuthError(err, router)) return;
+
+      console.warn("Failed to mark conversation read:", err?.message);
+    });
+
+    router.push(`/conversation/${conversationId}`);
   };
 
   const remove = async (item) => {
     try {
       await deleteConversation(item.id);
     } catch (err) {
-      if (await redirectIfSessionExpired(err, router)) return;
+      if (await redirectIfConversationAuthError(err, router)) return;
       setError(err.message || "Không thể xóa cuộc trò chuyện.");
     }
   };
@@ -171,7 +244,6 @@ export default function ConversationsScreen() {
 
   const renderItem = ({ item }) => {
     const isUnread = item.lastmessage.unread === "1";
-    const partnerAvatarUri = resolveAvatarUri(item.partner.avatar);
     const formattedTime = formatMessageTime(item.lastmessage.created);
 
     return (
@@ -183,7 +255,7 @@ export default function ConversationsScreen() {
           pressed && { backgroundColor: "#f3f4f6" },
         ]}
       >
-        <UserAvatar uri={partnerAvatarUri} size={62} />
+        <UserAvatar uri={item.partner.avatar} size={62} />
         <View style={conversationStyles.contentWrapper}>
           <View style={conversationStyles.textContainer}>
             <Text style={conversationStyles.partnerName} numberOfLines={1}>
@@ -222,8 +294,14 @@ export default function ConversationsScreen() {
           <Text style={conversationStyles.headerTitle}>Chat</Text>
         </View>
         <View style={conversationStyles.headerRight}>
-          <IconButton icon={<CameraIcon color={colors.text} size={22} />} />
-          <IconButton icon={<EditIcon color={colors.text} size={22} />} />
+          <IconButton
+            icon={<CameraIcon color={colors.text} size={22} />}
+            onPress={handleOpenCamera}
+          />
+          <IconButton
+            icon={<EditIcon color={colors.text} size={22} />}
+            onPress={handleOpenNewConversation}
+          />
         </View>
       </View>
 

@@ -1,4 +1,6 @@
 import Screen from "@/components/common/Screen";
+import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
+import EarthIcon from "@/components/icons/EarthIcon";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
 import {
   normalizeVideoSlots,
@@ -7,29 +9,27 @@ import {
   PostVideoUploadSlot,
   VIDEO_SLOTS,
 } from "@/components/post/PostVideoSlots";
-import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
-import EarthIcon from "@/components/icons/EarthIcon";
 import colors from "@/constants/colors";
 import {
   editPost,
   getPostById,
   validateEditableVideos,
 } from "@/repositories/postRepository";
+import { getUserInfo } from "@/repositories/userRepository";
 import {
   enqueuePostUploading,
   rejectPostUploading,
   resolvePostUploading,
 } from "@/services/postUploadingStore";
-import { getUserInfo } from "@/repositories/userRepository";
-import createStyles from "@/styles/post/create.styles";
 import postStyles from "@/styles/post.styles";
+import createStyles from "@/styles/post/create.styles";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import { Asset } from "expo-asset";
 import * as ImagePicker from "expo-image-picker";
-import { createVideoPlayer } from "expo-video";
 import { router, useLocalSearchParams } from "expo-router";
+import { createVideoPlayer } from "expo-video";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -73,10 +73,10 @@ async function downloadVideoToLocalUri(uri, mimeType = "") {
 
   const cachedLocalUri = downloadedVideoUriCache.get(uri);
   if (cachedLocalUri) {
-    // console.log("EDIT_VIDEO_LOCAL_CACHE_HIT", {
-    //   uri,
-    //   localUri: cachedLocalUri,
-    // });
+    console.log("EDIT_VIDEO_LOCAL_CACHE_HIT", {
+      uri,
+      localUri: cachedLocalUri,
+    });
     return cachedLocalUri;
   }
 
@@ -87,18 +87,18 @@ async function downloadVideoToLocalUri(uri, mimeType = "") {
     uri,
   });
 
-  // console.log("EDIT_VIDEO_LOCAL_DOWNLOAD_START", {
-  //   uri,
-  //   assetType,
-  // });
+  console.log("EDIT_VIDEO_LOCAL_DOWNLOAD_START", {
+    uri,
+    assetType,
+  });
   const downloadedAsset = await asset.downloadAsync();
   const localUri = String(downloadedAsset.localUri || "");
-  // console.log("EDIT_VIDEO_LOCAL_DOWNLOAD_RESULT", {
-  //   uri,
-  //   assetType,
-  //   localUri,
-  //   downloaded: Boolean(downloadedAsset.downloaded),
-  // });
+  console.log("EDIT_VIDEO_LOCAL_DOWNLOAD_RESULT", {
+    uri,
+    assetType,
+    localUri,
+    downloaded: Boolean(downloadedAsset.downloaded),
+  });
 
   if (localUri) {
     downloadedVideoUriCache.set(uri, localUri);
@@ -115,11 +115,11 @@ async function readDurationFromVideoUri(uri, options = {}) {
       : "";
   const sourceUri = localUri || uri;
 
-  // console.log("EDIT_VIDEO_DURATION_SOURCE_URI", {
-  //   originalUri: uri,
-  //   localUri,
-  //   sourceUri,
-  // });
+  console.log("EDIT_VIDEO_DURATION_SOURCE_URI", {
+    originalUri: uri,
+    localUri,
+    sourceUri,
+  });
 
   if (typeof document !== "undefined") {
     return new Promise((resolve) => {
@@ -127,15 +127,15 @@ async function readDurationFromVideoUri(uri, options = {}) {
       video.preload = "metadata";
       video.onloadedmetadata = () => {
         const duration = normalizeDurationMs(video.duration || 0);
-        // console.log("EDIT_VIDEO_DURATION_WEB_METADATA", {
-        //   uri,
-        //   sourceUri,
-        //   duration,
-        // });
+        console.log("EDIT_VIDEO_DURATION_WEB_METADATA", {
+          uri,
+          sourceUri,
+          duration,
+        });
         resolve(duration);
       };
       video.onerror = () => {
-        // console.log("EDIT_VIDEO_DURATION_WEB_ERROR", { uri, sourceUri });
+        console.log("EDIT_VIDEO_DURATION_WEB_ERROR", { uri, sourceUri });
         resolve(0);
       };
       video.src = sourceUri;
@@ -154,13 +154,13 @@ async function readDurationFromVideoUri(uri, options = {}) {
       if (settled) return;
       settled = true;
       const normalizedDuration = normalizeDurationMs(value);
-      // console.log("EDIT_VIDEO_DURATION_NATIVE_RESULT", {
-      //   uri,
-      //   sourceUri,
-      //   rawDuration: value,
-      //   normalizedDuration,
-      //   playerDuration: Number(player.duration || 0),
-      // });
+      console.log("EDIT_VIDEO_DURATION_NATIVE_RESULT", {
+        uri,
+        sourceUri,
+        rawDuration: value,
+        normalizedDuration,
+        playerDuration: Number(player.duration || 0),
+      });
       clearTimeout(timeoutId);
       sourceLoadSubscription?.remove();
       statusChangeSubscription?.remove();
@@ -172,48 +172,45 @@ async function readDurationFromVideoUri(uri, options = {}) {
 
     const resolvePlayerDuration = (value = 0) => {
       const duration = Number(value || player.duration || 0);
-      // console.log("EDIT_VIDEO_DURATION_NATIVE_CHECK", {
-      //   uri,
-      //   sourceUri,
-      //   candidateDuration: duration,
-      //   payloadDuration: Number(value || 0),
-      //   playerDuration: Number(player.duration || 0),
-      // });
+      console.log("EDIT_VIDEO_DURATION_NATIVE_CHECK", {
+        uri,
+        sourceUri,
+        candidateDuration: duration,
+        payloadDuration: Number(value || 0),
+        playerDuration: Number(player.duration || 0),
+      });
       if (Number.isFinite(duration) && duration > 0) {
         finish(duration);
       }
     };
 
     sourceLoadSubscription = player.addListener("sourceLoad", (payload) => {
-      // console.log("EDIT_VIDEO_DURATION_SOURCE_LOAD", {
-      //   uri,
-      //   sourceUri,
-      //   payloadDuration: Number(payload?.duration || 0),
-      // });
+      console.log("EDIT_VIDEO_DURATION_SOURCE_LOAD", {
+        uri,
+        sourceUri,
+        payloadDuration: Number(payload?.duration || 0),
+      });
       resolvePlayerDuration(payload?.duration);
     });
-    statusChangeSubscription = player.addListener(
-      "statusChange",
-      (payload) => {
-        // console.log("EDIT_VIDEO_DURATION_STATUS_CHANGE", {
-        //   uri,
-        //   sourceUri,
-        //   status: payload?.status || "",
-        //   error: payload?.error || null,
-        //   playerDuration: Number(player.duration || 0),
-        // });
-        resolvePlayerDuration();
-        if (payload?.error) {
-          finish(0);
-        }
-      },
-    );
+    statusChangeSubscription = player.addListener("statusChange", (payload) => {
+      console.log("EDIT_VIDEO_DURATION_STATUS_CHANGE", {
+        uri,
+        sourceUri,
+        status: payload?.status || "",
+        error: payload?.error || null,
+        playerDuration: Number(player.duration || 0),
+      });
+      resolvePlayerDuration();
+      if (payload?.error) {
+        finish(0);
+      }
+    });
     timeoutId = setTimeout(() => {
-      // console.log("EDIT_VIDEO_DURATION_TIMEOUT", {
-      //   uri,
-      //   sourceUri,
-      //   playerDuration: Number(player.duration || 0),
-      // });
+      console.log("EDIT_VIDEO_DURATION_TIMEOUT", {
+        uri,
+        sourceUri,
+        playerDuration: Number(player.duration || 0),
+      });
       finish(0);
     }, 8000);
 
@@ -231,13 +228,13 @@ async function hydrateVideoDurations(videos = []) {
       if (!video) return null;
 
       const duration = normalizeDurationMs(video.duration || video.durationMs);
-      // console.log("EDIT_VIDEO_DURATION_INPUT", {
-      //   uri: video.uri || "",
-      //   mimeType: video.mimeType || "",
-      //   rawDuration: Number(video.duration || 0),
-      //   rawDurationMs: Number(video.durationMs || 0),
-      //   normalizedDuration: duration,
-      // });
+      console.log("EDIT_VIDEO_DURATION_INPUT", {
+        uri: video.uri || "",
+        mimeType: video.mimeType || "",
+        rawDuration: Number(video.duration || 0),
+        rawDurationMs: Number(video.durationMs || 0),
+        normalizedDuration: duration,
+      });
       if (duration) {
         return {
           ...video,
@@ -248,10 +245,10 @@ async function hydrateVideoDurations(videos = []) {
       const probedDuration = await readDurationFromVideoUri(video.uri, {
         mimeType: video.mimeType,
       });
-      // console.log("EDIT_VIDEO_DURATION_PROBED", {
-      //   uri: video.uri || "",
-      //   probedDuration,
-      // });
+      console.log("EDIT_VIDEO_DURATION_PROBED", {
+        uri: video.uri || "",
+        probedDuration,
+      });
       if (!probedDuration) {
         return video;
       }
@@ -285,12 +282,16 @@ export default function EditPostScreen() {
   const [showDraftSheet, setShowDraftSheet] = useState(false);
   const [activeVideoUri, setActiveVideoUri] = useState("");
   const [videoValidationError, setVideoValidationError] = useState("");
+  const [isHydratingExistingVideos, setIsHydratingExistingVideos] =
+    useState(false);
 
   const existingVideos = useMemo(
     () => normalizeVideoSlots(post?.videos || []),
     [post?.videos],
   );
-  const displayedVideos = isReplacingVideos ? replacementVideos : existingVideos;
+  const displayedVideos = isReplacingVideos
+    ? replacementVideos
+    : existingVideos;
   const selectedVideoCount = displayedVideos.filter(Boolean).length;
   const replacementVideoCount = replacementVideos.filter(Boolean).length;
 
@@ -333,6 +334,9 @@ export default function EditPostScreen() {
 
         void (async () => {
           try {
+            if (isMounted) {
+              setIsHydratingExistingVideos(true);
+            }
             const hydratedVideos = await hydrateVideoDurations(
               normalizeVideoSlots(loadedPost.videos || []),
             );
@@ -351,6 +355,10 @@ export default function EditPostScreen() {
             });
           } catch (error) {
             console.warn("Failed to hydrate edit post videos:", error);
+          } finally {
+            if (isMounted) {
+              setIsHydratingExistingVideos(false);
+            }
           }
         })();
       } catch (error) {
@@ -472,6 +480,10 @@ export default function EditPostScreen() {
   const removeSelectedVideo = (index) => {
     const removedUri = displayedVideos[index]?.uri || "";
     if (!removedUri) return;
+    if (!isReplacingVideos && isHydratingExistingVideos) {
+      Alert.alert("Cần chờ video cũ được load thành công trước khi xóa");
+      return;
+    }
 
     Alert.alert("Xóa video", "Bạn có chắc muốn xóa video này?", [
       {
@@ -482,13 +494,15 @@ export default function EditPostScreen() {
         text: "Xóa",
         style: "destructive",
         onPress: () => {
-          setActiveVideoUri((current) => (current === removedUri ? "" : current));
+          setActiveVideoUri((current) =>
+            current === removedUri ? "" : current,
+          );
 
           if (!isReplacingVideos) {
             setIsReplacingVideos(true);
             const nextVideos = existingVideos.map((item, itemIndex) =>
-                itemIndex === index ? null : item,
-              );
+              itemIndex === index ? null : item,
+            );
             setReplacementVideos(nextVideos);
             validateReplacementVideoPair(nextVideos);
             return;
@@ -553,11 +567,12 @@ export default function EditPostScreen() {
           videos: nextVideos,
         });
         resolvePostUploading(uploadingId, null);
+        Alert.alert("Thành công", "Đăng bài thành công.");
       } catch (error) {
         rejectPostUploading(uploadingId);
         if (await redirectIfSessionExpired(error, router)) return;
         console.warn("Failed to update post:", error);
-        Alert.alert("Lỗi", "Hệ thống đang lỗi, vui lòng thử lại sau");
+        Alert.alert("Thất bại", "Đăng bài thất bại.");
       }
     })();
   };
@@ -565,7 +580,9 @@ export default function EditPostScreen() {
   const hasContentChanged = content.trim() !== initialContent.trim();
   const hasVideoChanges =
     isReplacingVideos &&
-    replacementVideos.some((video, index) => video?.uri !== existingVideos[index]?.uri);
+    replacementVideos.some(
+      (video, index) => video?.uri !== existingVideos[index]?.uri,
+    );
   const hasDraftChanges = hasContentChanged || hasVideoChanges;
 
   const handleBack = () => {
@@ -610,7 +627,9 @@ export default function EditPostScreen() {
       <Screen style={postStyles.screen}>
         <View style={createStyles.createBody}>
           <Text style={postStyles.title}>Bài viết không tồn tại</Text>
-          {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
+          {statusText ? (
+            <Text style={postStyles.warningText}>{statusText}</Text>
+          ) : null}
         </View>
       </Screen>
     );
@@ -676,7 +695,9 @@ export default function EditPostScreen() {
             </View>
           </View>
 
-          {statusText ? <Text style={postStyles.warningText}>{statusText}</Text> : null}
+          {statusText ? (
+            <Text style={postStyles.warningText}>{statusText}</Text>
+          ) : null}
 
           <TextInput
             placeholder="Viết nội dung bài viết của bạn..."
@@ -684,7 +705,10 @@ export default function EditPostScreen() {
             value={content}
             onChangeText={setContent}
             multiline
-            style={[createStyles.createTextArea, { height: Math.max(26, textAreaHeight) }]}
+            style={[
+              createStyles.createTextArea,
+              { height: Math.max(26, textAreaHeight) },
+            ]}
             textAlignVertical="top"
             onContentSizeChange={(event) => {
               const nextHeight = event.nativeEvent.contentSize.height;

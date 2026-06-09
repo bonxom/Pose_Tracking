@@ -1,4 +1,5 @@
 import { ACTIVE_SOURCES } from "@/repositories/source";
+import { splitContentAndHashtags } from "@/utils/hashtags";
 
 export function firstValue(...values) {
   return values.find(
@@ -187,13 +188,18 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     raw.time,
     new Date().toISOString(),
   );
-  const content = firstValue(
+  const rawContent = firstValue(
     raw.content,
     raw.described,
     raw.description,
     raw.body,
     "",
   );
+  const hashtagPayload = splitContentAndHashtags(
+    rawContent,
+    Array.isArray(raw.hashtags) ? raw.hashtags : [],
+  );
+  const content = hashtagPayload.content;
   const role = firstValue(user.role, raw.role, raw.author_role, "HV");
   const courseId = firstValue(raw.courseId, raw.course_id, raw.category_id, "");
   const exerciseId = firstValue(
@@ -298,7 +304,10 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
       raw.title,
       "",
     ),
-    hashtags: Array.isArray(raw.hashtags) ? raw.hashtags : [],
+    hashtags: hashtagPayload.hashtags,
+    generatedHashtag:
+      firstValue(raw.generatedHashtag, raw.generated_hashtag, "") ||
+      hashtagPayload.generatedHashtag,
     scoreSummary: raw.scoreSummary || null,
     timeSeriesPoses: raw.time_series_poses || raw.timeSeriesPoses || null,
     comments: [],

@@ -18,7 +18,7 @@ import { resolveAvatarUri } from "@/utils/profile";
 import { clearAuthSession } from "@/utils/session";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -35,14 +35,14 @@ function isUnread(item) {
   return isNotificationUnread(item);
 }
 
-function formatTimeAgo(value) {
+function formatTimeAgo(value, now = Date.now()) {
   const time = new Date(value).getTime();
 
   if (!Number.isFinite(time)) {
     return "";
   }
 
-  const diffMs = Date.now() - time;
+  const diffMs = now - time;
   const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
 
   if (diffMinutes < 1) return "Vừa xong";
@@ -55,6 +55,22 @@ function formatTimeAgo(value) {
   if (diffDays < 7) return `${diffDays} ngày`;
 
   return new Date(value).toLocaleDateString("vi-VN");
+}
+
+function getInitial(title = "") {
+  const trimmed = String(title).trim();
+  return trimmed ? trimmed[0].toUpperCase() : "N";
+}
+
+function isValidRouteId(value) {
+  const text = String(value || "").trim();
+
+  return text && text !== "0" && text !== "undefined" && text !== "null";
+}
+
+function firstValidRouteId(...values) {
+  const found = values.find((value) => isValidRouteId(value));
+  return found ? String(found).trim() : "";
 }
 
 function NotificationTypeBadge({ type = "" }) {
@@ -92,7 +108,7 @@ function NotificationTypeBadge({ type = "" }) {
   );
 }
 
-function NotificationItem({ item, onPress }) {
+function NotificationItem({ item, onPress, nowTick }) {
   const unread = isUnread(item);
   const avatarUri = resolveAvatarUri(
     item.avatar || "",
@@ -109,13 +125,17 @@ function NotificationItem({ item, onPress }) {
       ]}
     >
       <View style={styles.avatarWrap}>
-        <Image
-          source={{ uri: avatarUri }}
-          style={styles.avatar}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={150}
-        />
+        {avatarUri ? (
+          <Image
+            source={{ uri: avatarUri }}
+            style={styles.avatar}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
+        ) : (
+          <Text style={styles.avatarFallback}>{getInitial(item.title)}</Text>
+        )}
 
         <NotificationTypeBadge type={item.type} />
       </View>
@@ -132,7 +152,7 @@ function NotificationItem({ item, onPress }) {
         </Text>
 
         <Text style={styles.notificationTime}>
-          {formatTimeAgo(item.created || item.createdAt)}
+          {formatTimeAgo(item.created || item.createdAt, nowTick)}
         </Text>
       </View>
 
@@ -158,12 +178,13 @@ export default function NotificationsScreen() {
 
   const [items, setItems] = useState(initialCache.items);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [, setBadge] = useState(initialCache.unreadCount);
+  const [badge, setBadge] = useState(initialCache.unreadCount);
   const [hasMore, setHasMore] = useState(initialCache.hasMore);
   const [isLoading, setIsLoading] = useState(!initialCache.hasLoaded);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const [nowTick, setNowTick] = useState(Date.now());
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
   const [, setLastUpdate] = useState(initialCache.lastUpdate);
   const [hasNewNotification, setHasNewNotification] = useState(false);
@@ -172,6 +193,14 @@ export default function NotificationsScreen() {
   const latestBadgeRef = useRef(Number(initialCache.unreadCount || 0));
   const badgeReadyRef = useRef(false);
   const initialLoadingRef = useRef(!initialCache.hasLoaded);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(Date.now());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const visibleItems = useMemo(() => {
     if (activeFilter === "unread") {
@@ -310,6 +339,7 @@ export default function NotificationsScreen() {
   useFocusEffect(
     useCallback(() => {
       const cache = getNotificationCache();
+      setNowTick(Date.now());
 
       if (cache.hasLoaded) {
         setItems(cache.items);
@@ -400,26 +430,87 @@ export default function NotificationsScreen() {
       }
 
       const type = String(item.type || item.raw?.type || "").toLowerCase();
-
-      const postId = String(
-        item.objectId ||
-          item.targetId ||
-          item.postId ||
-          item.raw?.objectId ||
-          item.raw?.object_id ||
-          item.raw?.postId ||
-          item.raw?.post_id ||
-          item.raw?.id ||
+      const targetType = String(
+        item.targetType ||
+          item.raw?.target_type ||
+          item.raw?.targetType ||
           "",
-      ).trim();
+      ).toLowerCase();
+      const title = String(item.title || item.raw?.title || "").toLowerCase();
 
-      if (
-        !postId ||
-        postId === "0" ||
-        postId === "undefined" ||
-        postId === "null"
-      ) {
-        console.warn("Notification missing post id", item);
+      const isMessageNotification =
+        type.includes("message") ||
+        type.includes("conversation") ||
+        type.includes("chat") ||
+        targetType.includes("message") ||
+        targetType.includes("conversation") ||
+        targetType.includes("chat");
+
+      if (isMessageNotification) {
+        const conversationId = firstValidRouteId(
+          item.conversationId,
+          item.chatId,
+          item.targetId,
+          item.objectId,
+          item.raw?.conversation_id,
+          item.raw?.conversationId,
+          item.raw?.chat_id,
+          item.raw?.chatId,
+          item.raw?.target_id,
+          item.raw?.targetId,
+          item.raw?.object_id,
+          item.raw?.objectId,
+        );
+
+        if (conversationId) {
+          router.push({
+            pathname: "/conversation/[id]",
+            params: { id: conversationId },
+          });
+          return;
+        }
+
+        router.push("/conversation");
+        return;
+      }
+
+      const isCourseNotification =
+        type.includes("course") ||
+        type.includes("enrollment") ||
+        type.includes("request_course") ||
+        type.includes("join_course") ||
+        targetType.includes("course") ||
+        targetType.includes("enrollment") ||
+        title.includes("khóa học") ||
+        title.includes("khoá học") ||
+        title.includes("tham gia");
+
+      if (isCourseNotification) {
+        router.push("/courses");
+        return;
+      }
+
+      const isReportNotification =
+        type.includes("report") ||
+        targetType.includes("report") ||
+        title.includes("báo cáo") ||
+        title.includes("bao cao");
+
+      const postId = firstValidRouteId(
+        item.postId,
+        item.raw?.post_id,
+        item.raw?.postId,
+        item.raw?.post?.id,
+        targetType.includes("post") ? item.targetId : "",
+        targetType.includes("post") ? item.raw?.target_id : "",
+        targetType.includes("post") ? item.raw?.targetId : "",
+        item.objectId,
+        item.raw?.object_id,
+        item.raw?.objectId,
+      );
+
+      if (!postId) {
+        console.warn("Notification missing route target", item);
         return;
       }
 
@@ -427,6 +518,14 @@ export default function NotificationsScreen() {
         router.push({
           pathname: "/post/comment/[postId]",
           params: { postId },
+        });
+        return;
+      }
+
+      if (isReportNotification) {
+        router.push({
+          pathname: "/post/[id]",
+          params: { id: postId },
         });
         return;
       }
@@ -516,9 +615,16 @@ export default function NotificationsScreen() {
         <FlatList
           ref={listRef}
           data={visibleItems}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) =>
+            `${item.id || item.notificationId || "notification"}-${index}`
+          }
+          extraData={`${activeFilter}-${badge}-${nowTick}-${hasMore}`}
           renderItem={({ item }) => (
-            <NotificationItem item={item} onPress={handlePressNotification} />
+            <NotificationItem
+              item={item}
+              onPress={handlePressNotification}
+              nowTick={nowTick}
+            />
           )}
           contentContainerStyle={[
             styles.listContent,

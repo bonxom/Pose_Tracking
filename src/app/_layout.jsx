@@ -50,14 +50,12 @@ function getNotificationTargetId(notification = {}) {
 
 async function buildToastNotification(notification = {}) {
   const targetId = getNotificationTargetId(notification);
-
   let body = String(notification.body || "").trim();
 
   if (isGenericToastBody(body) && targetId) {
     try {
       const post = await getPostById(targetId);
       const postDescription = String(post?.described || "").trim();
-
       body = postDescription ? `“${postDescription}”` : "";
     } catch (error) {
       console.log("LOAD_NOTIFICATION_POST_BODY_ERROR", error?.message);
@@ -166,14 +164,14 @@ export default function RootLayout() {
       }
 
       stopRuntime?.();
-      stopInAppNotificationRuntime();
+      stopInAppNotificationRuntime?.();
     };
   }, [isAuthenticated]);
 
   if (isBootstrapping) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View
           style={{
             flex: 1,
@@ -190,15 +188,17 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="post" />
-        <Stack.Screen name="settings" />
         <Stack.Screen name="conversation" />
+        <Stack.Screen name="search" />
+        <Stack.Screen name="settings" />
         <Stack.Screen name="profile" />
       </Stack>
+
       {notificationToast && isAuthenticated ? (
         <Pressable
           onPress={() => {

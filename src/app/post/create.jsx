@@ -1,4 +1,6 @@
 import Screen from "@/components/common/Screen";
+import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
+import EarthIcon from "@/components/icons/EarthIcon";
 import DraftActionSheet from "@/components/post/DraftActionSheet";
 import {
   PostVideoFullscreenModal,
@@ -6,8 +8,6 @@ import {
   PostVideoUploadSlot,
   VIDEO_SLOTS,
 } from "@/components/post/PostVideoSlots";
-import CircleWithCrossIcon from "@/components/icons/CircleWithCrossIcon";
-import EarthIcon from "@/components/icons/EarthIcon";
 import colors from "@/constants/colors";
 import {
   createExerciseSubmission,
@@ -15,14 +15,14 @@ import {
   getPostById,
   validateTwoVideos,
 } from "@/repositories/postRepository";
+import { getUserInfo } from "@/repositories/userRepository";
 import {
   enqueuePostUploading,
   rejectPostUploading,
   resolvePostUploading,
 } from "@/services/postUploadingStore";
-import { getUserInfo } from "@/repositories/userRepository";
-import createStyles from "@/styles/post/create.styles";
 import postStyles from "@/styles/post.styles";
+import createStyles from "@/styles/post/create.styles";
 import {
   CACHE_KEY_CREATEPOST_DRAFT,
   readCache,
@@ -61,7 +61,8 @@ function serializeDraftVideos(videos = []) {
       name: video.name || video.fileName || `draft-video-${index + 1}.mp4`,
       mimeType: video.mimeType || video.type || "video/mp4",
       angle: video.angle || (index === 0 ? "Góc quay trái" : "Góc quay phải"),
-      fieldName: video.fieldName || (index === 0 ? "left_video" : "right_video"),
+      fieldName:
+        video.fieldName || (index === 0 ? "left_video" : "right_video"),
       isLocalUpload: true,
       duration: Number(video.duration || 0),
       fileSize: Number(video.fileSize || 0),
@@ -80,7 +81,8 @@ function hydrateDraftVideos(videos = []) {
       name: video.name || video.fileName || `draft-video-${index + 1}.mp4`,
       mimeType: video.mimeType || video.type || "video/mp4",
       angle: video.angle || (index === 0 ? "Góc quay trái" : "Góc quay phải"),
-      fieldName: video.fieldName || (index === 0 ? "left_video" : "right_video"),
+      fieldName:
+        video.fieldName || (index === 0 ? "left_video" : "right_video"),
       isLocalUpload: true,
       duration: Number(video.duration || 0),
       fileSize: Number(video.fileSize || 0),
@@ -209,14 +211,19 @@ export default function CreatePostScreen() {
     }
 
     if (isTeacher && isSubmissionMode) {
-      Alert.alert("Không được phép", "Tài khoản giảng viên chỉ được tạo bài viết.");
+      Alert.alert(
+        "Không được phép",
+        "Tài khoản giảng viên chỉ được tạo bài viết.",
+      );
       router.replace("/(tabs)/home");
     }
   }, [isStudent, isSubmissionMode, isTeacher, role]);
 
   useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const showSub = Keyboard.addListener(showEvent, (event) => {
       setKeyboardOffset(event.endCoordinates?.height || 0);
@@ -260,7 +267,10 @@ export default function CreatePostScreen() {
     };
   };
 
-  const validateSelectedVideoPair = (videos = [], { shouldAlert = false } = {}) => {
+  const validateSelectedVideoPair = (
+    videos = [],
+    { shouldAlert = false } = {},
+  ) => {
     const completeVideos = videos.filter(Boolean);
 
     if (completeVideos.length !== 2) {
@@ -325,7 +335,9 @@ export default function CreatePostScreen() {
             validateSelectedVideoPair(nextVideos);
             return nextVideos;
           });
-          setActiveVideoUri((current) => (current === removedUri ? "" : current));
+          setActiveVideoUri((current) =>
+            current === removedUri ? "" : current,
+          );
         },
       },
     ]);
@@ -338,7 +350,10 @@ export default function CreatePostScreen() {
     }
 
     if (isTeacher && isSubmissionMode) {
-      Alert.alert("Không được phép", "Tài khoản giảng viên chỉ được tạo bài viết.");
+      Alert.alert(
+        "Không được phép",
+        "Tài khoản giảng viên chỉ được tạo bài viết.",
+      );
       return;
     }
 
@@ -386,6 +401,12 @@ export default function CreatePostScreen() {
               courseId: String(params.courseId || ""),
               exerciseId: String(params.exerciseId || exercise?.id || ""),
               sourcePostId: params.sourcePostId || sourcePost?.id || "",
+              teacherUsername: String(
+                params.teacherUsername ||
+                  sourcePost?.author?.name ||
+                  sourcePost?.author?.handle ||
+                  "",
+              ),
             })
           : await createPost({
               content: trimmedContent,
@@ -432,7 +453,8 @@ export default function CreatePostScreen() {
     router.back();
   };
 
-  const isSubmitDisabled = selectedVideoCount !== 2 || Boolean(videoValidationError);
+  const isSubmitDisabled =
+    selectedVideoCount !== 2 || Boolean(videoValidationError);
   const bottomToolbarInset = keyboardOffset;
 
   return (
@@ -499,21 +521,21 @@ export default function CreatePostScreen() {
 
           {isSubmissionMode ? (
             <Text style={createStyles.modeHint}>
-              Nộp 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương đương nhau.
+              Nộp 2 video thật, mỗi video tối thiểu 10 giây và thời lượng tương
+              đương nhau.
             </Text>
           ) : null}
 
           <TextInput
-            placeholder={
-              isSubmissionMode
-                ? "Ví dụ: Em nộp bài với 2 góc quay theo hướng dẫn..."
-                : "Viết nội dung bài viết của bạn..."
-            }
+            placeholder="Nội dung bài viết"
             placeholderTextColor={colors.placeholder}
             value={content}
             onChangeText={setContent}
             multiline
-            style={[createStyles.createTextArea, { height: Math.max(26, textAreaHeight) }]}
+            style={[
+              createStyles.createTextArea,
+              { height: Math.max(26, textAreaHeight) },
+            ]}
             textAlignVertical="top"
             onContentSizeChange={(event) => {
               const nextHeight = event.nativeEvent.contentSize.height;

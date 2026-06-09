@@ -1,6 +1,6 @@
+import UserAvatar from "@/components/common/UserAvatar";
 import coursesStyles from "@/styles/courses.styles";
 import { Pressable, Text, View } from "react-native";
-import UserAvatar from "./UserAvatar";
 
 export default function StudentCard({
   item,

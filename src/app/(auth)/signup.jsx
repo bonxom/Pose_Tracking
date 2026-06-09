@@ -128,7 +128,7 @@ export default function SignupScreen() {
             onPress={handleBack}
             style={styles.welcomeBackButton}
           >
-            <Text style={styles.welcomeBackText}>←</Text>
+            <Ionicons name="chevron-back" size={28} color="#050505" />
           </Pressable>
 
           <Text style={styles.welcomeTopTitle}>Tạo tài khoản</Text>

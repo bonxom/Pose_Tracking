@@ -33,7 +33,15 @@ async function rollbackProfileUpdate(taskId, previousSession) {
     return;
   }
 
-  await saveAuthSession(previousSession ?? null);
+  if (previousSession) {
+    await saveAuthSession({
+      ...previousSession,
+      profileSyncStatus: "error",
+      profileSyncErrorMessage: "Cập nhật thất bại",
+    });
+  } else {
+    await saveAuthSession(null);
+  }
 
   Alert.alert("Thông tin cá nhân", "Cập nhật thất bại");
 }

@@ -13,6 +13,11 @@ import {
   isServerPost,
 } from "@/repositories/source";
 import * as localPosts from "@/services/postStore";
+import {
+  appendHashtagsToContent,
+  buildPostHashtag,
+  mergeHashtags,
+} from "@/utils/hashtags";
 
 function serverResult(value) {
   if (value == null) return value;
@@ -28,6 +33,38 @@ function assertServerSession(session) {
   if (!session?.token) {
     throw new Error("Cần đăng nhập server để dùng dữ liệu backend.");
   }
+}
+
+export class PostUnavailableError extends Error {
+  constructor(message = "Bài viết không còn khả dụng.") {
+    super(message);
+    this.name = "PostUnavailableError";
+    this.postUnavailable = true;
+  }
+}
+
+function normalizeReportPayload(report = "") {
+  if (typeof report === "string") {
+    const reason = report.trim();
+    return {
+      subject: reason || "Báo cáo bài viết",
+      details: reason || "Nội dung không phù hợp",
+    };
+  }
+
+  const subject = String(report?.subject || "").trim();
+  const details = String(report?.details || "").trim();
+
+  return {
+    subject: subject || "Báo cáo bài viết",
+    details: details || "Nội dung không phù hợp",
+  };
+}
+
+function isPostUnavailableResponse(response) {
+  return ["1010", "9992"].includes(
+    String(response?.code || response?.status || ""),
+  );
 }
 
 function shouldUsePostApi(session) {
@@ -63,9 +100,10 @@ function hasInvalidThumbInPost(post) {
 }
 
 function normalizeServerFeedList(response) {
-  return normalizeServerPostList(response).filter(
-    (post) => !hasInvalidThumbInPost(post),
-  );
+  // return normalizeServerPostList(response).filter(
+  //   (post) => !hasInvalidThumbInPost(post),
+  // );
+  return normalizeServerPostList(response);
 }
 
 function normalizeServerPostObject(response) {
@@ -106,9 +144,14 @@ function normalizeApiBoolean(value, fallback = false) {
 }
 
 function buildAddPostFields(session, params = {}) {
+  const generatedHashtag = params.generatedHashtag
+    ? mergeHashtags([params.generatedHashtag])[0] || ""
+    : "";
   const fields = {
     token: session.token,
-    described: params.content || "",
+    described: appendHashtagsToContent(params.content || "", [
+      generatedHashtag,
+    ]),
     course_id: params.courseId || "",
     device_slave: DEFAULT_DEVICE_TOKEN,
     device_master: DEFAULT_DEVICE_TOKEN,
@@ -396,12 +439,14 @@ export async function editPost(post, params = {}) {
   const fields = {
     token: session.token,
     id: post.id,
-    described:
+    described: appendHashtagsToContent(
       params.content ||
-      params.described ||
-      post.described ||
-      post.content ||
-      "",
+        params.described ||
+        post.described ||
+        post.content ||
+        "",
+      [params.generatedHashtag || post.generatedHashtag || ""],
+    ),
   };
 
   const response = await backendApi.editPostMultipart(fields, multipartVideos);
@@ -434,9 +479,11 @@ export async function deletePost(post) {
   return { deleted: true, source: ACTIVE_SOURCES.SERVER };
 }
 
-export async function reportPost(post, reason = "") {
+export async function reportPost(post, report = "") {
+  const { subject, details } = normalizeReportPayload(report);
+
   if (!isServerPost(post)) {
-    await localPosts.reportPost(post.id, reason);
+    await localPosts.reportPost(post.id, `${subject}: ${details}`);
     return { reported: true, source: ACTIVE_SOURCES.LOCAL };
   }
 
@@ -445,9 +492,13 @@ export async function reportPost(post, reason = "") {
   const response = await backendApi.reportPost({
     token: session.token,
     id: post.id,
-    subject: reason || "Báo cáo bài viết",
-    details: reason || "Nội dung không phù hợp",
+    subject,
+    details,
   });
+
+  if (isPostUnavailableResponse(response)) {
+    throw new PostUnavailableError(response?.message || undefined);
+  }
 
   await assertBackendOk(response, { message: "Backend report_post failed" });
 
@@ -506,6 +557,21 @@ export async function createPost(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
   const allowServer = shouldUsePostApi(session);
+  const createdAt = params.createdAt || new Date().toISOString();
+  const authorUsername =
+    params.hashtagUsername ||
+    session?.username ||
+    session?.displayName ||
+    session?.fullName ||
+    "";
+  const generatedHashtag = params.generatedHashtag
+    ? mergeHashtags([params.generatedHashtag])[0] || ""
+    : buildPostHashtag({
+        username: authorUsername,
+        createdAt,
+        described: params.content || "",
+      });
+  const hashtags = mergeHashtags([generatedHashtag], params.hashtags || []);
 
   if (!allowServer) {
     return localPosts.createPost({
@@ -514,6 +580,10 @@ export async function createPost(params) {
       courseId: params.courseId || "",
       exerciseId: params.exerciseId || "",
       sourcePostId: params.sourcePostId || "",
+      createdAt,
+      hashtagUsername: authorUsername,
+      hashtags,
+      generatedHashtag,
     });
   }
 
@@ -521,7 +591,13 @@ export async function createPost(params) {
     assertServerSession(session);
     validateTwoVideos(videos);
     const response = await backendApi.addPost(
-      buildAddPostFields(session, params),
+      buildAddPostFields(session, {
+        ...params,
+        createdAt,
+        hashtagUsername: authorUsername,
+        hashtags,
+        generatedHashtag,
+      }),
       videos.map((video, index) => ({
         ...video,
         fieldName: index === 0 ? "left_video" : "right_video",
@@ -541,13 +617,15 @@ export async function createPost(params) {
           name: session.displayName || session.username,
           role: session.role || "HV",
         },
-        createdAt: new Date().toISOString(),
+        createdAt,
         likeCount: 0,
         commentCount: 0,
         canComment: true,
         canSubmit: false,
         courseId: params.courseId || "",
         exerciseId: params.exerciseId || "",
+        hashtags,
+        generatedHashtag,
       }
     );
   } catch (error) {
@@ -563,14 +641,34 @@ export async function createExerciseSubmission(params) {
   const session = await getCurrentSession();
   const videos = params.videos || [];
   const allowServer = shouldUsePostApi(session);
+  const createdAt = params.createdAt || new Date().toISOString();
+  const teacherUsername =
+    params.teacherUsername || params.hashtagUsername || "";
+  const submissionContent =
+    String(params.content || "").trim() || "Nộp bài tập.";
+  const generatedHashtag = params.generatedHashtag
+    ? mergeHashtags([params.generatedHashtag])[0] || ""
+    : buildPostHashtag({
+        username: teacherUsername,
+        createdAt,
+        described: submissionContent,
+      });
+  const hashtags = mergeHashtags(
+    [generatedHashtag],
+    [params.courseId || "", params.exerciseId || ""],
+  );
 
   if (!allowServer) {
     return localPosts.createExerciseSubmission({
-      content: params.content || "",
+      content: submissionContent,
       videos,
       courseId: params.courseId || "",
       exerciseId: params.exerciseId || "",
       sourcePostId: params.sourcePostId || "",
+      teacherUsername,
+      createdAt,
+      hashtags,
+      generatedHashtag,
     });
   }
 
@@ -578,7 +676,14 @@ export async function createExerciseSubmission(params) {
     assertServerSession(session);
     validateTwoVideos(videos);
     const response = await backendApi.addPost(
-      buildAddPostFields(session, params),
+      buildAddPostFields(session, {
+        ...params,
+        content: submissionContent,
+        createdAt,
+        hashtagUsername: teacherUsername,
+        hashtags,
+        generatedHashtag,
+      }),
       videos.map((video, index) => ({
         ...video,
         fieldName: index === 0 ? "left_video" : "right_video",
@@ -591,21 +696,24 @@ export async function createExerciseSubmission(params) {
       normalizeServerPostObject(response) || {
         id: String(response?.data?.id || response?.data?.post_id || Date.now()),
         source: ACTIVE_SOURCES.SERVER,
-        content: params.content || "",
-        described: params.content || "",
+        content: submissionContent,
+        described: submissionContent,
         videos,
         author: {
           id: session.id,
           name: session.displayName || session.username,
           role: session.role || "HV",
         },
-        createdAt: new Date().toISOString(),
+        createdAt,
         likeCount: 0,
         commentCount: 0,
         canComment: true,
         canSubmit: false,
         courseId: params.courseId || "",
         exerciseId: params.exerciseId || "",
+        hashtags,
+        generatedHashtag,
+        type: "submission",
       }
     );
   } catch (error) {

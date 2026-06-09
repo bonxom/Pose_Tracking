@@ -1,7 +1,9 @@
 import AppButton from "@/components/common/AppButton";
+import AppInput from "@/components/common/AppInput";
 import BackIcon from "@/components/icons/BackIcon";
 import ProfileIcon from "@/components/icons/ProfileIcon";
-import AppInput from "@/components/common/AppInput";
+import colors from "@/constants/colors";
+import sizes from "@/constants/sizes";
 import {
   getUserInfo,
   mergeOwnProfileWithSession,
@@ -9,8 +11,6 @@ import {
 } from "@/repositories/userRepository";
 import { queueProfileUpdate } from "@/services/profileUpdateService";
 import { profileCacheState } from "@/state/profileCacheState";
-import colors from "@/constants/colors";
-import sizes from "@/constants/sizes";
 import {
   CACHE_KEY_PROFILE,
   getProfileCacheOwnerKey,
@@ -18,26 +18,28 @@ import {
   readCache,
   writeCache,
 } from "@/utils/cacheStore";
-import {
-  getAuthSession,
-  subscribeAuthSession,
-} from "@/utils/session";
 import { resolveAvatarUri, resolveCoverUri } from "@/utils/profile";
+import { getAuthSession, subscribeAuthSession } from "@/utils/session";
 import { clearCurrentUserSession } from "@/utils/userSessionCleanup";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 function SectionHeader({ title, actionLabel = "Chỉnh sửa", onPress }) {
   return (
@@ -100,11 +102,18 @@ function CoverPreview({ uri, version, onPick }) {
 }
 
 export default function ProfileEditScreen() {
+  const insets = useSafeAreaInsets();
+  const scrollRef = useRef(null);
   const initialProfileSnapshot = profileCacheState[""]?.profile || {};
   const [username, setUsername] = useState(
-    () => initialProfileSnapshot.displayName || initialProfileSnapshot.username || "",
+    () =>
+      initialProfileSnapshot.displayName ||
+      initialProfileSnapshot.username ||
+      "",
   );
-  const [avatar, setAvatar] = useState(() => initialProfileSnapshot.avatar || "");
+  const [avatar, setAvatar] = useState(
+    () => initialProfileSnapshot.avatar || "",
+  );
   const [coverImage, setCoverImage] = useState(
     () => initialProfileSnapshot.coverImage || "",
   );
@@ -121,6 +130,8 @@ export default function ProfileEditScreen() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(() => !profileCacheState[""]?.profile);
   const [saving, setSaving] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [focusedField, setFocusedField] = useState("");
   const latestDraftRef = useRef({
     username: "",
     avatar: "",
@@ -138,13 +149,40 @@ export default function ProfileEditScreen() {
     };
   }, [avatar, coverImage, description, username]);
 
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const handleShow = (event) => {
+      setKeyboardHeight(Math.max(0, event?.endCoordinates?.height || 0));
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   const applyProfileSnapshot = useCallback((profileLike = {}) => {
     setUsername(profileLike.displayName || profileLike.username || "");
     setAvatar(profileLike.avatar || "");
     setCoverImage(profileLike.coverImage || "");
     setDescription(profileLike.description || "");
-    setAvatarVersion(profileLike.avatarVersion || profileLike.profileSyncRequestedAt || "");
-    setCoverVersion(profileLike.coverVersion || profileLike.profileSyncRequestedAt || "");
+    setAvatarVersion(
+      profileLike.avatarVersion || profileLike.profileSyncRequestedAt || "",
+    );
+    setCoverVersion(
+      profileLike.coverVersion || profileLike.profileSyncRequestedAt || "",
+    );
   }, []);
 
   const persistProfileSnapshot = useCallback(async (profileLike = {}) => {
@@ -214,10 +252,10 @@ export default function ProfileEditScreen() {
 
     const hasSnapshot = Boolean(
       merged.displayName ||
-        merged.username ||
-        merged.avatar ||
-        merged.coverImage ||
-        merged.description,
+      merged.username ||
+      merged.avatar ||
+      merged.coverImage ||
+      merged.description,
     );
 
     if (hasSnapshot) {
@@ -227,26 +265,29 @@ export default function ProfileEditScreen() {
     return hasSnapshot;
   }, [applyProfileSnapshot]);
 
-  const loadProfile = useCallback(async ({ showLoader = true } = {}) => {
-    if (showLoader) {
-      setLoading(true);
-    }
-    setStatus("");
-    try {
-      const user = await getUserInfo();
-      applyProfileSnapshot(user);
-      await persistProfileSnapshot(user);
-    } catch (error) {
-      if (error.sessionExpired) {
-        await clearCurrentUserSession();
-        router.replace("/(auth)/login");
-        return;
+  const loadProfile = useCallback(
+    async ({ showLoader = true } = {}) => {
+      if (showLoader) {
+        setLoading(true);
       }
-      setStatus(error.message || "Không thể tải hồ sơ.");
-    } finally {
-      setLoading(false);
-    }
-  }, [applyProfileSnapshot, persistProfileSnapshot]);
+      setStatus("");
+      try {
+        const user = await getUserInfo();
+        applyProfileSnapshot(user);
+        await persistProfileSnapshot(user);
+      } catch (error) {
+        if (error.sessionExpired) {
+          await clearCurrentUserSession();
+          router.replace("/(auth)/login");
+          return;
+        }
+        setStatus(error.message || "Không thể tải hồ sơ.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [applyProfileSnapshot, persistProfileSnapshot],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -293,10 +334,10 @@ export default function ProfileEditScreen() {
 
         const hasSnapshot = Boolean(
           merged.displayName ||
-            merged.username ||
-            merged.avatar ||
-            merged.coverImage ||
-            merged.description,
+          merged.username ||
+          merged.avatar ||
+          merged.coverImage ||
+          merged.description,
         );
 
         if (hasSnapshot) {
@@ -317,7 +358,8 @@ export default function ProfileEditScreen() {
 
   const pickImage = async (type) => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permission.status !== "granted") {
         Alert.alert(
           "Cần quyền truy cập ảnh",
@@ -340,7 +382,9 @@ export default function ProfileEditScreen() {
         } else {
           setCoverImage(uri);
         }
-        setStatus("Ảnh đã được chọn. Nhấn \"Lưu thay đổi\" để upload file lên server.");
+        setStatus(
+          'Ảnh đã được chọn. Nhấn "Lưu thay đổi" để upload file lên server.',
+        );
       }
     } catch {
       Alert.alert(
@@ -362,16 +406,19 @@ export default function ProfileEditScreen() {
     setUsernameError("");
     try {
       const session = await getAuthSession();
-      const optimisticProfile = mergeOwnProfileWithSession(
-        {
-          displayName: username.trim(),
-          username: username.trim(),
-          avatar,
-          coverImage,
-          description: description.trim().slice(0, 150),
-        },
-        session || {},
-      );
+      const optimisticProfile = {
+        ...session,
+        id: session?.id || "",
+        displayName: username.trim(),
+        username: username.trim(),
+        avatar,
+        coverImage,
+        description: description.trim().slice(0, 150),
+        avatarVersion: avatar !== (session?.avatar || "") ? new Date().toISOString() : session?.avatarVersion || "",
+        coverVersion: coverImage !== (session?.coverImage || "") ? new Date().toISOString() : session?.coverVersion || "",
+        profileSyncStatus: "pending",
+        profileSyncRequestedAt: new Date().toISOString(),
+      };
 
       applyProfileSnapshot(optimisticProfile);
       await persistProfileSnapshot(optimisticProfile);
@@ -400,6 +447,34 @@ export default function ProfileEditScreen() {
   const hasVisibleProfileData = Boolean(
     username || avatar || coverImage || description,
   );
+  const extraFocusedPadding =
+    focusedField === "description"
+      ? sizes.xxl + sizes.lg
+      : focusedField === "username"
+        ? sizes.xxl
+        : 0;
+  const baseBottomPadding = Math.max(insets.bottom + sizes.sm, sizes.lg);
+  const keyboardInset =
+    keyboardHeight > 0
+      ? Math.max(0, keyboardHeight - insets.bottom) + sizes.xs
+      : 0;
+  const contentBottomPadding =
+    baseBottomPadding + keyboardInset + extraFocusedPadding;
+
+  const handleFieldFocus = (fieldName) => {
+    setFocusedField(fieldName);
+
+    setTimeout(
+      () => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      },
+      fieldName === "description" ? 160 : 120,
+    );
+  };
+
+  const handleFieldBlur = (fieldName) => {
+    setFocusedField((current) => (current === fieldName ? "" : current));
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -418,15 +493,31 @@ export default function ProfileEditScreen() {
         </View>
       ) : (
         <>
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: contentBottomPadding },
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={
+              Platform.OS === "ios" ? "interactive" : "on-drag"
+            }
+          >
             {loading ? (
               <View style={styles.inlineLoading}>
                 <ActivityIndicator size="small" color={colors.brand} />
-                <Text style={styles.inlineLoadingText}>Dang dong bo ho so...</Text>
+                <Text style={styles.inlineLoadingText}>
+                  Dang dong bo ho so...
+                </Text>
               </View>
             ) : null}
             <View style={styles.section}>
-              <SectionHeader title="Ảnh đại diện" onPress={() => pickImage("avatar")} />
+              <SectionHeader
+                title="Ảnh đại diện"
+                onPress={() => pickImage("avatar")}
+              />
               <AvatarPreview
                 uri={avatar}
                 version={avatarVersion}
@@ -436,7 +527,10 @@ export default function ProfileEditScreen() {
             </View>
 
             <View style={styles.section}>
-              <SectionHeader title="Ảnh bìa" onPress={() => pickImage("cover")} />
+              <SectionHeader
+                title="Ảnh bìa"
+                onPress={() => pickImage("cover")}
+              />
               <CoverPreview
                 uri={coverImage}
                 version={coverVersion}
@@ -457,6 +551,8 @@ export default function ProfileEditScreen() {
                 placeholder="Nhập tên người dùng"
                 containerStyle={styles.inputGroup}
                 style={styles.input}
+                onFocus={() => handleFieldFocus("username")}
+                onBlur={() => handleFieldBlur("username")}
               />
               <AppInput
                 label={`Tiểu sử (${description.length}/150)`}
@@ -466,21 +562,21 @@ export default function ProfileEditScreen() {
                 multiline
                 containerStyle={styles.inputGroup}
                 style={[styles.input, styles.multilineInput]}
+                onFocus={() => handleFieldFocus("description")}
+                onBlur={() => handleFieldBlur("description")}
+              />
+
+              <AppButton
+                title="Lưu thay đổi"
+                onPress={saveProfile}
+                loading={saving}
+                style={styles.saveButton}
+                textStyle={styles.saveButtonText}
               />
             </View>
 
             {status ? <Text style={styles.statusText}>{status}</Text> : null}
           </ScrollView>
-
-          <View style={styles.footer}>
-            <AppButton
-              title="Lưu thay đổi"
-              onPress={saveProfile}
-              loading={saving}
-              style={styles.saveButton}
-              textStyle={styles.saveButtonText}
-            />
-          </View>
         </>
       )}
     </SafeAreaView>
@@ -521,7 +617,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   content: {
-    paddingBottom: 96,
+    paddingBottom: sizes.lg,
     gap: 8,
   },
   inlineLoading: {

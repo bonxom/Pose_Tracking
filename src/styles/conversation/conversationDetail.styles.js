@@ -53,7 +53,55 @@ const conversationDetailStyles = StyleSheet.create({
 
   // Message list
   listContent: {
+    flexGrow: 1,
+    justifyContent: "flex-end",
     paddingHorizontal: 12,
+    paddingTop: 12,
+  },
+
+  emptyConversationIntro: {
+    alignItems: "center",
+    paddingHorizontal: 28,
+    paddingTop: 54,
+  },
+  emptyPartnerAvatar: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: "#E5E7EB",
+  },
+  emptyPartnerName: {
+    marginTop: 14,
+    maxWidth: "85%",
+    color: "#1C1E21",
+    fontSize: 22,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  emptyPartnerMeta: {
+    marginTop: 3,
+    color: "#65676B",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  emptyPartnerDescription: {
+    marginTop: 10,
+    color: "#65676B",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  viewProfileButton: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 18,
+    backgroundColor: "#E7F3FF",
+  },
+  viewProfileText: {
+    color: "#1877F2",
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   // Date delimiter
@@ -115,6 +163,10 @@ const conversationDetailStyles = StyleSheet.create({
   },
 
   // Jump FAB
+  emojiDismissOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
   jumpContainer: {
     position: "absolute",
     bottom: 12,
@@ -174,6 +226,84 @@ const conversationDetailStyles = StyleSheet.create({
   likeBtn: {
     padding: 6,
     borderRadius: 20,
+  },
+  composer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
+    backgroundColor: "#FFFFFF",
+    gap: 4,
+  },
+  composerInputWrap: {
+    flex: 1,
+    minHeight: 38,
+    maxHeight: 110,
+    borderRadius: 19,
+    backgroundColor: "#F0F2F5",
+    paddingLeft: 14,
+    paddingRight: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  composerInput: {
+    flex: 1,
+    minHeight: 38,
+    color: "#050505",
+    fontSize: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingHorizontal: 0,
+  },
+  composerIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emojiButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  likeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  blockedComposer: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  blockedComposerText: {
+    color: "#65676B",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  unblockButton: {
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: "#E7F3FF",
+  },
+  unblockButtonText: {
+    color: "#1877F2",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
 
