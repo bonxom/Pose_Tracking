@@ -67,6 +67,21 @@ function isPostUnavailableResponse(response) {
   );
 }
 
+function isUnavailableFlag(value) {
+  if (value === true || value === 1) return true;
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "1" || normalized === "true";
+  }
+
+  return false;
+}
+
+function isUnavailablePostData(data = {}) {
+  return isUnavailableFlag(data.is_blocked) || isUnavailableFlag(data.isBlocked);
+}
+
 function shouldUsePostApi(session) {
   if (!session?.token) return false;
   if (session?.demoMode || session?.source === ACTIVE_SOURCES.LOCAL) {
@@ -109,6 +124,22 @@ function normalizeServerFeedList(response) {
 function normalizeServerPostObject(response) {
   const post = normalizePost(extractObject(response), ACTIVE_SOURCES.SERVER);
   return post.id ? post : null;
+}
+
+function normalizeServerPostDetail(response) {
+  const rawPost = extractObject(response);
+
+  if (!rawPost || isUnavailablePostData(rawPost)) {
+    throw new PostUnavailableError();
+  }
+
+  const post = normalizePost(rawPost, ACTIVE_SOURCES.SERVER);
+
+  if (!post.id) {
+    throw new PostUnavailableError();
+  }
+
+  return post;
 }
 
 function isDemoVideo(video) {
@@ -312,11 +343,15 @@ export async function getPostById(postId) {
     id: postId,
   });
 
+  if (isPostUnavailableResponse(response)) {
+    throw new PostUnavailableError(response?.message || undefined);
+  }
+
   await assertBackendOk(response, {
     message: "Backend post detail failed",
   });
 
-  return serverResult(normalizeServerPostObject(response));
+  return serverResult(normalizeServerPostDetail(response));
 }
 
 export async function toggleLike(post) {
