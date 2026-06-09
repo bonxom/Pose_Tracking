@@ -402,7 +402,6 @@ export default function ProfileEditScreen() {
     setUsernameError("");
     try {
       const session = await getAuthSession();
-      const previousProfileSnapshot = profileCacheState[""]?.profile || {};
       const optimisticProfile = {
         ...session,
         id: session?.id || "",
@@ -432,8 +431,6 @@ export default function ProfileEditScreen() {
         avatar,
         coverImage,
         description: description.trim().slice(0, 150),
-      }, {
-        previousProfileSnapshot,
       });
       setStatus("Đã cập nhật giao diện. Backend đang đồng bộ nền...");
       router.replace("/(tabs)/profile");

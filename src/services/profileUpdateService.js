@@ -8,44 +8,6 @@ import { Alert } from "react-native";
 
 let latestProfileUpdateTaskId = 0;
 
-function buildRollbackSession(previousSession, previousProfileSnapshot = {}) {
-  if (!previousSession) {
-    return null;
-  }
-
-  return {
-    ...previousSession,
-    username:
-      previousProfileSnapshot.displayName ??
-      previousProfileSnapshot.username ??
-      previousSession.username ??
-      previousSession.displayName ??
-      "",
-    displayName:
-      previousProfileSnapshot.displayName ??
-      previousProfileSnapshot.username ??
-      previousSession.displayName ??
-      previousSession.username ??
-      "",
-    avatar:
-      previousProfileSnapshot.avatar ?? previousSession.avatar ?? "",
-    coverImage:
-      previousProfileSnapshot.coverImage ?? previousSession.coverImage ?? "",
-    description:
-      previousProfileSnapshot.description ??
-      previousSession.description ??
-      "",
-    avatarVersion:
-      previousProfileSnapshot.avatarVersion ??
-      previousSession.avatarVersion ??
-      "",
-    coverVersion:
-      previousProfileSnapshot.coverVersion ??
-      previousSession.coverVersion ??
-      "",
-  };
-}
-
 async function finalizeProfileUpdate(taskId) {
   if (taskId !== latestProfileUpdateTaskId) {
     return;
@@ -84,12 +46,8 @@ async function rollbackProfileUpdate(taskId, previousSession) {
   Alert.alert("Thông tin cá nhân", "Cập nhật thất bại");
 }
 
-export async function queueProfileUpdate(params = {}, options = {}) {
+export async function queueProfileUpdate(params = {}) {
   const previousSession = await getCurrentSession();
-  const rollbackSession = buildRollbackSession(
-    previousSession,
-    options.previousProfileSnapshot || {},
-  );
   const optimisticProfile = createOptimisticUserInfo(
     previousSession || {},
     params,
@@ -104,7 +62,7 @@ export async function queueProfileUpdate(params = {}, options = {}) {
       await updateUserInfo(params);
       await finalizeProfileUpdate(taskId);
     } catch {
-      await rollbackProfileUpdate(taskId, rollbackSession);
+      await rollbackProfileUpdate(taskId, previousSession);
     }
   })();
 
