@@ -178,7 +178,7 @@ export async function searchScreenSearch(keyword = "", options = {}) {
     message: "Không thể tìm kiếm.",
   });
 
-  const posts = mapPosts(response);
+  let posts = mapPosts(response);
   let users = mapUsersFromResponse(response, posts);
   const backendHasUsers = hasBackendSearchUsers(response);
 
@@ -194,17 +194,31 @@ export async function searchScreenSearch(keyword = "", options = {}) {
   // Client-side filter: only include users whose name or handle contains the keyword
   try {
     const lowered = String(trimmedKeyword || "").trim().toLowerCase();
-    if (lowered && !backendHasUsers) {
-      users = users.filter((u) => {
-        const name = String(u?.name || "").toLowerCase();
-        const handle = String(u?.handle || "").replace(/^@/, "").toLowerCase();
-        return name.includes(lowered) || handle.includes(lowered);
-      });
+    if (lowered) {
+      if (!backendHasUsers) {
+        users = users.filter((u) => {
+          const name = String(u?.name || "").toLowerCase();
+          const handle = String(u?.handle || "").replace(/^@/, "").toLowerCase();
+          return name.includes(lowered) || handle.includes(lowered);
+        });
+      }
+
+      const hasInPost = posts.some((p) =>
+        String(p?.described || p?.content || "").toLowerCase().includes(lowered)
+      );
+      const hasInUsername = users.some((u) =>
+        String(u?.name || u?.handle || "").toLowerCase().includes(lowered)
+      );
+
+      if (hasInPost && !hasInUsername) {
+        users = [];
+      } else if (!hasInPost && hasInUsername) {
+        posts = [];
+      }
     }
   } catch {
     // ignore filter errors and return users as-is
   }
-
 
   return {
     posts,
