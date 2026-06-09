@@ -191,23 +191,36 @@ export async function searchScreenSearch(keyword = "", options = {}) {
     users = await hydrateSearchUsers(users);
   }
 
-  // Client-side filter: only include users whose name or handle contains the keyword
+  // Client-side filter: only include users whose name contains the keyword
   try {
     const lowered = String(trimmedKeyword || "").trim().toLowerCase();
     if (lowered) {
       if (!backendHasUsers) {
         users = users.filter((u) => {
           const name = String(u?.name || "").toLowerCase();
-          const handle = String(u?.handle || "").replace(/^@/, "").toLowerCase();
-          return name.includes(lowered) || handle.includes(lowered);
+          return name.includes(lowered);
         });
+      }
+
+      // Add current user at the top if search keyword matches their own name
+      const myName = String(session?.displayName || session?.username || "").toLowerCase();
+      if (myName.includes(lowered)) {
+        const currentUser = {
+          id: String(session?.id || ""),
+          name: String(session?.displayName || session?.username || "Người dùng"),
+          handle: String(session?.username || ""),
+          role: String(session?.role || "HV"),
+          avatar: String(session?.avatar || ""),
+          description: "",
+        };
+        users = [currentUser, ...users.filter((u) => u.id !== currentUser.id)];
       }
 
       const hasInPost = posts.some((p) =>
         String(p?.described || p?.content || "").toLowerCase().includes(lowered)
       );
       const hasInUsername = users.some((u) =>
-        String(u?.name || u?.handle || "").toLowerCase().includes(lowered)
+        String(u?.name || "").toLowerCase().includes(lowered)
       );
 
       if (hasInPost && !hasInUsername) {
