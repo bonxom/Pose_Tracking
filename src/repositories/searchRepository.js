@@ -223,9 +223,9 @@ export async function searchScreenSearch(keyword = "", options = {}) {
         String(u?.name || "").toLowerCase().includes(lowered)
       );
 
-      if (hasInPost && !hasInUsername) {
+      if (!hasInUsername) {
         users = [];
-      } else if (!hasInPost && hasInUsername) {
+      } else if (!hasInPost) {
         posts = [];
       }
     }
