@@ -2,6 +2,34 @@ import { backendApi } from "@/api/client";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
+export function isConversationAuthError(error) {
+  const code = String(
+    error?.code ||
+      error?.data?.code ||
+      error?.response?.data?.code ||
+      "",
+  );
+
+  const status = Number(error?.status || error?.response?.status || 0);
+
+  const message = String(
+    error?.message ||
+      error?.data?.message ||
+      error?.data?.error ||
+      error?.response?.data?.message ||
+      "",
+  ).toLowerCase();
+
+  return (
+    error?.sessionExpired ||
+    error?.name === "SessionExpiredError" ||
+    status === 401 ||
+    code === "9998" ||
+    message.includes("token is invalid") ||
+    message.includes("unauthorized")
+  );
+}
+
 function normalizeConversationList(data) {
   const messages = data?.data || (Array.isArray(data) ? data : []);
   const numNewMessage = messages.filter(
