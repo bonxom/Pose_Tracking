@@ -43,7 +43,6 @@ const MOCK_GET_POST = {
       },
       course_id: DEMO_TEACHER.id,
       exercise_id: DEMO_EXERCISES[0].id,
-      source_post_id: DEMO_EXERCISES[0].id,
       edited_times: "1",
       is_blocked: "0",
       time_series_poses: [

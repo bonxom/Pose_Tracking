@@ -96,8 +96,7 @@ function isMatchingDraftContext(draft, context) {
   return (
     String(draft.mode || "") === context.mode &&
     String(draft.courseId || "") === context.courseId &&
-    String(draft.exerciseId || "") === context.exerciseId &&
-    String(draft.sourcePostId || "") === context.sourcePostId
+    String(draft.exerciseId || "") === context.exerciseId
   );
 }
 
@@ -126,9 +125,8 @@ export default function CreatePostScreen() {
       mode: buildDraftMode(isSubmissionMode),
       courseId: String(params.courseId || ""),
       exerciseId: String(params.exerciseId || ""),
-      sourcePostId: String(params.sourcePostId || ""),
     }),
-    [isSubmissionMode, params.courseId, params.exerciseId, params.sourcePostId],
+    [isSubmissionMode, params.courseId, params.exerciseId],
   );
 
   const exercise = useMemo(() => {
@@ -140,10 +138,9 @@ export default function CreatePostScreen() {
 
     return {
       id: exerciseId,
-      sourcePostId: String(params.sourcePostId || exerciseId),
       title: String(params.exerciseTitle || "Bài tập"),
     };
-  }, [params.exerciseId, params.exerciseTitle, params.sourcePostId]);
+  }, [params.exerciseId, params.exerciseTitle]);
 
   useEffect(() => {
     let isMounted = true;
@@ -164,8 +161,8 @@ export default function CreatePostScreen() {
         console.warn("Failed to load current user profile:", error);
       }
 
-      if (!params.sourcePostId) return;
-      const post = await getPostById(params.sourcePostId);
+      if (!params.exerciseId) return;
+      const post = await getPostById(params.exerciseId);
       if (isMounted) {
         setSourcePost(post);
       }
@@ -175,7 +172,7 @@ export default function CreatePostScreen() {
     return () => {
       isMounted = false;
     };
-  }, [params.sourcePostId]);
+  }, [params.exerciseId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -400,7 +397,6 @@ export default function CreatePostScreen() {
               videos: completeVideos,
               courseId: String(params.courseId || ""),
               exerciseId: String(params.exerciseId || exercise?.id || ""),
-              sourcePostId: params.sourcePostId || sourcePost?.id || "",
               teacherUsername: String(
                 params.teacherUsername ||
                   sourcePost?.author?.name ||

@@ -107,6 +107,7 @@ async function request(path, body = {}, options = {}) {
       body: payload,
       signal: controller.signal,
     });
+    console.log("response :", JSON.stringify(response, null, 2));
     const data = await safeJson(response);
     logApi("response", { path, status: response.status, code: data?.code });
 
@@ -198,6 +199,8 @@ export async function postMultipart(
       type: file.mimeType || file.type || "video/mp4",
     });
   });
+
+  console.log("form data: ", JSON.stringify(formData, null, 2));
 
   return request(path, formData, { ...options, transport: "multipart" });
 }

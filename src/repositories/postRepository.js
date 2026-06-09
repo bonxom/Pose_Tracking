@@ -161,10 +161,6 @@ function buildAddPostFields(session, params = {}) {
     fields.exercise_id = params.exerciseId;
   }
 
-  if (params.sourcePostId) {
-    fields.source_post_id = params.sourcePostId;
-  }
-
   return fields;
 }
 
@@ -579,7 +575,6 @@ export async function createPost(params) {
       videos,
       courseId: params.courseId || "",
       exerciseId: params.exerciseId || "",
-      sourcePostId: params.sourcePostId || "",
       createdAt,
       hashtagUsername: authorUsername,
       hashtags,
@@ -664,7 +659,6 @@ export async function createExerciseSubmission(params) {
       videos,
       courseId: params.courseId || "",
       exerciseId: params.exerciseId || "",
-      sourcePostId: params.sourcePostId || "",
       teacherUsername,
       createdAt,
       hashtags,
@@ -675,6 +669,24 @@ export async function createExerciseSubmission(params) {
   try {
     assertServerSession(session);
     validateTwoVideos(videos);
+    console.log(
+      "field: ",
+      buildAddPostFields(session, {
+        ...params,
+        content: submissionContent,
+        createdAt,
+        hashtagUsername: teacherUsername,
+        hashtags,
+        generatedHashtag,
+      }),
+    );
+    console.log(
+      "videos: ",
+      videos.map((video, index) => ({
+        ...video,
+        fieldName: index === 0 ? "left_video" : "right_video",
+      })),
+    );
     const response = await backendApi.addPost(
       buildAddPostFields(session, {
         ...params,

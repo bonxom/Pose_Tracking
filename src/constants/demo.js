@@ -39,7 +39,6 @@ export const DEMO_COURSE = {
 export const DEMO_EXERCISES = [
   {
     id: "post_teacher_exercise_001",
-    sourcePostId: "post_teacher_exercise_001",
     hashtag: "#exercise_chao_dieu_lenh",
     title: "Động tác chào điều lệnh",
     summary: "Giữ thân thẳng, tay phải lên đúng góc, mắt nhìn thẳng theo khẩu lệnh.",
@@ -47,7 +46,6 @@ export const DEMO_EXERCISES = [
   },
   {
     id: "post_teacher_exercise_002",
-    sourcePostId: "post_teacher_exercise_002",
     hashtag: "#exercise_buoc_deu",
     title: "Bước đều tại chỗ",
     summary: "Luyện nhịp chân trái/phải, giữ tay đánh đều và không lệch hàng.",
@@ -55,7 +53,6 @@ export const DEMO_EXERCISES = [
   },
   {
     id: "post_teacher_exercise_003",
-    sourcePostId: "post_teacher_exercise_003",
     hashtag: "#exercise_quay_phai",
     title: "Quay phải theo nhịp",
     summary: "Tập quay người đúng trục, dứt khoát ở nhịp cuối.",

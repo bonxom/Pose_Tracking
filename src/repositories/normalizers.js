@@ -290,7 +290,6 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     ),
     courseId,
     exerciseId,
-    sourcePostId: firstValue(raw.sourcePostId, raw.source_post_id, ""),
     teacherId: firstValue(raw.teacherId, raw.teacher_id, raw.author_id, ""),
     courseTitle: firstValue(
       raw.courseTitle,
