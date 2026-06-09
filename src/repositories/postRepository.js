@@ -637,6 +637,11 @@ export async function createExerciseSubmission(params) {
   const videos = params.videos || [];
   const allowServer = shouldUsePostApi(session);
   const createdAt = params.createdAt || new Date().toISOString();
+  // console.log("---", params.generatedHashtag);
+  // console.log("***************, ", params.content);
+  // console.log(
+  //   "**************************************************************************************",
+  // );
   const teacherUsername =
     params.teacherUsername || params.hashtagUsername || "";
   const submissionContent =
@@ -646,8 +651,9 @@ export async function createExerciseSubmission(params) {
     : buildPostHashtag({
         username: teacherUsername,
         createdAt,
-        described: submissionContent,
+        described: params.content || "",
       });
+  //console.log("@@@@@@@@@@@@@@@@@ generated hashtag: ", generatedHashtag);
   const hashtags = mergeHashtags(
     [generatedHashtag],
     [params.courseId || "", params.exerciseId || ""],

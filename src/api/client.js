@@ -107,7 +107,7 @@ async function request(path, body = {}, options = {}) {
       body: payload,
       signal: controller.signal,
     });
-    console.log("response :", JSON.stringify(response, null, 2));
+    // console.log("response :", JSON.stringify(response, null, 2));
     const data = await safeJson(response);
     logApi("response", { path, status: response.status, code: data?.code });
 
