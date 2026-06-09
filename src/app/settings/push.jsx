@@ -8,6 +8,12 @@ import {
   setPushSettings,
 } from "@/repositories/settingsRepository";
 import { loadAndApplyPushSettings } from "@/services/pushNotifications";
+import { restartInAppNotificationRuntime as restartPushRuntime } from "@/services/pushNotifications";
+import { restartInAppNotificationRuntime as restartInAppRuntime } from "@/services/inAppNotificationRuntime";
+import {
+  getNotificationPollInterval,
+  setNotificationPollInterval,
+} from "@/utils/notification";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -144,6 +150,7 @@ export default function PushSettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [savingKey, setSavingKey] = useState("");
   const [selectedSettingKey, setSelectedSettingKey] = useState("");
+  const [pollInterval, setPollInterval] = useState(30000);
 
   const selectedSetting = useMemo(
     () => CONTENT_SETTINGS.find((item) => item.key === selectedSettingKey),
@@ -152,6 +159,11 @@ export default function PushSettingsScreen() {
 
   const loadSettings = useCallback(() => {
     setIsLoading(true);
+
+    getNotificationPollInterval()
+      .then(setPollInterval)
+      .catch(() => {});
+
     getPushSettings()
       .then((data) => {
         setSettings((current) => normalizePushSettings(data, current));
@@ -163,6 +175,29 @@ export default function PushSettingsScreen() {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
+  const handleSelectInterval = async (value) => {
+    const previousInterval = pollInterval;
+    setPollInterval(value);
+
+    const success = await setNotificationPollInterval(value);
+    if (success) {
+      try {
+        restartPushRuntime();
+      } catch (err) {
+        console.log("Failed to restart push runtime:", err);
+      }
+      try {
+        restartInAppRuntime();
+      } catch (err) {
+        console.log("Failed to restart in-app runtime:", err);
+      }
+      setStatus("Đã cập nhật tần suất làm mới thông báo.");
+    } else {
+      setPollInterval(previousInterval);
+      setStatus("Không thể lưu cài đặt tần suất.");
+    }
+  };
 
   useFocusEffect(loadSettings);
 
@@ -328,6 +363,46 @@ export default function PushSettingsScreen() {
 
         <SettingsSection title="Bạn nhận thông báo qua">
           {DELIVERY_SETTINGS.map(renderDeliveryRow)}
+        </SettingsSection>
+
+        <SettingsSection title="Tần suất làm mới">
+          <Text style={styles.sectionSubtitle}>
+            Khoảng thời gian tự động kiểm tra thông báo mới khi ứng dụng đang mở.
+          </Text>
+          <View style={styles.pollOptionsContainer}>
+            {[
+              { label: "15 giây", value: 15000 },
+              { label: "30 giây (Mặc định)", value: 30000 },
+              { label: "1 phút", value: 60000 },
+              { label: "2 phút", value: 120000 },
+              { label: "5 phút", value: 300000 },
+            ].map((opt) => {
+              const isSelected = pollInterval === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={styles.pollOptionRow}
+                  onPress={() => handleSelectInterval(opt.value)}
+                >
+                  <Text
+                    style={[
+                      styles.pollOptionLabel,
+                      isSelected && styles.pollOptionLabelSelected,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  {isSelected ? (
+                    <ProfileIcon
+                      name="checkmark"
+                      size={20}
+                      color={colors.blue}
+                    />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
         </SettingsSection>
 
         {status ? (
@@ -651,5 +726,36 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderMuted,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderMuted,
+  },
+  sectionSubtitle: {
+    paddingHorizontal: sizes.lg,
+    paddingBottom: sizes.md,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.inkMuted,
+  },
+  pollOptionsContainer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+    backgroundColor: colors.white,
+  },
+  pollOptionRow: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: sizes.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  pollOptionLabel: {
+    fontSize: 16,
+    color: colors.ink,
+  },
+  pollOptionLabelSelected: {
+    fontWeight: "800",
+    color: colors.blue,
   },
 });

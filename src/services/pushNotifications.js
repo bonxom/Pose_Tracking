@@ -9,6 +9,7 @@ import {
   setDeviceToken,
 } from "@/repositories/settingsRepository";
 import { getCurrentSession } from "@/repositories/source";
+import { getNotificationPollInterval } from "@/utils/notification";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
@@ -23,6 +24,8 @@ let receivedSubscription = null;
 let responseSubscription = null;
 let lastUnreadCount = null;
 let lastNotificationIds = new Set();
+let activeRuntimeConfig = null;
+let isRuntimeActive = false;
 
 function toBool(value, fallback = true) {
   if (value === undefined || value === null) return fallback;
@@ -441,6 +444,8 @@ export function startInAppNotificationRuntime({
   onNewInAppNotification,
 } = {}) {
   stopInAppNotificationRuntime();
+  isRuntimeActive = true;
+  activeRuntimeConfig = { onOpen, getCurrentPath, onNewInAppNotification };
 
   loadAndApplyPushSettings().catch((error) => {
     console.log("START_PUSH_SETTINGS_ERROR", error?.message);
@@ -454,17 +459,23 @@ export function startInAppNotificationRuntime({
     console.log("LOAD_NOTIFICATION_BADGE_ERROR", error?.message);
   });
 
-  pollingTimer = setInterval(() => {
-    if (AppState.currentState !== "active") return;
+  getNotificationPollInterval().then((interval) => {
+    if (!isRuntimeActive) return;
 
-    refreshNotificationBadge({
-      notifyIfNew: true,
-      getCurrentPath,
-      onNewInAppNotification,
-    }).catch((error) => {
-      console.log("POLL_NOTIFICATION_ERROR", error?.message);
-    });
-  }, 300000);
+    pollingTimer = setInterval(() => {
+      if (AppState.currentState !== "active") return;
+
+      refreshNotificationBadge({
+        notifyIfNew: true,
+        getCurrentPath,
+        onNewInAppNotification,
+      }).catch((error) => {
+        console.log("POLL_NOTIFICATION_ERROR", error?.message);
+      });
+    }, interval);
+  }).catch((error) => {
+    console.log("GET_POLL_INTERVAL_ERROR", error?.message);
+  });
 
   appStateSubscription = AppState.addEventListener("change", (state) => {
     if (state === "active") {
@@ -519,6 +530,7 @@ export function startInAppNotificationRuntime({
 }
 
 export function stopInAppNotificationRuntime() {
+  isRuntimeActive = false;
   if (pollingTimer) {
     clearInterval(pollingTimer);
     pollingTimer = null;
@@ -532,6 +544,12 @@ export function stopInAppNotificationRuntime() {
 
   responseSubscription?.remove?.();
   responseSubscription = null;
+}
+
+export function restartInAppNotificationRuntime() {
+  if (isRuntimeActive && activeRuntimeConfig) {
+    startInAppNotificationRuntime(activeRuntimeConfig);
+  }
 }
 
 export function resetInAppNotificationRuntime() {

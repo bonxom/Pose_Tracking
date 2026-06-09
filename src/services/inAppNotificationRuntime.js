@@ -3,12 +3,15 @@ import {
   resetNotificationCache,
   setNotificationBadge,
 } from "@/repositories/notificationRepository";
+import { getNotificationPollInterval } from "@/utils/notification";
 import { AppState } from "react-native";
 
 let pollingTimer = null;
 let appStateSubscription = null;
 let lastUnreadCount = null;
 let lastNotificationIds = new Set();
+let activeRuntimeConfig = null;
+let isRuntimeActive = false;
 
 function isNotificationsPath(path = "") {
   const currentPath = String(path || "");
@@ -200,6 +203,8 @@ export function startInAppNotificationRuntime({
   onNewInAppNotification,
 } = {}) {
   stopInAppNotificationRuntime();
+  isRuntimeActive = true;
+  activeRuntimeConfig = { getCurrentPath, onNewInAppNotification };
 
   refreshNotificationBadge({
     notifyIfNew: false,
@@ -209,17 +214,23 @@ export function startInAppNotificationRuntime({
     console.log("LOAD_NOTIFICATION_BADGE_ERROR", error?.message);
   });
 
-  pollingTimer = setInterval(() => {
-    if (AppState.currentState !== "active") return;
+  getNotificationPollInterval().then((interval) => {
+    if (!isRuntimeActive) return;
 
-    refreshNotificationBadge({
-      notifyIfNew: true,
-      getCurrentPath,
-      onNewInAppNotification,
-    }).catch((error) => {
-      console.log("POLL_NOTIFICATION_ERROR", error?.message);
-    });
-  }, 30000);
+    pollingTimer = setInterval(() => {
+      if (AppState.currentState !== "active") return;
+
+      refreshNotificationBadge({
+        notifyIfNew: true,
+        getCurrentPath,
+        onNewInAppNotification,
+      }).catch((error) => {
+        console.log("POLL_NOTIFICATION_ERROR", error?.message);
+      });
+    }, interval);
+  }).catch((error) => {
+    console.log("GET_POLL_INTERVAL_ERROR", error?.message);
+  });
 
   appStateSubscription = AppState.addEventListener("change", (state) => {
     if (state === "active") {
@@ -237,6 +248,7 @@ export function startInAppNotificationRuntime({
 }
 
 export function stopInAppNotificationRuntime() {
+  isRuntimeActive = false;
   if (pollingTimer) {
     clearInterval(pollingTimer);
     pollingTimer = null;
@@ -244,6 +256,12 @@ export function stopInAppNotificationRuntime() {
 
   appStateSubscription?.remove?.();
   appStateSubscription = null;
+}
+
+export function restartInAppNotificationRuntime() {
+  if (isRuntimeActive && activeRuntimeConfig) {
+    startInAppNotificationRuntime(activeRuntimeConfig);
+  }
 }
 
 export function resetInAppNotificationRuntime() {
