@@ -3,6 +3,7 @@ import SearchButton from "@/components/common/SearchButton";
 import EnrollmentCard from "@/components/courses/EnrollmentCard";
 import SectionHeader from "@/components/courses/SectionHeader";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import { getRequestedEnrollment } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
@@ -32,6 +33,7 @@ export default function RequestsView({
   setCache,
   onActionSuccess,
 }) {
+  const { session: currentUser } = useAuthSession();
   const [enrollments, setEnrollments] = useState(cache || []);
   const [isLoading, setIsLoading] = useState(!cache);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -161,7 +163,18 @@ export default function RequestsView({
             actionStatus={actionStatuses[item.request.id]}
             onAccept={promptAccept}
             onReject={promptReject}
-            onPressCard={() => {}}
+            onPressCard={(userId) => {
+              if (!userId) return;
+              const isOwn = currentUser?.id && String(currentUser.id) === String(userId);
+              if (isOwn) {
+                router.push("/(tabs)/profile");
+              } else {
+                router.push({
+                  pathname: "/profile/[userId]",
+                  params: { userId },
+                });
+              }
+            }}
             onPressBlock={openBottomMenu}
           />
         )}

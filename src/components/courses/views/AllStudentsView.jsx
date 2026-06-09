@@ -8,6 +8,7 @@ import SortZtoAIcon from "@/components/icons/SortZtoAIcon";
 import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
 import colors from "@/constants/colors";
 import useEnrollmentActions from "@/hooks/useEnrollmentActions";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import { getCourseStudents } from "@/repositories/courseRepository";
 import coursesStyles from "@/styles/courses.styles";
@@ -28,6 +29,7 @@ export default function AllStudentsView({
   setCache,
   onActionSuccess,
 }) {
+  const { session: currentUser } = useAuthSession();
   const [students, setStudents] = useState(
     cache || { students: [], total: "0" },
   );
@@ -147,7 +149,18 @@ export default function AllStudentsView({
           <StudentCard
             item={item}
             actionStatus={actionStatuses[item.id]}
-            onPressCard={() => {}}
+            onPressCard={(userId) => {
+              if (!userId) return;
+              const isOwn = currentUser?.id && String(currentUser.id) === String(userId);
+              if (isOwn) {
+                router.push("/(tabs)/profile");
+              } else {
+                router.push({
+                  pathname: "/profile/[userId]",
+                  params: { userId },
+                });
+              }
+            }}
             onPressBlock={openBottomMenu}
           />
         )}
