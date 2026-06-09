@@ -1,6 +1,7 @@
 import NoInternetView from "@/components/common/NoInternetView";
 import PostCard from "@/components/post/PostCard";
 import PostUploadingCard from "@/components/post/PostUploadingCard";
+import FeedLoadingCard from "@/components/post/FeedLoadingCard";
 import { useInternetFetch } from "@/hooks/useNetInfo";
 import {
   // checkNewItems,
@@ -15,13 +16,13 @@ import { feedCacheState } from "@/state/feedCacheState";
 import { profileCacheState } from "@/state/profileCacheState";
 import homeStyles from "@/styles/home.styles";
 import { CACHE_KEY_HOME_FEED, readCache, writeCache } from "@/utils/cacheStore";
+import { mergeUniquePosts, mergeRefreshedFeed } from "@/utils/post";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   FlatList,
   LayoutAnimation,
   Pressable,
@@ -37,47 +38,7 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function FeedLoadingCard() {
-  const animatedValue = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  }, [animatedValue]);
-
-  return (
-    <Animated.View
-      style={[
-        homeStyles.loadingCard,
-        {
-          opacity: animatedValue,
-          transform: [
-            {
-              translateY: animatedValue.interpolate({
-                inputRange: [0, 1],
-                outputRange: [12, 0],
-              }),
-            },
-          ],
-        },
-      ]}
-    >
-      <View style={homeStyles.loadingHeader}>
-        <View style={homeStyles.loadingAvatar} />
-        <View style={homeStyles.loadingMeta}>
-          <View style={homeStyles.loadingLinePrimary} />
-          <View style={homeStyles.loadingLineSecondary} />
-        </View>
-      </View>
-      <View style={homeStyles.loadingBlock} />
-      <View style={homeStyles.loadingLineTertiary} />
-      <View style={homeStyles.loadingLineSecondary} />
-    </Animated.View>
-  );
-}
 
 export default function HomeScreen() {
   const uploadSuccessAlertLock = useRef(false);
@@ -96,33 +57,7 @@ export default function HomeScreen() {
   const [uploadingCards, setUploadingCards] = useState([]);
   const { isNoInternet, executeWithInternetCheck } = useInternetFetch();
 
-  const mergeUniquePosts = useCallback((currentPosts, incomingPosts) => {
-    if (!Array.isArray(incomingPosts) || incomingPosts.length === 0) {
-      return currentPosts;
-    }
 
-    const seenIds = new Set(currentPosts.map((item) => item.id));
-    const uniqueIncomingPosts = incomingPosts.filter(
-      (item) => item?.id && !seenIds.has(item.id),
-    );
-
-    return uniqueIncomingPosts.length
-      ? [...currentPosts, ...uniqueIncomingPosts]
-      : currentPosts;
-  }, []);
-
-  const mergeRefreshedFeed = useCallback((currentPosts, firstPagePosts) => {
-    if (!Array.isArray(firstPagePosts) || firstPagePosts.length === 0) {
-      return currentPosts;
-    }
-
-    const firstPageIds = new Set(firstPagePosts.map((item) => item?.id));
-    const remainingPosts = currentPosts.filter(
-      (item) => item?.id && !firstPageIds.has(item.id),
-    );
-
-    return [...firstPagePosts, ...remainingPosts];
-  }, []);
 
   // Load persistent cache from disk once per app session, then replace
   // useEffect-based fetch with useFocusEffect so the feed silently
@@ -258,7 +193,6 @@ export default function HomeScreen() {
     hasLoadedAllPosts,
     isLoadingMore,
     lastId,
-    mergeUniquePosts,
     posts.length,
   ]);
 

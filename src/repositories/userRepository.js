@@ -722,6 +722,7 @@ export async function getUserPosts(userId = "", paging = {}) {
       user_id: targetUserId,
       index: paging.index || 0,
       count: paging.count || 20,
+      lastId: paging.lastId || paging.last_id || "",
     });
 
     const items = mapVisibleItems(page.items || []);
