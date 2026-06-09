@@ -11,6 +11,7 @@ import colors from "@/constants/colors";
 import { addComment, getComments } from "@/repositories/commentRepository";
 import {
   getPostById,
+  PostUnavailableError,
   toggleLike,
 } from "@/repositories/postRepository";
 import sizes from "@/constants/sizes";
@@ -39,6 +40,7 @@ export default function PostDetailScreen() {
   const [post, setPost] = useState(null);
   const [session, setSession] = useState(null);
   const [statusText, setStatusText] = useState("");
+  const [isUnavailable, setIsUnavailable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [comments, setComments] = useState([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -68,10 +70,15 @@ export default function PostDetailScreen() {
     router.replace("/(tabs)/home");
   }, []);
 
+  const handleGoHome = useCallback(() => {
+    router.replace("/(tabs)/home");
+  }, []);
+
   const loadPost = useCallback(async () => {
     try {
       setIsLoading(true);
       setStatusText("");
+      setIsUnavailable(false);
       setCommentError("");
       const currentSession = await getAuthSession();
       setSession(currentSession);
@@ -80,6 +87,11 @@ export default function PostDetailScreen() {
     } catch (error) {
       console.warn("Failed to load post:", error);
       if (await redirectIfSessionExpired(error, router)) return;
+      if (error instanceof PostUnavailableError || error?.postUnavailable) {
+        setPost(null);
+        setIsUnavailable(true);
+        return;
+      }
       setStatusText("Không thể tải bài viết.");
     } finally {
       setIsLoading(false);
@@ -269,6 +281,7 @@ export default function PostDetailScreen() {
 
   const handlePostUnavailable = () => {
     setPost(null);
+    setIsUnavailable(true);
     setStatusText("");
   };
 
@@ -297,6 +310,13 @@ export default function PostDetailScreen() {
   }
 
   if (!post) {
+    const stateTitle = isUnavailable
+      ? "Bài viết không khả dụng"
+      : "Không thể hiển thị bài viết";
+    const stateText = isUnavailable
+      ? "Nội dung này hiện không thể hiển thị. Bài viết có thể đã bị xóa, bị giới hạn quyền xem hoặc bạn không thể truy cập nội dung này."
+      : "Bài viết không tồn tại hoặc bạn không có quyền xem nội dung này.";
+
     return (
       <Screen style={[postStyles.screen, postStyles.detailScreen]}>
         <View style={postStyles.detailHeader}>
@@ -313,12 +333,17 @@ export default function PostDetailScreen() {
           <View style={postStyles.detailHeaderButton} />
         </View>
         <View style={postStyles.detailState}>
-          <Text style={postStyles.detailStateTitle}>
-            Không thể hiển thị bài viết
-          </Text>
-          <Text style={postStyles.detailStateText}>
-            Bài viết không tồn tại hoặc bạn không có quyền xem nội dung này.
-          </Text>
+          <View style={postStyles.detailUnavailableCard}>
+            <View style={postStyles.detailUnavailableIcon}>
+              <Ionicons
+                name="document-lock-outline"
+                size={30}
+                color={colors.subtext}
+              />
+            </View>
+            <Text style={postStyles.detailStateTitle}>{stateTitle}</Text>
+            <Text style={postStyles.detailStateText}>{stateText}</Text>
+          </View>
           <Pressable
             onPress={handleGoBack}
             style={({ pressed }) => [
@@ -329,6 +354,21 @@ export default function PostDetailScreen() {
           >
             <Text style={postStyles.detailStateButtonText}>Quay lại</Text>
           </Pressable>
+          {isUnavailable ? (
+            <Pressable
+              onPress={handleGoHome}
+              style={({ pressed }) => [
+                postStyles.detailStateButton,
+                postStyles.detailStateButtonSecondary,
+                pressed && postStyles.detailStateButtonPressed,
+              ]}
+              accessibilityRole="button"
+            >
+              <Text style={postStyles.detailStateButtonSecondaryText}>
+                Quay lại bảng tin
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </Screen>
     );
