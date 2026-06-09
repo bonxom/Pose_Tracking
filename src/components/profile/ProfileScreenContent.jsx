@@ -84,6 +84,10 @@ export default function ProfileScreenContent({ userId = "" }) {
   const [previewImage, setPreviewImage] = useState("");
   const diskCacheLoadedRef = useRef(false);
   const isQueryingRef = useRef(false);
+  const postsRef = useRef(posts);
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   const loadProfile = useCallback(
     async (isRefresh = false) => {
@@ -210,7 +214,7 @@ export default function ProfileScreenContent({ userId = "" }) {
 
       const nextCache = {
         profile: nextProfile,
-        posts: profileCacheState[userId]?.posts || posts,
+        posts: profileCacheState[userId]?.posts || postsRef.current,
         ownerKey,
       };
       profileCacheState[userId] = nextCache;
@@ -219,7 +223,7 @@ export default function ProfileScreenContent({ userId = "" }) {
       }
       return nextProfile;
     });
-  }, [cacheKey, userId, posts]);
+  }, [cacheKey, userId]);
 
   const loadMore = useCallback(async () => {
     if (isQueryingRef.current || hasLoadedAllPosts || posts.length === 0) return;
@@ -355,10 +359,6 @@ export default function ProfileScreenContent({ userId = "" }) {
     });
   };
 
-  const postsRef = useRef(posts);
-  useEffect(() => {
-    postsRef.current = posts;
-  }, [posts]);
 
   useEffect(() => {
     if (userId) return;
