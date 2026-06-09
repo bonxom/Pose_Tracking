@@ -7,11 +7,14 @@ import {
   normalizePushSettings,
   setPushSettings,
 } from "@/repositories/settingsRepository";
-import { loadAndApplyPushSettings } from "@/services/pushNotifications";
-import { restartInAppNotificationRuntime as restartPushRuntime } from "@/services/pushNotifications";
 import { restartInAppNotificationRuntime as restartInAppRuntime } from "@/services/inAppNotificationRuntime";
 import {
+  loadAndApplyPushSettings,
+  restartInAppNotificationRuntime as restartPushRuntime,
+} from "@/services/pushNotifications";
+import {
   getNotificationPollInterval,
+  getPushDeviceToken,
   setNotificationPollInterval,
 } from "@/utils/notification";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
@@ -19,6 +22,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Clipboard,
   Modal,
   Pressable,
   ScrollView,
@@ -151,6 +155,7 @@ export default function PushSettingsScreen() {
   const [savingKey, setSavingKey] = useState("");
   const [selectedSettingKey, setSelectedSettingKey] = useState("");
   const [pollInterval, setPollInterval] = useState(30000);
+  const [deviceToken, setDeviceTokenState] = useState("");
 
   const selectedSetting = useMemo(
     () => CONTENT_SETTINGS.find((item) => item.key === selectedSettingKey),
@@ -163,6 +168,10 @@ export default function PushSettingsScreen() {
     getNotificationPollInterval()
       .then(setPollInterval)
       .catch(() => {});
+
+    getPushDeviceToken()
+      .then((token) => setDeviceTokenState(token || "Chưa có token thiết bị"))
+      .catch(() => setDeviceTokenState("Không thể tải token"));
 
     getPushSettings()
       .then((data) => {
@@ -367,7 +376,8 @@ export default function PushSettingsScreen() {
 
         <SettingsSection title="Tần suất làm mới">
           <Text style={styles.sectionSubtitle}>
-            Khoảng thời gian tự động kiểm tra thông báo mới khi ứng dụng đang mở.
+            Khoảng thời gian tự động kiểm tra thông báo mới khi ứng dụng đang
+            mở.
           </Text>
           <View style={styles.pollOptionsContainer}>
             {[
@@ -402,6 +412,36 @@ export default function PushSettingsScreen() {
                 </Pressable>
               );
             })}
+          </View>
+        </SettingsSection>
+
+        <SettingsSection title="Token thiết bị">
+          <Text style={styles.sectionSubtitle}>
+            Sử dụng token này để kiểm thử hoặc gỡ lỗi gửi thông báo đẩy đến
+            thiết bị này.
+          </Text>
+          <View style={styles.deviceTokenContainer}>
+            <Text style={styles.deviceTokenText} numberOfLines={2} selectable>
+              {deviceToken}
+            </Text>
+            {deviceToken &&
+            deviceToken !== "Chưa có token thiết bị" &&
+            deviceToken !== "Không thể tải token" ? (
+              <Pressable
+                style={styles.copyTokenButton}
+                onPress={() => {
+                  Clipboard.setString(deviceToken);
+                  setStatus("Đã sao chép token thiết bị vào bộ nhớ tạm.");
+                }}
+              >
+                <ProfileIcon
+                  name="copy-outline"
+                  size={20}
+                  color={colors.blue}
+                />
+                <Text style={styles.copyTokenText}>Sao chép</Text>
+              </Pressable>
+            ) : null}
           </View>
         </SettingsSection>
 
@@ -755,6 +795,38 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   pollOptionLabelSelected: {
+    fontWeight: "800",
+    color: colors.blue,
+  },
+  deviceTokenContainer: {
+    paddingHorizontal: sizes.lg,
+    paddingVertical: sizes.md,
+    backgroundColor: colors.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: sizes.md,
+  },
+  deviceTokenText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.ink,
+  },
+  copyTokenButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceMuted,
+  },
+  copyTokenText: {
+    fontSize: 14,
     fontWeight: "800",
     color: colors.blue,
   },

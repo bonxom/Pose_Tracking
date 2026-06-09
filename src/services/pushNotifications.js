@@ -9,7 +9,7 @@ import {
   setDeviceToken,
 } from "@/repositories/settingsRepository";
 import { getCurrentSession } from "@/repositories/source";
-import { getNotificationPollInterval } from "@/utils/notification";
+import { getNotificationPollInterval, setPushDeviceToken } from "@/utils/notification";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
@@ -335,6 +335,12 @@ export async function registerDeviceForPush() {
     console.log("EXPO_PUSH_TOKEN:", devtoken);
     console.log("DEVICE_TYPE:", devtype);
     console.log("====================================");
+
+    try {
+      await setPushDeviceToken(devtoken);
+    } catch (err) {
+      console.log("Failed to save push token locally:", err?.message);
+    }
 
     await setDeviceToken(devtoken, devtype);
 

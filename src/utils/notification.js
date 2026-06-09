@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const NOTIFICATION_POLL_INTERVAL_KEY = "notification_poll_interval";
+export const PUSH_DEVICE_TOKEN_KEY = "push_device_token";
 export const DEFAULT_POLL_INTERVAL = 30000; // 30s
 
 export async function getNotificationPollInterval() {
@@ -31,3 +32,27 @@ export async function setNotificationPollInterval(ms) {
   }
   return false;
 }
+
+export async function getPushDeviceToken() {
+  try {
+    return await AsyncStorage.getItem(PUSH_DEVICE_TOKEN_KEY);
+  } catch (error) {
+    console.log("Failed to load push device token from storage:", error?.message);
+  }
+  return null;
+}
+
+export async function setPushDeviceToken(token) {
+  try {
+    if (token) {
+      await AsyncStorage.setItem(PUSH_DEVICE_TOKEN_KEY, String(token));
+    } else {
+      await AsyncStorage.removeItem(PUSH_DEVICE_TOKEN_KEY);
+    }
+    return true;
+  } catch (error) {
+    console.log("Failed to save push device token to storage:", error?.message);
+  }
+  return false;
+}
+
