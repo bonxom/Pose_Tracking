@@ -8,15 +8,17 @@ import {
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Keyboard,
+  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const REPORT_REASONS = [
   "Ảnh khỏa thân",
@@ -38,15 +40,57 @@ export default function ReportPostFlow({
   onSubmitted,
   onPostUnavailable,
 }) {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState("select");
   const [selectedReason, setSelectedReason] = useState("");
   const [details, setDetails] = useState("");
   const [errorText, setErrorText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const trimmedDetails = useMemo(() => details.trim(), [details]);
   const canContinue = Boolean(selectedReason);
   const canSubmit = Boolean(selectedReason && trimmedDetails);
+  const detailsBottomPadding = useMemo(
+    () =>
+      Math.max(insets.bottom, sizes.md) +
+      (keyboardHeight > 0 ? keyboardHeight + sizes.xs : 0),
+    [insets.bottom, keyboardHeight],
+  );
+  const actionBottomOffset = useMemo(
+    () => (keyboardHeight > 0 ? keyboardHeight + sizes.xs : 0),
+    [keyboardHeight],
+  );
+  const buttonBottomPadding = useMemo(
+    () =>
+      (keyboardHeight > 0 ? 0 : insets.bottom > 0 ? insets.bottom : sizes.md) +
+      sizes.xs,
+    [insets.bottom, keyboardHeight],
+  );
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const handleShow = (event) => {
+      const nextHeight = Math.max(0, event?.endCoordinates?.height || 0);
+      setKeyboardHeight(nextHeight);
+    };
+
+    const handleHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const handleContinue = () => {
     if (!canContinue) {
@@ -103,7 +147,11 @@ export default function ReportPostFlow({
         <Text style={styles.stateText}>
           Cảm ơn bạn đã gửi báo cáo. Chúng tôi sẽ xem xét bài viết này.
         </Text>
-        <AppButton title="Xong" onPress={onClose} style={styles.fullButton} />
+        <AppButton
+          title="Xong"
+          onPress={onClose}
+          style={[styles.fullButton, { marginBottom: buttonBottomPadding }]}
+        />
       </View>
     );
   }
@@ -119,7 +167,11 @@ export default function ReportPostFlow({
           Bài viết đã bị khóa hoặc không còn tồn tại. Vui lòng quay lại để tiếp
           tục.
         </Text>
-        <AppButton title="Xong" onPress={onClose} style={styles.fullButton} />
+        <AppButton
+          title="Xong"
+          onPress={onClose}
+          style={[styles.fullButton, { marginBottom: buttonBottomPadding }]}
+        />
       </View>
     );
   }
@@ -146,73 +198,78 @@ export default function ReportPostFlow({
 
       {step === "select" ? (
         <>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.reasonContent}
-          >
-            <Text style={styles.title}>Vui lòng chọn vấn đề để tiếp tục</Text>
-            <Text style={styles.subtitle}>
-              Bạn có thể báo cáo bài viết sau khi chọn vấn đề.
-            </Text>
+          <View>
+            <View style={styles.reasonContent}>
+              <Text style={styles.title}>Vui lòng chọn vấn đề để tiếp tục</Text>
+              <Text style={styles.subtitle}>
+                Bạn có thể báo cáo bài viết sau khi chọn vấn đề.
+              </Text>
 
-            <View style={styles.reasonGrid}>
-              {REPORT_REASONS.map((reason) => {
-                const isSelected = selectedReason === reason;
-                return (
-                  <Pressable
-                    key={reason}
-                    onPress={() => {
-                      setSelectedReason(reason);
-                      setErrorText("");
-                    }}
-                    style={({ pressed }) => [
-                      styles.reasonChip,
-                      isSelected && styles.reasonChipSelected,
-                      pressed && styles.reasonChipPressed,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                  >
-                    {isSelected ? (
-                      <Ionicons
-                        name="checkmark"
-                        size={18}
-                        color={colors.white}
-                      />
-                    ) : null}
-                    <Text
-                      style={[
-                        styles.reasonText,
-                        isSelected && styles.reasonTextSelected,
+              <View style={styles.reasonGrid}>
+                {REPORT_REASONS.map((reason) => {
+                  const isSelected = selectedReason === reason;
+                  return (
+                    <Pressable
+                      key={reason}
+                      onPress={() => {
+                        setSelectedReason(reason);
+                        setErrorText("");
+                      }}
+                      style={({ pressed }) => [
+                        styles.reasonChip,
+                        isSelected && styles.reasonChipSelected,
+                        pressed && styles.reasonChipPressed,
                       ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
                     >
-                      {reason}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      {isSelected ? (
+                        <Ionicons
+                          name="checkmark"
+                          size={18}
+                          color={colors.white}
+                        />
+                      ) : null}
+                      <Text
+                        style={[
+                          styles.reasonText,
+                          isSelected && styles.reasonTextSelected,
+                        ]}
+                      >
+                        {reason}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.helperText}>
+                Hãy chọn lý do phù hợp nhất với nội dung bạn muốn báo cáo.
+              </Text>
+              {errorText ? (
+                <Text style={styles.errorText}>{errorText}</Text>
+              ) : null}
+              <AppButton
+                title="Tiếp"
+                onPress={handleContinue}
+                disabled={!canContinue}
+                style={[
+                  styles.fullButton,
+                  { marginBottom: buttonBottomPadding },
+                ]}
+              />
             </View>
-
-            <Text style={styles.helperText}>
-              Hãy chọn lý do phù hợp nhất với nội dung bạn muốn báo cáo.
-            </Text>
-          </ScrollView>
-
-          {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
-          <AppButton
-            title="Tiếp"
-            onPress={handleContinue}
-            disabled={!canContinue}
-            style={styles.fullButton}
-          />
+          </View>
         </>
       ) : (
         <>
-          <ScrollView
+          <View
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.detailsContent}
+            contentContainerStyle={[
+              styles.detailsContent,
+              { paddingBottom: detailsBottomPadding },
+            ]}
           >
             <Text style={styles.title}>Mô tả chi tiết báo cáo</Text>
             <Text style={styles.subtitle}>
@@ -238,17 +295,27 @@ export default function ReportPostFlow({
               maxLength={500}
               accessibilityLabel="Nội dung chi tiết báo cáo"
             />
-            <Text style={styles.characterCount}>{details.length}/500 ký tự</Text>
-          </ScrollView>
-
-          {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
-          <AppButton
-            title="Gửi báo cáo"
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-            loading={isSubmitting}
-            style={styles.fullButton}
-          />
+            <Text style={styles.characterCount}>
+              {details.length}/500 ký tự
+            </Text>
+            <View
+              style={[styles.actionArea, { paddingBottom: actionBottomOffset }]}
+            >
+              {errorText ? (
+                <Text style={styles.errorText}>{errorText}</Text>
+              ) : null}
+              <AppButton
+                title="Gửi báo cáo"
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+                loading={isSubmitting}
+                style={[
+                  styles.fullButton,
+                  { marginBottom: buttonBottomPadding },
+                ]}
+              />
+            </View>
+          </View>
         </>
       )}
     </View>
@@ -257,7 +324,6 @@ export default function ReportPostFlow({
 
 const styles = StyleSheet.create({
   flow: {
-    maxHeight: "88%",
     gap: sizes.md,
   },
   headerRow: {
@@ -283,11 +349,10 @@ const styles = StyleSheet.create({
   },
   reasonContent: {
     gap: sizes.sm,
-    paddingBottom: sizes.sm,
   },
   detailsContent: {
     gap: sizes.sm,
-    paddingBottom: sizes.sm,
+    paddingBottom: sizes.xxl,
   },
   title: {
     fontSize: 22,
@@ -307,9 +372,10 @@ const styles = StyleSheet.create({
   },
   reasonChip: {
     minHeight: 44,
-    borderRadius: 999,
+    borderRadius: 800,
     backgroundColor: colors.surfaceMuted,
     paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -355,7 +421,8 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   detailsInput: {
-    minHeight: 132,
+    minHeight: 50,
+    marginTop: sizes.md,
     borderRadius: sizes.radiusMd,
     borderWidth: sizes.borderWidth,
     borderColor: colors.borderInput,
@@ -375,8 +442,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.error,
   },
+  actionArea: {
+    gap: sizes.sm,
+  },
   fullButton: {
     width: "100%",
+    marginTop: sizes.sm,
   },
   statePane: {
     alignItems: "center",

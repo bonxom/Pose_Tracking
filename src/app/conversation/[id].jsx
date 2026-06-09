@@ -921,7 +921,7 @@ export default function ConversationDetailScreen() {
           {showEmojiPicker ? (
             <Pressable
               style={conversationDetailStyles.emojiDismissOverlay}
-              onPress={() => setShowEmojiPicker(true)}
+              onPress={() => setShowEmojiPicker(false)}
             />
           ) : null}
 
@@ -998,7 +998,6 @@ export default function ConversationDetailScreen() {
                   <CommentReactionPicker
                     onSelectReaction={(emoji) => {
                       setInputText((prev) => prev + emoji);
-                      setShowEmojiPicker(false);
                     }}
                   />
                 )}

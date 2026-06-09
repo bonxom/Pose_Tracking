@@ -8,16 +8,16 @@ import {
   validateCommentText,
 } from "@/components/post/commentThreadUtils";
 import colors from "@/constants/colors";
+import sizes from "@/constants/sizes";
 import { addComment, getComments } from "@/repositories/commentRepository";
 import {
   getPostById,
   PostUnavailableError,
   toggleLike,
 } from "@/repositories/postRepository";
-import sizes from "@/constants/sizes";
 import postStyles from "@/styles/post.styles";
-import { getAuthSession } from "@/utils/session";
 import { redirectIfSessionExpired } from "@/utils/screenErrors";
+import { getAuthSession } from "@/utils/session";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -51,14 +51,21 @@ export default function PostDetailScreen() {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const inlineCommentInputRef = useRef(null);
   const scrollViewRef = useRef(null);
+  const keyboardScrollTimeoutRef = useRef(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [composerHeight, setComposerHeight] = useState(0);
+
+  const composerBottomInset = useMemo(
+    () =>
+      keyboardHeight > 0
+        ? keyboardHeight + sizes.xs - sizes.md
+        : Math.max(insets.bottom - sizes.md, 0),
+    [insets.bottom, keyboardHeight],
+  );
 
   const detailScrollBottomPadding = useMemo(
-    () =>
-      sizes.xl +
-      Math.max(insets.bottom, sizes.md) +
-      (keyboardHeight > 0 ? keyboardHeight + sizes.md : 0),
-    [insets.bottom, keyboardHeight],
+    () => composerHeight,
+    [composerHeight],
   );
 
   const handleGoBack = useCallback(() => {
@@ -160,7 +167,9 @@ export default function PostDetailScreen() {
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const handleShow = (event) => {
-      setKeyboardHeight(Math.max(0, event?.endCoordinates?.height || 0));
+      setKeyboardHeight(
+        Math.max(0, event?.endCoordinates?.height + insets.bottom || 0),
+      );
     };
 
     const handleHide = () => {
@@ -176,11 +185,45 @@ export default function PostDetailScreen() {
     };
   }, []);
 
-  const handleInlineCommentFocus = useCallback(() => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, Platform.OS === "web" ? 0 : 120);
+  const scrollInlineComposerIntoView = useCallback((animated = true) => {
+    if (keyboardScrollTimeoutRef.current) {
+      clearTimeout(keyboardScrollTimeoutRef.current);
+    }
+
+    keyboardScrollTimeoutRef.current = setTimeout(
+      () => {
+        requestAnimationFrame(() => {
+          scrollViewRef.current?.scrollToEnd({ animated });
+        });
+      },
+      Platform.OS === "web" ? 0 : 48,
+    );
   }, []);
+
+  useEffect(() => {
+    if (keyboardHeight <= 0) {
+      if (keyboardScrollTimeoutRef.current) {
+        clearTimeout(keyboardScrollTimeoutRef.current);
+        keyboardScrollTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    // Wait for the padding update from keyboardHeight before scrolling.
+    scrollInlineComposerIntoView(true);
+  }, [keyboardHeight, scrollInlineComposerIntoView]);
+
+  useEffect(() => {
+    return () => {
+      if (keyboardScrollTimeoutRef.current) {
+        clearTimeout(keyboardScrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleInlineCommentFocus = useCallback(() => {
+    scrollInlineComposerIntoView(keyboardHeight > 0);
+  }, [keyboardHeight, scrollInlineComposerIntoView]);
 
   const handleToggleLike = async () => {
     if (!post) return;
@@ -240,10 +283,8 @@ export default function PostDetailScreen() {
       pathname: "/post/create",
       params: {
         mode: "submission",
-        sourcePostId: post.id,
-        courseId: post.courseId,
-        exerciseId: post.exerciseId,
-        teacherId: post.author?.id || "",
+        courseId: post.teacherId || post.author?.id || post.courseId,
+        exerciseId: post.id,
         teacherUsername: post.author?.name || post.author?.handle || "",
       },
     });
@@ -264,6 +305,8 @@ export default function PostDetailScreen() {
     session?.id &&
     post.author.id === session.id &&
     session.role === "HV";
+  const isInlineComposerDisabled =
+    post?.canComment === false || isCommentBlocked;
   const visibleCommentCount = Math.max(
     Number(post?.commentCount) || 0,
     comments.length,
@@ -389,101 +432,108 @@ export default function PostDetailScreen() {
         <Text style={postStyles.detailHeaderTitle}>Bài viết</Text>
         <View style={postStyles.detailHeaderButton} />
       </View>
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={[
-          postStyles.detailScrollContent,
-          { paddingBottom: detailScrollBottomPadding },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <PostCard
-          post={post}
-          detail={true}
-          flat
-          onToggleLike={handleToggleLike}
-          onPressComment={openComments}
-          onSubmitExercise={handleSubmitExercise}
-          onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
-          onDeletePost={handleDeletePost}
-          onReportPost={handleReportPost}
-          onPostUnavailable={handlePostUnavailable}
-        />
+      <View style={postStyles.detailBody}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={postStyles.detailScrollView}
+          contentContainerStyle={[
+            postStyles.detailScrollContent,
+            { paddingBottom: detailScrollBottomPadding },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <PostCard
+            post={post}
+            detail={true}
+            flat
+            onToggleLike={handleToggleLike}
+            onPressComment={openComments}
+            onSubmitExercise={handleSubmitExercise}
+            onEditPost={canOwnerEdit ? handleNavigateEdit : undefined}
+            onDeletePost={handleDeletePost}
+            onReportPost={handleReportPost}
+            onPostUnavailable={handlePostUnavailable}
+          />
 
-        <View style={postStyles.detailCommentsSection}>
-          <View style={postStyles.detailCommentsHeader}>
-            <Text style={postStyles.detailCommentsTitle}>Bình luận</Text>
-            {visibleCommentCount > 0 ? (
-              <Text style={postStyles.detailCommentsCount}>
-                {visibleCommentCount} bình luận
+          <View style={postStyles.detailCommentsSection}>
+            <View style={postStyles.detailCommentsHeader}>
+              <Text style={postStyles.detailCommentsTitle}>Bình luận</Text>
+              {visibleCommentCount > 0 ? (
+                <Text style={postStyles.detailCommentsCount}>
+                  {visibleCommentCount} bình luận
+                </Text>
+              ) : null}
+            </View>
+
+            {isLoadingComments ? (
+              <View style={postStyles.detailCommentSkeletons}>
+                <SkeletonComment />
+                <SkeletonComment />
+              </View>
+            ) : commentError ? (
+              <View style={postStyles.detailCommentsState}>
+                <Text style={postStyles.warningText}>{commentError}</Text>
+              </View>
+            ) : comments.length > 0 ? (
+              <View style={postStyles.detailCommentList}>
+                {comments.map((comment) => (
+                  <CommentComponent key={comment.id} comment={comment} />
+                ))}
+              </View>
+            ) : (
+              <Text style={postStyles.detailCommentsEmpty}>
+                Chưa có bình luận nào.
               </Text>
+            )}
+
+            {hasMoreComments ? (
+              <Pressable
+                onPress={openComments}
+                style={({ pressed }) => [
+                  postStyles.detailLoadMoreComments,
+                  pressed && postStyles.detailLoadMoreCommentsPressed,
+                ]}
+                accessibilityRole="button"
+              >
+                <Text style={postStyles.detailLoadMoreCommentsText}>
+                  Xem thêm bình luận
+                </Text>
+              </Pressable>
             ) : null}
           </View>
 
-          {isLoadingComments ? (
-            <View style={postStyles.detailCommentSkeletons}>
-              <SkeletonComment />
-              <SkeletonComment />
+          {statusText ? (
+            <View style={postStyles.detailStatus}>
+              <Text style={postStyles.warningText}>{statusText}</Text>
             </View>
-          ) : commentError ? (
-            <View style={postStyles.detailCommentsState}>
-              <Text style={postStyles.warningText}>{commentError}</Text>
-            </View>
-          ) : comments.length > 0 ? (
-            <View style={postStyles.detailCommentList}>
-              {comments.map((comment) => (
-                <CommentComponent key={comment.id} comment={comment} />
-              ))}
-            </View>
-          ) : (
-            <Text style={postStyles.detailCommentsEmpty}>
-              Chưa có bình luận nào.
-            </Text>
-          )}
-
-          {hasMoreComments ? (
-            <Pressable
-              onPress={openComments}
-              style={({ pressed }) => [
-                postStyles.detailLoadMoreComments,
-                pressed && postStyles.detailLoadMoreCommentsPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <Text style={postStyles.detailLoadMoreCommentsText}>
-                Xem thêm bình luận
-              </Text>
-            </Pressable>
           ) : null}
+        </ScrollView>
 
-          {post.canComment === false || isCommentBlocked ? (
-            <Text style={postStyles.detailCommentsLocked}>
-              Bài viết này hiện không thể bình luận.
-            </Text>
-          ) : (
-            <CommentComposer
-              inputRef={inlineCommentInputRef}
-              value={commentText}
-              onChangeText={(nextText) => {
-                setCommentText(nextText);
-                if (commentError) setCommentError("");
-              }}
-              onSubmit={handleSubmitInlineComment}
-              isSubmitting={isSubmittingComment}
-              onFocus={handleInlineCommentFocus}
-              containerStyle={postStyles.detailInlineComposer}
-              inputContainerStyle={postStyles.detailInlineComposerInput}
-            />
-          )}
-        </View>
-
-        {statusText ? (
-          <View style={postStyles.detailStatus}>
-            <Text style={postStyles.warningText}>{statusText}</Text>
-          </View>
-        ) : null}
-      </ScrollView>
+        <CommentComposer
+          inputRef={inlineCommentInputRef}
+          value={commentText}
+          onChangeText={(nextText) => {
+            setCommentText(nextText);
+            if (commentError) setCommentError("");
+          }}
+          onSubmit={handleSubmitInlineComment}
+          isSubmitting={isSubmittingComment}
+          disabled={isInlineComposerDisabled}
+          disabledText="Bài viết này hiện không thể bình luận."
+          onFocus={handleInlineCommentFocus}
+          onLayout={(event) => {
+            const nextHeight = Math.ceil(event.nativeEvent.layout.height || 0);
+            setComposerHeight((current) =>
+              current === nextHeight ? current : nextHeight,
+            );
+          }}
+          containerStyle={[
+            postStyles.detailBottomComposerBar,
+            { paddingBottom: composerBottomInset },
+          ]}
+        />
+      </View>
     </Screen>
   );
 }

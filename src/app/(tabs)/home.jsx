@@ -339,10 +339,8 @@ export default function HomeScreen() {
       pathname: "/post/create",
       params: {
         mode: "submission",
-        sourcePostId: post.id,
-        courseId: post.courseId,
-        exerciseId: post.exerciseId,
-        teacherId: post.author?.id || "",
+        courseId: post.teacherId || post.author?.id || post.courseId,
+        exerciseId: post.id,
         teacherUsername: post.author?.name || post.author?.handle || "",
       },
     });

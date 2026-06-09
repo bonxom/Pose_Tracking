@@ -363,10 +363,8 @@ export default function ProfileScreenContent({ userId = "" }) {
       pathname: "/post/create",
       params: {
         mode: "submission",
-        sourcePostId: post.id,
-        courseId: post.courseId,
-        exerciseId: post.exerciseId,
-        teacherId: post.author?.id || "",
+        courseId: post.teacherId || post.author?.id || post.courseId,
+        exerciseId: post.id,
       },
     });
   };

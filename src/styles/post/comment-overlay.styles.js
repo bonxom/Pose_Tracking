@@ -88,7 +88,12 @@ const commentOverlayStyles = StyleSheet.create({
     paddingBottom: sizes.md,
   },
   reactionDismissOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: -2000,
+    right: -2000,
+    bottom: -2000,
+    left: -2000,
+    backgroundColor: "transparent",
     zIndex: 2,
   },
   composer: {

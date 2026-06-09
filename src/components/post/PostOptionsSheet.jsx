@@ -17,6 +17,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function OptionRow({
   iconName,
@@ -65,6 +66,7 @@ export default function PostOptionsSheet({
   post,
   postId,
 }) {
+  const insets = useSafeAreaInsets();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
 
@@ -148,7 +150,12 @@ export default function PostOptionsSheet({
           style={styles.keyboardAvoiding}
           pointerEvents="box-none"
         >
-          <View style={[styles.bottomSheet, isReporting && styles.reportSheet]}>
+          <View
+            style={[
+              styles.bottomSheet,
+              { paddingBottom: insets.bottom > 0 ? insets.bottom : sizes.md },
+            ]}
+          >
             <View style={styles.sheetHandle} />
 
             {isReporting ? (
@@ -218,11 +225,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: sizes.lg,
     borderTopRightRadius: sizes.lg,
     paddingHorizontal: sizes.md,
-    paddingBottom: sizes.xl + 20,
     paddingTop: sizes.sm,
-  },
-  reportSheet: {
-    maxHeight: "92%",
   },
   sheetHandle: {
     width: 40,

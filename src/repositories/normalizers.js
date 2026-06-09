@@ -1,5 +1,8 @@
 import { ACTIVE_SOURCES } from "@/repositories/source";
-import { splitContentAndHashtags } from "@/utils/hashtags";
+import {
+  buildDescribedWithHashtags,
+  splitContentAndHashtags,
+} from "@/utils/hashtags";
 
 export function firstValue(...values) {
   return values.find(
@@ -189,8 +192,8 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     new Date().toISOString(),
   );
   const rawContent = firstValue(
-    raw.content,
     raw.described,
+    raw.content,
     raw.description,
     raw.body,
     "",
@@ -200,6 +203,15 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     Array.isArray(raw.hashtags) ? raw.hashtags : [],
   );
   const content = hashtagPayload.content;
+  const hashtags = hashtagPayload.hashtags;
+  const generatedHashtag =
+    firstValue(raw.generatedHashtag, raw.generated_hashtag, "") ||
+    hashtagPayload.generatedHashtag;
+  const described = buildDescribedWithHashtags(
+    content,
+    hashtags,
+    generatedHashtag,
+  );
   const role = firstValue(user.role, raw.role, raw.author_role, "HV");
   const courseId = firstValue(raw.courseId, raw.course_id, raw.category_id, "");
   const exerciseId = firstValue(
@@ -276,7 +288,7 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     },
     createdAt,
     content,
-    described: content,
+    described,
     videos,
     likeCount: Number(raw.like) || 0,
     commentCount: Number(raw.comment) || 0,
@@ -290,7 +302,6 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     ),
     courseId,
     exerciseId,
-    sourcePostId: firstValue(raw.sourcePostId, raw.source_post_id, ""),
     teacherId: firstValue(raw.teacherId, raw.teacher_id, raw.author_id, ""),
     courseTitle: firstValue(
       raw.courseTitle,
@@ -304,10 +315,8 @@ export function normalizePost(raw = {}, source = ACTIVE_SOURCES.SERVER) {
       raw.title,
       "",
     ),
-    hashtags: hashtagPayload.hashtags,
-    generatedHashtag:
-      firstValue(raw.generatedHashtag, raw.generated_hashtag, "") ||
-      hashtagPayload.generatedHashtag,
+    hashtags,
+    generatedHashtag,
     scoreSummary: raw.scoreSummary || null,
     timeSeriesPoses: raw.time_series_poses || raw.timeSeriesPoses || null,
     comments: [],

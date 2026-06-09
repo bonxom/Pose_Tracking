@@ -322,7 +322,7 @@ export default function EditPostScreen() {
           throw new Error("Bài viết không tồn tại.");
         }
 
-        const initialText = loadedPost.content || loadedPost.described || "";
+        const initialText = loadedPost.described || loadedPost.content || "";
 
         if (isMounted) {
           setPost(loadedPost);

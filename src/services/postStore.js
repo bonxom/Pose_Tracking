@@ -1,7 +1,9 @@
 import { getAuthSession } from "@/utils/session";
 import {
+  buildDescribedWithHashtags,
   buildPostHashtag,
   mergeHashtags,
+  mergeHashtagsKeepingGeneratedLast,
   splitContentAndHashtags,
 } from "@/utils/hashtags";
 import * as SecureStore from "expo-secure-store";
@@ -121,8 +123,13 @@ function normalizePost(post = {}) {
     : [];
 
   const hashtagPayload = splitContentAndHashtags(
-    post.content || post.described || "",
+    post.described || post.content || "",
     Array.isArray(post.hashtags) ? post.hashtags : [],
+  );
+  const described = buildDescribedWithHashtags(
+    hashtagPayload.content,
+    hashtagPayload.hashtags,
+    post.generatedHashtag || hashtagPayload.generatedHashtag || "",
   );
 
   return {
@@ -138,7 +145,7 @@ function normalizePost(post = {}) {
     },
     createdAt: post.createdAt || new Date().toISOString(),
     content: hashtagPayload.content,
-    described: hashtagPayload.content,
+    described,
     videos,
     likeCount: Number.isFinite(post.likeCount) ? post.likeCount : 0,
     commentCount: comments.length,
@@ -148,7 +155,6 @@ function normalizePost(post = {}) {
     canSubmit: Boolean(post.canSubmit || post.type === "exercise"),
     courseId: post.courseId || "",
     exerciseId: post.exerciseId || "",
-    sourcePostId: post.sourcePostId || "",
     teacherId: post.teacherId || post.author?.id || "",
     courseTitle: post.courseTitle || "",
     exerciseTitle: post.exerciseTitle || "",
@@ -187,9 +193,11 @@ export async function getFeedPage({ index = 0, count = 5 } = {}) {
   const safeIndex = Math.max(0, Number(index) || 0);
   const safeCount = Math.max(1, Number(count) || 5);
   const items = posts.slice(safeIndex, safeIndex + safeCount);
+  const hashtags = mergeHashtags(items.flatMap((post) => post?.hashtags || []));
 
   return {
     items,
+    hashtags,
     hasMore: safeIndex + safeCount < posts.length,
     total: posts.length,
     lastId: posts[0]?.id || "",
@@ -217,10 +225,10 @@ export async function getPostById(postId) {
 
 export async function createPost({
   content,
+  described = "",
   videos = [],
   courseId = "",
   exerciseId = "",
-  sourcePostId = "",
   createdAt = "",
   type = "post",
   canSubmit = false,
@@ -229,13 +237,19 @@ export async function createPost({
   hashtagUsername = "",
   hashtags = [],
   generatedHashtag = "",
+  shouldGenerateHashtag = true,
   scoreSummary = null,
   comments = [],
 }) {
   const posts = await getOrSeedPosts();
   const session = await getAuthSession();
 
-  const trimmedContent = content.trim();
+  const describedPayload = splitContentAndHashtags(
+    described || content || "",
+    hashtags,
+  );
+  const trimmedContent = String(content || describedPayload.content || "").trim();
+  const trimmedDescribedContent = describedPayload.content || trimmedContent;
   const normalizedVideos = videos
     .filter(Boolean)
     .slice(0, 2)
@@ -257,14 +271,26 @@ export async function createPost({
     "Người dùng mới";
   const phoneSuffix = session?.identifier?.toString().slice(-4) || "0000";
   const normalizedCreatedAt = createdAt || new Date().toISOString();
-  const teacherHashtag = generatedHashtag
-    ? mergeHashtags([generatedHashtag])[0] || ""
-    : buildPostHashtag({
-        username: hashtagUsername || authorName,
-        createdAt: normalizedCreatedAt,
-        described: trimmedContent,
-      });
-  const mergedHashtags = mergeHashtags([teacherHashtag], hashtags);
+  const normalizedGeneratedHashtag =
+    mergeHashtags([generatedHashtag])[0] || "";
+  const teacherHashtag =
+    normalizedGeneratedHashtag ||
+    (shouldGenerateHashtag
+      ? buildPostHashtag({
+          username: hashtagUsername || authorName,
+          createdAt: normalizedCreatedAt,
+          described: trimmedDescribedContent,
+        })
+      : "");
+  const mergedHashtags = mergeHashtagsKeepingGeneratedLast(
+    describedPayload.hashtags,
+    teacherHashtag,
+  );
+  const normalizedDescribed = buildDescribedWithHashtags(
+    trimmedDescribedContent,
+    mergedHashtags,
+    "",
+  );
 
   const newPost = normalizePost({
     id: createId("post"),
@@ -278,7 +304,7 @@ export async function createPost({
     },
     createdAt: normalizedCreatedAt,
     content: trimmedContent,
-    described: trimmedContent,
+    described: normalizedDescribed,
     videos: normalizedVideos,
     likeCount: 0,
     isLiked: false,
@@ -287,7 +313,6 @@ export async function createPost({
     canSubmit,
     courseId,
     exerciseId,
-    sourcePostId,
     courseTitle,
     exerciseTitle,
     hashtags: mergedHashtags,
@@ -382,9 +407,9 @@ function buildScoringComment(
 
 export async function createExerciseSubmission({
   content = "",
+  described = "",
   courseId = "",
   exerciseId = "",
-  sourcePostId = "",
   createdAt = "",
   teacherUsername = "",
   hashtags = [],
@@ -402,33 +427,29 @@ export async function createExerciseSubmission({
   const scoringComment = buildScoringComment(scoreTemplate);
   const normalizedVideos = videos.filter(Boolean).slice(0, 2);
   const body = content.trim() ? content.trim() : "Nộp bài tập.";
+  const submissionHashtags = mergeHashtags(hashtags);
+  const submissionDescribed = buildDescribedWithHashtags(
+    body,
+    submissionHashtags,
+    "",
+  );
   const normalizedCreatedAt = createdAt || new Date().toISOString();
-  const normalizedGeneratedHashtag =
-    mergeHashtags([generatedHashtag])[0] ||
-    buildPostHashtag({
-      username: teacherUsername,
-      createdAt: normalizedCreatedAt,
-      described: body,
-    });
 
   return createPost({
     content: body,
+    described: submissionDescribed,
     videos: normalizedVideos,
     courseId,
     exerciseId,
-    sourcePostId,
     createdAt: normalizedCreatedAt,
     type: "submission",
     canSubmit: false,
     courseTitle,
     exerciseTitle,
     hashtagUsername: teacherUsername,
-    hashtags: mergeHashtags(
-      [normalizedGeneratedHashtag],
-      hashtags,
-      [courseId, exerciseId].filter(Boolean),
-    ),
-    generatedHashtag: normalizedGeneratedHashtag,
+    hashtags: submissionHashtags,
+    generatedHashtag: "",
+    shouldGenerateHashtag: false,
     scoreSummary: {
       score: scoreTemplate.score,
       label: scoreTemplate.label,

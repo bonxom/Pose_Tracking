@@ -68,6 +68,20 @@ export function mergeHashtags(...values) {
   return normalizeHashtagCollection(values.flat());
 }
 
+export function mergeHashtagsKeepingGeneratedLast(
+  hashtags = [],
+  generatedHashtag = "",
+) {
+  const normalizedGenerated = mergeHashtags([generatedHashtag])[0] || "";
+  const normalizedHashtags = mergeHashtags(hashtags).filter(
+    (tag) => tag !== normalizedGenerated,
+  );
+
+  return normalizedGenerated
+    ? [...normalizedHashtags, normalizedGenerated]
+    : normalizedHashtags;
+}
+
 export function appendHashtagsToContent(content = "", hashtags = []) {
   const normalizedContent = String(content || "").trim();
   const normalizedHashtags = mergeHashtags(hashtags);
@@ -76,7 +90,20 @@ export function appendHashtagsToContent(content = "", hashtags = []) {
     return normalizedContent;
   }
 
-  return [normalizedContent, normalizedHashtags.join(" ")].filter(Boolean).join("\n");
+  return [normalizedContent, normalizedHashtags.join("\n")]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function buildDescribedWithHashtags(
+  content = "",
+  hashtags = [],
+  generatedHashtag = "",
+) {
+  return appendHashtagsToContent(
+    content,
+    mergeHashtagsKeepingGeneratedLast(hashtags, generatedHashtag),
+  );
 }
 
 export function extractTrailingHashtags(content = "") {

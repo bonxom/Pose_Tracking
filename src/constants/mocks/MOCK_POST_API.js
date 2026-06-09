@@ -1,7 +1,7 @@
 import MOCK_GET_LIST_POSTS from "@/constants/mocks/MOCK_GET_LIST_POSTS";
 import MOCK_GET_POST from "@/constants/mocks/MOCK_GET_POST";
 import * as postStore from "@/services/postStore";
-import { splitContentAndHashtags } from "@/utils/hashtags";
+import { buildDescribedWithHashtags, splitContentAndHashtags } from "@/utils/hashtags";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -81,7 +81,6 @@ function buildMockPost(post = {}) {
     author: buildMockAuthor(post.author),
     course_id: toStringValue(post.courseId),
     exercise_id: toStringValue(post.exerciseId),
-    source_post_id: toStringValue(post.sourcePostId),
     course_title: toStringValue(post.courseTitle),
     exercise_title: toStringValue(post.exerciseTitle),
     hashtags: Array.isArray(post.hashtags) ? clone(post.hashtags) : [],
@@ -195,7 +194,6 @@ export async function getMockAddPostResponse(fields = {}, files = []) {
     content: hashtagPayload.content,
     courseId: toStringValue(fields?.course_id),
     exerciseId: toStringValue(fields?.exercise_id),
-    sourcePostId: toStringValue(fields?.source_post_id),
     generatedHashtag: hashtagPayload.generatedHashtag,
     hashtags: hashtagPayload.hashtags,
     videos: Array.isArray(files) ? files.filter(Boolean).map(buildLocalVideoInput) : [],
@@ -231,13 +229,18 @@ export async function getMockEditPostResponse(fields = {}, files = []) {
   });
 
   const hashtagPayload = splitContentAndHashtags(
-    toStringValue(fields?.described ?? existingPost.content),
+    toStringValue(fields?.described ?? existingPost.described ?? existingPost.content),
     existingPost.hashtags,
+  );
+  const nextDescribed = buildDescribedWithHashtags(
+    hashtagPayload.content,
+    hashtagPayload.hashtags,
+    hashtagPayload.generatedHashtag || existingPost.generatedHashtag || "",
   );
 
   const updatedPost = await postStore.updatePost(postId, {
     content: hashtagPayload.content,
-    described: hashtagPayload.content,
+    described: nextDescribed,
     hashtags: hashtagPayload.hashtags,
     generatedHashtag:
       hashtagPayload.generatedHashtag || existingPost.generatedHashtag || "",
