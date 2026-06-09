@@ -86,8 +86,6 @@ export default function ProfilePostsSection({
   isLoadingMore,
   hasLoadedAllPosts,
   onRefresh,
-  onScroll,
-  onContentSizeChange,
   onEndReached,
   onToggleLike,
   onSubmitExercise,
@@ -122,9 +120,6 @@ export default function ProfilePostsSection({
     <FlatList
       data={feedItems}
       keyExtractor={(item) => item.id}
-      onScroll={onScroll}
-      scrollEventThrottle={16}
-      onContentSizeChange={onContentSizeChange}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}

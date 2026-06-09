@@ -47,6 +47,34 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function mergeUniquePosts(currentPosts, incomingPosts) {
+  if (!Array.isArray(incomingPosts) || incomingPosts.length === 0) {
+    return currentPosts;
+  }
+
+  const seenIds = new Set(currentPosts.map((item) => item.id));
+  const uniqueIncomingPosts = incomingPosts.filter(
+    (item) => item?.id && !seenIds.has(item.id),
+  );
+
+  return uniqueIncomingPosts.length
+    ? [...currentPosts, ...uniqueIncomingPosts]
+    : currentPosts;
+}
+
+function mergeRefreshedFeed(currentPosts, firstPagePosts) {
+  if (!Array.isArray(firstPagePosts) || firstPagePosts.length === 0) {
+    return currentPosts;
+  }
+
+  const firstPageIds = new Set(firstPagePosts.map((item) => item?.id));
+  const remainingPosts = currentPosts.filter(
+    (item) => item?.id && !firstPageIds.has(item.id),
+  );
+
+  return [...firstPagePosts, ...remainingPosts];
+}
+
 function buildProfileCacheEntry(profile, posts, ownerKey = "") {
   return {
     profile,
@@ -82,38 +110,7 @@ export default function ProfileScreenContent({ userId = "" }) {
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const diskCacheLoadedRef = useRef(false);
-
-  const loadMoreTriggerLock = useRef(false);
-  const lastContentHeightRef = useRef(0);
-  const lastTriggeredContentHeightRef = useRef(0);
-
-  const mergeUniquePosts = useCallback((currentPosts, incomingPosts) => {
-    if (!Array.isArray(incomingPosts) || incomingPosts.length === 0) {
-      return currentPosts;
-    }
-
-    const seenIds = new Set(currentPosts.map((item) => item.id));
-    const uniqueIncomingPosts = incomingPosts.filter(
-      (item) => item?.id && !seenIds.has(item.id),
-    );
-
-    return uniqueIncomingPosts.length
-      ? [...currentPosts, ...uniqueIncomingPosts]
-      : currentPosts;
-  }, []);
-
-  const mergeRefreshedFeed = useCallback((currentPosts, firstPagePosts) => {
-    if (!Array.isArray(firstPagePosts) || firstPagePosts.length === 0) {
-      return currentPosts;
-    }
-
-    const firstPageIds = new Set(firstPagePosts.map((item) => item?.id));
-    const remainingPosts = currentPosts.filter(
-      (item) => item?.id && !firstPageIds.has(item.id),
-    );
-
-    return [...firstPagePosts, ...remainingPosts];
-  }, []);
+  const isQueryingRef = useRef(false);
 
   const loadProfile = useCallback(
     async (isRefresh = false) => {
@@ -205,8 +202,7 @@ export default function ProfileScreenContent({ userId = "" }) {
             );
           }
           
-          loadMoreTriggerLock.current = false;
-          lastTriggeredContentHeightRef.current = 0;
+          isQueryingRef.current = false;
           setLastId(postPage.lastId || "");
         });
       } catch (loadError) {
@@ -223,7 +219,7 @@ export default function ProfileScreenContent({ userId = "" }) {
         setIsRefreshing(false);
       }
     },
-    [userId, cacheKey, executeWithInternetCheck, mergeRefreshedFeed],
+    [userId, cacheKey, executeWithInternetCheck],
   );
 
   const syncOwnProfileFromSession = useCallback(async () => {
@@ -253,9 +249,10 @@ export default function ProfileScreenContent({ userId = "" }) {
   }, [cacheKey, userId, posts]);
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || hasLoadedAllPosts || posts.length === 0) return;
+    if (isQueryingRef.current || hasLoadedAllPosts || posts.length === 0) return;
 
     try {
+      isQueryingRef.current = true;
       setIsLoadingMore(true);
       await wait(1000);
       const nextPage = currentPage + 1;
@@ -306,70 +303,19 @@ export default function ProfileScreenContent({ userId = "" }) {
         router.replace("/(auth)/login");
       }
     } finally {
-      loadMoreTriggerLock.current = false;
       setIsLoadingMore(false);
+      isQueryingRef.current = false;
     }
   }, [
     currentPage,
     hasLoadedAllPosts,
-    isLoadingMore,
     lastId,
-    mergeUniquePosts,
     posts.length,
     profile?.isOwnProfile,
     profile?.id,
     userId,
     cacheKey,
   ]);
-
-  const queueLoadMore = useCallback(
-    (contentHeight = 0) => {
-      if (
-        loadMoreTriggerLock.current ||
-        isLoadingMore ||
-        hasLoadedAllPosts ||
-        posts.length === 0
-      ) {
-        return;
-      }
-
-      if (
-        contentHeight > 0 &&
-        contentHeight <= lastTriggeredContentHeightRef.current
-      ) {
-        return;
-      }
-
-      lastTriggeredContentHeightRef.current = contentHeight;
-      loadMoreTriggerLock.current = true;
-      void loadMore();
-    },
-    [hasLoadedAllPosts, isLoadingMore, loadMore, posts.length],
-  );
-
-  const handleListScroll = useCallback(
-    ({ nativeEvent }) => {
-      if (loadMoreTriggerLock.current || isLoadingMore || hasLoadedAllPosts) {
-        return;
-      }
-
-      const visibleHeight = nativeEvent.layoutMeasurement?.height || 0;
-      const offsetY = nativeEvent.contentOffset?.y || 0;
-      const contentHeight = nativeEvent.contentSize?.height || 0;
-      const distanceToBottom = contentHeight - (visibleHeight + offsetY);
-
-      lastContentHeightRef.current = contentHeight;
-
-      if (distanceToBottom <= 140 && contentHeight > visibleHeight) {
-        queueLoadMore(contentHeight);
-      }
-    },
-    [hasLoadedAllPosts, isLoadingMore, queueLoadMore],
-  );
-
-  const handleEndReached = useCallback(() => {
-    queueLoadMore(lastContentHeightRef.current);
-  }, [queueLoadMore]);
 
   const handleToggleLike = async (post) => {
     try {
@@ -749,11 +695,7 @@ export default function ProfileScreenContent({ userId = "" }) {
           isLoadingMore={isLoadingMore}
           hasLoadedAllPosts={hasLoadedAllPosts}
           onRefresh={() => loadProfile(true)}
-          onScroll={handleListScroll}
-          onContentSizeChange={(_, height) => {
-            lastContentHeightRef.current = height;
-          }}
-          onEndReached={handleEndReached}
+          onEndReached={loadMore}
           onToggleLike={handleToggleLike}
           onSubmitExercise={handleSubmitExercise}
           onDeletePost={handleDeletePost}
