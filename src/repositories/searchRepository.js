@@ -6,8 +6,8 @@ import {
 } from "@/repositories/postRepository";
 import { assertBackendOk } from "@/repositories/serverResponse";
 import { getCurrentSession, isMockMode } from "@/repositories/source";
-import * as localPosts from "@/services/postStore";
 import { getUserInfo } from "@/repositories/userRepository";
+import * as localPosts from "@/services/postStore";
 import { mapPosts, mapUsersFromResponse } from "@/utils/search";
 
 function normalizeSearchUser(profile = {}, fallback = {}) {
@@ -67,11 +67,15 @@ function hasBackendSearchUsers(response = {}) {
 }
 
 function isHashtagKeyword(keyword = "") {
-  return String(keyword || "").trim().startsWith("#");
+  return String(keyword || "")
+    .trim()
+    .startsWith("#");
 }
 
 function normalizeHashtagKeyword(keyword = "") {
-  const trimmed = String(keyword || "").trim().toLowerCase();
+  const trimmed = String(keyword || "")
+    .trim()
+    .toLowerCase();
   if (!trimmed) return "";
   return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
 }
@@ -179,7 +183,7 @@ export async function searchScreenSearch(keyword = "", options = {}) {
   });
 
   let posts = mapPosts(response);
-  let users = mapUsersFromResponse(response, posts);
+  let users = mapUsersFromResponse(response);
   const backendHasUsers = hasBackendSearchUsers(response);
 
   if (
@@ -193,7 +197,9 @@ export async function searchScreenSearch(keyword = "", options = {}) {
 
   // Client-side filter: only include users whose name contains the keyword
   try {
-    const lowered = String(trimmedKeyword || "").trim().toLowerCase();
+    const lowered = String(trimmedKeyword || "")
+      .trim()
+      .toLowerCase();
     if (lowered) {
       if (!backendHasUsers) {
         users = users.filter((u) => {
@@ -203,11 +209,15 @@ export async function searchScreenSearch(keyword = "", options = {}) {
       }
 
       // Add current user at the top if search keyword matches their own name
-      const myName = String(session?.displayName || session?.username || "").toLowerCase();
+      const myName = String(
+        session?.displayName || session?.username || "",
+      ).toLowerCase();
       if (myName.includes(lowered)) {
         const currentUser = {
           id: String(session?.id || ""),
-          name: String(session?.displayName || session?.username || "Người dùng"),
+          name: String(
+            session?.displayName || session?.username || "Người dùng",
+          ),
           handle: String(session?.username || ""),
           role: String(session?.role || "HV"),
           avatar: String(session?.avatar || ""),
@@ -217,15 +227,19 @@ export async function searchScreenSearch(keyword = "", options = {}) {
       }
 
       const hasInPost = posts.some((p) =>
-        String(p?.described || p?.content || "").toLowerCase().includes(lowered)
+        String(p?.described || p?.content || "")
+          .toLowerCase()
+          .includes(lowered),
       );
       const hasInUsername = users.some((u) =>
-        String(u?.name || "").toLowerCase().includes(lowered)
+        String(u?.name || "")
+          .toLowerCase()
+          .includes(lowered),
       );
 
-      if (hasInPost && !hasInUsername) {
+      if (!hasInUsername) {
         users = [];
-      } else if (!hasInPost && hasInUsername) {
+      } else if (!hasInPost) {
         posts = [];
       }
     }

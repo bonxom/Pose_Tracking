@@ -70,7 +70,11 @@ export function mapSavedSearches(response) {
           "",
       ).trim(),
       createdAt: String(
-        item.created_at || item.createdAt || item.created || item.updated_at || "",
+        item.created_at ||
+          item.createdAt ||
+          item.created ||
+          item.updated_at ||
+          "",
       ),
     }))
     .filter((item) => item.keyword);
@@ -82,30 +86,7 @@ export function mapPosts(response) {
     .filter((item) => item?.id);
 }
 
-function dedupeUsers(posts = []) {
-  const seen = new Set();
-
-  return posts
-    .map((post) => ({
-      id: String(post.author?.id || ""),
-      name:
-        post.author?.name ||
-        post.author?.username ||
-        post.author?.handle ||
-        "Người dùng",
-      handle: post.author?.handle || post.author?.username || "",
-      role: post.author?.role || "HV",
-      avatar: post.author?.avatar || "",
-      description: "",
-    }))
-    .filter((user) => {
-      if (!user.id || seen.has(user.id)) return false;
-      seen.add(user.id);
-      return true;
-    });
-}
-
-export function mapUsersFromResponse(response, fallbackPosts = []) {
+export function mapUsersFromResponse(response) {
   const rawUsers = Array.isArray(response?.data?.users)
     ? response.data.users
     : Array.isArray(response?.data?.user)
@@ -140,7 +121,9 @@ export function mapUsersFromResponse(response, fallbackPosts = []) {
       ),
       handle: String(item.username || item.user_name || item.handle || ""),
       role: String(item.role || item.type || "HV"),
-      avatar: String(item.avatar || item.avatar_url || item.image || item.picture || ""),
+      avatar: String(
+        item.avatar || item.avatar_url || item.image || item.picture || "",
+      ),
       description: String(item.description || item.described || item.bio || ""),
     }))
     .filter((item) => {
@@ -152,6 +135,5 @@ export function mapUsersFromResponse(response, fallbackPosts = []) {
   if (mappedUsers.length) {
     return mappedUsers;
   }
-
-  return dedupeUsers(fallbackPosts);
+  return [];
 }
