@@ -1,3 +1,4 @@
+import UserAvatar from "@/components/common/UserAvatar";
 import colors from "@/constants/colors";
 import { getPostById } from "@/repositories/postRepository";
 import { checkNewVersion } from "@/repositories/settingsRepository";
@@ -18,7 +19,6 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Linking,
   Modal,
   Pressable,
@@ -305,38 +305,11 @@ export default function RootLayout() {
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            {notificationToast.avatar ? (
-              <Image
-                source={{ uri: notificationToast.avatar }}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: "#E7F3FF",
-                }}
-              />
-            ) : (
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: "#E7F3FF",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "800",
-                    color: "#1877F2",
-                  }}
-                >
-                  {getToastInitial(notificationToast.title)}
-                </Text>
-              </View>
-            )}
+            <UserAvatar
+              uri={notificationToast?.avatar || ""}
+              size={44}
+              bordered={true}
+            />
 
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text
