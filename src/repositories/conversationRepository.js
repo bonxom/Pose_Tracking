@@ -4,10 +4,7 @@ import { ACTIVE_SOURCES, getCurrentSession } from "@/repositories/source";
 
 export function isConversationAuthError(error) {
   const code = String(
-    error?.code ||
-      error?.data?.code ||
-      error?.response?.data?.code ||
-      "",
+    error?.code || error?.data?.code || error?.response?.data?.code || "",
   );
 
   const status = Number(error?.status || error?.response?.status || 0);
@@ -306,12 +303,12 @@ export async function deleteMessage(messageId) {
 
   const response = await backendApi.deleteMessage({
     token: session.token,
-    id: messageId,
+    messageId,
   });
 
   await assertBackendOk(response, { message: "Backend delete_message failed" });
 
-  return { deleted: true, source: ACTIVE_SOURCES.SERVER };
+  return { deleted: true };
 }
 
 export async function deleteConversation(conversationId) {

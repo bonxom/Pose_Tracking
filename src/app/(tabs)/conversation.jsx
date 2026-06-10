@@ -233,8 +233,8 @@ export default function ConversationsScreen() {
     return [
       {
         title: "Xóa",
-        icon: <TrashIcon color="#ef4444" size={24} />,
-        color: "#ef4444",
+        icon: <TrashIcon color={colors.error} size={24} />,
+        color: colors.error,
         onPress: () => {
           setConfirmVisible(true);
         },

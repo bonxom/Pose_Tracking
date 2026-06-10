@@ -81,7 +81,7 @@ const conversationStyles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 8,
     fontSize: 14,
-    color: colors.error || "#ef4444",
+    color: colors.error,
     textAlign: "center",
   },
   emptyContainer: {

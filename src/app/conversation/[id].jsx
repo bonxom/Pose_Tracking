@@ -2,11 +2,15 @@ import UserAvatar from "@/components/common/UserAvatar";
 import ChatSendIcon from "@/components/icons/ChatSendIcon";
 import ChatSmileIcon from "@/components/icons/ChatSmileIcon";
 import ChatThumbUpIcon from "@/components/icons/ChatThumbUpIcon";
+import TrashIcon from "@/components/icons/TrashIcon";
+import ModalBottomMenu from "@/components/modals/ModalBottomMenu";
+import ModalConfirm from "@/components/modals/ModalConfirm";
 import CommentReactionPicker from "@/components/post/CommentReactionPicker";
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { getBlocks, setBlock } from "@/repositories/blockRepository";
 import {
+  deleteMessage,
   getConversation,
   isConversationAuthError,
   markConversationRead,
@@ -19,13 +23,14 @@ import { redirectIfSessionExpired } from "@/utils/screenErrors";
 import { Ionicons } from "@expo/vector-icons";
 import Foundation from "@expo/vector-icons/Foundation";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
   Keyboard,
   Platform,
   Pressable,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -270,10 +275,11 @@ function getBubbleRadius(isMe, position) {
 
 // ─── Message bubble component ─────────────────────────────────────────────────
 
-function MessageItem({ item, myId, isLatestFromMe }) {
+function MessageItem({ item, myId, isLatestFromMe, deletedIds, onLongPress }) {
   const { msg, position, isGroupEnd, isGroupStart } = item;
   const isMe = msg.sender.id === myId;
-  const isThumb = msg.message === "👍";
+  const isDeleted = deletedIds.has(msg.id);
+  const isThumb = !isDeleted && msg.message === "👍";
   const radiusStyle = isThumb ? {} : getBubbleRadius(isMe, position);
 
   useEffect(() => {
@@ -294,8 +300,24 @@ function MessageItem({ item, myId, isLatestFromMe }) {
     const isTemp = msg.id.toString().startsWith("tmp-");
     const statusText = getMessageStatusText(msg.created, isTemp);
 
+    if (isDeleted) {
+      return (
+        <View
+          style={[conversationDetailStyles.rowRight, { marginTop: topGap }]}
+        >
+          <View style={msgStyles.ghostBubbleRight}>
+            <Text style={msgStyles.ghostText}>Bạn đã xóa một tin nhắn</Text>
+          </View>
+        </View>
+      );
+    }
+
     return (
-      <View style={[conversationDetailStyles.rowRight, { marginTop: topGap }]}>
+      <Pressable
+        style={[conversationDetailStyles.rowRight, { marginTop: topGap }]}
+        onLongPress={() => onLongPress(msg)}
+        delayLongPress={350}
+      >
         {isThumb ? (
           <ChatThumbUpIcon size={34} color={colors.primary} />
         ) : (
@@ -310,7 +332,7 @@ function MessageItem({ item, myId, isLatestFromMe }) {
             {statusText}
           </Text>
         )}
-      </View>
+      </Pressable>
     );
   }
 
@@ -336,6 +358,21 @@ function MessageItem({ item, myId, isLatestFromMe }) {
     </View>
   );
 }
+
+const msgStyles = StyleSheet.create({
+  ghostBubbleRight: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderColor: colors.subtext,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  ghostText: {
+    fontSize: 13,
+    fontStyle: "italic",
+    color: colors.subtext,
+  },
+});
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -396,6 +433,13 @@ export default function ConversationDetailScreen() {
   const [isSending, setIsSending] = useState(false);
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // ── Delete message state ──────────────────────────────────────────────────
+  const [deletedMessageIds, setDeletedMessageIds] = useState(new Set());
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [msgMenuVisible, setMsgMenuVisible] = useState(false);
+  const [msgConfirmVisible, setMsgConfirmVisible] = useState(false);
+  const [isDeletingMsg, setIsDeletingMsg] = useState(false);
 
   const flatListRef = useRef(null);
   const isAtBottomRef = useRef(false);
@@ -544,6 +588,7 @@ export default function ConversationDetailScreen() {
   ]);
 
   useFocusEffect(load);
+
 
   useEffect(() => {
     const showEvent =
@@ -735,6 +780,43 @@ export default function ConversationDetailScreen() {
     }
   };
 
+  // ── Delete message handlers ───────────────────────────────────────────────
+
+  const handleLongPressMessage = useCallback((msg) => {
+    setSelectedMessage(msg);
+    setMsgMenuVisible(true);
+  }, []);
+
+  const handleConfirmDeleteMessage = useCallback(async () => {
+    if (!selectedMessage) return;
+    const msgId = selectedMessage.id;
+    setIsDeletingMsg(true);
+    try {
+      await deleteMessage(msgId);
+      // Mark as deleted in local state (in-session only)
+      setDeletedMessageIds((prev) => new Set([...prev, msgId]));
+    } catch (err) {
+      if (await redirectIfConversationAuthError(err, router)) return;
+      Alert.alert("Lỗi", err?.message || "Không thể xóa tin nhắn.");
+    } finally {
+      setIsDeletingMsg(false);
+      setMsgConfirmVisible(false);
+      setSelectedMessage(null);
+    }
+  }, [selectedMessage, conversation?.id, routeId]);
+
+  const msgMenuButtons = useMemo(
+    () => [
+      {
+        title: "Xóa",
+        icon: <TrashIcon color={colors.error} size={24} />,
+        color: colors.error,
+        onPress: () => setMsgConfirmVisible(true),
+      },
+    ],
+    [],
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const items = buildItems(conversation?.messages);
@@ -765,6 +847,8 @@ export default function ConversationDetailScreen() {
         item={item}
         myId={myId}
         isLatestFromMe={isLatestFromMe && item.id === latestMessageId}
+        deletedIds={deletedMessageIds}
+        onLongPress={handleLongPressMessage}
       />
     );
   };
@@ -1025,6 +1109,25 @@ export default function ConversationDetailScreen() {
           </View>
         )}
       </View>
+
+      {/* ── Long-press delete message menu ── */}
+      <ModalBottomMenu
+        visible={msgMenuVisible}
+        onClose={() => setMsgMenuVisible(false)}
+        buttons={msgMenuButtons}
+      />
+
+      {/* ── Delete message confirmation ── */}
+      <ModalConfirm
+        visible={msgConfirmVisible}
+        title="Xóa tin nhắn"
+        message="Bạn có chắc chắn muốn xóa tin nhắn này?"
+        onConfirm={handleConfirmDeleteMessage}
+        onCancel={() => setMsgConfirmVisible(false)}
+        isProcessing={isDeletingMsg}
+        confirmText="Xóa"
+        cancelText="Hủy"
+      />
     </SafeAreaView>
   );
 }

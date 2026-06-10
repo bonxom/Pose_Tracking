@@ -41,36 +41,6 @@ function normalizeCourse(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   };
 }
 
-function emptyServerCourse() {
-  return {
-    id: "",
-    source: ACTIVE_SOURCES.SERVER,
-    title: "Chưa có khóa học",
-    teacherName: "Chưa có giảng viên",
-    description: "Server chưa trả về khóa học cho tài khoản hiện tại.",
-    enrolled: false,
-    requested: false,
-    enrollmentStatus: "none",
-    studentCount: 0,
-    exerciseCount: 0,
-    latestExerciseId: "",
-    hashtag: "",
-  };
-}
-
-function normalizeStudent(item = {}, source = ACTIVE_SOURCES.SERVER) {
-  return {
-    id: String(item.id || item.user_id || item.student_id || ""),
-    username: item.username || item.name || item.fullname || "Học viên",
-    name: item.name || item.username || item.fullname || "Học viên",
-    avatar: item.avatar || "",
-    role: item.role || "HV",
-    phonenumber: item.phonenumber || item.phone || "",
-    source,
-    raw: item,
-  };
-}
-
 export async function getMyCourses() {
   const session = await getCurrentSession();
 
@@ -79,7 +49,7 @@ export async function getMyCourses() {
       token: session.token,
       user_id: session.id,
       index: "0",
-      count: "20",
+      count: "200",
     });
 
     await assertBackendOk(response, {
@@ -112,7 +82,7 @@ export async function getStudentCourses(params = {}) {
         session.identifier ||
         "",
       index: String(params.index || 0),
-      count: String(params.count || 20),
+      count: String(params.count || 200),
     });
 
     await assertBackendOk(response, {
@@ -130,7 +100,7 @@ export async function getStudentCourses(params = {}) {
   }
 }
 
-export async function getCourseStudents(index = 0, count = 50) {
+export async function getCourseStudents(index = 0, count = 200) {
   const session = await getCurrentSession();
 
   const response = await backendApi.getListStudents({
@@ -147,7 +117,7 @@ export async function getCourseStudents(index = 0, count = 50) {
   return response.data;
 }
 
-export async function getRequestedEnrollment(index = 0, count = 50) {
+export async function getRequestedEnrollment(index = 0, count = 200) {
   const session = await getCurrentSession();
 
   const response = await backendApi.getRequestedEnrollment({
@@ -164,7 +134,7 @@ export async function getRequestedEnrollment(index = 0, count = 50) {
   return extractList(response);
 }
 
-export async function getListCourses(index = 0, count = 20) {
+export async function getListCourses(index = 0, count = 200) {
   const session = await getCurrentSession();
 
   const response = await backendApi.getListCourses({
