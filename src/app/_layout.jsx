@@ -1,4 +1,6 @@
+import colors from "@/constants/colors";
 import { getPostById } from "@/repositories/postRepository";
+import { checkNewVersion } from "@/repositories/settingsRepository";
 import {
   resetInAppNotificationRuntime,
   startInAppNotificationRuntime,
@@ -14,8 +16,33 @@ import {
 } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+
+function isVersionLessThan(v1, v2) {
+  const parts1 = String(v1 || "")
+    .split(".")
+    .map(Number);
+  const parts2 = String(v2 || "")
+    .split(".")
+    .map(Number);
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 < p2) return true;
+    if (p1 > p2) return false;
+  }
+  return false;
+}
 
 function getToastInitial(value = "") {
   const trimmed = String(value || "").trim();
@@ -81,6 +108,59 @@ export default function RootLayout() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [notificationToast, setNotificationToast] = useState(null);
+  const [updateState, setUpdateState] = useState({
+    showModal: false,
+    required: false,
+    url: "",
+    latestVersion: "",
+  });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUpdateState({
+        showModal: false,
+        required: false,
+        url: "",
+        latestVersion: "",
+      });
+      return;
+    }
+
+    let isMounted = true;
+
+    const checkAppVersion = async () => {
+      try {
+        const data = await checkNewVersion();
+        if (!isMounted) return;
+
+        if (data && data.version) {
+          const nowVersion = data.now || "1.0.0";
+          const latestVersion = data.version.version || "1.1.0";
+
+          if (isVersionLessThan(nowVersion, latestVersion)) {
+            setUpdateState({
+              showModal: true,
+              required:
+                data.version.required === "1" || data.version.required === 1,
+              url: data.version.url || "https://example.com/app",
+              latestVersion,
+            });
+          }
+        }
+      } catch (error) {
+        console.warn(
+          "[VERSION CHECK] Failed to check new version:",
+          error.message,
+        );
+      }
+    };
+
+    checkAppVersion();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -286,6 +366,185 @@ export default function RootLayout() {
           </View>
         </Pressable>
       ) : null}
+
+      <Modal
+        visible={updateState.showModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!updateState.required) {
+            setUpdateState((prev) => ({ ...prev, showModal: false }));
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.iconCircle}>
+              <Text style={styles.newBadgeText}>NEW</Text>
+            </View>
+
+            <Text style={styles.modalTitle}>Cập nhật ứng dụng</Text>
+            <Text style={styles.modalDescription}>
+              {updateState.required
+                ? "Vui lòng cập nhật lên phiên bản mới nhất để tiếp tục sử dụng ứng dụng."
+                : "Một phiên bản mới đã sẵn sàng. Hãy cập nhật để trải nghiệm các tính năng mới nhất!"}
+            </Text>
+
+            <View style={styles.versionBadgeContainer}>
+              <Text style={styles.versionBadgeText}>
+                Phiên bản mới: {updateState.latestVersion}
+              </Text>
+            </View>
+
+            <Text
+              style={styles.urlText}
+              numberOfLines={1}
+              ellipsizeMode="middle"
+              selectable
+            >
+              {updateState.url}
+            </Text>
+
+            <View style={styles.buttonContainer}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.updateButton,
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={async () => {
+                  try {
+                    await Linking.openURL(updateState.url);
+                  } catch (err) {
+                    console.warn("Failed to open update URL:", err.message);
+                  }
+                }}
+              >
+                <Text style={styles.updateButtonText}>Cập nhật ngay</Text>
+              </Pressable>
+
+              {!updateState.required && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.laterButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  onPress={() => {
+                    setUpdateState((prev) => ({ ...prev, showModal: false }));
+                  }}
+                >
+                  <Text style={styles.laterButtonText}>Để sau</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContainer: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#EEF2F6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 4,
+    borderColor: "#E2E8F0",
+  },
+  newBadgeText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: "#475569",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  versionBadgeContainer: {
+    backgroundColor: "#EEF2FF",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  versionBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  urlText: {
+    fontSize: 12,
+    color: colors.primary,
+    textAlign: "center",
+    marginBottom: 20,
+    padding: 8,
+  },
+  buttonContainer: {
+    width: "100%",
+    gap: 8,
+  },
+  updateButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  updateButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  laterButton: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  laterButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  buttonPressed: {
+    opacity: 0.85,
+  },
+});

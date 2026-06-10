@@ -213,27 +213,14 @@ export async function checkNewVersion() {
 
   let response = await backendApi.checkNewVersion({
     token: session?.token || "",
-    last_update: "2026-05-10T00:00:00.000Z",
+    lastUpdate: "2026-05-10T00:00:00.000Z",
   });
-
-  if (
-    String(response?.message || "").includes(
-      "property last_update should not exist",
-    )
-  ) {
-    console.info(
-      "[DATA] check_new_version deployed compatibility: retrying with lastUpdate",
-    );
-
-    response = await backendApi.checkNewVersion({
-      token: session?.token || "",
-      lastUpdate: "2026-05-10T00:00:00.000Z",
-    });
-  }
 
   await assertBackendOk(response, {
     message: "Backend check_new_version failed",
   });
+
+  console.log(extractObject(response));
 
   return extractObject(response);
 }
