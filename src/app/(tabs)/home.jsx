@@ -74,7 +74,9 @@ export default function HomeScreen() {
           count: FEED_PAGE_SIZE,
           lastId: "",
         });
-        const nextItems = (result.items || []).filter(item => !isPostReported(item.id));
+        const nextItems = (result.items || []).filter(
+          (item) => !isPostReported(item.id),
+        );
         const hadCachedPosts = feedCacheState.homeFeedCache.length > 0;
         const mergedFeed =
           !refresh && hadCachedPosts
@@ -120,7 +122,9 @@ export default function HomeScreen() {
     useCallback(() => {
       // In-memory cache already populated → render instantly, refresh in background
       if (feedCacheState.homeFeedCache.length > 0) {
-        const filteredCache = feedCacheState.homeFeedCache.filter(item => !isPostReported(item.id));
+        const filteredCache = feedCacheState.homeFeedCache.filter(
+          (item) => !isPostReported(item.id),
+        );
         if (filteredCache.length !== feedCacheState.homeFeedCache.length) {
           feedCacheState.homeFeedCache = filteredCache;
         }
@@ -134,8 +138,13 @@ export default function HomeScreen() {
       if (!diskCacheLoadedRef.current) {
         diskCacheLoadedRef.current = true;
         readCache(CACHE_KEY_HOME_FEED).then((cached) => {
-          const filteredCached = (cached || []).filter(item => !isPostReported(item.id));
-          if (filteredCached.length > 0 && feedCacheState.homeFeedCache.length === 0) {
+          const filteredCached = (cached || []).filter(
+            (item) => !isPostReported(item.id),
+          );
+          if (
+            filteredCached.length > 0 &&
+            feedCacheState.homeFeedCache.length === 0
+          ) {
             feedCacheState.homeFeedCache = filteredCached;
             setPosts(filteredCached);
             setIsLoading(false);
@@ -162,14 +171,18 @@ export default function HomeScreen() {
         lastId,
       });
 
-      let nextItems = (result.items || []).filter(item => !isPostReported(item.id));
+      let nextItems = (result.items || []).filter(
+        (item) => !isPostReported(item.id),
+      );
       if (nextItems.length === 0 && posts.length >= FEED_PAGE_SIZE) {
         result = await getFeedPage({
           index: posts.length,
           count: FEED_PAGE_SIZE,
           lastId,
         });
-        nextItems = (result.items || []).filter(item => !isPostReported(item.id));
+        nextItems = (result.items || []).filter(
+          (item) => !isPostReported(item.id),
+        );
       }
 
       if (nextItems.length === 0) {

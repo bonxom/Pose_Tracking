@@ -83,33 +83,6 @@ export default function PostCard({
       ? formatCount(likeCount)
       : "";
   const hashtags = post.hashtags || [];
-  const avatarInfo = useMemo(() => {
-    const authorId = String(post.author?.id || "").trim();
-    const isOwn = Boolean(
-      currentUser?.id && authorId && currentUser.id === authorId,
-    );
-    if (isOwn) {
-      return {
-        uri: currentUser?.avatar || post.author?.avatar || "",
-        version:
-          currentUser?.avatarVersion ||
-          currentUser?.profileSyncRequestedAt ||
-          "",
-      };
-    }
-    return {
-      uri: post.author?.avatar || "",
-      version: post.author?.avatarVersion || "",
-    };
-  }, [
-    post.author?.avatar,
-    post.author?.avatarVersion,
-    post.author?.id,
-    currentUser?.avatar,
-    currentUser?.avatarVersion,
-    currentUser?.profileSyncRequestedAt,
-    currentUser?.id,
-  ]);
 
   const cardScale = removeAnim.interpolate({
     inputRange: [0, 1],
@@ -205,7 +178,7 @@ export default function PostCard({
             hitSlop={8}
             style={localStyles.avatarPressable}
           >
-            <UserAvatar uri={avatarInfo.uri} size={44} />
+            <UserAvatar uri={post.author?.avatar} size={44} />
           </Pressable>
 
           <View style={postStyles.authorMetaGroup}>

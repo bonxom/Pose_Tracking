@@ -4,6 +4,8 @@ import {
   splitContentAndHashtags,
 } from "@/utils/hashtags";
 
+export const SYSTEM_POSTER_ID = "00000000-0000-0000-0000-000000000001";
+
 export function firstValue(...values) {
   return values.find(
     (value) => value !== undefined && value !== null && value !== "",
@@ -348,13 +350,17 @@ export function normalizeComment(raw = {}, source = ACTIVE_SOURCES.SERVER) {
   const author = raw.author || raw.user || raw.poster || raw.owner || {};
   const poster = raw.poster || {};
   const content = firstValue(
-    raw.content,
     raw.comment,
+    raw.content,
     raw.described,
     raw.body,
     "",
   );
   const score = firstValue(raw.score, raw.point, raw.mark, "");
+  const detailMistakes = firstValue(raw.detail_mistakes, "");
+  const posterId = String(
+    firstValue(poster.id, author.id, author.user_id, raw.user_id, ""),
+  );
 
   return {
     id: String(
@@ -367,7 +373,7 @@ export function normalizeComment(raw = {}, source = ACTIVE_SOURCES.SERVER) {
     ),
     source,
     author: {
-      id: String(firstValue(author.id, author.user_id, raw.user_id, "")),
+      id: posterId,
       name: firstValue(
         poster.name,
         author.name,
@@ -405,13 +411,9 @@ export function normalizeComment(raw = {}, source = ACTIVE_SOURCES.SERVER) {
       new Date().toISOString(),
     ),
     score: score ? String(score) : "",
-    detailMistakes: firstValue(
-      raw.detailMistakes,
-      raw.detail_mistakes,
-      raw.details,
-      "",
-    ),
-    isScoreComment: Boolean(score || raw.detailMistakes || raw.detail_mistakes),
+    detailMistakes,
+    isScoreComment: Boolean(score || detailMistakes),
+    isSystemComment: posterId === SYSTEM_POSTER_ID,
     raw,
   };
 }
