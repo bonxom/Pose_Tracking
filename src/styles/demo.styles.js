@@ -1,3 +1,10 @@
+/**
+ * Primary author: Nguyen Quang Duc <Duc.NQ235044@sis.hust.edu.vn>
+ * Maintainer: Nguyen Quang Duc
+ * Ownership: >=90% current git blame on main as of 2026-07-04.
+ * Code owner review: .github/CODEOWNERS
+ */
+
 import colors from "@/constants/colors";
 import sizes from "@/constants/sizes";
 import { StyleSheet } from "react-native";

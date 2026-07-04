@@ -1,0 +1,13 @@
+# Ownership attribution for code primarily authored by Nguyen Quang Duc.
+# Enforcement requires GitHub branch protection with "Require review from Code Owners".
+
+/scripts/e2e-server.mjs Duc.NQ235044@sis.hust.edu.vn
+/scripts/probe-backend.mjs Duc.NQ235044@sis.hust.edu.vn
+/src/api/backendStatus.js Duc.NQ235044@sis.hust.edu.vn
+/src/app/settings/_layout.jsx Duc.NQ235044@sis.hust.edu.vn
+/src/app/settings/policies.jsx Duc.NQ235044@sis.hust.edu.vn
+/src/components/post/commentThreadUtils.js Duc.NQ235044@sis.hust.edu.vn
+/src/repositories/source.js Duc.NQ235044@sis.hust.edu.vn
+/src/styles/demo.styles.js Duc.NQ235044@sis.hust.edu.vn
+/src/app/settings/blocks.jsx Duc.NQ235044@sis.hust.edu.vn
+/src/constants/demo.js Duc.NQ235044@sis.hust.edu.vn

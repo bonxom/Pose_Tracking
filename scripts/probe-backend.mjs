@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * Primary author: Nguyen Quang Duc <Duc.NQ235044@sis.hust.edu.vn>
+ * Maintainer: Nguyen Quang Duc
+ * Ownership: >=90% current git blame on main as of 2026-07-04.
+ * Code owner review: .github/CODEOWNERS
+ */
+
 const DEFAULT_ROOT = "https://group1.it4788.sukkaito.id.vn";
 const rawBaseUrl =
   process.env.API_BASE_URL ||

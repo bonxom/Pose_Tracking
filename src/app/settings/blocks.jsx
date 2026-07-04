@@ -1,3 +1,10 @@
+/**
+ * Primary author: Nguyen Quang Duc <Duc.NQ235044@sis.hust.edu.vn>
+ * Maintainer: Nguyen Quang Duc
+ * Ownership: >=90% current git blame on main as of 2026-07-04.
+ * Code owner review: .github/CODEOWNERS
+ */
+
 import AppButton from "@/components/common/AppButton";
 import AppInput from "@/components/common/AppInput";
 import Screen from "@/components/common/Screen";

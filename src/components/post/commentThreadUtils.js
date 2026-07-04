@@ -1,3 +1,10 @@
+/**
+ * Primary author: Nguyen Quang Duc <Duc.NQ235044@sis.hust.edu.vn>
+ * Maintainer: Nguyen Quang Duc
+ * Ownership: >=90% current git blame on main as of 2026-07-04.
+ * Code owner review: .github/CODEOWNERS
+ */
+
 export const COMMENT_MAX_LENGTH = 500;
 
 export function sanitizeCommentText(value = "") {

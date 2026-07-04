@@ -1,3 +1,10 @@
+/**
+ * Primary author: Nguyen Quang Duc <Duc.NQ235044@sis.hust.edu.vn>
+ * Maintainer: Nguyen Quang Duc
+ * Ownership: >=90% current git blame on main as of 2026-07-04.
+ * Code owner review: .github/CODEOWNERS
+ */
+
 import { API_BASE_URL } from "@/config/env";
 import { backendApi } from "@/api/client";
 import { getApiType, getDataSourceMode, hasServerSession, isMockMode } from "@/repositories/source";
